@@ -1,0 +1,29 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Build and Push Docker Image
+      run: |
+        az acr login --name basicregistrecontainer
+        docker build -t basicregistrecontainer.azurecr.io/keezen:latest .
+        docker push basicregistrecontainer.azurecr.io/keezen:latest
+
+    - name: Set AKS Context
+      run: az aks get-credentials --resource-group RG-Web --name KeezenCluster
+
+    - name: Deploy to AKS
+      run: |
+        kubectl set image deployment/keezen-deployment keezen-game=basicregistrecontainer.azurecr.io/keezen:latest
