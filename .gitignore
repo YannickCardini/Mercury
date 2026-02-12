@@ -1,28 +1,51 @@
-# Angular specific
+# Angular/Ionic - Build output
 /dist/
+/app/dist/
 /out-tsc/
 /tmp/
 /coverage/
 /e2e/test-output/
+
+# Angular cache and cache files
 /.angular/
 .angular/
+*.tsbuildinfo
 
-# Node modules and dependency files
+# Node modules
 /node_modules/
-/package-lock.json
-/yarn.lock
+/app/node_modules/
+
+# Dependency lock files (optional - décommentez si vous utilisez npm)
+# package-lock.json
+# yarn.lock
 
 # Environment files
 /.env
+.env
+.env.local
+.env.*.local
 
-# Angular CLI and build artefacts
-/.angular-cli.json
-/.ng/
+# IDE
+/.idea/
+.vscode/
+*.swp
+*.swo
+*~
 
-# TypeScript cache
-*.tsbuildinfo
+# OS
+.DS_Store
+Thumbs.db
 
 # Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# Kubernetes
+/k8s/*.pem
+/k8s/*.key
+
