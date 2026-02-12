@@ -1,0 +1,27 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-title>
+      Blank
+    </ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="grid-container">
+  <ion-header collapse="condense">
+    <ion-toolbar>
+      <ion-title size="large">Blank</ion-title>
+    </ion-toolbar>
+  </ion-header>
+
+  <div class="square-grid" [style.--square-size.px]="squareSize">
+    @for (row of rows; track row) {
+    <div class="grid-row">
+      @for (col of cols; track col) {
+      <div class="grid-col">
+        <div class="case">{{ getSquareIndex(row, col) }}</div>
+      </div>
+      }
+    </div>
+    }
+  </div>
+</ion-content>
