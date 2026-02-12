@@ -16,6 +16,6 @@ RUN npm run build --prod
 FROM nginx:alpine
 # Copie les fichiers compilés depuis l'étape de build vers Nginx
 # ATTENTION: Ionic/Angular utilise souvent 'dist/' au lieu de 'www/'
-COPY --from=build /app/dist/keezen /usr/share/nginx/html
+COPY --from=build /app/www /usr/share/nginx/html
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
