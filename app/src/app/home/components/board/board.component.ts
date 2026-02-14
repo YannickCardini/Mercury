@@ -1,4 +1,5 @@
 import { Component, HostListener, OnInit } from '@angular/core';
+import { getSquareToDisplay } from './square-data';
 
 @Component({
   selector: 'app-board',
@@ -6,17 +7,19 @@ import { Component, HostListener, OnInit } from '@angular/core';
   styleUrl: 'board.component.scss',
 })
 export class BoardComponent implements OnInit {
-  gridSize = 11;
+  gridSize = 13;
   squareSize: number = 0;
-
-
-  squareToDisplay = [4, 5, 6, 7, 8, 15, 19, 30, 41, 42, 43, 44, 26, 37,
-    34, 35, 36, 45, 55, 56, 66, 67, 86, 87, 88, 77, 79, 78, 80, 81, 85, 92, 96, 103, 107, 114, 115, 116, 117, 118]
+  squareToDisplay: number[] = [];
 
   constructor() { }
 
   ngOnInit() {
     this.calculateSquareSize();
+    this.loadSquareData();
+  }
+
+  loadSquareData() {
+    this.squareToDisplay = getSquareToDisplay(this.gridSize);
   }
 
   @HostListener('window:resize')

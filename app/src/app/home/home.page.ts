@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { IonHeader, IonToolbar, IonTitle, IonContent } from '@ionic/angular/standalone';
-import { BoardComponent } from './components/board.component';
+import { BoardComponent } from './components/board/board.component';
 
 @Component({
   selector: 'app-home',

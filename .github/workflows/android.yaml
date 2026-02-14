@@ -25,6 +25,8 @@ jobs:
       # --- AJOUTEZ CETTE ÉTAPE POUR METTRE À JOUR LE SDK ---
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          sdk-version: '35'
       # -----------------------------------------------------
 
       - name: Install Dependencies
