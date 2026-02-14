@@ -7,56 +7,6 @@
     overflow: hidden;
 }
 
-.square-grid {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    width: 100%;
-    max-width: 100vw;
-}
-
-.grid-row {
-    display: flex;
-    justify-content: center;
-    margin: 0;
-    padding: 0;
-}
-
-.grid-col {
-    margin: 0;
-    padding: 0;
-}
-
-.case {
-    width: var(--square-size);
-    height: var(--square-size);
-    border: 1px solid black;
-    text-align: center;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: calc(var(--square-size) * 0.15);
-    box-sizing: border-box;
-    line-height: 1;
-}
-
-.case-hidden {
-    width: var(--square-size);
-    height: var(--square-size);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    box-sizing: border-box;
-    line-height: 1;
-}
-
-.case:hover {
-    background-color: green;
-    cursor: pointer;
-}
-
 // Empêcher le scroll horizontal sur mobile
 ion-content {
     --overflow: hidden;
