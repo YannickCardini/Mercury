@@ -25,13 +25,18 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
         with:
-          sdk-version: '36'  # ⬅️ Changez de 35 à 36
+          sdk-version: '36'  
 
       - name: Install Dependencies
         run: |
           cd app
           npm install -g @capacitor/cli @capacitor/core @capacitor/android
           npm install
+
+      - name: Build Web App (Production)
+        run: |
+          cd app
+          npm run build
           
       - name: Build Android App Bundle
         run: |
