@@ -1,0 +1,29 @@
+<div class="selector-container">
+    <!-- Turn Indicator (Inspired by your layout) -->
+    <div class="turn-banner" [style.background-color]="currentPlayerColor()">
+        <div class="banner-content">
+            <span class="player-name">{{ currentPlayerName() }}'s Turn</span>
+            <span class="phase-hint">{{ turnPhase() }}</span>
+        </div>
+    </div>
+
+    <!-- Player Hand -->
+    <div class="hand-container">
+        @for (card of hand(); track card.id; let i = $index) {
+        <button class="tock-card" [class.selected]="selectedCardIndex() === i"
+            [class.is-red]="card.suit === '♥' || card.suit === '♦'" (click)="selectCard(i)">
+            <span class="card-value">{{ card.value }}</span>
+            <span class="card-suit">{{ card.suit }}</span>
+        </button>
+        } @empty {
+        <div class="empty-hand">No cards in hand</div>
+        }
+    </div>
+
+    <!-- Game Actions -->
+    <div class="action-footer">
+        <button class="action-btn" (click)="drawCards()">
+            New Round
+        </button>
+    </div>
+</div>

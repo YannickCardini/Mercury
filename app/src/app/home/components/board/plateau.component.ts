@@ -1,5 +1,6 @@
 import { Component, HostListener, OnInit } from '@angular/core';
 import { getSquareToDisplay } from './square-data';
+import { GameStateService } from '../../services/game-state.service';
 
 @Component({
   selector: 'app-board',
@@ -11,9 +12,10 @@ export class BoardComponent implements OnInit {
   squareSize: number = 0;
   squareToDisplay: number[] = [];
 
-  constructor() { }
+  constructor(private gameStateService: GameStateService) { }
 
   ngOnInit() {
+    console.log(this.gameStateService.data());
     this.calculateSquareSize();
     this.loadSquareData();
   }
@@ -52,6 +54,22 @@ export class BoardComponent implements OnInit {
   shouldDisplayThisSquare(row: number, col: number) {
     const squareIndex = this.getSquareIndex(row, col);
     return this.squareToDisplay.includes(squareIndex);
+  }
+
+  getPlayerColorAtPosition(row: number, col: number): string {
+    const gameData = this.gameStateService.data();
+    if (!gameData || !this.gameStateService.isConnected()) return '';
+
+    const playerPositions = [
+      { position: gameData.gameState.redPlayerMarblePosition, color: '#ef4444' },
+      { position: gameData.gameState.greenPlayerMarblePosition, color: '#22c55e' },
+      { position: gameData.gameState.bluePlayerMarblePosition, color: '#3b82f6' },
+      { position: gameData.gameState.orangePlayerMarblePosition, color: '#f97316' }
+    ];
+
+    const squareIndex = this.getSquareIndex(row, col);
+    const player = playerPositions.find(p => (p.position || []).includes(squareIndex));
+    return player ? player.color : '';
   }
 }
 

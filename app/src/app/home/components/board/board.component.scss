@@ -31,6 +31,7 @@
     font-size: calc(var(--square-size) * 0.35);
     box-sizing: border-box;
     line-height: 1;
+    border-radius: 100%;
 }
 
 .case-hidden {
@@ -46,4 +47,11 @@
 .case:hover {
     background-color: green;
     cursor: pointer;
+}
+
+.player {
+    width: calc(var(--square-size) * 0.8);
+    height: calc(var(--square-size) * 0.8);
+    border-radius: 100%;
+    box-shadow: 0 4px 6px rgb(0 0 0 / 0.1);
 }

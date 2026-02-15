@@ -1,0 +1,16 @@
+<div class="table-container">
+  <div class="content-wrapper">
+    <!-- Card Selector Component -->
+    <div class="card-selector-section">
+      <app-card-selector [hand]="hand()" [selectedCardIndex]="selectedCardIndex()" [turnPhase]="turnPhase()"
+        [currentPlayerColor]="currentPlayerColor()" [currentPlayerName]="currentPlayerName()"
+        (cardSelected)="onCardSelected($event)" (drawCardsClicked)="onDrawCards()">
+      </app-card-selector>
+    </div>
+
+    <!-- Game Info Component -->
+    <div class="game-info-section">
+      <app-game-info></app-game-info>
+    </div>
+  </div>
+</div>

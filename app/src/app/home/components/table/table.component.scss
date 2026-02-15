@@ -1,0 +1,69 @@
+:host {
+    display: block;
+    height: 100%;
+    width: 100%;
+}
+
+.table-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    height: 100%;
+    padding: 1rem;
+}
+
+.content-wrapper {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    width: 100%;
+    max-width: 1200px;
+    height: 100%;
+
+    @media (max-width: 768px) {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+}
+
+.card-selector-section {
+    display: flex;
+    flex-direction: column;
+    background-color: white;
+    border-radius: 0.75rem;
+    padding: 1rem;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    overflow-y: auto;
+}
+
+.game-info-section {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+
+    app-game-info {
+        display: block;
+        height: 100%;
+    }
+}
+
+.action-footer {
+    margin-top: auto;
+    padding-bottom: 1rem;
+}
+
+.action-btn {
+    background: #d6d3d1;
+    padding: 0.5rem 1.5rem;
+    border-radius: 9999px;
+    font-weight: 600;
+    color: #444;
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s;
+
+    &:hover {
+        background: #a8a29e;
+    }
+}
