@@ -1,26 +1,20 @@
-<!-- <ion-header [translucent]="true">
+<!-- <ion-header>
   <ion-toolbar>
-    <ion-title>
-      Keenzen
-    </ion-title>
+    <ion-title>Keenzen</ion-title>
   </ion-toolbar>
 </ion-header> -->
 
 <ion-content [fullscreen]="true" class="grid-container">
-  <ion-header collapse="condense">
-    <ion-toolbar>
-      <ion-title size="large">Keenzen</ion-title>
-    </ion-toolbar>
-  </ion-header>
   @if (gameStateService.data(); as gameData) {
-  <div class="game-layout">
-    <app-board></app-board>
-    <app-table></app-table>
-
-    <!-- <app-test></app-test> -->
+  <div class="game-layout wooden-background-realistic">
+    <div class="board-wrapper">
+      <app-board></app-board>
+    </div>
+    <div class="table-wrapper">
+      <app-table></app-table>
+    </div>
   </div>
-  }
-  @else{
-  <div class="empty-state">Waiting for game data...</div>
+  } @else {
+  <div class="empty-state">Attente des données...</div>
   }
 </ion-content>

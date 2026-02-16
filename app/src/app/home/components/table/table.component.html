@@ -1,15 +1,47 @@
-<div class="table-container">
-  <!-- Player Hand -->
-  <div class="hand-container">
-    @for (card of getPlayerHand(); track card.id; let i = $index) {
-    <button class="tock-card" [class.selected]="selectedCardIndex() === i"
-      [class.is-red]="card.suit === '♥' || card.suit === '♦'" (click)="selectCard(i)">
-      <span class="card-value">{{ card.value }}</span>
-      <span class="card-suit">{{ card.suit }}</span>
-    </button>
-    } @empty {
-    <div class="empty-hand">No cards in hand</div>
-    }
+<div class="table-container glass-panel">
+
+  <div class="status-header">
+    <div class="turn-indicator">
+      <span class="pulse-dot" [style.background-color]="getPlayerColor()"></span>
+      Turn of : <strong>{{ getPlayerName() }}</strong>
+    </div>
+    <div class="phase-message">{{ turnPhase() }}</div>
+  </div>
+
+  <div class="center-zone">
+    <div class="discard-pile-container">
+      <span class="label">Discard Pile</span>
+      <div class="card-stack">
+        @for (card of getDiscardedCards().slice(-3); track card.id; let i = $index) {
+        <div class="tock-card stack-card" [style.--offset]="i" [class.is-red]="card.suit === '♥' || card.suit === '♦'">
+          <span class="card-value">{{ card.value }}</span>
+          <span class="card-suit">{{ card.suit }}</span>
+        </div>
+        } @empty {
+        <div class="empty-slot">Empty</div>
+        }
+      </div>
+    </div>
+
+    <div class="action-zone">
+      <button class="confirm-btn" [disabled]="!selectedCardIndex()" (click)="confirmMove()">
+        Confirm move
+      </button>
+    </div>
+  </div>
+
+  <div class="hand-section">
+    <div class="hand-container">
+      @for (card of getPlayerHand(); track card.id; let i = $index) {
+      <button class="tock-card" [class.selected]="selectedCardIndex() === i"
+        [class.is-red]="card.suit === '♥' || card.suit === '♦'" (click)="selectCard(i)">
+        <span class="card-value">{{ card.value }}</span>
+        <span class="card-suit">{{ card.suit }}</span>
+      </button>
+      } @empty {
+      <div class="empty-hand">Aucune carte en main</div>
+      }
+    </div>
   </div>
 
 </div>
