@@ -4,121 +4,119 @@
     width: 100%;
 }
 
-/* =========================================
-   LAYOUT GLOBAL (GRID)
-   ========================================= */
 .game-board {
     height: 100%;
     max-height: 100%;
     overflow: hidden;
-    background: radial-gradient(circle at 50% 30%, #2a354b, #0f172a); // Effet tapis de jeu
+    background: radial-gradient(circle at 50% 30%, #2a354b, #0f172a);
     border-radius: 20px;
     box-sizing: border-box;
     position: relative;
+
+    // ← Flex colonne pour centrer les cartes dans l'espace disponible
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+
+    // ← Réserve l'espace du footer (hauteur ~90px + safe-area) pour ne pas chevaucher
+    padding-bottom: calc(90px + env(safe-area-inset-bottom));
 }
 
 /* =========================================
-   ZONE 2 : MAIN DU JOUEUR
+   ZONE : MAIN DU JOUEUR
    ========================================= */
-// .hand-zone {
-//     display: flex;
-//     justify-content: center;
-//     padding: 0 1rem;
-//     z-index: 10;
-//     // Astuce pour lier visuellement la main au tableau de bord
-//     transform: translateY(1rem);
-// }
+.hand-zone {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 1rem;
+    width: 100%;
+    z-index: 10;
+    // ← Suppression du translateY(1rem) qui décalait tout vers le haut
+}
 
-// .cards-fan {
-//     display: flex;
-//     justify-content: center;
-//     align-items: flex-end;
-//     /* MAGIE RESPONSIVE ICI : 
-//      Sur petit écran, le gap devient négatif et les cartes se chevauchent (-1.5rem).
-//      Sur grand écran, il devient positif (0.5rem). */
-//     gap: clamp(-1.5rem, 4vw - 2rem, 0.5rem);
-
-//     // Prévient le dépassement horizontal
-//     max-width: 100%;
-// }
-
-// /* =========================================
-//    DESIGN DES CARTES (Typo Responsive CQI)
-//    ========================================= */
-// .tock-card {
-//     /* CONTAINER QUERIES : La carte devient son propre repère de taille */
-//     container-type: inline-size;
-
-//     width: clamp(3.5rem, 16vw, 8rem); // S'adapte du mobile très fin au desktop
-//     aspect-ratio: 2.5 / 3.5;
-//     background: white;
-//     border-radius: clamp(4px, 1vw, 8px);
-//     border: none;
-//     box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.3), inset 0 0 0 1px rgba(0, 0, 0, 0.1);
-//     transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s;
-//     cursor: pointer;
-//     padding: 0; // On gère le padding dans .card-inner
-
-//     &.is-red {
-//         color: #ef4444;
-//     }
-
-//     &:not(.is-red) {
-//         color: #0f172a;
-//     }
-
-//     .card-inner {
-//         display: flex;
-//         flex-direction: column;
-//         align-items: center;
-//         justify-content: center;
-//         height: 100%;
-//         width: 100%;
-//         gap: 2cqi; // L'espace entre texte et symbole dépend de la largeur de la carte
-//     }
-
-//     .card-value {
-//         font-size: 35cqi; // Le texte fera TOUJOURS 35% de la largeur de la carte !
-//         font-weight: 800;
-//         line-height: 1;
-//     }
-
-//     .card-suit {
-//         font-size: 45cqi; // Le symbole fera TOUJOURS 45% de la largeur de la carte !
-//         line-height: 1;
-//     }
-// }
-
-// /* Animations d'interaction pour la main */
-// .playable-card {
-//     &:hover:not(.selected) {
-//         transform: translateY(-0.8rem);
-//         box-shadow: 0 -8px 20px rgba(0, 0, 0, 0.4);
-//     }
-
-//     &.selected {
-//         transform: translateY(-1.5rem) scale(1.05);
-//         box-shadow: 0 0 0 4px #a855f7, 0 -10px 25px rgba(168, 85, 247, 0.5);
-//         z-index: 5;
-//     }
-// }
+.cards-fan {
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    gap: clamp(-1.5rem, 4vw - 2rem, 0.5rem);
+    max-width: 100%;
+}
 
 /* =========================================
-   ZONE 3 : TABLEAU DE BORD (Contrôles)
+   DESIGN DES CARTES
+   ========================================= */
+.tock-card {
+    container-type: inline-size;
+    width: clamp(3.5rem, 16vw, 8rem);
+    aspect-ratio: 2.5 / 3.5;
+    background: white;
+    border-radius: clamp(4px, 1vw, 8px);
+    border: none;
+    box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.3), inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s;
+    cursor: pointer;
+    padding: 0;
+
+    &.is-red {
+        color: #ef4444;
+    }
+
+    &:not(.is-red) {
+        color: #0f172a;
+    }
+
+    .card-inner {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        width: 100%;
+        gap: 2cqi;
+    }
+
+    .card-value {
+        font-size: 35cqi;
+        font-weight: 800;
+        line-height: 1;
+    }
+
+    .card-suit {
+        font-size: 45cqi;
+        line-height: 1;
+    }
+}
+
+.playable-card {
+    &:hover:not(.selected) {
+        transform: translateY(-0.8rem);
+        box-shadow: 0 -8px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    &.selected {
+        transform: translateY(-1.5rem) scale(1.05);
+        box-shadow: 0 0 0 4px #a855f7, 0 -10px 25px rgba(168, 85, 247, 0.5);
+        z-index: 5;
+    }
+}
+
+/* =========================================
+   FOOTER : TABLEAU DE BORD
    ========================================= */
 .control-dashboard {
     background: rgba(15, 23, 42, 0.85);
     backdrop-filter: blur(20px);
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     padding: 1.5rem 1rem;
-    /* Sécurité pour les encoches iPhone en bas de l'écran */
     padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
     z-index: 20;
     position: absolute;
     bottom: 0;
-    left: 0; // ← remplace width: 100%
-    right: 0; // ← remplace width: 100%
-    box-sizing: border-box; // ← sécurité
+    left: 0;
+    right: 0;
+    box-sizing: border-box;
 }
 
 .dashboard-grid {
@@ -128,15 +126,8 @@
     max-width: 900px;
     margin: 0 auto;
     gap: 1rem;
-    bottom: 0;
-
-    @media (max-width: 500px) {
-        flex-wrap: column;
-        justify-content: stretch;
-    }
 }
 
-/* --- Éléments du Dashboard --- */
 .player-profile {
     display: flex;
     align-items: center;
@@ -150,11 +141,13 @@
         height: 40px;
         border-radius: 12px;
         box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        flex-shrink: 0;
     }
 
     .player-info {
         display: flex;
         flex-direction: column;
+        min-width: 0;
 
         .label {
             font-size: 0.75rem;
@@ -164,15 +157,16 @@
 
         strong {
             font-size: 1.1rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
     }
-
 }
 
 .action-btn {
     flex: 0 0 auto;
-    width: clamp(160px, 40%, 250px);
-    max-width: 250px;
+    width: clamp(120px, 35%, 250px);
     padding: 1rem 1.5rem;
     border-radius: 12px;
     border: none;
@@ -183,7 +177,6 @@
     cursor: pointer;
     box-shadow: 0 4px 15px rgba(168, 85, 247, 0.3);
     transition: all 0.2s;
-
 
     &:disabled {
         background: #334155;
@@ -199,38 +192,5 @@
 
     &:not(:disabled):active {
         transform: translateY(0);
-    }
-}
-
-/* Animations */
-@keyframes pulse {
-    0% {
-        transform: scale(1);
-        opacity: 1;
-        box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4);
-    }
-
-    70% {
-        transform: scale(1.1);
-        opacity: 0.8;
-        box-shadow: 0 0 0 10px rgba(255, 255, 255, 0);
-    }
-
-    100% {
-        transform: scale(1);
-        opacity: 1;
-        box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
-    }
-}
-
-@keyframes pulse-danger {
-
-    0%,
-    100% {
-        transform: scale(1);
-    }
-
-    50% {
-        transform: scale(1.05);
     }
 }
