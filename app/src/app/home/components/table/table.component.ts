@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { GameStateService } from './../../services/game-state.service';
-import { Component, ChangeDetectionStrategy, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, computed } from '@angular/core';
+import { IonGrid, IonCol, IonRow } from '@ionic/angular/standalone';
 
 interface Card {
   id: string;
@@ -14,15 +15,18 @@ interface Card {
   styleUrl: 'table.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule]
+  imports: [CommonModule, IonGrid, IonCol, IonRow]
 })
 export class TableComponent {
-
-  constructor(private gameStateService: GameStateService) { }
-
-
+  // Signaux pour l'état de l'UI
   selectedCardIndex = signal<number | null>(null);
   turnPhase = signal<string>('Select a card');
+  timeLeft = signal<number>(30); // Timer de 30 secondes
+
+  // Dérivé pour savoir si le bouton de confirmation doit être activé
+  canConfirm = computed(() => this.selectedCardIndex() !== null);
+
+  constructor(private gameStateService: GameStateService) { }
 
   onCardSelected(index: number) {
     if (this.selectedCardIndex() === index) {
@@ -34,42 +38,34 @@ export class TableComponent {
     }
   }
 
-  selectCard(index: number) {
-    this.onCardSelected(index);
-  }
-
   getPlayerHand(): Card[] {
     const gameData = this.gameStateService.data();
-    if (!gameData) return [];
-    return gameData.gameState.hand;
+    return gameData?.gameState.hand || [];
   }
 
   getPlayerName(): string {
     const gameData = this.gameStateService.data();
-    if (!gameData) return '';
-    return gameData.gameState.players.find((p: any) => p.color === gameData.gameState.currentTurn)?.name || '';
+    return gameData?.gameState.players.find((p: any) => p.color === gameData.gameState.currentTurn)?.name || 'Unknown';
   }
 
   getPlayerColor(): string {
     const gameData = this.gameStateService.data();
-    if (!gameData) return '';
-    return gameData.gameState.currentTurn;
+    return gameData?.gameState.currentTurn || '#ffffff';
   }
 
-  // On récupère la défausse depuis le service
   getDiscardedCards(): Card[] {
     const gameData = this.gameStateService.data();
-    // Supposons que ton backend renvoie discardedPile dans gameState
     return gameData?.gameState.discardedCards || [];
   }
 
   confirmMove() {
+    if (!this.canConfirm()) return;
+
     console.log("Action confirmée avec la carte d'index :", this.selectedCardIndex());
-    // Ici tu appelles ton service pour envoyer le mouvement
     // this.gameStateService.playCard(this.selectedCardIndex());
 
-    // Reset après confirmation
     this.selectedCardIndex.set(null);
-    this.turnPhase.set('Sélectionnez une carte');
+    this.turnPhase.set('Select a card');
+    this.timeLeft.set(30); // Reset du timer
   }
 }

@@ -1,46 +1,38 @@
-<div class="table-container glass-panel">
+<div class="game-board">
 
-  <div class="status-header">
-    <div class="turn-indicator">
-      <span class="pulse-dot" [style.background-color]="getPlayerColor()"></span>
-      Turn of : <strong>{{ getPlayerName() }}</strong>
-    </div>
-    <div class="phase-message">{{ turnPhase() }}</div>
-  </div>
-
-  <div class="center-zone">
-    <div class="discard-pile-container">
-      <span class="label">Discard Pile</span>
-      <div class="card-stack">
-        @for (card of getDiscardedCards().slice(-3); track card.id; let i = $index) {
-        <div class="tock-card stack-card" [style.--offset]="i" [class.is-red]="card.suit === '♥' || card.suit === '♦'">
+  <!-- <div class="hand-zone">
+    <div class="cards-fan">
+      @for (card of getPlayerHand(); track card.id; let i = $index) {
+      <button class="tock-card playable-card" [class.selected]="selectedCardIndex() === i"
+        [class.is-red]="card.suit === '♥' || card.suit === '♦'" (click)="onCardSelected(i)">
+        <div class="card-inner">
           <span class="card-value">{{ card.value }}</span>
           <span class="card-suit">{{ card.suit }}</span>
         </div>
-        } @empty {
-        <div class="empty-slot">Empty</div>
-        }
-      </div>
-    </div>
-
-    <div class="action-zone">
-      <button class="confirm-btn" [disabled]="!selectedCardIndex()" (click)="confirmMove()">
-        Confirm move
-      </button>
-    </div>
-  </div>
-
-  <div class="hand-section">
-    <div class="hand-container">
-      @for (card of getPlayerHand(); track card.id; let i = $index) {
-      <button class="tock-card" [class.selected]="selectedCardIndex() === i"
-        [class.is-red]="card.suit === '♥' || card.suit === '♦'" (click)="selectCard(i)">
-        <span class="card-value">{{ card.value }}</span>
-        <span class="card-suit">{{ card.suit }}</span>
       </button>
       } @empty {
-      <div class="empty-hand">Aucune carte en main</div>
+      <div class="empty-hand">Your hand is empty</div>
       }
+    </div>
+  </div> -->
+
+
+  <!-- Footer -->
+  <div class="control-dashboard glass-panel">
+    <div class="dashboard-grid">
+
+      <div class="player-profile">
+        <div class="avatar" [style.background-color]="getPlayerColor()"></div>
+        <div class="player-info">
+          <span class="label">Playing now</span>
+          <strong>{{ getPlayerName() }}</strong>
+        </div>
+      </div>
+
+      <button class="action-btn" [disabled]="!canConfirm()" (click)="confirmMove()">
+        Confirm
+      </button>
+
     </div>
   </div>
 
