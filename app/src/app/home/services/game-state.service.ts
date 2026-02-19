@@ -1,10 +1,14 @@
 import { Injectable, signal, computed } from '@angular/core';
+import { BehaviorSubject } from 'rxjs/internal/BehaviorSubject';
 import { GameData } from 'src/app/home/models';
 
 @Injectable({
   providedIn: 'root',
 })
 export class GameStateService {
+
+  tableWrapperHeight = signal(0);
+
   message = signal('En attente...');
   data = signal<GameData | null>(null);
   isConnected = signal(false);

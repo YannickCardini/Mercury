@@ -15,9 +15,9 @@ $colors: (
     height: 100%;
     max-width: 100vw;
 
-    /* GLASSMORPHISM : S'intègre parfaitement au fond en bois */
+    /* GLASSMORPHISM */
     background: rgba(255, 255, 255, 0.15); // Couche semi-transparente claire
-    backdrop-filter: blur(8px); // Floute le bois en arrière-plan
+    backdrop-filter: blur(8px); // Floute l'arrière-plan
     -webkit-backdrop-filter: blur(8px);
     border: 1px solid rgba(255, 255, 255, 0.3); // Légère bordure lumineuse
     border-radius: calc(var(--square-size) * 0.5); // Bords arrondis

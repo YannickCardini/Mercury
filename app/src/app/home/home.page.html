@@ -8,9 +8,9 @@
   @if (gameStateService.data(); as gameData) {
   <div class="game-layout wooden-background-realistic">
     <div class="board-wrapper">
-      <app-board></app-board>
+      <app-board #board></app-board>
     </div>
-    <div class="table-wrapper">
+    <div class="table-wrapper" [style.height.px]="gameStateService.tableWrapperHeight()">
       <app-table></app-table>
     </div>
   </div>
