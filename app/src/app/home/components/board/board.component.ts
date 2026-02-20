@@ -4,7 +4,6 @@ import { Player, PlayerColor } from '../../models'; // Ajuste le chemin si besoi
 import { IonCol, IonGrid, IonRow } from '@ionic/angular/standalone';
 import { CommonModule } from '@angular/common';
 import { getSquareToDisplay as getSquare } from './square-data';
-import { BehaviorSubject } from 'rxjs/internal/BehaviorSubject';
 
 @Component({
   selector: 'app-board',
@@ -85,11 +84,11 @@ export class BoardComponent implements OnInit {
     const containerSize = Math.min(maxWidth, maxHeight) * 0.95;
 
     this.squareSize = containerSize / this.gridSize;
-    this.gameStateService.tableWrapperHeight.set(this.calculateTableWrapperHeight(containerSize));
+    this.gameStateService.boardContainerSize.set(this.calculateTableWrapperSize(containerSize));
     console.log(`Calculated square size: ${this.squareSize}px (Container: ${containerSize}px)`);
   }
 
-  private calculateTableWrapperHeight(containerSize: number): number {
+  private calculateTableWrapperSize(containerSize: number): number {
     const borderSize = 2; // border de 1 px de chaque côté
     const padding = 0.2;
     return (containerSize + borderSize) + (((containerSize + borderSize) / this.gridSize) * padding) * 2;

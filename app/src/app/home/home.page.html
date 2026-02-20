@@ -10,7 +10,7 @@
     <div class="board-wrapper">
       <app-board #board></app-board>
     </div>
-    <div class="table-wrapper" [style.height.px]="gameStateService.tableWrapperHeight()">
+    <div class="table-wrapper" [style.height.px]="gameStateService.boardContainerSize()" [style.width.px]="gameStateService.boardContainerSize()">
       <app-table></app-table>
     </div>
   </div>

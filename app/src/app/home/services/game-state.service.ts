@@ -7,7 +7,7 @@ import { GameData } from 'src/app/home/models';
 })
 export class GameStateService {
 
-  tableWrapperHeight = signal(0);
+  boardContainerSize = signal(0);
 
   message = signal('En attente...');
   data = signal<GameData | null>(null);
