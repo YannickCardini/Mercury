@@ -16,3 +16,6 @@ frontend/android/.gradle/
 # Secrets et Logs
 .env
 *.log
+
+# Cache
+frontend/.angular/
