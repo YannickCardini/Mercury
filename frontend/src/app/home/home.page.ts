@@ -3,7 +3,7 @@ import { IonContent, ViewDidEnter } from '@ionic/angular/standalone';
 import { BoardComponent } from './components/board/board.component';
 import { TableComponent } from './components/table/table.component';
 import { GameStateService } from './services/game-state.service';
-
+import { environment } from '../../environments/environment';
 @Component({
   selector: 'app-home',
   templateUrl: 'home.page.html',
@@ -18,7 +18,7 @@ export class HomePage implements ViewDidEnter {
   }
 
   connect() {
-    this.gameStateService.connect('ws://localhost:8080');
+    this.gameStateService.connect(environment.wsUrl);
   }
 
   disconnect() {

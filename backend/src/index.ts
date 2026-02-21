@@ -2,6 +2,7 @@ import express, { type Request, type Response } from 'express';
 import cors from 'cors';
 import { createServer } from 'http'; // INDISPENSABLE
 import { WebSocketServer, WebSocket } from 'ws';
+import type { Card, CurrentTurn, GameState, GameStateMessage, Player, ResponseMessage, WelcomeMessage } from './types/types.js';
 
 // 1. Initialise Express
 const app = express();
@@ -22,6 +23,7 @@ app.get('/', (req: Request, res: Response) => {
 
 // WebSocket Server
 
+const TIMER_DURATION = 30; // Durée du timer en secondes
 
 // Jeu de 52 cartes
 const DECK: Card[] = [
