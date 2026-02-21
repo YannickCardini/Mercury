@@ -29,18 +29,18 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          cd app
+          cd frontend
           npm install -g @capacitor/cli @capacitor/core @capacitor/android
           npm install
 
       - name: Build Web App (Production)
         run: |
-          cd app
+          cd frontend
           npm run build
           
       - name: Build Android App Bundle
         run: |
-          cd app
+          cd frontend
           npx cap sync android
           cd android
           ./gradlew bundleRelease
