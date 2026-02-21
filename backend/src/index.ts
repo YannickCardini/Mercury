@@ -1,81 +1,27 @@
 import express, { type Request, type Response } from 'express';
 import cors from 'cors';
+import { createServer } from 'http'; // INDISPENSABLE
 import { WebSocketServer, WebSocket } from 'ws';
 
-const wss = new WebSocketServer({ port: 8080 });
-
-const TIMER_DURATION: number = 30; // Durée du timer en secondes
+// 1. Initialise Express
 const app = express();
-const PORT = process.env.PORT || 3000;
-
 app.use(cors());
 
-app.get('/', (req: Request, res: Response) => {
-    res.send({ message: 'Keezen API est en ligne !' });
-});
+// 2. Crée le serveur HTTP "parent"
+const server = createServer(app);
 
-app.listen(PORT, () => {
-    console.log(`Serveur démarré sur http://localhost:${PORT}`);
+// 3. Initialise WebSocket en le liant au serveur HTTP (SANS donner de port !)
+const wss = new WebSocketServer({ server }); 
+
+const PORT = process.env.PORT || 8080;
+
+app.get('/', (req: Request, res: Response) => {
+    res.send({ message: 'Keezen API est en ligne avec WebSockets !' });
 });
 
 
 // WebSocket Server
-interface Card {
-    id: string;
-    suit: string;
-    value: string;
-}
 
-interface Player {
-    isConnected: boolean;
-    name: string;
-    color: 'red' | 'green' | 'blue' | 'orange';
-    marblePositions: number[];
-}
-
-interface LastAction {
-    type: 'enter' | 'move' | 'capture' | 'swap' | 'promote';
-    from: number;
-    to: number;
-}
-
-interface CurrentTurn {
-    color: 'red' | 'green' | 'blue' | 'orange';
-    lastAction: LastAction;
-    lastCardPlayed: Card | undefined;
-}
-
-interface GameState {
-    players: Player[];
-    isConnected: boolean;
-    currentTurn: CurrentTurn;
-    hand: Card[];
-    timer: number;
-    discardedCards: Card[];
-}
-
-interface WelcomeMessage {
-    type: 'welcome';
-    message: string;
-    timestamp: string;
-    gameState: GameState;
-}
-
-interface GameStateMessage {
-    type: 'gameState';
-    gameState: GameState;
-    timestamp: string;
-    message: string;
-}
-
-interface ResponseMessage {
-    type: 'response';
-    echo: string;
-    gameState: GameState;
-    timestamp: string;
-}
-
-type ServerMessage = WelcomeMessage | GameStateMessage | ResponseMessage;
 
 // Jeu de 52 cartes
 const DECK: Card[] = [
@@ -360,5 +306,7 @@ wss.on('connection', (ws: WebSocket) => {
     });
 });
 
-console.log('🚀 Serveur WebSocket démarré sur ws://localhost:8080');
+server.listen(PORT, () => {
+    console.log(`🚀 Serveur hybride (HTTP + WS) prêt sur le port ${PORT}`);
+});
 console.log('🃏 Jeu de 52 cartes chargé');
