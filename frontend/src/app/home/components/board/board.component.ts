@@ -33,10 +33,10 @@ export class BoardComponent implements OnInit {
 
   // Durées par type d'action (ms) — doit correspondre à la durée CSS
   private readonly ANIMATION_DURATIONS: Record<string, number> = {
-    enter:   800,
-    move:    600,
+    enter: 800,
+    move: 600,
     capture: 700,
-    swap:    900,
+    swap: 900,
     promote: 1000,
   };
 
@@ -44,8 +44,8 @@ export class BoardComponent implements OnInit {
   homes: Record<PlayerColor, number[]> = {
     red: [3, 18, 33, 48],
     green: [13, 28, 43, 58],
-    blue: [168, 183, 198, 213],
-    orange: [178, 193, 208, 223]
+    blue: [178, 193, 208, 223],
+    orange: [168, 183, 198, 213]
   };
 
   arrivals: Record<PlayerColor, number[]> = {
@@ -65,8 +65,8 @@ export class BoardComponent implements OnInit {
   playerInfoStarts: { [key: number]: PlayerColor } = {
     61: 'red',
     71: 'green',
-    151: 'blue',
-    161: 'orange'
+    151: 'orange',
+    161: 'blue'
   };
 
   skippedIndices = [
@@ -100,8 +100,8 @@ export class BoardComponent implements OnInit {
         // Capture : impact sur la case de destination, exit sur la source (pion renvoyé à la maison)
         case 'capture':
           this.triggerAnimation(lastAction.to, {
-            marbleClass:  'marble-capturing',
-            squareClass:  'square-impact'
+            marbleClass: 'marble-capturing',
+            squareClass: 'square-impact'
           }, duration);
           this.triggerAnimation(lastAction.from, {
             marbleClass: 'marble-captured-exit'
@@ -111,7 +111,7 @@ export class BoardComponent implements OnInit {
         // Échange : les deux cases scintillent de façon miroir
         case 'swap':
           this.triggerAnimation(lastAction.from, { marbleClass: 'marble-swapping' }, duration);
-          this.triggerAnimation(lastAction.to,   { marbleClass: 'marble-swapping' }, duration);
+          this.triggerAnimation(lastAction.to, { marbleClass: 'marble-swapping' }, duration);
           break;
 
         // Promotion : rayonnement doré, le pion grossit puis se stabilise

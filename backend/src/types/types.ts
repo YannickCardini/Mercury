@@ -4,49 +4,49 @@ export interface Card {
     value: string;
 }
 
- export interface Player {
+export interface Player {
     isConnected: boolean;
+    isHuman: boolean;
     name: string;
-    color: 'red' | 'green' | 'blue' | 'orange';
+    color: MarbleColor;
     marblePositions: number[];
 }
 
- export interface LastAction {
-    type: 'enter' | 'move' | 'capture' | 'swap' | 'promote';
+export interface Action {
+    type: ActionType;
     from: number;
     to: number;
+    cardPlayed: Card;
 }
 
- export interface CurrentTurn {
-    color: 'red' | 'green' | 'blue' | 'orange';
-    lastAction: LastAction;
-    lastCardPlayed: Card | undefined;
+export interface CurrentTurn {
+    color: MarbleColor;
+    lastAction: Action | null;
 }
 
- export interface GameState {
+export interface GameState {
     players: Player[];
-    isConnected: boolean;
     currentTurn: CurrentTurn;
     hand: Card[];
     timer: number;
     discardedCards: Card[];
 }
 
- export interface WelcomeMessage {
+export interface WelcomeMessage {
     type: 'welcome';
     message: string;
     timestamp: string;
     gameState: GameState;
 }
 
- export interface GameStateMessage {
+export interface GameStateMessage {
     type: 'gameState';
     gameState: GameState;
     timestamp: string;
     message: string;
 }
 
- export interface ResponseMessage {
+export interface ResponseMessage {
     type: 'response';
     echo: string;
     gameState: GameState;
@@ -54,3 +54,11 @@ export interface Card {
 }
 
 export type ServerMessage = WelcomeMessage | GameStateMessage | ResponseMessage;
+export type MarbleColor = 'red' | 'green' | 'blue' | 'orange';
+type ActionType =
+    | 'move'      // déplacement simple
+    | 'capture'   // prise d'un pion adverse
+    | 'swap'      // échange
+    | 'promote'   // promotion
+    | 'pass'      // jeter ces cartes
+    | 'enter';    // entrée en jeu

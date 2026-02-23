@@ -24,8 +24,6 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
-        with:
-          sdk-version: '36'  
 
       - name: Install Dependencies
         run: |

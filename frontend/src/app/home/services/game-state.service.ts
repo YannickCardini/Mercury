@@ -32,7 +32,7 @@ export class GameStateService {
       this.data.set(JSON.parse(event.data));
       this.message.set(`Message reçu: ${event.data}`);
       console.log('Données mises à jour:', this.data());
-      if (this.data()?.message === 'New turn generated') {
+      if (this.data()?.message === 'New turn') {
         //need to reset timer
         this.newTurn.next(new Date());
       }

@@ -6,6 +6,7 @@ interface Card {
 
 export interface Player {
   isConnected: boolean;
+  isHuman: boolean;
   name: string;
   color: string;
   marblePositions: number[];
@@ -15,12 +16,12 @@ export interface Action {
   type: ActionType;
   from: number;
   to: number;
+  cardPlayed: Card;
 }
 
 export interface CurrentTurn {
   color: PlayerColor;
   lastAction: Action;
-  lastCardPlayed: Card;
 }
 
 export type PlayerColor = 'red' | 'green' | 'blue' | 'orange';
@@ -32,7 +33,6 @@ type ActionType =
   | 'enter';    // entrée en jeu
 export interface GameState {
   players: Player[];
-  isConnected: boolean;
   currentTurn: CurrentTurn;
   timer: number;
   hand: Card[];

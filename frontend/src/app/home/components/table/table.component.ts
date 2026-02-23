@@ -70,6 +70,7 @@ export class TableComponent implements OnInit, OnDestroy {
 
   // ── Timer ──────────────────────────────────────────────────────
   private startTimer(): void {
+    console.log("⏱️ Démarrage du timer pour ce tour");
     this.clearTimer();
     this.timeLeft.set(this.gameStateService.data()?.gameState?.timer ?? 0);
     this.timerInterval = setInterval(() => {
