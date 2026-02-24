@@ -9,15 +9,15 @@ export class Board {
         77, 78, 79, 80, 81, 66, 51, 36, 21, 6, 7, 8
     ];
 
-    static redHome = [3,18,33,48];
-    static greenHome = [13,28,43,58];
-    static blueHome = [178,193,208,223];
-    static orangeHome = [168,183,198,213];
+    static redHome = [3, 18, 33, 48];
+    static greenHome = [13, 28, 43, 58];
+    static blueHome = [178, 193, 208, 223];
+    static orangeHome = [168, 183, 198, 213];
 
     static redStart = 9;
     static greenStart = 135;
     static blueStart = 217;
-    static orangeStart = 168;
+    static orangeStart = 91;
 
     static redArrival = [38, 53, 68, 83];
     static greenArrival = [115, 116, 117, 118];
@@ -75,11 +75,11 @@ export class Board {
         if (arr1.length !== arr2.length) {
             return false;
         }
-  
+
         // Create sorted copies to avoid modifying original arrays
         const sortedArr1 = [...arr1].sort((a, b) => a - b);
         const sortedArr2 = [...arr2].sort((a, b) => a - b);
-        
+
         return sortedArr1.every((element, index) => {
             return element === sortedArr2[index];
         });

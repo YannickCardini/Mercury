@@ -2,6 +2,7 @@ import { Board } from "./board.js";
 import { Deck } from "./deck.js";
 import { Player } from "./player.js";
 import type { Action } from "../types/types.js";
+import { sleep } from "../utils/utils.js";
 
 export class Game {
 
@@ -59,8 +60,15 @@ export class Game {
         // Race entre l'action du joueur et le timeout de 30s
         const move = await this.waitForActionOrTimeout(player);
         this.updateMarblePositions(player, move);
+        this.updateDiscardedCards(move);
         console.log(`✅ ${player.name} a joué :`, move);
         this.broadcastState(player, move);
+    }
+
+    private updateDiscardedCards(move: Action) {
+        if (move.cardPlayed) {
+            this.discardedCards.push(`${move.cardPlayed.value} of ${move.cardPlayed.suit}`);
+        }
     }
 
     private updateMarblePositions(player: Player, move: Action) {
@@ -92,7 +100,7 @@ export class Game {
         const timeoutPromise = new Promise<Action>((resolve) => {
             setTimeout(() => {
                 console.log(`⏰ Timeout — ${player.name} passe son tour.`);
-                resolve({ type: 'pass', from: 0, to: 0 });
+                resolve({ type: 'pass', from: 0, to: 0, cardPlayed: null });
             }, this.TURN_DURATION * 1000);
         });
 

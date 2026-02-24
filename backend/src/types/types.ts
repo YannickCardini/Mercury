@@ -16,7 +16,7 @@ export interface Action {
     type: ActionType;
     from: number;
     to: number;
-    cardPlayed: Card;
+    cardPlayed: Card | null;
 }
 
 export interface CurrentTurn {

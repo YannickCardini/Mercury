@@ -1,52 +1,289 @@
+/* ─────────────────────────────────────────────────────────────
+   VARIABLES THÈME
+   ───────────────────────────────────────────────────────────── */
+$c-red: #ef4444;
+$c-green: #22c55e;
+$c-blue: #3b82f6;
+$c-orange: #f97316;
+$c-gold: #f0c040;
+$bg-dark: #0f172a;
+$bg-mid: #1e2d45;
+
+/* ─────────────────────────────────────────────────────────────
+   CONTENEUR PRINCIPAL
+   ───────────────────────────────────────────────────────────── */
 .grid-container {
     height: 100%;
-    --overflow: hidden; // Force Ionic à ne pas scroller
+    --overflow: hidden;
+    --background: #{$bg-dark};
 }
 
-.wooden-background-simple {
-    // 1. Couleur de base : Brun chaud et profond
-    background-color: #654321;
+/* ═══════════════════════════════════════════════════════════════
+   ÉCRAN DE CHARGEMENT
+   ═══════════════════════════════════════════════════════════════ */
+.loading-screen {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 32px;
+    background: radial-gradient(ellipse at 50% 40%, #1e3a5f 0%, #0a1628 100%);
+    overflow: hidden;
 
-    // 2. Veines de bois : Lignes verticales subtiles
-    background-image: repeating-linear-gradient(0deg,
-            rgba(0, 0, 0, 0.05),
-            rgba(0, 0, 0, 0.05) 1px,
-            transparent 1px,
-            transparent 10px),
-        // 3. Dégradé de profondeur : Plus sombre sur les bords, plus clair au centre
-        radial-gradient(circle at center,
-            #8b5a2b 0%,
-            #5a3a1f 100%);
-
-    // 4. Texture : Bruit léger pour simuler le grain du bois
-    &::after {
+    /* Grille de fond façon "plateau de jeu" */
+    &::before {
         content: '';
         position: absolute;
         inset: 0;
-        opacity: 0.1;
-        background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAMAAAAp4XYFAAAAPFBMVEUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABF9P+BAAAAEHRSTlMAAQIFBwoPHx8/QEFCQ0dJTVO4rKAAAAA4SURBVDjLY2AYBaNgFIyCUTAqMAAxwAYgA5YgA5YYQAYsYQYsYYYsoIYsYIYtoIYtYIYsgIYsYA4sYA58AgC09gV+N4Ua8gAAAABJRU5ErkJggg==");
-        // Note: C'est une image de bruit de 50x50px encodée en base64
+        background-image:
+            linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+        background-size: 40px 40px;
+        pointer-events: none;
     }
 
-    position: relative;
-    overflow: hidden;
+    /* Halo central lumineux */
+    &::after {
+        content: '';
+        position: absolute;
+        width: 500px;
+        height: 500px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(59, 130, 246, 0.12) 0%, transparent 70%);
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        animation: haloPulse 3s ease-in-out infinite;
+        pointer-events: none;
+    }
 }
 
+/* ── Titre animé lettre par lettre ───────────────────────────── */
+.loading-title {
+    display: flex;
+    gap: 6px;
+    z-index: 1;
+}
+
+.title-letter {
+    font-size: clamp(2.5rem, 8vw, 5rem);
+    font-weight: 900;
+    color: white;
+    letter-spacing: 0.05em;
+    text-shadow: 0 0 30px rgba($c-blue, 0.8), 0 0 60px rgba($c-blue, 0.4);
+    animation: letterFloat 2.4s ease-in-out infinite;
+    animation-delay: calc(var(--i) * 0.12s);
+    display: inline-block;
+}
+
+@keyframes letterFloat {
+
+    0%,
+    100% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+
+    40% {
+        transform: translateY(-12px);
+        opacity: 0.85;
+    }
+
+    60% {
+        transform: translateY(-12px);
+        opacity: 0.85;
+    }
+}
+
+/* ── Orbite de billes ────────────────────────────────────────── */
+.marble-orbit {
+    position: relative;
+    width: 180px;
+    height: 180px;
+    z-index: 1;
+}
+
+.orbit-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 1px dashed rgba(255, 255, 255, 0.15);
+    animation: orbitRingSpin 6s linear infinite;
+}
+
+@keyframes orbitRingSpin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.orbit-marble {
+    position: absolute;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    top: -13px;
+    left: calc(50% - 13px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), inset -2px -2px 5px rgba(0, 0, 0, 0.3);
+    animation: orbitSpin 6s linear infinite;
+    animation-delay: var(--orbit-delay);
+
+    &::after {
+        content: '';
+        position: absolute;
+        top: 18%;
+        left: 18%;
+        width: 28%;
+        height: 28%;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(255, 255, 255, 0.8), transparent 70%);
+    }
+
+    &.marble-red {
+        background: radial-gradient(circle at 35% 35%, lighten($c-red, 15%), $c-red 60%, darken($c-red, 15%));
+    }
+
+    &.marble-green {
+        background: radial-gradient(circle at 35% 35%, lighten($c-green, 15%), $c-green 60%, darken($c-green, 15%));
+    }
+
+    &.marble-blue {
+        background: radial-gradient(circle at 35% 35%, lighten($c-blue, 15%), $c-blue 60%, darken($c-blue, 15%));
+    }
+
+    &.marble-orange {
+        background: radial-gradient(circle at 35% 35%, lighten($c-orange, 15%), $c-orange 60%, darken($c-orange, 15%));
+    }
+}
+
+@keyframes orbitSpin {
+
+    /* Chaque bille fait le tour complet en restant "au-dessus" de l'anneau */
+    from {
+        transform: rotate(0deg) translateY(-90px) rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg) translateY(-90px) rotate(-360deg);
+    }
+}
+
+/* Centre de l'orbite */
+.orbit-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.orbit-center-core {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #7dd3fc, $c-blue 60%, #1e3a5f);
+    box-shadow: 0 0 20px rgba($c-blue, 0.6), 0 0 40px rgba($c-blue, 0.3);
+    animation: corePulse 1.8s ease-in-out infinite;
+
+    &::after {
+        content: '';
+        position: absolute;
+        top: 18%;
+        left: 18%;
+        width: 28%;
+        height: 28%;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(255, 255, 255, 0.7), transparent 70%);
+    }
+}
+
+@keyframes corePulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 20px rgba($c-blue, 0.6), 0 0 40px rgba($c-blue, 0.3);
+    }
+
+    50% {
+        transform: scale(1.15);
+        box-shadow: 0 0 30px rgba($c-blue, 0.9), 0 0 60px rgba($c-blue, 0.5);
+    }
+}
+
+@keyframes haloPulse {
+
+    0%,
+    100% {
+        opacity: 0.5;
+        transform: translate(-50%, -50%) scale(1);
+    }
+
+    50% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1.2);
+    }
+}
+
+/* ── Texte de statut ─────────────────────────────────────────── */
+.loading-status {
+    color: rgba(255, 255, 255, 0.65);
+    font-size: 0.95rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    z-index: 1;
+    margin: 0;
+}
+
+/* ── Points animés ───────────────────────────────────────────── */
+.loading-dots {
+    display: flex;
+    gap: 8px;
+    z-index: 1;
+
+    span {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: $c-blue;
+        animation: dotBounce 0.9s ease-in-out infinite;
+        animation-delay: var(--d);
+    }
+}
+
+@keyframes dotBounce {
+
+    0%,
+    80%,
+    100% {
+        transform: scale(0.6);
+        opacity: 0.4;
+    }
+
+    40% {
+        transform: scale(1.2);
+        opacity: 1;
+    }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   LAYOUT JEU PRINCIPAL
+   ═══════════════════════════════════════════════════════════════ */
 .game-layout {
     display: flex;
     width: 100%;
     height: 100%;
-    // background: url('../../assets/background.jpg') no-repeat center center fixed;
-    // background-size: cover;
-    background: radial-gradient(circle at 50% 30%, #2a354b, #0f172a); // Effet tapis de jeu
-
-    // Marge de sécurité de 2% (padding)
+    background: radial-gradient(circle at 50% 30%, #2a354b, $bg-dark);
     padding: 2vh 2vw;
     box-sizing: border-box;
     gap: 15px;
-    overflow: hidden; // Empêche le layout de s'étendre au-delà de l'écran
+    overflow: hidden;
+    position: relative; // pour l'overlay de tour
 
-    // DESKTOP : Board (70%) | Table (30%)
     @media (min-aspect-ratio: 1/1) {
         flex-direction: row;
         align-items: center;
@@ -57,7 +294,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            min-width: 0; // Important pour flex-shrink
+            min-width: 0;
         }
 
         .table-wrapper {
@@ -68,16 +305,15 @@
         }
     }
 
-    // MOBILE : Board (Haut) | Table (Bas)
     @media (max-aspect-ratio: 1/1) {
         flex-direction: column;
 
         .board-wrapper {
-            flex: 1; // Prend l'espace nécessaire pour rester un carré
+            flex: 1;
             width: 100%;
             display: flex;
             justify-content: center;
-            min-height: 0; // Permet au board de rétrécir si la table prend trop de place
+            min-height: 0;
         }
 
         .table-wrapper {
@@ -85,7 +321,173 @@
             flex: 1;
             width: 100%;
             min-height: 0;
-            max-height: 40%; // Limite la table sur mobile pour ne pas étouffer le board
+            max-height: 40%;
         }
     }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   OVERLAY NOUVEAU TOUR
+   ═══════════════════════════════════════════════════════════════ */
+$turn-colors: (
+    "red": $c-red,
+    "green": $c-green,
+    "blue": $c-blue,
+    "orange": $c-orange,
+);
+
+.new-turn-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    pointer-events: none;
+    animation: overlayFade 2.5s ease forwards;
+
+    // Fond très légèrement teinté selon la couleur
+    @each $name, $hex in $turn-colors {
+        &[data-color="#{$name}"] {
+            background: radial-gradient(ellipse at center,
+                    rgba($hex, 0.18) 0%,
+                    rgba($hex, 0.04) 50%,
+                    transparent 70%);
+
+            .new-turn-banner {
+                border-color: rgba($hex, 0.6);
+                box-shadow:
+                    0 0 40px rgba($hex, 0.35),
+                    0 0 80px rgba($hex, 0.15),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+            }
+
+            .new-turn-name {
+                color: $hex;
+                text-shadow: 0 0 12px rgba($hex, 0.7);
+            }
+
+            .ntm-#{$name} {
+                background: radial-gradient(circle at 35% 35%, lighten($hex, 15%), $hex 60%, darken($hex, 15%));
+                box-shadow: 0 0 16px rgba($hex, 0.7), 0 3px 8px rgba(0, 0, 0, 0.4);
+            }
+        }
+    }
+}
+
+@keyframes overlayFade {
+    0% {
+        opacity: 0;
+    }
+
+    15% {
+        opacity: 1;
+    }
+
+    70% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
+    }
+}
+
+.new-turn-banner {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 18px 36px;
+    background: rgba(10, 18, 40, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 60px;
+    animation: bannerSlide 2.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes bannerSlide {
+    0% {
+        transform: translateY(-60px) scale(0.8);
+        opacity: 0;
+    }
+
+    18% {
+        transform: translateY(4px) scale(1.03);
+        opacity: 1;
+    }
+
+    25% {
+        transform: translateY(0) scale(1);
+    }
+
+    75% {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateY(40px) scale(0.9);
+        opacity: 0;
+    }
+}
+
+/* Billes décoratives du banner */
+.new-turn-marble {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    animation: bannerMarbleSpin 2.5s ease-in-out forwards;
+
+    &::after {
+        content: '';
+        position: absolute;
+        top: 18%;
+        left: 18%;
+        width: 28%;
+        height: 28%;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(255, 255, 255, 0.7), transparent 70%);
+    }
+}
+
+@keyframes bannerMarbleSpin {
+    0% {
+        transform: scale(0) rotate(-180deg);
+    }
+
+    20% {
+        transform: scale(1.2) rotate(10deg);
+    }
+
+    30% {
+        transform: scale(1) rotate(0);
+    }
+
+    100% {
+        transform: scale(1) rotate(0);
+    }
+}
+
+.new-turn-text {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.new-turn-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.new-turn-name {
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    color: white;
 }

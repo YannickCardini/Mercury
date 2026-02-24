@@ -15,25 +15,28 @@ export class GameStateService {
 
   // Computed signal that automatically updates when data changes
   hand = computed(() => this.data()?.gameState?.hand ?? []);
-  newTurn = new BehaviorSubject<Date>(new Date());
+  newTurn = new BehaviorSubject<Date | null>(null);
 
   private ws: WebSocket | null = null;
 
-  connect(url: string) {
+  /**
+   * @param url      URL du WebSocket
+   * @param onOpen   Callback appelé dès que la connexion est ouverte
+   */
+  connect(url: string, onOpen?: () => void) {
     this.ws = new WebSocket(url);
 
     this.ws.onopen = () => {
       this.isConnected.set(true);
       console.log('Connecté au WebSocket');
+      onOpen?.();
     };
 
     this.ws.onmessage = (event) => {
-      // Met à jour le signal automatiquement
       this.data.set(JSON.parse(event.data));
       this.message.set(`Message reçu: ${event.data}`);
       console.log('Données mises à jour:', this.data());
       if (this.data()?.message === 'New turn') {
-        //need to reset timer
         this.newTurn.next(new Date());
       }
     };

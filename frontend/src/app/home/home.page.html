@@ -1,20 +1,81 @@
-<!-- <ion-header>
-  <ion-toolbar>
-    <ion-title>Keenzen</ion-title>
-  </ion-toolbar>
-</ion-header> -->
-
 <ion-content [fullscreen]="true" class="grid-container">
+
+  <!-- ═══════════════════════════════════════════════════════════
+       ÉCRAN DE CHARGEMENT — visible tant qu'aucune donnée n'est reçue
+       ═══════════════════════════════════════════════════════════ -->
+  @if (!gameStateService.data()) {
+  <div class="loading-screen">
+    <!-- Titre du jeu -->
+    <div class="loading-title">
+      <span class="title-letter" style="--i:0">K</span>
+      <span class="title-letter" style="--i:1">E</span>
+      <span class="title-letter" style="--i:2">E</span>
+      <span class="title-letter" style="--i:3">N</span>
+      <span class="title-letter" style="--i:4">Z</span>
+      <span class="title-letter" style="--i:5">E</span>
+      <span class="title-letter" style="--i:6">N</span>
+    </div>
+
+    <!-- Billes en orbite (les 4 couleurs du jeu) -->
+    <div class="marble-orbit">
+      <div class="orbit-ring">
+        <div class="orbit-marble marble-red" style="--orbit-delay: 0s"></div>
+        <div class="orbit-marble marble-green" style="--orbit-delay: -1.5s"></div>
+        <div class="orbit-marble marble-blue" style="--orbit-delay: -3s"></div>
+        <div class="orbit-marble marble-orange" style="--orbit-delay: -4.5s"></div>
+      </div>
+      <!-- Étoile centrale qui pulse -->
+      <div class="orbit-center">
+        <div class="orbit-center-core"></div>
+      </div>
+    </div>
+
+    <!-- Message statut -->
+    <p class="loading-status">
+      @if (gameStateService.isConnected()) {
+      Initializing game data...
+      } @else {
+      Connecting to the server...
+      }
+    </p>
+
+    <!-- Points de chargement -->
+    <div class="loading-dots">
+      <span style="--d:0s"></span>
+      <span style="--d:0.2s"></span>
+      <span style="--d:0.4s"></span>
+    </div>
+  </div>
+  }
+
+  <!-- ═══════════════════════════════════════════════════════════
+       JEU PRINCIPAL
+       ═══════════════════════════════════════════════════════════ -->
   @if (gameStateService.data(); as gameData) {
-  <div class="game-layout wooden-background-realistic">
+  <div class="game-layout">
+
+    <!-- OVERLAY NOUVEAU TOUR -->
+    @if (showNewTurnBanner()) {
+    <div class="new-turn-overlay" [attr.data-color]="newTurnColor()">
+      <div class="new-turn-banner">
+        <div class="new-turn-marble" [class]="'ntm-' + newTurnColor()"></div>
+        <div class="new-turn-text">
+          <span class="new-turn-label">Nouveau Tour</span>
+          <span class="new-turn-name">{{ newTurnName() }}</span>
+        </div>
+        <div class="new-turn-marble" [class]="'ntm-' + newTurnColor()"></div>
+      </div>
+    </div>
+    }
+
     <div class="board-wrapper">
       <app-board #board></app-board>
     </div>
-    <div class="table-wrapper" [style.height.px]="gameStateService.boardContainerSize()" [style.width.px]="gameStateService.boardContainerSize()">
+    <div class="table-wrapper" [style.height.px]="gameStateService.boardContainerSize()"
+      [style.width.px]="gameStateService.boardContainerSize()">
       <app-table></app-table>
     </div>
   </div>
-  } @else {
-  <div class="empty-state">Attente des données...</div>
   }
+
 </ion-content>

@@ -1,5 +1,5 @@
 import type { Action, Card, MarbleColor } from "../types/types.js";
-import { calculateMoveFromCardAndMarble } from "../utils/gameLogic.js";
+import { calculateMoveFromCardAndMarble, sleep } from "../utils/utils.js";
 
 export class Player {
 
@@ -33,7 +33,7 @@ export class Player {
     async calculateAIMove(): Promise<Action> {
         // AI move calculation logic would go here
         console.log(`${this.name} is calculating an AI move.`);
-        await sleep(Math.random() * 20000); // Simulate thinking time for AI
+        await sleep(5000); // Simulate thinking time for AI
         const chosenCard = this.calculateAICardChoice();
         const chosenMarble = this.calculateAIMarbleChoice();
         if (chosenCard) {
@@ -79,6 +79,3 @@ export class Player {
 
 }
 
-function sleep(ms: number) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
