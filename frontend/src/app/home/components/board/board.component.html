@@ -24,8 +24,7 @@
         @else {
         <div [class]="getSquareClass(index)" [ngClass]="getSquareAnimClass(index)">
           @if (getMarbleOnSquare(index); as marbleColor) {
-          <div class="marble"
-               [ngClass]="['marble-' + marbleColor, getMarbleAnimClass(index)]">
+          <div class="marble" [ngClass]="['marble-' + marbleColor, getMarbleAnimClass(index)]">
             <div class="marble-highlight"></div>
           </div>
           }
@@ -41,4 +40,32 @@
     </ion-row>
     }
   </ion-grid>
+
+  <!-- Pile de défausse — overlay centré sur la zone vide du board -->
+  <div class="discard-zone">
+    <div class="discard-pile">
+      @for (card of discardPile(); track $index) {
+      @if ($index < 5) { <div class="discard-card" [class.discard-card--top]="$index === 0"
+        [style.--stack-offset]="$index" [style.z-index]="5 - $index">
+        <!-- Réutilise le composant carte premium -->
+        <app-tock-card [value]="card.value" [suit]="card.suit">
+        </app-tock-card>
+    </div>
+    }
+    }
+    @if (discardPile().length === 0) {
+    <div class="discard-empty">
+      <span>Défausse</span>
+    </div>
+    }
+  </div>
+
+  <!-- Carte en vol : part du coin du joueur et se pose sur la pile -->
+  @if (flyingCard(); as fc) {
+  <div class="flying-card" [ngClass]="'player-' + fc.color">
+    <app-tock-card [value]="fc.value" [suit]="fc.suit">
+    </app-tock-card>
+  </div>
+  }
+</div>
 </div>

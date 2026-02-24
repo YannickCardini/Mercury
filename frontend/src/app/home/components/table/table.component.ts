@@ -8,6 +8,7 @@ import {
   OnInit,
   OnDestroy
 } from '@angular/core';
+import { TockCardComponent } from 'src/app/shared/tock-card.component';
 
 interface Card {
   id: string;
@@ -21,21 +22,20 @@ interface Card {
   styleUrl: 'table.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule]
+  imports: [CommonModule, TockCardComponent]
 })
 export class TableComponent implements OnInit, OnDestroy {
 
   /** Circonférence du cercle SVG (rayon = 27.5) */
   readonly timerCircumference = 2 * Math.PI * 27.5; // ≈ 172.79
   timeLeft = signal(0);
-  timerInterval?: any; // Type 'any' pour setInterval, car il retourne un NodeJS.Timeout dans Node et un number dans le navigateur. --- IGNORE ---
+  timerInterval?: any; // Type 'any' pour setInterval --- IGNORE ---
   // ── Signaux UI ─────────────────────────────────────────────────
   selectedCardIndex = signal<number | null>(null);
   turnPhase = signal<string>('Choisissez une carte');
 
   // ── Dérivés ────────────────────────────────────────────────────
   canConfirm = computed(() => this.selectedCardIndex() !== null);
-
 
   /** Couleur de l'arc : vert → orange → rouge */
   timerColor = computed(() => {
@@ -53,15 +53,14 @@ export class TableComponent implements OnInit, OnDestroy {
   timeRatio = computed(() => {
     const timer = this.gameStateService.data()?.gameState?.timer ?? 0;
     return timer > 0 ? this.timeLeft() / timer : 0;
-  })
-
+  });
 
   constructor(private gameStateService: GameStateService) { }
 
   ngOnInit(): void {
     this.gameStateService.newTurn.subscribe(() => {
       this.startTimer();
-    })
+    });
   }
 
   ngOnDestroy(): void {
@@ -98,7 +97,6 @@ export class TableComponent implements OnInit, OnDestroy {
   }
 
   private onTimeUp(): void {
-    // Le temps est écoulé : on pourrait forcer un skip ou émettre un événement
     console.warn('Temps écoulé !');
     this.selectedCardIndex.set(null);
     this.turnPhase.set('Choisissez une carte');
@@ -127,31 +125,21 @@ export class TableComponent implements OnInit, OnDestroy {
   }
 
   // ── Disposition des cartes en éventail ─────────────────────────
-  /**
-   * Retourne le style CSS positionnel pour chaque carte,
-   * calculant rotation et translation pour former un éventail naturel.
-   */
   getCardStyle(index: number, total: number): { [key: string]: string } {
     if (total === 0) return {};
 
-    // Calcul de la position par rapport au centre de la main
     const center = (total - 1) / 2;
     const distFromCenter = index - center;
 
-    // Angle total de l'éventail en degrés
     const maxSpread = Math.min(total * 8, 60);
     const step = total > 1 ? maxSpread / (total - 1) : 0;
     const angle = step * distFromCenter;
 
-    // Décalage vertical basé sur la distance au centre (forme d'arc)
     const verticalOffset = (distFromCenter * distFromCenter) * 2;
 
-    // Espacement horizontal : on utilise des POURCENTAGES au lieu des VW !
-    // Cela se basera sur la largeur réelle de la carte (--card-width)
-    const overlapFactor = total > 5 ? 55 : 70; // 55% ou 70% de la largeur de la carte
+    const overlapFactor = total > 5 ? 55 : 70;
     const xOffsetPercent = distFromCenter * overlapFactor;
 
-    // Application de la transformation
     const baseTransform = `translateX(${xOffsetPercent}%) translateY(${verticalOffset}px) rotate(${angle}deg)`;
 
     return {
@@ -160,7 +148,6 @@ export class TableComponent implements OnInit, OnDestroy {
       'z-index': String(index + 1),
       'left': '50%',
       'bottom': '0',
-      // On utilise la variable CSS pour que ça s'adapte à tes Media Queries
       'margin-left': `calc(var(--card-width) / -2)`,
     };
   }

@@ -23,22 +23,16 @@
     <div class="cards-fan">
       @for (card of getPlayerHand(); track card.id; let i = $index) {
         <button
-          class="tock-card playable-card"
+          class="tock-card-btn playable-card"
           [class.selected]="selectedCardIndex() === i"
           [class.is-red]="card.suit === '♥' || card.suit === '♦'"
           [style]="getCardStyle(i, getPlayerHand().length)"
           (click)="onCardSelected(i)">
-          <div class="card-inner">
-            <div class="card-corner top-left">
-              <span class="card-corner-value">{{ card.value }}</span>
-              <span class="card-corner-suit">{{ card.suit }}</span>
-            </div>
-            <div class="card-center-suit">{{ card.suit }}</div>
-            <div class="card-corner bottom-right">
-              <span class="card-corner-value">{{ card.value }}</span>
-              <span class="card-corner-suit">{{ card.suit }}</span>
-            </div>
-          </div>
+          <!-- Design de carte factorisé -->
+          <app-tock-card
+            [value]="card.value"
+            [suit]="card.suit">
+          </app-tock-card>
         </button>
       } @empty {
         <div class="empty-hand">Your hand is empty</div>

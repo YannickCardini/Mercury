@@ -1,4 +1,4 @@
-import type { Card } from "../types/types.js";
+import type { Card } from "@keezen/shared";
 
 export class Deck {
     // Le paquet de cartes (sera modifié pendant la partie)

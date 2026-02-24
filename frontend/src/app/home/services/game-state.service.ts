@@ -1,6 +1,14 @@
 import { Injectable, signal, computed } from '@angular/core';
 import { BehaviorSubject } from 'rxjs/internal/BehaviorSubject';
-import { GameData } from 'src/app/home/models';
+import { GameState, Card } from '@keezen/shared';
+
+// Shape complète du message reçu par le WebSocket
+export interface GameData {
+  gameState: GameState;
+  message: string;
+  timestamp: string;
+  type: string;
+}
 
 @Injectable({
   providedIn: 'root',
@@ -13,8 +21,8 @@ export class GameStateService {
   data = signal<GameData | null>(null);
   isConnected = signal(false);
 
-  // Computed signal that automatically updates when data changes
-  hand = computed(() => this.data()?.gameState?.hand ?? []);
+  // Computed signals qui se mettent à jour automatiquement
+  hand = computed<Card[]>(() => this.data()?.gameState?.hand ?? []);
   newTurn = new BehaviorSubject<Date | null>(null);
 
   private ws: WebSocket | null = null;
@@ -23,7 +31,7 @@ export class GameStateService {
    * @param url      URL du WebSocket
    * @param onOpen   Callback appelé dès que la connexion est ouverte
    */
-  connect(url: string, onOpen?: () => void) {
+  connect(url: string, onOpen?: () => void): void {
     this.ws = new WebSocket(url);
 
     this.ws.onopen = () => {
@@ -32,11 +40,13 @@ export class GameStateService {
       onOpen?.();
     };
 
-    this.ws.onmessage = (event) => {
-      this.data.set(JSON.parse(event.data));
+    this.ws.onmessage = (event: MessageEvent) => {
+      const parsed: GameData = JSON.parse(event.data);
+      this.data.set(parsed);
       this.message.set(`Message reçu: ${event.data}`);
-      console.log('Données mises à jour:', this.data());
-      if (this.data()?.message === 'New turn') {
+      console.log('Données mises à jour:', parsed);
+
+      if (parsed.message === 'New turn') {
         this.newTurn.next(new Date());
       }
     };
@@ -52,15 +62,11 @@ export class GameStateService {
     };
   }
 
-  send(message: string) {
-    if (this.ws) {
-      this.ws.send(message);
-    }
+  send(message: string): void {
+    this.ws?.send(message);
   }
 
-  disconnect() {
-    if (this.ws) {
-      this.ws.close();
-    }
+  disconnect(): void {
+    this.ws?.close();
   }
 }

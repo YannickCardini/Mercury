@@ -1,5 +1,5 @@
-import { Board } from "../game/board.js";
-import type { Action, Card, MarbleColor } from "../types/types.js";
+import { getStartPosition } from '@keezen/shared';
+import type { Action, Card, MarbleColor } from "@keezen/shared";
 
 export function calculateMoveFromCardAndMarble(card: Card, marblePosition: number, MarbleColor: MarbleColor): Action {
 
@@ -7,8 +7,9 @@ export function calculateMoveFromCardAndMarble(card: Card, marblePosition: numbe
         return {
             type: 'enter',
             from: marblePosition,
-            to: Board.getStartPosition(marbleColor),
-            cardPlayed: card
+            to: getStartPosition(marbleColor),
+            cardPlayed: card,
+            playerColor: marbleColor
         }
     }
     console.log(`Calculating move for card ${card.value} of ${card.suit} and marble at position ${marblePosition} for color ${MarbleColor}`);
@@ -22,7 +23,8 @@ export function calculateMoveFromCardAndMarble(card: Card, marblePosition: numbe
                 type: 'pass',
                 from: 0,
                 to: 0,
-                cardPlayed: null
+                cardPlayed: null,
+                playerColor: MarbleColor
             }
     };
 }

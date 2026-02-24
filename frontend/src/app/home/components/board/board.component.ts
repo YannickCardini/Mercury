@@ -1,9 +1,29 @@
 import { Component, HostListener, OnInit, signal, effect } from '@angular/core';
 import { GameStateService } from '../../services/game-state.service';
-import { Player, PlayerColor } from '../../models';
 import { IonCol, IonGrid, IonRow } from '@ionic/angular/standalone';
 import { CommonModule } from '@angular/common';
-import { getSquareToDisplay as getSquare } from './square-data';
+import { TockCardComponent } from 'src/app/shared/tock-card.component';
+
+import {
+  MarbleColor,
+  ActionType,
+  Player,
+  GRID_SIZE,
+  SQUARES_TO_DISPLAY,
+  HOME_POSITIONS,
+  START_POSITIONS,
+  ARRIVAL_POSITIONS,
+  PLAYER_INFO_STARTS,
+  SKIPPED_INDICES,
+  MARBLE_ANIMATION_DURATIONS,
+  CARD_LAND_DELAY_MS,
+} from '@keezen/shared';
+
+export interface CardInfo {
+  value: string;
+  suit: string;
+  color: MarbleColor;
+}
 
 export interface SquareAnimation {
   /** Classe CSS à appliquer sur le .marble */
@@ -16,113 +36,101 @@ export interface SquareAnimation {
   selector: 'app-board',
   templateUrl: 'board.component.html',
   styleUrls: ['board.component.scss'],
-  imports: [IonCol, IonRow, IonGrid, CommonModule]
+  imports: [IonCol, IonRow, IonGrid, CommonModule, TockCardComponent]
 })
 export class BoardComponent implements OnInit {
-  gridSize = 15;
-  squareSize: number = 0;
-  squareToDisplay: number[] = [];
 
-  /**
-   * Map index de case → animation en cours.
-   * Signal sur un Record pour que le template réagisse aux changements.
-   */
+  // ── Config plateau (depuis @keezen/shared) ──────────────────────────────────
+  readonly gridSize = GRID_SIZE;
+  readonly homes = HOME_POSITIONS;
+  readonly arrivals = ARRIVAL_POSITIONS;
+  readonly starts = START_POSITIONS;
+  readonly playerInfoStarts = PLAYER_INFO_STARTS;
+  readonly skippedIndices = SKIPPED_INDICES;
+
+  // ── État UI ─────────────────────────────────────────────────────────────────
+  squareSize: number = 0;
+  squareToDisplay: number[] = SQUARES_TO_DISPLAY;
+
   squareAnimations = signal<Record<number, SquareAnimation>>({});
 
-  private animationTimeouts = new Map<number, ReturnType<typeof setTimeout>>();
+  /** Pile de défausse : toutes les cartes jouées, la dernière en tête */
+  discardPile = signal<CardInfo[]>([]);
 
-  // Durées par type d'action (ms) — doit correspondre à la durée CSS
-  private readonly ANIMATION_DURATIONS: Record<string, number> = {
-    enter: 800,
-    move: 600,
-    capture: 700,
-    swap: 900,
-    promote: 1000,
-  };
-
-  // Définition des cases spéciales
-  homes: Record<PlayerColor, number[]> = {
-    red: [3, 18, 33, 48],
-    green: [13, 28, 43, 58],
-    blue: [178, 193, 208, 223],
-    orange: [168, 183, 198, 213]
-  };
-
-  arrivals: Record<PlayerColor, number[]> = {
-    red: [38, 53, 68, 83],
-    green: [115, 116, 117, 118],
-    blue: [143, 158, 173, 188],
-    orange: [108, 109, 110, 111]
-  };
-
-  starts: Record<PlayerColor, number> = {
-    red: 9,
-    green: 135,
-    blue: 217,
-    orange: 91
-  };
-
-  playerInfoStarts: { [key: number]: PlayerColor } = {
-    61: 'red',
-    71: 'green',
-    151: 'orange',
-    161: 'blue'
-  };
-
-  skippedIndices = [
-    62, 63, 64, 65,
-    72, 73, 74, 75,
-    152, 153, 154, 155,
-    162, 163, 164, 165
-  ];
+  /** Carte en vol (animation d'arrivée sur la pile), null quand pas d'animation */
+  flyingCard = signal<CardInfo | null>(null);
 
   debug = true;
 
+  // ── Timers internes ─────────────────────────────────────────────────────────
+  private animationTimeouts = new Map<number, ReturnType<typeof setTimeout>>();
+  private flyingCardTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  // ── Constructor ─────────────────────────────────────────────────────────────
+
   constructor(private gameStateService: GameStateService) {
     effect(() => {
-      const lastAction = this.gameStateService.data()?.gameState?.currentTurn?.lastAction;
+      const gameData = this.gameStateService.data();
+      const lastAction = gameData?.gameState?.currentTurn?.lastAction;
       if (!lastAction) return;
 
-      const duration = this.ANIMATION_DURATIONS[lastAction.type] ?? 700;
+      if (lastAction.cardPlayed) {
+        // playerColor est maintenant directement dans l'action — plus besoin
+        // de recalculer la couleur du joueur précédent.
+        const card: CardInfo = {
+          value: lastAction.cardPlayed.value,
+          suit: lastAction.cardPlayed.suit,
+          color: (lastAction.playerColor ?? gameData?.gameState?.currentTurn?.color) as MarbleColor,
+        };
+        this.triggerCardAnimation(card);
 
-      switch (lastAction.type) {
-
-        // Entrée en jeu : le pion "tombe" du ciel sur sa case de départ
-        case 'enter':
-          this.triggerAnimation(lastAction.to, { marbleClass: 'marble-entering' }, duration);
-          break;
-
-        // Déplacement : le pion pulse sur sa nouvelle case
-        case 'move':
-          this.triggerAnimation(lastAction.to, { marbleClass: 'marble-moving' }, duration);
-          break;
-
-        // Capture : impact sur la case de destination, exit sur la source (pion renvoyé à la maison)
-        case 'capture':
-          this.triggerAnimation(lastAction.to, {
-            marbleClass: 'marble-capturing',
-            squareClass: 'square-impact'
-          }, duration);
-          this.triggerAnimation(lastAction.from, {
-            marbleClass: 'marble-captured-exit'
-          }, duration);
-          break;
-
-        // Échange : les deux cases scintillent de façon miroir
-        case 'swap':
-          this.triggerAnimation(lastAction.from, { marbleClass: 'marble-swapping' }, duration);
-          this.triggerAnimation(lastAction.to, { marbleClass: 'marble-swapping' }, duration);
-          break;
-
-        // Promotion : rayonnement doré, le pion grossit puis se stabilise
-        case 'promote':
-          this.triggerAnimation(lastAction.to, {
-            marbleClass: 'marble-promoting',
-            squareClass: 'square-promoting'
-          }, duration);
-          break;
+        // Marble animations déclenchées après l'atterrissage de la carte
+        setTimeout(() => this.triggerMarbleAnimation(lastAction), CARD_LAND_DELAY_MS);
+      } else {
+        // Pas de carte jouée (ex: action automatique) → marble immédiatement
+        this.triggerMarbleAnimation(lastAction);
       }
     });
+  }
+
+  // ── Animations ──────────────────────────────────────────────────────────────
+
+  /** Déclenche l'animation marble correspondant au type d'action. */
+  private triggerMarbleAnimation(lastAction: { type: string; from: number; to: number }): void {
+    const type = lastAction.type as ActionType;
+    const duration = MARBLE_ANIMATION_DURATIONS[type] ?? 700;
+
+    switch (type) {
+      case 'enter':
+        this.triggerAnimation(lastAction.to, { marbleClass: 'marble-entering' }, duration);
+        break;
+
+      case 'move':
+        this.triggerAnimation(lastAction.to, { marbleClass: 'marble-moving' }, duration);
+        break;
+
+      case 'capture':
+        this.triggerAnimation(lastAction.to, {
+          marbleClass: 'marble-capturing',
+          squareClass: 'square-impact',
+        }, duration);
+        this.triggerAnimation(lastAction.from, {
+          marbleClass: 'marble-captured-exit',
+        }, duration);
+        break;
+
+      case 'swap':
+        this.triggerAnimation(lastAction.from, { marbleClass: 'marble-swapping' }, duration);
+        this.triggerAnimation(lastAction.to, { marbleClass: 'marble-swapping' }, duration);
+        break;
+
+      case 'promote':
+        this.triggerAnimation(lastAction.to, {
+          marbleClass: 'marble-promoting',
+          squareClass: 'square-promoting',
+        }, duration);
+        break;
+    }
   }
 
   /**
@@ -133,7 +141,6 @@ export class BoardComponent implements OnInit {
     const existing = this.animationTimeouts.get(index);
     if (existing) clearTimeout(existing);
 
-    // Retire d'abord la classe pour forcer le redémarrage de l'animation CSS
     this.squareAnimations.update(prev => {
       const next = { ...prev };
       delete next[index];
@@ -156,6 +163,29 @@ export class BoardComponent implements OnInit {
     });
   }
 
+  /**
+   * Déclenche l'animation de vol de la carte jouée, puis l'empile sur la pile.
+   */
+  private triggerCardAnimation(card: CardInfo): void {
+    if (this.flyingCardTimeout) clearTimeout(this.flyingCardTimeout);
+
+    this.flyingCard.set(null);
+    requestAnimationFrame(() => {
+      this.flyingCard.set(card);
+      this.flyingCardTimeout = setTimeout(() => {
+        this.discardPile.update(pile => [card, ...pile]);
+        this.flyingCard.set(null);
+        this.flyingCardTimeout = null;
+      }, CARD_LAND_DELAY_MS);
+    });
+  }
+
+  // ── Getters ─────────────────────────────────────────────────────────────────
+
+  get topDiscardCard(): CardInfo | null {
+    return this.discardPile()[0] ?? null;
+  }
+
   /** Classes CSS d'animation pour le .marble d'une case */
   getMarbleAnimClass(index: number): string {
     return this.squareAnimations()[index]?.marbleClass ?? '';
@@ -166,13 +196,13 @@ export class BoardComponent implements OnInit {
     return this.squareAnimations()[index]?.squareClass ?? '';
   }
 
+  get rows(): number[] { return Array(this.gridSize).fill(0).map((_, i) => i); }
+  get cols(): number[] { return Array(this.gridSize).fill(0).map((_, i) => i); }
+
+  // ── Lifecycle ───────────────────────────────────────────────────────────────
+
   ngOnInit() {
     this.calculateSquareSize();
-    this.loadSquareData();
-  }
-
-  loadSquareData() {
-    this.squareToDisplay = getSquare(this.gridSize);
   }
 
   @HostListener('window:resize')
@@ -185,10 +215,7 @@ export class BoardComponent implements OnInit {
     if (!wrapper) return;
 
     const bounds = wrapper.getBoundingClientRect();
-    const maxWidth = bounds.width;
-    const maxHeight = bounds.height;
-
-    const containerSize = Math.min(maxWidth, maxHeight) * 0.95;
+    const containerSize = Math.min(bounds.width, bounds.height) * 0.95;
     this.squareSize = containerSize / this.gridSize;
     this.gameStateService.boardContainerSize.set(this.calculateTableWrapperSize(containerSize));
   }
@@ -199,8 +226,7 @@ export class BoardComponent implements OnInit {
     return (containerSize + borderSize) + (((containerSize + borderSize) / this.gridSize) * padding) * 2;
   }
 
-  get rows(): number[] { return Array(this.gridSize).fill(0).map((_, i) => i); }
-  get cols(): number[] { return Array(this.gridSize).fill(0).map((_, i) => i); }
+  // ── Template helpers ────────────────────────────────────────────────────────
 
   getSquareIndex(row: number, col: number): number {
     return row * this.gridSize + col + 1;
@@ -217,30 +243,29 @@ export class BoardComponent implements OnInit {
       if (pos === index) return `case-path start start-${color}`;
     }
     for (const [color, positions] of Object.entries(this.homes)) {
-      if (positions.includes(index)) return `case-path home home-${color}`;
+      if ((positions as number[]).includes(index)) return `case-path home home-${color}`;
     }
     for (const [color, positions] of Object.entries(this.arrivals)) {
-      if (positions.includes(index)) return `case-path arrival arrival-${color}`;
+      if ((positions as number[]).includes(index)) return `case-path arrival arrival-${color}`;
     }
     return 'case-path normal';
   }
 
-  getPlayer(color: PlayerColor): Player | undefined {
-    const gameData = this.gameStateService.data();
-    if (!gameData) return undefined;
-    return gameData.gameState.players.find(p => p.color === color);
+  getPlayer(color: MarbleColor): Player | undefined {
+    return this.gameStateService.data()?.gameState.players.find(p => p.color === color);
   }
 
-  isCurrentTurn(color: PlayerColor): boolean {
-    const gameData = this.gameStateService.data();
-    return gameData?.gameState.currentTurn.color === color;
+  isCurrentTurn(color: MarbleColor): boolean {
+    return this.gameStateService.data()?.gameState.currentTurn.color === color;
   }
 
-  getMarbleOnSquare(index: number): PlayerColor | null {
+  getMarbleOnSquare(index: number): MarbleColor | null {
     const gameData = this.gameStateService.data();
     if (!gameData || !this.gameStateService.isConnected()) return null;
 
-    const player = gameData.gameState.players.find(p => (p.marblePositions || []).includes(index));
-    return player ? (player.color as PlayerColor) : null;
+    const player = gameData.gameState.players.find(p =>
+      (p.marblePositions ?? []).includes(index)
+    );
+    return player ? player.color as MarbleColor : null;
   }
 }

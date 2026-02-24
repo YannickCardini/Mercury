@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <!-- Main gradient -->
+    <radialGradient id="baseGradient" cx="35%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="40%" stop-color="#6ee7ff"/>
+      <stop offset="75%" stop-color="#a855f7"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </radialGradient>
+
+    <!-- Swirl gradient -->
+    <linearGradient id="swirlGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff4fd8"/>
+      <stop offset="50%" stop-color="#ff9f1c"/>
+      <stop offset="100%" stop-color="#22d3ee"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Outer circle (marble body) -->
+  <circle cx="256" cy="256" r="240" fill="url(#baseGradient)" stroke="#222" stroke-width="12"/>
+
+  <!-- Colorful swirl -->
+  <path d="M120 280
+           C180 200, 330 200, 390 280
+           C340 340, 180 360, 120 280Z"
+        fill="url(#swirlGradient)"
+        opacity="0.85"/>
+
+  <!-- Smaller swirl accent -->
+  <path d="M170 230
+           C210 190, 300 190, 340 230
+           C300 260, 210 270, 170 230Z"
+        fill="#ffffff"
+        opacity="0.35"/>
+
+  <!-- Highlight shine -->
+  <ellipse cx="200" cy="170" rx="60" ry="40"
+           fill="#ffffff"
+           opacity="0.6"/>
+
+  <!-- Small highlight -->
+  <circle cx="175" cy="150" r="18"
+          fill="#ffffff"
+          opacity="0.8"/>
+</svg>

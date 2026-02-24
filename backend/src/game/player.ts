@@ -1,4 +1,4 @@
-import type { Action, Card, MarbleColor } from "../types/types.js";
+import type { Action, Card, MarbleColor } from "@keezen/shared";
 import { calculateMoveFromCardAndMarble, sleep } from "../utils/utils.js";
 
 export class Player {

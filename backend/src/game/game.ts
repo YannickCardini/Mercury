@@ -1,8 +1,14 @@
-import { Board } from "./board.js";
 import { Deck } from "./deck.js";
 import { Player } from "./player.js";
-import type { Action } from "../types/types.js";
-import { sleep } from "../utils/utils.js";
+import {
+    getHomePositions,
+    hasWon,
+    TURN_DURATION_SECONDS,
+    CARDS_PER_HAND,
+    type MarbleColor,
+} from '@keezen/shared';
+import type { Action } from "@keezen/shared";
+const PLAYER_ORDER: MarbleColor[] = ['red', 'green', 'blue', 'orange'];
 
 export class Game {
 
@@ -13,16 +19,14 @@ export class Game {
     turn: number = 0;
     deck: Deck;
     ws: WebSocket;
-    discardedCards: string[] = []; // À typer avec Card[] quand tu veux
-
-    readonly TURN_DURATION = 30; // 30 secondes
+    discardedCards: string[] = [];
 
     constructor(ws: WebSocket) {
         this.ws = ws;
-        this.player1 = new Player(false, "Player 1", "red", Board.getInitialMarblePositions("red"));
-        this.player2 = new Player(false, "Player 2", "green", Board.getInitialMarblePositions("green"));
-        this.player3 = new Player(false, "Player 3", "blue", Board.getInitialMarblePositions("blue"));
-        this.player4 = new Player(false, "Player 4", "orange", Board.getInitialMarblePositions("orange"));
+        this.player1 = new Player(false, "Player 1", "red", getHomePositions("red"));
+        this.player2 = new Player(false, "Player 2", "green", getHomePositions("green"));
+        this.player3 = new Player(false, "Player 3", "blue", getHomePositions("blue"));
+        this.player4 = new Player(false, "Player 4", "orange", getHomePositions("orange"));
         this.deck = new Deck();
         this.startGame();
     }
@@ -30,137 +34,142 @@ export class Game {
     // ─── Boucle principale ────────────────────────────────────────────────────
 
     async startGame() {
-        this.broadcastState(null, null, "Game started");
         console.log("🎮 Game started");
-        this.dealCards(); // Distribution initiale
+        this.dealCards();
+        // Premier broadcast : currentTurn pointe vers le joueur qui va jouer (player1)
+        this.broadcastState(this.player1, null, "Game started");
 
         while (!this.gameIsOver()) {
             await this.playOneTurn();
         }
 
         console.log("🏆 Game over!");
-        this.broadcastState(null, null, "Game over"); // Dernier état envoyé
+        this.broadcastState(this.getCurrentPlayer(), null, "Game over");
     }
 
-    /**
-     * Joue UN seul tour, puis retourne.
-     * Le while dans startGame() s'occupe d'enchaîner.
-     */
     private async playOneTurn() {
         this.turn++;
-        const player = this.getPlayerTurn();
+        const player = this.getCurrentPlayer();
 
-        console.log(`🔄 Tour ${this.turn} — ${player.name}`);
+        console.log(`🔄 Tour ${this.turn} — ${player.name} (${player.color})`);
 
         if (player.handEmpty()) {
             console.log(`${player.name} n'a plus de cartes. Nouvelle donne...`);
             this.dealCards();
         }
 
-        // Race entre l'action du joueur et le timeout de 30s
         const move = await this.waitForActionOrTimeout(player);
-        this.updateMarblePositions(player, move);
-        this.updateDiscardedCards(move);
-        console.log(`✅ ${player.name} a joué :`, move);
-        this.broadcastState(player, move);
+
+        // Enrichit l'action avec la couleur du joueur qui l'a jouée
+        // → le frontend n'a plus besoin de la recalculer
+        const enrichedMove: Action = { ...move, playerColor: player.color };
+
+        this.updateMarblePositions(player, enrichedMove);
+        this.updateDiscardedCards(enrichedMove);
+        console.log(`✅ ${player.name} a joué :`, enrichedMove);
+
+        // On avance au tour suivant AVANT le broadcast,
+        // pour que currentTurn.color pointe vers le prochain joueur
+        this.turn++;
+        const nextPlayer = this.getCurrentPlayer();
+        this.turn--; // on remet turn à sa vraie valeur (sera incrémenté au prochain appel)
+
+        this.broadcastState(nextPlayer, enrichedMove);
     }
 
-    private updateDiscardedCards(move: Action) {
+    private updateDiscardedCards(move: Action): void {
         if (move.cardPlayed) {
             this.discardedCards.push(`${move.cardPlayed.value} of ${move.cardPlayed.suit}`);
         }
     }
 
-    private updateMarblePositions(player: Player, move: Action) {
+    private updateMarblePositions(player: Player, move: Action): void {
         switch (move.type) {
             case 'move':
-            case 'enter':
+            case 'enter': {
                 const index = player.marblePositions.indexOf(move.from);
                 if (index !== -1) {
                     player.marblePositions[index] = move.to;
                 } else {
-                    console.warn(`⚠️ ${player.name} essaie de déplacer une bille depuis une position où il n'en a pas !`);
+                    console.warn(`⚠️ ${player.name} essaie de déplacer une bille depuis ${move.from} mais elle n'y est pas.`);
                 }
                 break;
+            }
             case 'capture':
-                // Logique de capture à implémenter
+                // TODO: renvoyer le pion capturé à la home de son propriétaire
                 break;
             case 'swap':
-                // Logique d'échange à implémenter
+                // TODO: échanger les positions des deux pions
                 break;
         }
     }
 
-    /**
-     * Retourne l'action du joueur, ou un "pass" forcé si le timeout expire.
-     */
     private waitForActionOrTimeout(player: Player): Promise<Action> {
         const actionPromise = player.getPlayerAction();
 
         const timeoutPromise = new Promise<Action>((resolve) => {
             setTimeout(() => {
                 console.log(`⏰ Timeout — ${player.name} passe son tour.`);
-                resolve({ type: 'pass', from: 0, to: 0, cardPlayed: null });
-            }, this.TURN_DURATION * 1000);
+                resolve({ type: 'pass', from: 0, to: 0, cardPlayed: null, playerColor: player.color });
+            }, TURN_DURATION_SECONDS * 1000);
         });
 
         return Promise.race([actionPromise, timeoutPromise]);
     }
 
-    // ─── Helpers ──────────────────────────────────────────────────────────────
+    // ─── Broadcast ────────────────────────────────────────────────────────────
 
-    private broadcastState(player: Player | null, move: Action | null, message = 'New turn'): void {
+    /**
+     * @param currentPlayer  Le joueur dont c'est LE TOUR (celui qui doit jouer)
+     * @param lastAction     L'action qui vient d'être jouée (null en début de partie)
+     * @param message        Message lisible pour le frontend
+     */
+    private broadcastState(currentPlayer: Player, lastAction: Action | null, message = 'New turn'): void {
         const state = {
             type: 'gameState',
-            message: message,
+            message,
             timestamp: new Date().toISOString(),
             gameState: {
-                players: [this.player1, this.player2, this.player3, this.player4],
-                currentTurn: player ? {
-                    color: player ? this.getNextPlayer(player.color) : 'red',
-                    lastAction: move ? move : null
-                } : { color: 'red', lastAction: null },
-                timer: this.TURN_DURATION,
+                players: this.getAllPlayers().map(p => ({
+                    name: p.name,
+                    color: p.color,
+                    isHuman: p.isHuman,
+                    isConnected: p.isConnected,
+                    marblePositions: p.marblePositions,
+                })),
+                currentTurn: {
+                    color: currentPlayer.color, // ✅ couleur du joueur qui DOIT jouer maintenant
+                    lastAction: lastAction ?? null,
+                },
+                timer: TURN_DURATION_SECONDS,
+                hand: currentPlayer.cards,   // ✅ main du joueur dont c'est le tour
                 discardedCards: this.discardedCards,
             }
         };
         this.ws.send(JSON.stringify(state));
     }
 
-    private getNextPlayer(currentColor: string): string {
-        const order = ['red', 'green', 'blue', 'orange'];
-        const currentIndex = order.indexOf(currentColor);
-        return order[(currentIndex + 1) % order.length]!;
+    // ─── Helpers ──────────────────────────────────────────────────────────────
+
+    private getAllPlayers(): Player[] {
+        return [this.player1, this.player2, this.player3, this.player4];
     }
 
-    dealCards() {
-        if (this.deck.isEmpty()) {
-            this.deck.resetDeck();
-        }
+    /** Retourne le joueur dont c'est le tour selon `this.turn`. */
+    private getCurrentPlayer(): Player {
+        return this.getAllPlayers()[(this.turn - 1) % 4]!;
+    }
+
+    dealCards(): void {
+        if (this.deck.isEmpty()) this.deck.resetDeck();
         this.deck.shuffle();
-        this.player1.cards = this.deck.drawCards(5);
-        this.player2.cards = this.deck.drawCards(5);
-        this.player3.cards = this.deck.drawCards(5);
-        this.player4.cards = this.deck.drawCards(5);
+        this.player1.cards = this.deck.drawCards(CARDS_PER_HAND);
+        this.player2.cards = this.deck.drawCards(CARDS_PER_HAND);
+        this.player3.cards = this.deck.drawCards(CARDS_PER_HAND);
+        this.player4.cards = this.deck.drawCards(CARDS_PER_HAND);
     }
 
     gameIsOver(): boolean {
-        const players = [this.player1, this.player2, this.player3, this.player4];
-        return players.some(player =>
-            player.marblePositions.every(pos =>
-                Board.getArrivalPositions(player.color).includes(pos)
-            )
-        );
+        return this.getAllPlayers().some(p => hasWon(p.marblePositions, p.color));
     }
-
-    getPlayerTurn(): Player {
-        const players = [this.player1, this.player2, this.player3, this.player4];
-        return players[(this.turn - 1) % 4]!;
-        // turn=1 → index 0 → player1
-        // turn=2 → index 1 → player2
-        // turn=3 → index 2 → player3
-        // turn=4 → index 3 → player4
-        // turn=5 → index 0 → player1 ...
-    }
-
 }

@@ -1,9 +1,11 @@
-import { Component, signal, effect } from '@angular/core';
-import { IonContent, ViewDidEnter } from '@ionic/angular/standalone';
+import { Component, signal, effect, OnDestroy } from '@angular/core';
+import { IonContent } from '@ionic/angular/standalone';
 import { BoardComponent } from './components/board/board.component';
 import { TableComponent } from './components/table/table.component';
 import { GameStateService } from './services/game-state.service';
 import { environment } from '../../environments/environment';
+import { Subscription } from 'rxjs';
+import { NEW_TURN_BANNER_DURATION_MS } from '@keezen/shared';
 
 @Component({
   selector: 'app-home',
@@ -11,24 +13,20 @@ import { environment } from '../../environments/environment';
   styleUrl: 'home.page.scss',
   imports: [IonContent, BoardComponent, TableComponent],
 })
-export class HomePage implements ViewDidEnter {
+export class HomePage implements OnDestroy {
 
-  /** Affiche l'overlay "Nouveau tour" */
   showNewTurnBanner = signal(false);
-  /** Couleur du joueur dont c'est le tour */
   newTurnColor = signal<string>('');
-  /** Nom du joueur dont c'est le tour */
   newTurnName = signal<string>('');
 
   private newTurnTimeout: ReturnType<typeof setTimeout> | null = null;
+  private newTurnSub: Subscription | null = null;
 
   constructor(public gameStateService: GameStateService) {
-    // Réagit à chaque nouveau tour
-    effect(() => {
-      // S'abonner au BehaviorSubject via un simple trick signal-compatible
-      const turn = this.gameStateService.newTurn.value;
-      if (!turn) return;
-
+    // ✅ Subscription RxJS propre — réactive à chaque next() du BehaviorSubject,
+    // contrairement à .value qui est un snapshot lu une seule fois au moment
+    // de l'exécution de l'effect.
+    this.newTurnSub = this.gameStateService.newTurn.subscribe(() => {
       const gameData = this.gameStateService.data();
       if (!gameData) return;
 
@@ -43,28 +41,34 @@ export class HomePage implements ViewDidEnter {
       if (this.newTurnTimeout) clearTimeout(this.newTurnTimeout);
       this.newTurnTimeout = setTimeout(() => {
         this.showNewTurnBanner.set(false);
-      }, 2500);
+      }, NEW_TURN_BANNER_DURATION_MS);
     });
+  }
+
+  ngOnDestroy(): void {
+    // Évite les memory leaks — toujours se désabonner manuellement
+    this.newTurnSub?.unsubscribe();
+    if (this.newTurnTimeout) clearTimeout(this.newTurnTimeout);
   }
 
   ionViewDidEnter(): void {
     this.connect();
   }
 
-  connect() {
+  connect(): void {
     this.gameStateService.connect(environment.wsUrl, () => this.sendAIPlayers());
   }
 
-  disconnect() {
+  disconnect(): void {
     this.gameStateService.disconnect();
   }
 
-  private sendAIPlayers() {
+  private sendAIPlayers(): void {
     const players = [
-      { name: 'IA Rouge', color: 'red', isHuman: false, isConnected: true },
-      { name: 'IA Vert', color: 'green', isHuman: false, isConnected: true },
-      { name: 'IA Bleu', color: 'blue', isHuman: false, isConnected: true },
-      { name: 'IA Orange', color: 'orange', isHuman: false, isConnected: true },
+      { name: 'IA Rouge',   color: 'red',    isHuman: false, isConnected: true },
+      { name: 'IA Vert',    color: 'green',  isHuman: false, isConnected: true },
+      { name: 'IA Bleu',    color: 'blue',   isHuman: false, isConnected: true },
+      { name: 'IA Orange',  color: 'orange', isHuman: false, isConnected: true },
     ];
     this.gameStateService.send(JSON.stringify({ type: 'start', players }));
   }
