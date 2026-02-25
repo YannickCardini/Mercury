@@ -21,27 +21,14 @@ export const TURN_DURATION_SECONDS = 30;
 export const TURN_DURATION_MS = TURN_DURATION_SECONDS * 1000;
 
 // ── Durées d'animation des pions (ms) ────────────────────────────────────────
-//
-// Ces valeurs DOIVENT être reflétées dans _animations.scss :
-//
-//   :root {
-//     --anim-enter:   800ms;
-//     --anim-move:    600ms;
-//     --anim-capture: 700ms;
-//     --anim-swap:    900ms;
-//     --anim-promote: 1000ms;
-//   }
-//
-// Pour lire ces valeurs en JS depuis le CSS (si tu veux que le CSS soit maître) :
-//   const ms = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--anim-enter'));
 
 export const MARBLE_ANIMATION_DURATIONS: Record<ActionType, number> = {
-  enter:   800,
-  move:    600,
+  enter: 2000,
+  move: 600,
   capture: 700,
-  swap:    900,
+  swap: 900,
   promote: 1000,
-  pass:    0,   // pas d'animation pour un pass
+  pass: 0,   // pas d'animation pour un pass
 };
 
 // ── Durée de l'animation de vol de carte (ms) ─────────────────────────────────
@@ -49,10 +36,10 @@ export const MARBLE_ANIMATION_DURATIONS: Record<ActionType, number> = {
 // Doit correspondre à la durée de l'animation CSS `.flying-card`.
 // La carte reste visible CARD_FLY_DURATION ms avant d'atterrir sur la pile.
 
-export const CARD_FLY_DURATION_MS = 1300;
+export const CARD_FLY_DURATION_MS = 1600;
 
 /** Délai avant de déclencher les animations de pions après le vol de carte. */
-export const CARD_LAND_DELAY_MS = 650;
+export const CARD_LAND_DELAY_MS = 1400;
 
 // ── Affichage ─────────────────────────────────────────────────────────────────
 

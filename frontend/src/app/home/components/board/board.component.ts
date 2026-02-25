@@ -17,6 +17,7 @@ import {
   SKIPPED_INDICES,
   MARBLE_ANIMATION_DURATIONS,
   CARD_LAND_DELAY_MS,
+  CARD_FLY_DURATION_MS,
 } from '@keezen/shared';
 
 export interface CardInfo {
@@ -92,6 +93,7 @@ export class BoardComponent implements OnInit {
       }
     });
   }
+
 
   // ── Animations ──────────────────────────────────────────────────────────────
 
@@ -203,6 +205,17 @@ export class BoardComponent implements OnInit {
 
   ngOnInit() {
     this.calculateSquareSize();
+    this.injectAnimationDurations();
+  }
+
+  private injectAnimationDurations(): void {
+    const root = document.documentElement;
+    root.style.setProperty('--anim-enter', `${MARBLE_ANIMATION_DURATIONS.enter}ms`);
+    root.style.setProperty('--anim-move', `${MARBLE_ANIMATION_DURATIONS.move}ms`);
+    root.style.setProperty('--anim-capture', `${MARBLE_ANIMATION_DURATIONS.capture}ms`);
+    root.style.setProperty('--anim-swap', `${MARBLE_ANIMATION_DURATIONS.swap}ms`);
+    root.style.setProperty('--anim-promote', `${MARBLE_ANIMATION_DURATIONS.promote}ms`);
+    root.style.setProperty('--anim-card-fly', `${CARD_FLY_DURATION_MS}ms`);
   }
 
   @HostListener('window:resize')

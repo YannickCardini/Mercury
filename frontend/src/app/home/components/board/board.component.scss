@@ -1,5 +1,15 @@
 @use "sass:color";
 
+/* ─────────────────────────────────────────────────────────────
+   VARIABLES THÈME
+   ───────────────────────────────────────────────────────────── */
+$c-red: #ef4444;
+$c-green: #22c55e;
+$c-blue: #3b82f6;
+$c-orange: #f97316;
+$c-gold: #f0c040;
+$bg-dark: #0f172a;
+$bg-mid: #1e2d45;
 /* --- Variables et Couleurs --- */
 $colors: (
     "red": #ef4444,
@@ -171,7 +181,7 @@ $colors: (
 }
 
 .marble.marble-entering {
-    animation: marbleDrop 1s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+    animation: marbleDrop var(--anim-enter) cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
     pointer-events: none;
 }
 
@@ -205,7 +215,7 @@ $colors: (
 }
 
 .marble.marble-moving {
-    animation: marbleMove 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    animation: marbleMove var(--anim-move) cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
     pointer-events: none;
 }
 
@@ -271,18 +281,18 @@ $colors: (
 }
 
 .marble.marble-capturing {
-    animation: marbleCapturing 0.7s ease-out forwards;
+    animation: marbleCapturing var(--anim-capture) ease-out forwards;
     pointer-events: none;
 }
 
 .marble.marble-captured-exit {
-    animation: marbleCapturedExit 0.7s cubic-bezier(0.55, 0, 1, 0.45) forwards;
+    animation: marbleCapturedExit var(--anim-capture) cubic-bezier(0.55, 0, 1, 0.45) forwards;
     pointer-events: none;
     z-index: 20;
 }
 
 .case-path.square-impact {
-    animation: squareImpact 0.7s ease-out forwards;
+    animation: squareImpact var(--anim-capture) ease-out forwards;
 }
 
 /* --------------------------------------------------------------------------
@@ -322,7 +332,7 @@ $colors: (
 }
 
 .marble.marble-swapping {
-    animation: marbleSwap 0.9s cubic-bezier(0.45, 0.05, 0.55, 0.95) forwards;
+    animation: marbleSwap var(--anim-swap) cubic-bezier(0.45, 0.05, 0.55, 0.95) forwards;
     pointer-events: none;
 }
 
@@ -392,12 +402,12 @@ $colors: (
 }
 
 .marble.marble-promoting {
-    animation: marblePromote 1s ease-in-out forwards;
+    animation: marblePromote var(--anim-promote) ease-in-out forwards;
     pointer-events: none;
 }
 
 .case-path.square-promoting {
-    animation: squarePromoting 1s ease-in-out forwards;
+    animation: squarePromoting var(--anim-promote) ease-in-out forwards;
 }
 
 
@@ -680,22 +690,188 @@ $colors: (
 
 /* Association couleur → animation */
 .flying-card.player-red {
-    animation: cardFlyFromTopLeft 1.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation: cardFlyFromTopLeft var(--anim-card-fly) cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 .flying-card.player-green {
-    animation: cardFlyFromTopRight 1.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation: cardFlyFromTopRight var(--anim-card-fly) cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 .flying-card.player-blue {
-    animation: cardFlyFromBottomRight 1.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation: cardFlyFromBottomRight var(--anim-card-fly) cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 .flying-card.player-orange {
-    animation: cardFlyFromBottomLeft 1.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation: cardFlyFromBottomLeft var(--anim-card-fly) cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 /* Fallback générique si couleur inconnue */
 .flying-card:not(.player-red):not(.player-green):not(.player-blue):not(.player-orange) {
-    animation: cardFlyFromTopLeft 1.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation: cardFlyFromTopLeft var(--anim-card-fly) cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   OVERLAY NOUVEAU TOUR
+   ═══════════════════════════════════════════════════════════════ */
+$turn-colors: (
+    "red": $c-red,
+    "green": $c-green,
+    "blue": $c-blue,
+    "orange": $c-orange,
+);
+
+.new-turn-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    pointer-events: none;
+    animation: overlayFade 2.5s ease forwards;
+
+    // Fond très légèrement teinté selon la couleur
+    @each $name, $hex in $turn-colors {
+        &[data-color="#{$name}"] {
+            background: radial-gradient(ellipse at center,
+                    rgba($hex, 0.18) 0%,
+                    rgba($hex, 0.04) 50%,
+                    transparent 70%);
+
+            .new-turn-banner {
+                border-color: rgba($hex, 0.6);
+                box-shadow:
+                    0 0 40px rgba($hex, 0.35),
+                    0 0 80px rgba($hex, 0.15),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+            }
+
+            .new-turn-name {
+                color: $hex;
+                text-shadow: 0 0 12px rgba($hex, 0.7);
+            }
+
+            .ntm-#{$name} {
+                background: radial-gradient(circle at 35% 35%, color.adjust($hex, $lightness: 15%), $hex 60%, color.adjust($hex, $lightness: -15%));
+                box-shadow: 0 0 16px rgba($hex, 0.7), 0 3px 8px rgba(0, 0, 0, 0.4);
+            }
+        }
+    }
+}
+
+@keyframes overlayFade {
+    0% {
+        opacity: 0;
+    }
+
+    15% {
+        opacity: 1;
+    }
+
+    70% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
+    }
+}
+
+.new-turn-banner {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 18px 36px;
+    background: rgba(10, 18, 40, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 60px;
+    animation: bannerSlide 2.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes bannerSlide {
+    0% {
+        transform: translateY(-60px) scale(0.8);
+        opacity: 0;
+    }
+
+    18% {
+        transform: translateY(4px) scale(1.03);
+        opacity: 1;
+    }
+
+    25% {
+        transform: translateY(0) scale(1);
+    }
+
+    75% {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateY(40px) scale(0.9);
+        opacity: 0;
+    }
+}
+
+/* Billes décoratives du banner */
+.new-turn-marble {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    animation: bannerMarbleSpin 2.5s ease-in-out forwards;
+
+    &::after {
+        content: '';
+        position: absolute;
+        top: 18%;
+        left: 18%;
+        width: 28%;
+        height: 28%;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(255, 255, 255, 0.7), transparent 70%);
+    }
+}
+
+@keyframes bannerMarbleSpin {
+    0% {
+        transform: scale(0) rotate(-180deg);
+    }
+
+    20% {
+        transform: scale(1.2) rotate(10deg);
+    }
+
+    30% {
+        transform: scale(1) rotate(0);
+    }
+
+    100% {
+        transform: scale(1) rotate(0);
+    }
+}
+
+.new-turn-text {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.new-turn-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.new-turn-name {
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    color: white;
 }

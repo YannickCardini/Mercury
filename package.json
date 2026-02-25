@@ -1,0 +1,16 @@
+{
+  "name": "keezen",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/shared",
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "build:shared": "npm run build --workspace=packages/shared",
+    "dev:backend": "npm run dev --workspace=backend",
+    "dev:frontend": "npm run start --workspace=frontend",
+    "build:all": "npm run build:shared && npm run build --workspace=backend"
+  }
+}
