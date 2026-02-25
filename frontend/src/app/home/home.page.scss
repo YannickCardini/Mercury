@@ -1,6 +1,8 @@
 /* ─────────────────────────────────────────────────────────────
    VARIABLES THÈME
    ───────────────────────────────────────────────────────────── */
+@use "sass:color";
+
 $c-red: #ef4444;
 $c-green: #22c55e;
 $c-blue: #3b82f6;
@@ -142,19 +144,19 @@ $bg-mid: #1e2d45;
     }
 
     &.marble-red {
-        background: radial-gradient(circle at 35% 35%, lighten($c-red, 15%), $c-red 60%, darken($c-red, 15%));
+        background: radial-gradient(circle at 35% 35%, color.adjust($c-red, $lightness: 15%), $c-red 60%, color.adjust($c-red, $lightness: -15%));
     }
 
     &.marble-green {
-        background: radial-gradient(circle at 35% 35%, lighten($c-green, 15%), $c-green 60%, darken($c-green, 15%));
+        background: radial-gradient(circle at 35% 35%, color.adjust($c-green, $lightness: 15%), $c-green 60%, color.adjust($c-green, $lightness: -15%));
     }
 
     &.marble-blue {
-        background: radial-gradient(circle at 35% 35%, lighten($c-blue, 15%), $c-blue 60%, darken($c-blue, 15%));
+        background: radial-gradient(circle at 35% 35%, color.adjust($c-blue, $lightness: 15%), $c-blue 60%, color.adjust($c-blue, $lightness: -15%));
     }
 
     &.marble-orange {
-        background: radial-gradient(circle at 35% 35%, lighten($c-orange, 15%), $c-orange 60%, darken($c-orange, 15%));
+        background: radial-gradient(circle at 35% 35%, color.adjust($c-orange, $lightness: 15%), $c-orange 60%, color.adjust($c-orange, $lightness: -15%));
     }
 }
 
@@ -368,7 +370,7 @@ $turn-colors: (
             }
 
             .ntm-#{$name} {
-                background: radial-gradient(circle at 35% 35%, lighten($hex, 15%), $hex 60%, darken($hex, 15%));
+                background: radial-gradient(circle at 35% 35%, color.adjust($hex, $lightness: 15%), $hex 60%, color.adjust($hex, $lightness: -15%));
                 box-shadow: 0 0 16px rgba($hex, 0.7), 0 3px 8px rgba(0, 0, 0, 0.4);
             }
         }
