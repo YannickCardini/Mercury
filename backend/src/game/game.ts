@@ -6,6 +6,8 @@ import {
     TURN_DURATION_SECONDS,
     CARDS_PER_HAND,
     type MarbleColor,
+    MARBLE_ANIMATION_DURATIONS,
+    CARD_LAND_DELAY_MS,
 } from '@keezen/shared';
 import type { Action } from "@keezen/shared";
 const PLAYER_ORDER: MarbleColor[] = ['red', 'green', 'blue', 'orange'];
@@ -51,30 +53,60 @@ export class Game {
         this.turn++;
         const player = this.getCurrentPlayer();
 
-        console.log(`🔄 Tour ${this.turn} — ${player.name} (${player.color})`);
-
         if (player.handEmpty()) {
-            console.log(`${player.name} n'a plus de cartes. Nouvelle donne...`);
             this.dealCards();
         }
 
         const move = await this.waitForActionOrTimeout(player);
-
-        // Enrichit l'action avec la couleur du joueur qui l'a jouée
-        // → le frontend n'a plus besoin de la recalculer
         const enrichedMove: Action = { ...move, playerColor: player.color };
 
         this.updateMarblePositions(player, enrichedMove);
         this.updateDiscardedCards(enrichedMove);
-        console.log(`✅ ${player.name} a joué :`, enrichedMove);
 
-        // On avance au tour suivant AVANT le broadcast,
-        // pour que currentTurn.color pointe vers le prochain joueur
+        // 1️⃣ Broadcast immédiat : "voici l'action qui vient d'être jouée"
+        this.broadcastAction(enrichedMove);
+
+        // 2️⃣ Attendre que les animations soient terminées côté client
+        await this.waitForAnimationsOrTimeout(enrichedMove);
+
+        // 3️⃣ Avancer au prochain joueur et broadcaster le nouvel état
         this.turn++;
         const nextPlayer = this.getCurrentPlayer();
-        this.turn--; // on remet turn à sa vraie valeur (sera incrémenté au prochain appel)
+        this.turn--;
 
         this.broadcastState(nextPlayer, enrichedMove);
+    }
+
+    private broadcastAction(action: Action): void {
+        const msg = {
+            type: 'actionPlayed',
+            timestamp: new Date().toISOString(),
+            action,
+        };
+        this.ws.send(JSON.stringify(msg));
+    }
+
+    private waitForAnimationsOrTimeout(action: Action): Promise<void> {
+        const animDuration = MARBLE_ANIMATION_DURATIONS[action.type] ?? 0;
+        // Délai total = vol de carte + animation du pion + petite marge
+        const fallbackDelay = CARD_LAND_DELAY_MS + animDuration + 200;
+
+        return new Promise<void>((resolve) => {
+            const timer = setTimeout(resolve, fallbackDelay);
+
+            // Écoute un acquittement "animationDone" du client
+            const onMessage = (raw: MessageEvent) => {
+                try {
+                    const msg = JSON.parse(raw.data as string);
+                    if (msg.type === 'animationDone') {
+                        clearTimeout(timer);
+                        this.ws.removeEventListener('message', onMessage);
+                        resolve();
+                    }
+                } catch { /* ignore */ }
+            };
+            this.ws.addEventListener('message', onMessage);
+        });
     }
 
     private updateDiscardedCards(move: Action): void {

@@ -23,7 +23,7 @@ export const TURN_DURATION_MS = TURN_DURATION_SECONDS * 1000;
 // ── Durées d'animation des pions (ms) ────────────────────────────────────────
 
 export const MARBLE_ANIMATION_DURATIONS: Record<ActionType, number> = {
-  enter: 2000,
+  enter: 1200,
   move: 600,
   capture: 700,
   swap: 900,
@@ -36,10 +36,10 @@ export const MARBLE_ANIMATION_DURATIONS: Record<ActionType, number> = {
 // Doit correspondre à la durée de l'animation CSS `.flying-card`.
 // La carte reste visible CARD_FLY_DURATION ms avant d'atterrir sur la pile.
 
-export const CARD_FLY_DURATION_MS = 1600;
+export const CARD_FLY_DURATION_MS = 1500;
 
 /** Délai avant de déclencher les animations de pions après le vol de carte. */
-export const CARD_LAND_DELAY_MS = 1400;
+export const CARD_LAND_DELAY_MS = 1600;
 
 // ── Affichage ─────────────────────────────────────────────────────────────────
 

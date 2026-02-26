@@ -1,14 +1,13 @@
 import { Injectable, signal, computed } from '@angular/core';
-import { BehaviorSubject } from 'rxjs/internal/BehaviorSubject';
-import { GameState, Card } from '@keezen/shared';
-
-// Shape complète du message reçu par le WebSocket
-export interface GameData {
-  gameState: GameState;
-  message: string;
-  timestamp: string;
-  type: string;
-}
+import { BehaviorSubject, Subject } from 'rxjs';
+import {
+  Card,
+  Action,
+  GameStateMessage,
+  ActionPlayedMessage,
+  AnimationDoneMessage,
+  ServerMessage,
+} from '@keezen/shared';
 
 @Injectable({
   providedIn: 'root',
@@ -18,12 +17,18 @@ export class GameStateService {
   boardContainerSize = signal(0);
 
   message = signal('En attente...');
-  data = signal<GameData | null>(null);
+  data = signal<GameStateMessage | null>(null);
   isConnected = signal(false);
 
   // Computed signals qui se mettent à jour automatiquement
   hand = computed<Card[]>(() => this.data()?.gameState?.hand ?? []);
+
+  // Émis à chaque nouveau gameState (nouveau tour prêt à commencer)
   newTurn = new BehaviorSubject<Date | null>(null);
+
+  // Émis à chaque actionPlayed reçu du backend.
+  // Le board.component s'y abonne pour déclencher les animations.
+  actionPlayed$ = new Subject<Action>();
 
   private ws: WebSocket | null = null;
 
@@ -41,13 +46,33 @@ export class GameStateService {
     };
 
     this.ws.onmessage = (event: MessageEvent) => {
-      const parsed: GameData = JSON.parse(event.data);
-      this.data.set(parsed);
-      this.message.set(`Message reçu: ${event.data}`);
-      console.log('Données mises à jour:', parsed);
+      const parsed = JSON.parse(event.data) as ServerMessage;
 
-      if (parsed.message === 'New turn') {
-        this.newTurn.next(new Date());
+      switch (parsed.type) {
+
+        // ── Une action vient d'être jouée ──────────────────────────────────
+        // Le backend attend notre `animationDone` avant de passer au tour suivant.
+        case 'actionPlayed': {
+          const msg = parsed as ActionPlayedMessage;
+          console.log('▶️ Action reçue:', msg.action);
+          this.actionPlayed$.next(msg.action);
+          break;
+        }
+
+        // ── Nouvel état de jeu (nouveau tour prêt) ─────────────────────────
+        case 'gameState':
+        case 'welcome':
+        case 'response': {
+          const msg = parsed as GameStateMessage;
+          this.data.set(msg);
+          this.message.set(`Message reçu: ${event.data}`);
+          console.log('Données mises à jour:', msg);
+
+          if (msg.message === 'New turn') {
+            this.newTurn.next(new Date());
+          }
+          break;
+        }
       }
     };
 
@@ -64,6 +89,16 @@ export class GameStateService {
 
   send(message: string): void {
     this.ws?.send(message);
+  }
+
+  /**
+   * Signale au backend que les animations sont terminées et qu'il peut
+   * passer au tour suivant.
+   */
+  sendAnimationDone(): void {
+    const msg: AnimationDoneMessage = { type: 'animationDone' };
+    this.send(JSON.stringify(msg));
+    console.log('✅ animationDone envoyé');
   }
 
   disconnect(): void {

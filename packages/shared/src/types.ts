@@ -72,7 +72,7 @@ export interface GameState {
   discardedCards: Card[];
 }
 
-// ── Messages WebSocket ────────────────────────────────────────────────────────
+// ── Messages WebSocket — Serveur → Client ─────────────────────────────────────
 
 /** Message envoyé par le serveur lors de la connexion initiale */
 export interface WelcomeMessage {
@@ -98,7 +98,24 @@ export interface ResponseMessage {
   gameState: GameState;
 }
 
-export type ServerMessage = WelcomeMessage | GameStateMessage | ResponseMessage;
+/**
+ * Message envoyé par le serveur dès qu'un joueur a joué une action.
+ * Le serveur attend un `AnimationDoneMessage` du client avant de passer
+ * au tour suivant — ce qui garantit que les animations sont terminées.
+ */
+export interface ActionPlayedMessage {
+  type: 'actionPlayed';
+  timestamp: string;
+  action: Action;
+}
+
+export type ServerMessage =
+  | WelcomeMessage
+  | GameStateMessage
+  | ResponseMessage
+  | ActionPlayedMessage;
+
+// ── Messages WebSocket — Client → Serveur ─────────────────────────────────────
 
 /** Message envoyé par le client pour démarrer une partie */
 export interface StartMessage {
@@ -112,4 +129,12 @@ export interface PlayActionMessage {
   action: Action;
 }
 
-export type ClientMessage = StartMessage | PlayActionMessage;
+/**
+ * Message envoyé par le client quand toutes ses animations sont terminées.
+ * Le serveur l'attend pour déclencher le tour suivant.
+ */
+export interface AnimationDoneMessage {
+  type: 'animationDone';
+}
+
+export type ClientMessage = StartMessage | PlayActionMessage | AnimationDoneMessage;

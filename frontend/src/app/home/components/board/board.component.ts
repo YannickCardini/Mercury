@@ -1,12 +1,14 @@
-import { Component, HostListener, OnInit, signal, effect } from '@angular/core';
+import { Component, HostListener, OnInit, OnDestroy, signal, effect } from '@angular/core';
 import { GameStateService } from '../../services/game-state.service';
 import { IonCol, IonGrid, IonRow } from '@ionic/angular/standalone';
 import { CommonModule } from '@angular/common';
 import { TockCardComponent } from 'src/app/shared/tock-card.component';
+import { Subscription } from 'rxjs';
 
 import {
   MarbleColor,
   ActionType,
+  Action,
   Player,
   GRID_SIZE,
   SQUARES_TO_DISPLAY,
@@ -39,7 +41,7 @@ export interface SquareAnimation {
   styleUrls: ['board.component.scss'],
   imports: [IonCol, IonRow, IonGrid, CommonModule, TockCardComponent]
 })
-export class BoardComponent implements OnInit {
+export class BoardComponent implements OnInit, OnDestroy {
 
   // ── Config plateau (depuis @keezen/shared) ──────────────────────────────────
   readonly gridSize = GRID_SIZE;
@@ -67,82 +69,124 @@ export class BoardComponent implements OnInit {
   private animationTimeouts = new Map<number, ReturnType<typeof setTimeout>>();
   private flyingCardTimeout: ReturnType<typeof setTimeout> | null = null;
 
+  // ── Suivi des animations en cours ──────────────────────────────────────────
+  // On compte le nombre d'animations actives pour savoir quand tout est terminé.
+  private pendingAnimations = 0;
+  private actionPlayedSub: Subscription | null = null;
+
   // ── Constructor ─────────────────────────────────────────────────────────────
 
   constructor(private gameStateService: GameStateService) {
-    effect(() => {
-      const gameData = this.gameStateService.data();
-      const lastAction = gameData?.gameState?.currentTurn?.lastAction;
-      if (!lastAction) return;
-
-      if (lastAction.cardPlayed) {
-        // playerColor est maintenant directement dans l'action — plus besoin
-        // de recalculer la couleur du joueur précédent.
-        const card: CardInfo = {
-          value: lastAction.cardPlayed.value,
-          suit: lastAction.cardPlayed.suit,
-          color: (lastAction.playerColor ?? gameData?.gameState?.currentTurn?.color) as MarbleColor,
-        };
-        this.triggerCardAnimation(card);
-
-        // Marble animations déclenchées après l'atterrissage de la carte
-        setTimeout(() => this.triggerMarbleAnimation(lastAction), CARD_LAND_DELAY_MS);
-      } else {
-        // Pas de carte jouée (ex: action automatique) → marble immédiatement
-        this.triggerMarbleAnimation(lastAction);
-      }
+    // ── Écoute du nouveau message `actionPlayed` ──────────────────────────
+    // Remplace l'ancien effect() sur data() pour les animations.
+    // Le backend envoie `actionPlayed` AVANT de mettre à jour le gameState,
+    // et attend notre `animationDone` pour continuer.
+    this.actionPlayedSub = this.gameStateService.actionPlayed$.subscribe((action: Action) => {
+      this.playActionAnimation(action);
     });
   }
 
+  // ── Orchestration principale ────────────────────────────────────────────────
+
+  /**
+   * Point d'entrée unique pour jouer l'animation d'une action reçue.
+   * Une fois toutes les animations terminées, envoie `animationDone` au backend.
+   */
+  private playActionAnimation(action: Action): void {
+    this.pendingAnimations = 0; // reset pour cette action
+
+    if (action.cardPlayed) {
+      const card: CardInfo = {
+        value: action.cardPlayed.value,
+        suit: action.cardPlayed.suit,
+        color: action.playerColor as MarbleColor,
+      };
+
+      // 1. Animation du vol de carte
+      this.triggerCardAnimation(card, () => {
+        // 2. Animation du pion, déclenchée après l'atterrissage de la carte
+        this.triggerMarbleAnimation(action, () => {
+          // 3. Tout est terminé → on notifie le backend
+          this.gameStateService.sendAnimationDone();
+        });
+      });
+
+    } else {
+      // Pas de carte jouée (ex: pass, timeout) → marble directement, ou rien
+      this.triggerMarbleAnimation(action, () => {
+        this.gameStateService.sendAnimationDone();
+      });
+    }
+  }
 
   // ── Animations ──────────────────────────────────────────────────────────────
 
-  /** Déclenche l'animation marble correspondant au type d'action. */
-  private triggerMarbleAnimation(lastAction: { type: string; from: number; to: number }): void {
-    const type = lastAction.type as ActionType;
-    const duration = MARBLE_ANIMATION_DURATIONS[type] ?? 700;
+  /**
+   * Déclenche l'animation marble correspondant au type d'action.
+   * @param onComplete  Callback appelé quand l'animation marble est terminée.
+   */
+  private triggerMarbleAnimation(
+    action: { type: string; from: number; to: number },
+    onComplete: () => void
+  ): void {
+    const type = action.type as ActionType;
+    const duration = MARBLE_ANIMATION_DURATIONS[type] ?? 0;
+
+    // Cas sans animation (pass, types inconnus) → on notifie immédiatement
+    if (duration === 0) {
+      onComplete();
+      return;
+    }
 
     switch (type) {
       case 'enter':
-        this.triggerAnimation(lastAction.to, { marbleClass: 'marble-entering' }, duration);
+        this.triggerAnimation(action.to, { marbleClass: 'marble-entering' }, duration, onComplete);
         break;
 
       case 'move':
-        this.triggerAnimation(lastAction.to, { marbleClass: 'marble-moving' }, duration);
+        this.triggerAnimation(action.to, { marbleClass: 'marble-moving' }, duration, onComplete);
         break;
 
       case 'capture':
-        this.triggerAnimation(lastAction.to, {
-          marbleClass: 'marble-capturing',
-          squareClass: 'square-impact',
-        }, duration);
-        this.triggerAnimation(lastAction.from, {
-          marbleClass: 'marble-captured-exit',
-        }, duration);
+        // Deux animations en parallèle → on attend que les DEUX soient finies
+        this.triggerAnimationParallel([
+          { index: action.to, anim: { marbleClass: 'marble-capturing', squareClass: 'square-impact' } },
+          { index: action.from, anim: { marbleClass: 'marble-captured-exit' } },
+        ], duration, onComplete);
         break;
 
       case 'swap':
-        this.triggerAnimation(lastAction.from, { marbleClass: 'marble-swapping' }, duration);
-        this.triggerAnimation(lastAction.to, { marbleClass: 'marble-swapping' }, duration);
+        this.triggerAnimationParallel([
+          { index: action.from, anim: { marbleClass: 'marble-swapping' } },
+          { index: action.to, anim: { marbleClass: 'marble-swapping' } },
+        ], duration, onComplete);
         break;
 
       case 'promote':
-        this.triggerAnimation(lastAction.to, {
+        this.triggerAnimation(action.to, {
           marbleClass: 'marble-promoting',
           squareClass: 'square-promoting',
-        }, duration);
+        }, duration, onComplete);
         break;
+
+      default:
+        onComplete();
     }
   }
 
   /**
-   * Déclenche une animation sur une case. Pour forcer le re-trigger CSS si
-   * la même classe est déjà présente, on passe d'abord par un état vide (RAF).
+   * Déclenche une animation sur une case et appelle `onComplete` à la fin.
    */
-  private triggerAnimation(index: number, anim: SquareAnimation, duration: number): void {
+  private triggerAnimation(
+    index: number,
+    anim: SquareAnimation,
+    duration: number,
+    onComplete?: () => void
+  ): void {
     const existing = this.animationTimeouts.get(index);
     if (existing) clearTimeout(existing);
 
+    // Force le re-trigger CSS si la même classe est déjà présente
     this.squareAnimations.update(prev => {
       const next = { ...prev };
       delete next[index];
@@ -159,6 +203,7 @@ export class BoardComponent implements OnInit {
           return next;
         });
         this.animationTimeouts.delete(index);
+        onComplete?.();
       }, duration);
 
       this.animationTimeouts.set(index, timeout);
@@ -166,9 +211,31 @@ export class BoardComponent implements OnInit {
   }
 
   /**
-   * Déclenche l'animation de vol de la carte jouée, puis l'empile sur la pile.
+   * Déclenche plusieurs animations en parallèle et appelle `onComplete`
+   * uniquement quand toutes sont terminées.
    */
-  private triggerCardAnimation(card: CardInfo): void {
+  private triggerAnimationParallel(
+    targets: Array<{ index: number; anim: SquareAnimation }>,
+    duration: number,
+    onComplete: () => void
+  ): void {
+    let remaining = targets.length;
+
+    const onEachDone = () => {
+      remaining--;
+      if (remaining === 0) onComplete();
+    };
+
+    for (const { index, anim } of targets) {
+      this.triggerAnimation(index, anim, duration, onEachDone);
+    }
+  }
+
+  /**
+   * Déclenche l'animation de vol de la carte jouée, puis l'empile sur la pile.
+   * @param onComplete  Appelé quand la carte a atterri sur la pile.
+   */
+  private triggerCardAnimation(card: CardInfo, onComplete: () => void): void {
     if (this.flyingCardTimeout) clearTimeout(this.flyingCardTimeout);
 
     this.flyingCard.set(null);
@@ -178,6 +245,7 @@ export class BoardComponent implements OnInit {
         this.discardPile.update(pile => [card, ...pile]);
         this.flyingCard.set(null);
         this.flyingCardTimeout = null;
+        onComplete();
       }, CARD_LAND_DELAY_MS);
     });
   }
@@ -206,6 +274,12 @@ export class BoardComponent implements OnInit {
   ngOnInit() {
     this.calculateSquareSize();
     this.injectAnimationDurations();
+  }
+
+  ngOnDestroy(): void {
+    this.actionPlayedSub?.unsubscribe();
+    this.animationTimeouts.forEach(t => clearTimeout(t));
+    if (this.flyingCardTimeout) clearTimeout(this.flyingCardTimeout);
   }
 
   private injectAnimationDurations(): void {
