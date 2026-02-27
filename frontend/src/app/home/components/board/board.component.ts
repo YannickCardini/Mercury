@@ -61,27 +61,27 @@ export class BoardComponent implements OnInit, OnDestroy {
   private animationTimeouts = new Map<number, ReturnType<typeof setTimeout>>();
   private flyingCardTimeout: ReturnType<typeof setTimeout> | null = null;
 
-  // ── Bug 3 fix : pipeline d'animation en deux phases ─────────────────────────
+  // ── Pipeline d'animation séquentielle ───────────────────────────────────────
   //
-  // PROBLÈME : quand `actionPlayed` arrive, le DOM reflète encore l'ANCIEN état
-  // (le pion est sur sa case de départ). Le `gameState` mis à jour n'arrive
-  // qu'ensuite. Si on anime immédiatement la case cible, le pion n'y est pas
-  // encore → l'animation ne se voit pas.
-  //
-  // SOLUTION : on découpe en deux phases :
-  //   Phase 1 (sur actionPlayed) → animation de carte uniquement
-  //   Phase 2 (sur gameState)    → animation du pion (il est maintenant au bon endroit)
-  //                              → puis sendAnimationDone
+  // Séquence cible :
+  //   1. actionPlayed  → fly card (CARD_LAND_DELAY_MS ms)
+  //   2. gameState     → disponible en parallèle pendant le fly card
+  //   3. Fin fly card  → animation marble
+  //   4. Fin marble    → sendAnimationDone (→ newTurn → bandeau)
   //
   // `pendingMarbleAnimation` stocke l'action entre les deux phases.
+  // `gameStateReadyForMarble` devient true dès que le gameState est arrivé,
+  // pour gérer le cas où le gameState arrive AVANT la fin du fly card.
   private pendingMarbleAnimation: Action | null = null;
+  private gameStateReadyForMarble = false;
   private actionPlayedSub: Subscription | null = null;
 
   constructor(private gameStateService: GameStateService) {
 
     // ── Phase 1 : actionPlayed → animation de carte ──────────────────────────
     this.actionPlayedSub = this.gameStateService.actionPlayed$.subscribe((action: Action) => {
-      this.pendingMarbleAnimation = action; // on mémorise pour la phase 2
+      this.pendingMarbleAnimation = action;
+      this.gameStateReadyForMarble = false; // reset pour cette action
 
       if (action.cardPlayed) {
         const card: CardInfo = {
@@ -89,30 +89,69 @@ export class BoardComponent implements OnInit, OnDestroy {
           suit: action.cardPlayed.suit,
           color: action.playerColor as MarbleColor,
         };
-        // Lance l'animation de vol de carte uniquement.
-        // La carte va "voler" pendant que le gameState est en route.
-        this.triggerCardAnimation(card);
+
+        // Lance le fly card. La callback déclenche la phase marble dès que
+        // le gameState est disponible (ou immédiatement s'il est déjà là).
+        this.triggerCardAnimation(card, () => {
+          this.tryTriggerMarblePhase();
+        });
+      } else {
+        // Pas de carte (pass forcé par timeout) → fly card n'aura pas lieu.
+        // On marque flyCardDone immédiatement pour que tryTriggerMarblePhase
+        // puisse s'exécuter dès que le gameState arrive.
+        this.flyCardDone = true;
       }
-      // Pas de sendAnimationDone ici — on attend la phase 2.
     });
 
-    // ── Phase 2 : gameState → pion au bon endroit → animation du pion ────────
+    // ── Phase 2 : gameState reçu → le DOM peut être mis à jour ───────────────
     effect(() => {
       const gameData = this.gameStateService.data();
       if (!gameData) return;
 
-      const action = this.pendingMarbleAnimation;
-      if (!action) return;
+      // Marque le gameState comme disponible pour la phase marble.
+      this.gameStateReadyForMarble = true;
 
-      // Consomme l'action en attente pour ne pas la rejouer
-      this.pendingMarbleAnimation = null;
+      // Si le fly card est déjà terminé (ou pas de carte), on lance le marble.
+      this.tryTriggerMarblePhase();
+    });
+  }
 
-      // Le DOM va se mettre à jour avec les nouvelles positions via data().
-      // On attend un frame pour laisser Angular re-rendre les pions avant d'animer.
-      requestAnimationFrame(() => {
-        this.triggerMarbleAnimation(action, () => {
-          this.gameStateService.sendAnimationDone();
-        });
+  // ── Pipeline séquentiel ──────────────────────────────────────────────────────
+
+  /**
+   * Tente de démarrer la phase marble.
+   * Elle ne démarre QUE si :
+   *  - une action est en attente (pendingMarbleAnimation !== null)
+   *  - le gameState a été reçu (gameStateReadyForMarble)
+   *  - le fly card est terminé (signalé par triggerCardAnimation via callback)
+   *
+   * Cette méthode peut être appelée depuis deux endroits :
+   *  - La callback de fin de fly card (le fly card vient de terminer)
+   *  - L'effect gameState (le gameState vient d'arriver)
+   * Elle ne fait rien si une condition manque encore.
+   */
+  private flyCardDone = false;
+
+  private tryTriggerMarblePhase(): void {
+    const action = this.pendingMarbleAnimation;
+
+    // Conditions : action en attente + gameState prêt + fly card terminé
+    // (ou pas de carte → flyCardDone est mis à true immédiatement)
+    if (!action) return;
+    if (!this.gameStateReadyForMarble) return;
+    if (!this.flyCardDone) return;
+
+    // Consomme l'action pour éviter les doubles déclenchements
+    this.pendingMarbleAnimation = null;
+    this.flyCardDone = false;
+    this.gameStateReadyForMarble = false;
+
+    // Le DOM a déjà été mis à jour par Angular (gameState reçu).
+    // On attend un frame pour s'assurer que le re-rendu est terminé.
+    requestAnimationFrame(() => {
+      this.triggerMarbleAnimation(action, () => {
+        // Phase 3 : animations terminées → signale le backend + bandeau
+        this.gameStateService.sendAnimationDone();
       });
     });
   }
@@ -216,10 +255,15 @@ export class BoardComponent implements OnInit, OnDestroy {
 
   /**
    * Lance l'animation de vol de carte vers la pile de défausse.
-   * Pas de callback ici : elle est indépendante du pipeline marble/animationDone.
+   * `onLanded` est appelé une fois que la carte s'est posée sur la pile
+   * (= fin de CARD_LAND_DELAY_MS), signalant que la phase fly card est terminée
+   * et que la phase marble peut démarrer.
    */
-  private triggerCardAnimation(card: CardInfo): void {
+  private triggerCardAnimation(card: CardInfo, onLanded: () => void): void {
     if (this.flyingCardTimeout) clearTimeout(this.flyingCardTimeout);
+
+    // Reset du flag de fin de fly card
+    this.flyCardDone = false;
 
     this.flyingCard.set(null);
     requestAnimationFrame(() => {
@@ -228,6 +272,10 @@ export class BoardComponent implements OnInit, OnDestroy {
         this.discardPile.update(pile => [card, ...pile]);
         this.flyingCard.set(null);
         this.flyingCardTimeout = null;
+
+        // ✅ Fly card terminé : on peut passer à la phase marble
+        this.flyCardDone = true;
+        onLanded();
       }, CARD_LAND_DELAY_MS);
     });
   }

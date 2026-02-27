@@ -23,12 +23,24 @@ export class GameStateService {
   // Computed signals qui se mettent à jour automatiquement
   hand = computed<Card[]>(() => this.data()?.gameState?.hand ?? []);
 
-  // Émis à chaque nouveau gameState (nouveau tour prêt à commencer)
+  // ── Émis à chaque nouveau gameState (nouveau tour prêt à commencer)
+  // ⚠️  N'est plus émis automatiquement ici — c'est le BoardComponent qui l'émet
+  //     APRÈS la fin de toutes ses animations (fly card + marble), pour garantir
+  //     la séquence : carte → pion → bandeau.
   newTurn = new BehaviorSubject<Date | null>(null);
 
   // Émis à chaque actionPlayed reçu du backend.
   // Le board.component s'y abonne pour déclencher les animations.
   actionPlayed$ = new Subject<Action>();
+
+  // ── Nouveau : émis par BoardComponent une fois TOUTES les animations terminées.
+  // home.page s'y abonne pour afficher le bandeau "Nouveau tour".
+  // On transporte aussi le message du gameState pour filtrer si besoin.
+  allAnimationsDone$ = new Subject<void>();
+
+  // Message du dernier gameState reçu — stocké pour que le board puisse
+  // savoir si un bandeau doit être affiché après ses animations.
+  pendingGameStateMessage: string | null = null;
 
   private ws: WebSocket | null = null;
 
@@ -59,7 +71,10 @@ export class GameStateService {
           break;
         }
 
-        // ── Nouvel état de jeu (nouveau tour prêt) ─────────────────────────
+        // ── Nouvel état de jeu ─────────────────────────────────────────────
+        // On stocke le message pour que le BoardComponent sache s'il doit
+        // déclencher le bandeau après ses animations. On NE déclenche PAS
+        // newTurn ici — c'est le BoardComponent qui le fera après animations.
         case 'gameState':
         case 'welcome':
         case 'response': {
@@ -68,9 +83,8 @@ export class GameStateService {
           this.message.set(`Message reçu: ${event.data}`);
           console.log('Données mises à jour:', msg);
 
-          if (msg.message === 'New turn') {
-            this.newTurn.next(new Date());
-          }
+          // Mémorise le message pour que le board puisse y accéder en phase 2
+          this.pendingGameStateMessage = msg.message;
           break;
         }
       }
@@ -93,12 +107,22 @@ export class GameStateService {
 
   /**
    * Signale au backend que les animations sont terminées et qu'il peut
-   * passer au tour suivant.
+   * passer au tour suivant. Déclenche aussi allAnimationsDone$ pour que
+   * home.page affiche le bandeau.
    */
   sendAnimationDone(): void {
     const msg: AnimationDoneMessage = { type: 'animationDone' };
     this.send(JSON.stringify(msg));
     console.log('✅ animationDone envoyé');
+
+    // Bandeau uniquement pour les vrais nouveaux tours
+    if (this.pendingGameStateMessage === 'New turn') {
+      this.newTurn.next(new Date());
+    }
+    this.pendingGameStateMessage = null;
+
+    // Signale à home.page que tout est terminé
+    this.allAnimationsDone$.next();
   }
 
   disconnect(): void {
