@@ -87,10 +87,10 @@ export class BoardComponent implements OnInit, OnDestroy {
       this.gameStateReadyForMarble = false; // reset pour cette action
       this.flyCardDone = false;
 
-      if (action.cardPlayed) {
+      if (action.cardPlayed && action.cardPlayed.length > 0 && action.type !== 'discard') {
         const card: CardInfo = {
-          value: action.cardPlayed.value,
-          suit: action.cardPlayed.suit,
+          value: action.cardPlayed[0].value,
+          suit: action.cardPlayed[0].suit,
           color: action.playerColor as MarbleColor,
         };
 
@@ -104,6 +104,8 @@ export class BoardComponent implements OnInit, OnDestroy {
         // On marque flyCardDone immédiatement pour que tryTriggerMarblePhase
         // puisse s'exécuter dès que le gameState arrive.
         this.flyCardDone = true;
+        this.gameStateService.sendAnimationDone();
+
       }
     });
 

@@ -15,6 +15,7 @@ export type ActionType =
   | 'capture'  // prise d'un pion adverse (le pion capturé retourne à la maison)
   | 'swap'     // échange de position entre deux pions
   | 'promote'  // promotion (pion atteint la zone d'arrivée)
+  | 'discard'  // défausse de la main
   | 'pass';    // le joueur ne peut pas jouer, il passe
 
 export type CardSuit = '♥' | '♦' | '♣' | '♠';
@@ -47,7 +48,7 @@ export interface Action {
   /** Position d'arrivée du pion (0 si non applicable, ex: 'pass') */
   to: number;
   /** Carte jouée pour effectuer cette action, null si timeout/pass forcé */
-  cardPlayed: Card | null;
+  cardPlayed: Card[] | null;
   /** Couleur du joueur qui a effectué l'action — évite de la recalculer côté front */
   playerColor: MarbleColor | null;
 }

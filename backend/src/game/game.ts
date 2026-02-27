@@ -5,11 +5,10 @@ import {
     hasWon,
     TURN_DURATION_SECONDS,
     CARDS_PER_HAND,
-    type MarbleColor,
     MARBLE_ANIMATION_DURATIONS,
     CARD_LAND_DELAY_MS,
 } from '@keezen/shared';
-import type { Action } from "@keezen/shared";
+import type { Action, Card } from "@keezen/shared";
 
 export class Game {
 
@@ -20,7 +19,7 @@ export class Game {
     turn: number = 0;
     deck: Deck;
     ws: WebSocket;
-    discardedCards: string[] = [];
+    discardedCards: Card[] = [];
 
     constructor(ws: WebSocket) {
         this.ws = ws;
@@ -55,12 +54,6 @@ export class Game {
         const player = this.getCurrentPlayer();
 
         console.log(`🔄 Tour ${this.turn} — ${player.name} (${player.color})`);
-
-        if (player.handEmpty()) {
-            console.log(`${player.name} n'a plus de cartes. Passe son tour...`);
-            this.broadcastState(player, null, `${player.name} passe son tour (main vide)`);
-            return;
-        }
 
         this.syncAllMarblesOnBoard();
 
@@ -161,7 +154,7 @@ export class Game {
 
     private updateDiscardedCards(move: Action): void {
         if (move.cardPlayed) {
-            this.discardedCards.push(`${move.cardPlayed.value} of ${move.cardPlayed.suit}`);
+            this.discardedCards.push(...move.cardPlayed);
         }
     }
 

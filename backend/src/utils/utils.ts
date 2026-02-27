@@ -82,7 +82,7 @@ export function getLegalAction(
             type: 'enter',
             from: marblePosition,
             to: startPos,
-            cardPlayed: card,
+            cardPlayed: [card],
             playerColor,
         };
     }
@@ -123,7 +123,7 @@ function buildMoveAction(
         type: 'move',
         from,
         to,
-        cardPlayed: card,
+        cardPlayed: [card],
         playerColor,
     };
 }

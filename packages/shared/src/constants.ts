@@ -28,6 +28,7 @@ export const MARBLE_ANIMATION_DURATIONS: Record<ActionType, number> = {
   capture: 700,
   swap: 900,
   promote: 1000,
+  discard: 1000,
   pass: 0,   // pas d'animation pour un pass
 };
 

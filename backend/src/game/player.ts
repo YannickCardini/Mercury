@@ -1,8 +1,6 @@
 import type { Action, Card, MarbleColor } from "@keezen/shared";
-import { HOME_POSITIONS, getStartPosition } from "@keezen/shared";
 import {
     findLegalMoveForCard,
-    isOnMainPath,
     sleep,
     type LegalMoveContext,
 } from "../utils/utils.js";
@@ -71,6 +69,10 @@ export class Player {
     // ── Logique IA ───────────────────────────────────────────────────────────
 
     async calculateAIMove(): Promise<Action> {
+        if (this.handEmpty()) {
+            console.log(`${this.name} n'a plus de cartes. Passe son tour...`);
+            return this.passAction();
+        }
         await sleep(4500); // simule un temps de réflexion
 
         const ctx = this.buildContext();
@@ -89,9 +91,10 @@ export class Player {
         }
 
         // Aucun coup légal trouvé : passe et défausse toute la main
-        console.log(`${this.name} ne peut jouer aucune carte → passe`);
+        console.log(`${this.name} ne peut jouer aucune carte → défausse`);
+        const cardsBeforeDiscard = this.cards;
         this.discardHand();
-        return this.passAction();
+        return this.discardAction(cardsBeforeDiscard);
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
@@ -124,12 +127,22 @@ export class Player {
         this.cards = [];
     }
 
+    private discardAction(cardsBeforeDiscard: Card[]): Action {
+        return {
+            type: 'discard',
+            from: 0,
+            to: 0,
+            cardPlayed: cardsBeforeDiscard,
+            playerColor: this.color,
+        };
+    }
+
     private passAction(): Action {
         return {
             type: 'pass',
             from: 0,
             to: 0,
-            cardPlayed: null,
+            cardPlayed: [], // pas de cartes jouées pour un pass
             playerColor: this.color,
         };
     }
