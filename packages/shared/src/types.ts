@@ -56,16 +56,9 @@ export interface Action {
 
 // ── État de jeu ───────────────────────────────────────────────────────────────
 
-export interface CurrentTurn {
-  /** Couleur du joueur dont c'est actuellement le tour */
-  color: MarbleColor;
-  /** Dernière action effectuée (null au début d'un tour) */
-  lastAction: Action | null;
-}
-
 export interface GameState {
   players: Player[];
-  currentTurn: CurrentTurn;
+  currentTurn: MarbleColor;
   /** Durée du tour en secondes (ex: 30) */
   timer: number;
   /** Main du joueur local (cartes qu'il peut jouer) */

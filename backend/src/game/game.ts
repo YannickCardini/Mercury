@@ -36,7 +36,7 @@ export class Game {
     async startGame() {
         console.log("🎮 Game started");
         this.dealCards();
-        this.broadcastState(this.player1, null, "Game started");
+        this.broadcastState(this.player1, "Game started");
 
         while (!this.gameIsOver()) {
             if (this.player1.handEmpty() && this.player2.handEmpty() && this.player3.handEmpty() && this.player4.handEmpty()) {
@@ -46,7 +46,7 @@ export class Game {
         }
 
         console.log("🏆 Game over!");
-        this.broadcastState(this.getCurrentPlayer(), null, "Game over");
+        this.broadcastState(this.getCurrentPlayer(), "Game over");
     }
 
     private async playOneTurn() {
@@ -57,23 +57,21 @@ export class Game {
 
         this.syncAllMarblesOnBoard();
 
-        // ── Bug 1 fix : le timeout est maintenant annulable ──────────────────
+        // 1️⃣ Broadcast de l'état EN DÉBUT de tour
+        this.broadcastState(player, 'New turn');
+
+        // 2️⃣ Attendre l'action du joueur/IA
         const move = await this.waitForActionOrTimeout(player);
         const enrichedMove: Action = { ...move, playerColor: player.color };
 
+        // 3️⃣ Mettre à jour l'état interne
         this.updateMarblePositions(player, enrichedMove);
         this.updateDiscardedCards(enrichedMove);
 
-        // 1️⃣ Broadcast de l'action jouée (pour l'animation de carte côté front)
+        // 4️⃣ Broadcast de l'action (pour animation carte + pion côté front)
         this.broadcastAction(enrichedMove);
 
-        // 2️⃣ Broadcast du nouvel état (positions mises à jour → front peut animer le pion)
-        this.turn++;
-        const nextPlayer = this.getCurrentPlayer();
-        this.turn--;
-        this.broadcastState(nextPlayer, enrichedMove);
-
-        // 3️⃣ Attendre que le front confirme que les animations sont terminées
+        // 5️⃣ Attendre confirmation des animations (ou timeout fallback)
         await this.waitForAnimationsOrTimeout(enrichedMove);
     }
 
@@ -181,7 +179,7 @@ export class Game {
         }
     }
 
-    private broadcastState(currentPlayer: Player, lastAction: Action | null, message = 'New turn'): void {
+    private broadcastState(currentPlayer: Player, message = 'New turn'): void {
         const state = {
             type: 'gameState',
             message,
@@ -195,10 +193,7 @@ export class Game {
                     marblePositions: p.marblePositions,
                     cardsLeft: p.cards.length,
                 })),
-                currentTurn: {
-                    color: currentPlayer.color,
-                    lastAction: lastAction ?? null,
-                },
+                currentTurn: currentPlayer.color,
                 timer: TURN_DURATION_SECONDS,
                 hand: currentPlayer.cards,
                 discardedCards: this.discardedCards,

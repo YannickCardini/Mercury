@@ -161,13 +161,13 @@ export class TableComponent implements OnInit, OnDestroy {
   getPlayerName(): string {
     const gameData = this.gameStateService.data();
     return gameData?.gameState.players.find(
-      (p: any) => p.color === gameData.gameState.currentTurn.color
+      (p: any) => p.color === gameData.gameState.currentTurn
     )?.name || 'Inconnu';
   }
 
   getPlayerColor(): string {
     const gameData = this.gameStateService.data();
-    return gameData?.gameState.currentTurn.color || '#7c3aed';
+    return gameData?.gameState.currentTurn || '#7c3aed';
   }
 
   getDiscardedCards(): Card[] {

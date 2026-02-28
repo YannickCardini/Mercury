@@ -64,28 +64,19 @@ export class BoardComponent implements OnInit, OnDestroy {
   private animationTimeouts = new Map<number, ReturnType<typeof setTimeout>>();
   private flyingCardTimeout: ReturnType<typeof setTimeout> | null = null;
 
-  // ── Pipeline d'animation séquentielle ───────────────────────────────────────
-  //
-  // Séquence cible :
-  //   1. actionPlayed  → fly card (CARD_LAND_DELAY_MS ms)
-  //   2. gameState     → disponible en parallèle pendant le fly card
-  //   3. Fin fly card  → animation marble
-  //   4. Fin marble    → sendAnimationDone (→ newTurn → bandeau)
-  //
-  // `pendingMarbleAnimation` stocke l'action entre les deux phases.
-  // `gameStateReadyForMarble` devient true dès que le gameState est arrivé,
-  // pour gérer le cas où le gameState arrive AVANT la fin du fly card.
-  private pendingMarbleAnimation: Action | null = null;
-  private gameStateReadyForMarble = false;
   private actionPlayedSub: Subscription | null = null;
+
 
   constructor(private gameStateService: GameStateService) {
 
-    // ── Phase 1 : actionPlayed → animation de carte ──────────────────────────
+    // gameState reçu → on affiche directement, sans attendre
+    effect(() => {
+      const gameData = this.gameStateService.data();
+      this.displayedGameData.set(gameData);
+    });
+
+    // actionPlayed reçu → fly card → marble → done
     this.actionPlayedSub = this.gameStateService.actionPlayed$.subscribe((action: Action) => {
-      this.pendingMarbleAnimation = action;
-      this.gameStateReadyForMarble = false; // reset pour cette action
-      this.flyCardDone = false;
 
       if (action.cardPlayed && action.cardPlayed.length > 0 && action.type !== 'discard') {
         const card: CardInfo = {
@@ -94,81 +85,19 @@ export class BoardComponent implements OnInit, OnDestroy {
           color: action.playerColor as MarbleColor,
         };
 
-        // Lance le fly card. La callback déclenche la phase marble dès que
-        // le gameState est disponible (ou immédiatement s'il est déjà là).
+        // Fly card → puis marble → puis done
         this.triggerCardAnimation(card, () => {
-          this.tryTriggerMarblePhase();
+          requestAnimationFrame(() => {
+            this.triggerMarbleAnimation(action, () => {
+              this.gameStateService.sendAnimationDone();
+            });
+          });
         });
+
       } else {
-        // Pas de carte (pass forcé par timeout) → fly card n'aura pas lieu.
-        // On marque flyCardDone immédiatement pour que tryTriggerMarblePhase
-        // puisse s'exécuter dès que le gameState arrive.
-        this.flyCardDone = true;
+        // Pass / discard sans carte → pas d'animation
         this.gameStateService.sendAnimationDone();
-
       }
-    });
-
-    // ── Phase 2 : gameState reçu → le DOM peut être mis à jour ───────────────
-    effect(() => {
-      const gameData = this.gameStateService.data();
-      if (!gameData) {
-        this.displayedGameData.set(null);
-        return;
-      }
-
-      // Premier rendu (pas d'animation en cours) → on affiche directement
-      if (!this.pendingMarbleAnimation) {
-        this.displayedGameData.set(gameData);
-        return;
-      }
-
-      // Animation en cours → on mémorise mais on n'affiche pas encore.
-      // displayedGameData sera mis à jour dans tryTriggerMarblePhase().
-      this.gameStateReadyForMarble = true;
-      this.tryTriggerMarblePhase();
-    });
-  }
-
-  // ── Pipeline séquentiel ──────────────────────────────────────────────────────
-
-  /**
-   * Tente de démarrer la phase marble.
-   * Elle ne démarre QUE si :
-   *  - une action est en attente (pendingMarbleAnimation !== null)
-   *  - le gameState a été reçu (gameStateReadyForMarble)
-   *  - le fly card est terminé (signalé par triggerCardAnimation via callback)
-   *
-   * Cette méthode peut être appelée depuis deux endroits :
-   *  - La callback de fin de fly card (le fly card vient de terminer)
-   *  - L'effect gameState (le gameState vient d'arriver)
-   * Elle ne fait rien si une condition manque encore.
-   */
-  private flyCardDone = false;
-
-  private tryTriggerMarblePhase(): void {
-    const action = this.pendingMarbleAnimation;
-
-    // Conditions : action en attente + gameState prêt + fly card terminé
-    // (ou pas de carte → flyCardDone est mis à true immédiatement)
-    if (!action) return;
-    if (!this.gameStateReadyForMarble) return;
-    if (!this.flyCardDone) return;
-
-    // Consomme l'action pour éviter les doubles déclenchements
-    this.pendingMarbleAnimation = null;
-    this.flyCardDone = false;
-    this.gameStateReadyForMarble = false;
-
-    this.displayedGameData.set(this.gameStateService.data());
-
-    // Le DOM a déjà été mis à jour par Angular (gameState reçu).
-    // On attend un frame pour s'assurer que le re-rendu est terminé.
-    requestAnimationFrame(() => {
-      this.triggerMarbleAnimation(action, () => {
-        // Phase 3 : animations terminées → signale le backend + bandeau
-        this.gameStateService.sendAnimationDone();
-      });
     });
   }
 
@@ -277,10 +206,6 @@ export class BoardComponent implements OnInit, OnDestroy {
    */
   private triggerCardAnimation(card: CardInfo, onLanded: () => void): void {
     if (this.flyingCardTimeout) clearTimeout(this.flyingCardTimeout);
-
-    // Reset du flag de fin de fly card
-    this.flyCardDone = false;
-
     this.flyingCard.set(null);
     requestAnimationFrame(() => {
       this.flyingCard.set(card);
@@ -288,9 +213,6 @@ export class BoardComponent implements OnInit, OnDestroy {
         this.discardPile.update(pile => [card, ...pile]);
         this.flyingCard.set(null);
         this.flyingCardTimeout = null;
-
-        // ✅ Fly card terminé : on peut passer à la phase marble
-        this.flyCardDone = true;
         onLanded();
       }, CARD_LAND_DELAY_MS);
     });
@@ -390,7 +312,7 @@ export class BoardComponent implements OnInit, OnDestroy {
   readonly fiveSlots = [0, 1, 2, 3, 4];
 
   isCurrentTurn(color: MarbleColor): boolean {
-    return this.displayedGameData()?.gameState.currentTurn.color === color;
+    return this.displayedGameData()?.gameState.currentTurn === color;
   }
 
   getMarbleOnSquare(index: number): MarbleColor | null {

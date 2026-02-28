@@ -1,4 +1,4 @@
-import { Component, signal, effect, OnDestroy } from '@angular/core';
+import { Component, signal, OnDestroy } from '@angular/core';
 import { IonContent } from '@ionic/angular/standalone';
 import { BoardComponent } from './components/board/board.component';
 import { TableComponent } from './components/table/table.component';
@@ -33,9 +33,9 @@ export class HomePage implements OnDestroy {
       const currentTurn = gameData.gameState?.currentTurn;
       if (!currentTurn) return;
 
-      const player = gameData.gameState.players.find(p => p.color === currentTurn.color);
-      this.newTurnColor.set(currentTurn.color);
-      this.newTurnName.set(player?.name ?? currentTurn.color);
+      const player = gameData.gameState.players.find(p => p.color === currentTurn);
+      this.newTurnColor.set(currentTurn);
+      this.newTurnName.set(player?.name ?? currentTurn);
       this.showNewTurnBanner.set(true);
 
       if (this.newTurnTimeout) clearTimeout(this.newTurnTimeout);
@@ -65,10 +65,10 @@ export class HomePage implements OnDestroy {
 
   private sendAIPlayers(): void {
     const players = [
-      { name: 'IA Rouge',   color: 'red',    isHuman: false, isConnected: true },
-      { name: 'IA Vert',    color: 'green',  isHuman: false, isConnected: true },
-      { name: 'IA Bleu',    color: 'blue',   isHuman: false, isConnected: true },
-      { name: 'IA Orange',  color: 'orange', isHuman: false, isConnected: true },
+      { name: 'IA Rouge', color: 'red', isHuman: false, isConnected: true },
+      { name: 'IA Vert', color: 'green', isHuman: false, isConnected: true },
+      { name: 'IA Bleu', color: 'blue', isHuman: false, isConnected: true },
+      { name: 'IA Orange', color: 'orange', isHuman: false, isConnected: true },
     ];
     this.gameStateService.send(JSON.stringify({ type: 'start', players }));
   }

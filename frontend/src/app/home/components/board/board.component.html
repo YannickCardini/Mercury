@@ -11,8 +11,7 @@
         @if (playerInfoStarts[index]; as pColor) {
         @let player = getPlayer(pColor);
         <div class="player-card" [class.active-turn]="isCurrentTurn(pColor)"
-          [class.disconnected]="player && !player.isConnected"
-          [class.no-cards]="player && player.cardsLeft === 0"
+          [class.disconnected]="player && !player.isConnected" [class.no-cards]="player && player.cardsLeft === 0"
           [ngClass]="'theme-' + pColor">
           <div class="avatar-ring">
             <div class="avatar-color"></div>
@@ -20,11 +19,11 @@
           <div class="player-info">
             <span class="player-name">{{ player ? player.name : 'En attente...' }}</span>
             @if (player) {
-              <div class="cards-indicator">
-                @for (i of fiveSlots; track i) {
-                  <div class="card-slot" [class.card-slot--filled]="i < player.cardsLeft"></div>
-                }
-              </div>
+            <div class="cards-indicator">
+              @for (i of fiveSlots; track i) {
+              <div class="card-slot" [class.card-slot--filled]="i < player.cardsLeft"></div>
+              }
+            </div>
             }
           </div>
         </div>
