@@ -193,6 +193,7 @@ export class Game {
                     isHuman: p.isHuman,
                     isConnected: p.isConnected,
                     marblePositions: p.marblePositions,
+                    cardsLeft: p.cards.length,
                 })),
                 currentTurn: {
                     color: currentPlayer.color,

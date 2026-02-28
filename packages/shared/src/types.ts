@@ -35,6 +35,7 @@ export interface Player {
   isHuman: boolean;
   isConnected: boolean;
   marblePositions: number[];
+  cardsLeft: number; // Nombre de cartes restantes dans la main du joueur
 }
 
 /**

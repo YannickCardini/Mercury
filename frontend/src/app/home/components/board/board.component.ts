@@ -386,6 +386,9 @@ export class BoardComponent implements OnInit, OnDestroy {
     return this.displayedGameData()?.gameState.players.find(p => p.color === color);
   }
 
+  /** 5 slots fixes pour l'affichage de la main (indices 0–4) */
+  readonly fiveSlots = [0, 1, 2, 3, 4];
+
   isCurrentTurn(color: MarbleColor): boolean {
     return this.displayedGameData()?.gameState.currentTurn.color === color;
   }

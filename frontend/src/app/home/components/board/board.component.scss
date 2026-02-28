@@ -426,20 +426,6 @@ $colors: (
     position: relative;
     overflow: hidden;
 
-    @each $name, $hex in $colors {
-        &.theme-#{$name} {
-            .avatar-color {
-                background-color: $hex;
-            }
-
-            &.active-turn {
-                border: 2px solid $hex;
-                box-shadow: 0 0 15px rgba($hex, 0.4);
-                transform: scale(1.02);
-            }
-        }
-    }
-
     .avatar-ring {
         width: calc(var(--square-size) * 0.6);
         height: calc(var(--square-size) * 0.6);
@@ -460,10 +446,11 @@ $colors: (
 
     .player-info {
         display: flex;
-        flex-direction: column;
-        justify-content: center;
+        justify-content: space-between;
         overflow: hidden;
         white-space: nowrap;
+        width: 100%;
+        padding: 0 7% 0 3%;
 
         .player-name {
             font-size: calc(var(--square-size) * 0.4);
@@ -471,6 +458,55 @@ $colors: (
             color: var(--ion-color-dark, #1f2937);
             text-overflow: ellipsis;
             overflow: hidden;
+        }
+
+        // ── 5 slots de cartes ─────────────────────────────────────────────
+        .cards-indicator {
+            display: flex;
+            gap: calc(var(--square-size) * 0.06);
+            align-items: center;
+        }
+
+        // Slot vide : contour pointillé discret
+        .card-slot {
+            box-sizing: border-box;
+            width: calc(var(--square-size) * 0.18);
+            height: calc(var(--square-size) * 0.25);
+            border-radius: calc(var(--square-size) * 0.04);
+            flex-shrink: 0;
+            border: 1px dashed rgba(0, 0, 0, 0.18);
+            background: rgba(0, 0, 0, 0.04);
+            transition: background 0.2s ease;
+
+            &.card-slot--filled {
+                border: 1px solid darkgray;
+                background-color: #bdb8b8;
+            }
+        }
+    }
+
+    @each $name, $hex in $colors {
+        &.theme-#{$name} {
+            .avatar-color {
+                background-color: $hex;
+            }
+
+            // active-turn : on évite border (modifie le box model) et transform scale
+            // (distord les enfants). On utilise box-shadow multicouche pour l'anneau
+            // coloré + la lueur, et filter brightness pour le relief visuel.
+            &.active-turn {
+                box-shadow:
+                    0 0 0 2px $hex,
+                    0 0 14px rgba($hex, 0.45),
+                    0 4px 8px rgba(0, 0, 0, 0.12);
+                filter: brightness(1.04);
+            }
+
+            &.no-cards {
+                opacity: 0.55;
+                filter: grayscale(60%) brightness(0.9);
+                transition: opacity 0.4s ease, filter 0.4s ease;
+            }
         }
     }
 
