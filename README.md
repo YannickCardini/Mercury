@@ -47,7 +47,6 @@ keezen/
 │       │       │   │       ├── table.component.ts
 │       │       │   │       ├── table.component.html
 │       │       │   │       └── table.component.scss
-│       │       │   ├── models.ts       ← DÉPRÉCIÉ — importer depuis @keezen/shared
 │       │       │   └── services/
 │       │       │       └── game-state.service.ts
 │       │       └── shared/
@@ -80,53 +79,6 @@ Sans package partagé, ces données sont dupliquées et divergent — ce qui pro
 | `board-config.ts` | Positions du plateau : cases affichées, chemin principal, homes, starts, arrivées, cases ignorées. Helpers : `getStartPosition()`, `hasWon()`, etc. |
 | `constants.ts` | Durées d'animation des pions, durée du tour, config d'affichage, règles (`ENTER_CARDS`, `CARDS_PER_HAND`…) |
 | `index.ts` | Barrel export — importer toujours depuis `@keezen/shared` |
-
-### Comment importer
-
-```typescript
-// ✅ Correct — depuis n'importe quel app (front ou back)
-import {
-  MarbleColor,
-  Action,
-  GameState,
-  ARRIVAL_POSITIONS,
-  getStartPosition,
-  TURN_DURATION_SECONDS,
-  MARBLE_ANIMATION_DURATIONS,
-} from '@keezen/shared';
-
-// ❌ À éviter — imports directs dans les fichiers internes
-import { MarbleColor } from '../../types/types.js';
-```
-
----
-
-## Animations : synchroniser TypeScript et SCSS
-
-Les durées d'animation sont définies en TypeScript dans `constants.ts` (`MARBLE_ANIMATION_DURATIONS`). Le SCSS doit les refléter via des **CSS custom properties** dans `_animations.scss` :
-
-```scss
-/* apps/frontend/src/styles/_animations.scss */
-:root {
-  --anim-enter:   800ms;   /* = MARBLE_ANIMATION_DURATIONS.enter   */
-  --anim-move:    600ms;   /* = MARBLE_ANIMATION_DURATIONS.move    */
-  --anim-capture: 700ms;   /* = MARBLE_ANIMATION_DURATIONS.capture */
-  --anim-swap:    900ms;   /* = MARBLE_ANIMATION_DURATIONS.swap    */
-  --anim-promote: 1000ms;  /* = MARBLE_ANIMATION_DURATIONS.promote */
-}
-```
-
-Si tu veux que le CSS soit la **seule** source de vérité (recommandé pour éviter toute désynchronisation), tu peux lire les valeurs depuis JS au runtime :
-
-```typescript
-// board.component.ts
-private getAnimDuration(action: ActionType): number {
-  const raw = getComputedStyle(document.documentElement)
-    .getPropertyValue(`--anim-${action}`)
-    .trim(); // ex: "800ms"
-  return parseInt(raw); // 800
-}
-```
 
 ---
 

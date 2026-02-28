@@ -61,7 +61,6 @@ export class BoardComponent implements OnInit, OnDestroy {
   debug = true;
 
   // ── Timers internes ─────────────────────────────────────────────────────────
-  private animationTimeouts = new Map<number, ReturnType<typeof setTimeout>>();
   private flyingCardTimeout: ReturnType<typeof setTimeout> | null = null;
 
   private actionPlayedSub: Subscription | null = null;
@@ -69,152 +68,131 @@ export class BoardComponent implements OnInit, OnDestroy {
 
   constructor(private gameStateService: GameStateService) {
 
-    // gameState reçu → on affiche directement, sans attendre
     effect(() => {
-      const gameData = this.gameStateService.data();
-      this.displayedGameData.set(gameData);
+      this.displayedGameData.set(this.gameStateService.data());
     });
 
-    // actionPlayed reçu → fly card → marble → done
     this.actionPlayedSub = this.gameStateService.actionPlayed$.subscribe((action: Action) => {
+      this.runActionSequence(action);
+    });
+  }
 
-      if (action.cardPlayed && action.cardPlayed.length > 0 && action.type !== 'discard') {
-        const card: CardInfo = {
-          value: action.cardPlayed[0].value,
-          suit: action.cardPlayed[0].suit,
-          color: action.playerColor as MarbleColor,
-        };
+  private async runActionSequence(action: Action): Promise<void> {
 
-        // Fly card → puis marble → puis done
-        this.triggerCardAnimation(card, () => {
-          requestAnimationFrame(() => {
-            this.triggerMarbleAnimation(action, () => {
-              this.gameStateService.sendAnimationDone();
+    // Étape 1 : fly card (si applicable)
+    if (action.cardPlayed?.length && action.type !== 'discard') {
+      const card: CardInfo = {
+        value: action.cardPlayed[0].value,
+        suit: action.cardPlayed[0].suit,
+        color: action.playerColor as MarbleColor,
+      };
+      await this.flyCard(card);
+    }
+
+    // Étape 2 : animation du marble
+    await this.animateMarble(action);
+
+    // Étape 3 : signaler la fin
+    this.gameStateService.sendAnimationDone();
+  }
+
+  private flyCard(card: CardInfo): Promise<void> {
+    return new Promise(resolve => {
+      this.flyingCard.set(card);
+      setTimeout(() => {
+        this.discardPile.update(pile => [card, ...pile]);
+        this.flyingCard.set(null);
+        resolve();
+      }, CARD_LAND_DELAY_MS);
+    });
+  }
+
+  private animateMarble(action: Action): Promise<void> {
+    return new Promise(resolve => {
+      const type = action.type as ActionType;
+      const duration = MARBLE_ANIMATION_DURATIONS[type] ?? 0;
+
+      if (duration === 0) {
+        resolve();
+        return;
+      }
+
+      const applyAndWait = (index: number, anim: SquareAnimation) => {
+        return new Promise<void>(res => {
+          this.squareAnimations.update(prev => ({ ...prev, [index]: anim }));
+
+          setTimeout(() => {
+            this.squareAnimations.update(prev => {
+              const next = { ...prev };
+              delete next[index];
+              return next;
             });
-          });
+            res();
+          }, duration);
         });
+      };
 
-      } else {
-        // Pass / discard sans carte → pas d'animation
-        this.gameStateService.sendAnimationDone();
+      this.updateMarblePosition(action);
+
+      switch (type) {
+        case 'enter':
+          // On change 'marble-enter' par 'marble-entering'
+          applyAndWait(action.to, { marbleClass: 'marble-entering' }).then(resolve);
+          break;
+
+        case 'move':
+          // On change 'marble-move' par 'marble-moving'
+          applyAndWait(action.to, { marbleClass: 'marble-moving' }).then(resolve);
+          break;
+
+        case 'capture':
+          Promise.all([
+            applyAndWait(action.from, { marbleClass: 'marble-capturing' }),
+            applyAndWait(action.to, { marbleClass: 'marble-captured-exit', squareClass: 'square-impact' }),
+          ]).then(() => resolve());
+          break;
+
+        case 'swap':
+          Promise.all([
+            applyAndWait(action.from, { marbleClass: 'marble-swapping' }),
+            applyAndWait(action.to, { marbleClass: 'marble-swapping' }),
+          ]).then(() => resolve());
+          break;
+
+        case 'promote':
+          applyAndWait(action.to, { marbleClass: 'marble-promoting', squareClass: 'square-promoting' }).then(resolve);
+          break;
+
+        default:
+          resolve();
       }
     });
   }
 
-  // ── Animations ──────────────────────────────────────────────────────────────
+  private updateMarblePosition(action: Action): void {
+    this.displayedGameData.update(current => {
+      if (!current) return current;
 
-  private triggerMarbleAnimation(
-    action: { type: string; from: number; to: number },
-    onComplete: () => void
-  ): void {
-    const type = action.type as ActionType;
-    const duration = MARBLE_ANIMATION_DURATIONS[type] ?? 0;
+      // On crée une copie profonde de l'état pour déclencher la mise à jour
+      const updatedPlayers = current.gameState.players.map(p => {
+        if (p.color === action.playerColor) {
+          // On remplace l'ancienne position par la nouvelle dans le tableau
+          const marblePositions = [...p.marblePositions]; // Copie du tableau
+          const idx = marblePositions.indexOf(action.from);
 
-    if (duration === 0) {
-      onComplete();
-      return;
-    }
+          if (idx !== -1 && action.to !== 0) {
+            marblePositions[idx] = action.to;
+          }
 
-    switch (type) {
-      case 'enter':
-        this.triggerAnimation(action.to, { marbleClass: 'marble-entering' }, duration, onComplete);
-        break;
+          return { ...p, marblePositions }; // Retourne le joueur mis à jour
+        }
+        return p;
+      });
 
-      case 'move':
-        this.triggerAnimation(action.to, { marbleClass: 'marble-moving' }, duration, onComplete);
-        break;
-
-      case 'capture':
-        this.triggerAnimationParallel([
-          { index: action.to, anim: { marbleClass: 'marble-capturing', squareClass: 'square-impact' } },
-          { index: action.from, anim: { marbleClass: 'marble-captured-exit' } },
-        ], duration, onComplete);
-        break;
-
-      case 'swap':
-        this.triggerAnimationParallel([
-          { index: action.from, anim: { marbleClass: 'marble-swapping' } },
-          { index: action.to, anim: { marbleClass: 'marble-swapping' } },
-        ], duration, onComplete);
-        break;
-
-      case 'promote':
-        this.triggerAnimation(action.to, {
-          marbleClass: 'marble-promoting',
-          squareClass: 'square-promoting',
-        }, duration, onComplete);
-        break;
-
-      default:
-        onComplete();
-    }
-  }
-
-  private triggerAnimation(
-    index: number,
-    anim: SquareAnimation,
-    duration: number,
-    onComplete?: () => void
-  ): void {
-    const existing = this.animationTimeouts.get(index);
-    if (existing) clearTimeout(existing);
-
-    // Supprime la classe d'abord pour forcer le re-trigger CSS
-    this.squareAnimations.update(prev => {
-      const next = { ...prev };
-      delete next[index];
-      return next;
-    });
-
-    requestAnimationFrame(() => {
-      this.squareAnimations.update(prev => ({ ...prev, [index]: anim }));
-
-      const timeout = setTimeout(() => {
-        this.squareAnimations.update(prev => {
-          const next = { ...prev };
-          delete next[index];
-          return next;
-        });
-        this.animationTimeouts.delete(index);
-        onComplete?.();
-      }, duration);
-
-      this.animationTimeouts.set(index, timeout);
-    });
-  }
-
-  private triggerAnimationParallel(
-    targets: Array<{ index: number; anim: SquareAnimation }>,
-    duration: number,
-    onComplete: () => void
-  ): void {
-    let remaining = targets.length;
-    const onEachDone = () => {
-      remaining--;
-      if (remaining === 0) onComplete();
-    };
-    for (const { index, anim } of targets) {
-      this.triggerAnimation(index, anim, duration, onEachDone);
-    }
-  }
-
-  /**
-   * Lance l'animation de vol de carte vers la pile de défausse.
-   * `onLanded` est appelé une fois que la carte s'est posée sur la pile
-   * (= fin de CARD_LAND_DELAY_MS), signalant que la phase fly card est terminée
-   * et que la phase marble peut démarrer.
-   */
-  private triggerCardAnimation(card: CardInfo, onLanded: () => void): void {
-    if (this.flyingCardTimeout) clearTimeout(this.flyingCardTimeout);
-    this.flyingCard.set(null);
-    requestAnimationFrame(() => {
-      this.flyingCard.set(card);
-      this.flyingCardTimeout = setTimeout(() => {
-        this.discardPile.update(pile => [card, ...pile]);
-        this.flyingCard.set(null);
-        this.flyingCardTimeout = null;
-        onLanded();
-      }, CARD_LAND_DELAY_MS);
+      return {
+        ...current,
+        gameState: { ...current.gameState, players: updatedPlayers }
+      };
     });
   }
 
@@ -244,7 +222,6 @@ export class BoardComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.actionPlayedSub?.unsubscribe();
-    this.animationTimeouts.forEach(t => clearTimeout(t));
     if (this.flyingCardTimeout) clearTimeout(this.flyingCardTimeout);
   }
 

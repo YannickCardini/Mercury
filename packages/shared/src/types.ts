@@ -51,7 +51,7 @@ export interface Action {
   /** Carte jouée pour effectuer cette action, null si timeout/pass forcé */
   cardPlayed: Card[] | null;
   /** Couleur du joueur qui a effectué l'action — évite de la recalculer côté front */
-  playerColor: MarbleColor | null;
+  playerColor: MarbleColor;
 }
 
 // ── État de jeu ───────────────────────────────────────────────────────────────
