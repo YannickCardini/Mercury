@@ -36,7 +36,6 @@ export class Game {
     async startGame() {
         console.log("🎮 Game started");
         this.dealCards();
-        this.broadcastState(this.player1, "Game started");
 
         while (!this.gameIsOver()) {
             if (this.player1.handEmpty() && this.player2.handEmpty() && this.player3.handEmpty() && this.player4.handEmpty()) {

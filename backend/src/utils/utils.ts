@@ -67,8 +67,7 @@ export function getLegalAction(
     const startPos = getStartPosition(playerColor);
     const homePositions = HOME_POSITIONS[playerColor];
 
-    // ── Entrée en jeu (A ou K) ──────────────────────────────────────────────
-    if (card.value === 'A' || card.value === 'K') {
+    function enterMarbleInGame(): Action | null {
         // Le pion doit être en home (pas encore en jeu)
         if (!homePositions.includes(marblePosition)) return null;
 
@@ -87,9 +86,18 @@ export function getLegalAction(
         };
     }
 
-    // ── As utilisé comme déplacement de 1 (pion déjà en jeu) ────────────────
-    if (card.value === 'A' && isOnMainPath(marblePosition)) {
-        return buildMoveAction(card, marblePosition, 1, ctx);
+    // ── Entrée en jeu (A ou K) ──────────────────────────────────────────────
+    if (card.value === 'K') {
+        return enterMarbleInGame();
+    }
+
+    if (card.value === 'A') {
+        if (homePositions.includes(marblePosition)) {
+            return enterMarbleInGame();
+        } else if (isOnMainPath(marblePosition)) {
+            return buildMoveAction(card, marblePosition, 1, ctx);
+        }
+        return null;
     }
 
     // ── Déplacements standards ────────────────────────────────────────────────

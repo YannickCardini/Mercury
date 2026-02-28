@@ -56,13 +56,7 @@ export class Player {
     // ── Interface principale ─────────────────────────────────────────────────
 
     async getPlayerAction(): Promise<Action> {
-        if (this.isHuman) {
-            console.log(`${this.name} est un joueur humain. En attente de l'input...`);
-            // Sera implémenté avec la connexion WebSocket du joueur humain
-            return this.calculateAIMove(); // fallback temporaire
-        }
-
-        console.log(`${this.name} (IA) calcule son coup...`);
+        console.log(`${this.name} (${this.isHuman ? 'humain - fallback IA' : 'IA'}) calcule son coup...`);
         return this.calculateAIMove();
     }
 

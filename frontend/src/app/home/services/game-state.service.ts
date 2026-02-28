@@ -1,7 +1,6 @@
 import { Injectable, signal, computed } from '@angular/core';
 import { BehaviorSubject, Subject } from 'rxjs';
 import {
-  Card,
   Action,
   GameStateMessage,
   ActionPlayedMessage,
@@ -16,15 +15,12 @@ export class GameStateService {
 
   boardContainerSize = signal(0);
 
-  message = signal('En attente...');
   data = signal<GameStateMessage | null>(null);
   isConnected = signal(false);
 
   // Computed signals qui se mettent à jour automatiquement
-  hand = computed<Card[]>(() => this.data()?.gameState?.hand ?? []);
   newTurn = new BehaviorSubject<Date | null>(null);
   actionPlayed$ = new Subject<Action>();
-  allAnimationsDone$ = new Subject<void>();
 
   private ws: WebSocket | null = null;
 
@@ -68,12 +64,10 @@ export class GameStateService {
 
     this.ws.onerror = () => {
       this.isConnected.set(false);
-      this.message.set('Erreur de connexion');
     };
 
     this.ws.onclose = () => {
       this.isConnected.set(false);
-      this.message.set('Déconnecté');
     };
   }
 
@@ -84,7 +78,6 @@ export class GameStateService {
   sendAnimationDone(): void {
     const msg: AnimationDoneMessage = { type: 'animationDone' };
     this.send(JSON.stringify(msg));
-    this.allAnimationsDone$.next();
   }
 
   disconnect(): void {
