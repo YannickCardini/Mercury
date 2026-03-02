@@ -77,6 +77,10 @@ export function getLegalAction(
             return null;
         }
 
+        console.log('HOMEPOSITIONS:', homePositions);
+        console.log('startPos:', startPos);
+        console.log('ownMarbles:', ownMarbles);
+
         return {
             type: 'enter',
             from: marblePosition,

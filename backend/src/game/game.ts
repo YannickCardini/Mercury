@@ -23,10 +23,10 @@ export class Game {
 
     constructor(ws: WebSocket) {
         this.ws = ws;
-        this.player1 = new Player(false, "Player 1", "red", getHomePositions("red"));
-        this.player2 = new Player(false, "Player 2", "green", getHomePositions("green"));
-        this.player3 = new Player(false, "Player 3", "blue", getHomePositions("blue"));
-        this.player4 = new Player(false, "Player 4", "orange", getHomePositions("orange"));
+        this.player1 = new Player(false, "Player 1", "red", [...getHomePositions("red")]);
+        this.player2 = new Player(false, "Player 2", "green", [...getHomePositions("green")]);
+        this.player3 = new Player(false, "Player 3", "blue", [...getHomePositions("blue")]);
+        this.player4 = new Player(false, "Player 4", "orange", [...getHomePositions("orange")]);
         this.deck = new Deck();
         this.startGame();
     }
@@ -123,7 +123,7 @@ export class Game {
 
     private waitForAnimationsOrTimeout(action: Action): Promise<void> {
         const animDuration = MARBLE_ANIMATION_DURATIONS[action.type] ?? 0;
-        const fallbackDelay = CARD_LAND_DELAY_MS + animDuration + 1000;
+        const fallbackDelay = CARD_LAND_DELAY_MS + animDuration + 3000;
 
         return new Promise<void>((resolve) => {
             let settled = false;
