@@ -29,9 +29,9 @@ export function getPositionAfterMove(fromPosition: number, steps: number): numbe
     const currentIndex = MAIN_PATH.indexOf(fromPosition);
     if (currentIndex === -1) return null;
 
-    const targetIndex = currentIndex + steps;
-    if (targetIndex >= MAIN_PATH.length) return null;
-
+    let targetIndex = currentIndex + steps;
+    if (targetIndex >= MAIN_PATH.length) targetIndex = targetIndex % MAIN_PATH.length;
+    console.log("MAIN_PATH, targerIndex: ", targetIndex, MAIN_PATH[targetIndex])
     return MAIN_PATH[targetIndex] ?? null;
 }
 
@@ -163,8 +163,18 @@ function pathIsClear(
     const ownStartPos = getStartPosition(playerColor);
 
     for (let i = 1; i <= steps; i++) {
-        const pos = MAIN_PATH[fromIndex + i];
+        let pos;
+
+        if ((fromIndex + i) >= MAIN_PATH.length) {
+            pos = MAIN_PATH[(fromIndex + i) % MAIN_PATH.length];
+        } else {
+            pos = MAIN_PATH[fromIndex + i];
+        }
+
         if (pos === undefined) return false;
+
+        // Can't overpass your start position
+        if (pos === ownStartPos) return false;
 
         if (
             isAnyStartPosition(pos) &&

@@ -121,6 +121,10 @@ export class Deck {
         return this.cards.length === 0;
     }
 
+    isFull(): boolean {
+        return this.cards.length === 52;
+    }
+
     /**
      * Retourne le nombre de cartes restantes
      */

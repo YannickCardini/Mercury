@@ -261,11 +261,11 @@ export class Game {
 
         if (this.deck.isEmpty()) this.deck.resetDeck();
         this.deck.shuffle();
-
-        this.player1.cards = this.deck.drawCards(CARDS_PER_HAND);
-        this.player2.cards = this.deck.drawCards(CARDS_PER_HAND);
-        this.player3.cards = this.deck.drawCards(CARDS_PER_HAND);
-        this.player4.cards = this.deck.drawCards(CARDS_PER_HAND);
+        const cardsPerHand = this.deck.isFull() ? CARDS_PER_HAND : CARDS_PER_HAND - 1;
+        this.player1.cards = this.deck.drawCards(cardsPerHand);
+        this.player2.cards = this.deck.drawCards(cardsPerHand);
+        this.player3.cards = this.deck.drawCards(cardsPerHand);
+        this.player4.cards = this.deck.drawCards(cardsPerHand);
 
         console.log(`🃏 Distribution - Manche ${this.round}`);
     }

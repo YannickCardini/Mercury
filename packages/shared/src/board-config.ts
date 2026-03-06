@@ -65,10 +65,10 @@ export const START_POSITIONS: Record<MarbleColor, number> = {
 // L'ordre des cases correspond à l'ordre d'entrée dans la zone.
 
 export const ARRIVAL_POSITIONS: Record<MarbleColor, number[]> = {
-  red:    [38, 53, 68, 83],
+  red:    [83, 68, 53, 38],
   green:  [115, 116, 117, 118],
   blue:   [143, 158, 173, 188],
-  orange: [108, 109, 110, 111],
+  orange: [111, 110, 109, 108],
 };
 
 // ── Cases des infos joueurs (player info panel) ───────────────────────────────

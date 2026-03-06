@@ -67,7 +67,8 @@ export class Player {
             console.log(`${this.name} n'a plus de cartes. Passe son tour...`);
             return this.passAction();
         }
-        await sleep(4500); // simule un temps de réflexion
+
+        await sleep(3500); // simule un temps de réflexion
 
         const ctx = this.buildContext();
 
@@ -97,11 +98,7 @@ export class Player {
             }
         }
 
-        // Aucun coup légal trouvé : passe et défausse toute la main
-        console.log(`${this.name} ne peut jouer aucune carte → défausse`);
-        const cardsBeforeDiscard = this.cards;
-        this.discardHand();
-        return this.discardAction(cardsBeforeDiscard);
+        return this.discardAction();
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
@@ -134,7 +131,11 @@ export class Player {
         this.cards = [];
     }
 
-    private discardAction(cardsBeforeDiscard: Card[]): Action {
+    private discardAction(): Action {
+        // Aucun coup légal trouvé : passe et défausse toute la main
+        console.log(`${this.name} ne peut jouer aucune carte → défausse`);
+        const cardsBeforeDiscard = this.cards;
+        this.discardHand();
         return {
             type: 'discard',
             from: 0,
