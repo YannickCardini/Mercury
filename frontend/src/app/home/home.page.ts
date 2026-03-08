@@ -5,7 +5,7 @@ import { TableComponent } from './components/table/table.component';
 import { GameStateService } from './services/game-state.service';
 import { environment } from '../../environments/environment';
 import { Subscription } from 'rxjs';
-import { NEW_TURN_BANNER_DURATION_MS } from '@keezen/shared';
+import { NEW_TURN_BANNER_DURATION_MS, GameConfig } from '@keezen/shared';
 
 @Component({
   selector: 'app-home',
@@ -56,20 +56,26 @@ export class HomePage implements OnDestroy {
   }
 
   connect(): void {
-    this.gameStateService.connect(environment.wsUrl, () => this.sendAIPlayers());
+    this.gameStateService.connect(environment.wsUrl, () => this.sendStart());
   }
 
   disconnect(): void {
     this.gameStateService.disconnect();
   }
 
-  private sendAIPlayers(): void {
-    const players = [
-      { name: 'IA Rouge', color: 'red', isHuman: false, isConnected: true },
-      { name: 'IA Vert', color: 'green', isHuman: false, isConnected: true },
-      { name: 'IA Bleu', color: 'blue', isHuman: false, isConnected: true },
-      { name: 'IA Orange', color: 'orange', isHuman: false, isConnected: true },
-    ];
-    this.gameStateService.send(JSON.stringify({ type: 'start', players }));
+  private sendStart(): void {
+    // ── Config de la partie ──────────────────────────────────────────────────
+    // Changer isHuman à true pour jouer en tant que joueur rouge.
+    // Tous les autres joueurs restent IA.
+    const config: GameConfig = {
+      players: [
+        { name: 'Moi',      color: 'red',    isHuman: true  },
+        { name: 'IA Vert',  color: 'green',  isHuman: false },
+        { name: 'IA Bleu',  color: 'blue',   isHuman: false },
+        { name: 'IA Orange',color: 'orange', isHuman: false },
+      ],
+    };
+    this.gameStateService.setConfig(config);
+    this.gameStateService.send(JSON.stringify({ type: 'start', config }));
   }
 }

@@ -9,12 +9,7 @@ import {
   OnDestroy
 } from '@angular/core';
 import { TockCardComponent } from 'src/app/shared/tock-card.component';
-
-interface Card {
-  id: string;
-  suit: string;
-  value: string;
-}
+import type { Action, Card } from '@keezen/shared';
 
 @Component({
   selector: 'app-table',
@@ -35,7 +30,7 @@ export class TableComponent implements OnInit, OnDestroy {
   turnPhase = signal<string>('Choisissez une carte');
 
   // ── Dérivés ────────────────────────────────────────────────────
-  canConfirm = computed(() => this.selectedCardIndex() !== null);
+  canConfirm = computed(() => this.gameStateService.canPlay());
 
   /** Couleur de l'arc : vert → orange → rouge */
   timerColor = computed(() => {
@@ -55,7 +50,7 @@ export class TableComponent implements OnInit, OnDestroy {
     return timer > 0 ? this.timeLeft() / timer : 0;
   });
 
-  constructor(private gameStateService: GameStateService) { }
+  constructor(protected gameStateService: GameStateService) { }
 
   ngOnInit(): void {
     this.gameStateService.newTurn.subscribe(() => {
@@ -91,11 +86,6 @@ export class TableComponent implements OnInit, OnDestroy {
     }
   }
 
-  private resetTimer(): void {
-    this.timeLeft.set(this.gameStateService.data()?.gameState?.timer ?? 0);
-    this.startTimer();
-  }
-
   private onTimeUp(): void {
     console.warn('Temps écoulé !');
     this.selectedCardIndex.set(null);
@@ -104,11 +94,16 @@ export class TableComponent implements OnInit, OnDestroy {
 
   // ── Interactions ───────────────────────────────────────────────
   onCardSelected(index: number): void {
+    if (!this.gameStateService.isMyTurn()) return;
+
     if (this.selectedCardIndex() === index) {
       this.selectedCardIndex.set(null);
+      this.gameStateService.selectedCard.set(null);
       this.turnPhase.set('Choisissez une carte');
     } else {
+      const card = this.getPlayerHand()[index] ?? null;
       this.selectedCardIndex.set(index);
+      this.gameStateService.selectedCard.set(card);
       this.turnPhase.set('Choisissez une bille');
     }
   }
@@ -116,12 +111,22 @@ export class TableComponent implements OnInit, OnDestroy {
   confirmMove(): void {
     if (!this.canConfirm()) return;
 
-    console.log("Action confirmée avec la carte d'index :", this.selectedCardIndex());
-    // this.gameStateService.playCard(this.selectedCardIndex());
+    const card = this.gameStateService.selectedCard()!;
+    const marblePos = this.gameStateService.selectedMarblePosition()!;
+    const myColor = this.gameStateService.myPlayerColor()!;
 
+    // Le serveur est autoritaire sur type et to — on envoie card + from
+    const action: Action = {
+      type: 'move',   // placeholder : le serveur calcule le vrai type
+      from: marblePos,
+      to: 0,          // placeholder : le serveur calcule la destination
+      cardPlayed: [card],
+      playerColor: myColor,
+    };
+
+    this.gameStateService.playAction(action);
     this.selectedCardIndex.set(null);
     this.turnPhase.set('Choisissez une carte');
-    this.resetTimer();
   }
 
   // ── Disposition des cartes en éventail ─────────────────────────

@@ -1,22 +1,16 @@
 import { Deck } from "./deck.js";
 import { Player } from "./player.js";
 import { AiStrategy } from "./ai-strategy.js";
+import { HumanStrategy } from "./human-strategy.js";
+import { getLegalAction, type LegalMoveContext } from '../utils/utils.js';
+import type { GameMessenger } from './game-messenger.js';
 import {
     getHomePositions,
     hasWon,
     TURN_DURATION_SECONDS,
     CARDS_PER_HAND,
 } from '@keezen/shared';
-import type { Action, Card, MarbleColor } from "@keezen/shared";
-
-// ─── Configuration par défaut (4 IA) ─────────────────────────────────────────
-
-const DEFAULT_PLAYER_CONFIGS: Array<{ name: string; color: MarbleColor }> = [
-    { name: 'Player 1', color: 'red' },
-    { name: 'Player 2', color: 'green' },
-    { name: 'Player 3', color: 'blue' },
-    { name: 'Player 4', color: 'orange' },
-];
+import type { Action, Card, ClientMessage, GameConfig, MarbleColor } from "@keezen/shared";
 
 export class Game {
 
@@ -26,21 +20,48 @@ export class Game {
     private firstPlayerOfRound: number = 0;
     private currentPlayerIndex: number = 0;
     private deck: Deck;
-    private ws: WebSocket;
+    private messenger: GameMessenger;
     private discardedCards: Card[] = [];
 
-    constructor(ws: WebSocket) {
-        this.ws = ws;
-        this.players = DEFAULT_PLAYER_CONFIGS.map(cfg =>
-            new Player(cfg.name, cfg.color, false, new AiStrategy())
+    // ── Synchronisation des tours humains ────────────────────────────────────
+
+    /**
+     * Resolve de la Promise créée par `awaitHumanAction()`.
+     * Mis à null dès qu'une action est reçue ou qu'un timeout se déclenche,
+     * ce qui évite d'accepter des actions en retard sur le tour suivant.
+     */
+    private pendingHumanActionResolve: ((action: Action) => void) | null = null;
+
+    /** Resolve de la Promise créée par `waitForAnimationsOrTimeout()`. */
+    private pendingAnimationResolve: (() => void) | null = null;
+
+    // ─────────────────────────────────────────────────────────────────────────
+
+    constructor(config: GameConfig, messenger: GameMessenger) {
+        this.messenger = messenger;
+
+        this.players = config.players.map(cfg =>
+            new Player(
+                cfg.name,
+                cfg.color,
+                cfg.isHuman,
+                cfg.isHuman
+                    ? new HumanStrategy(() => this.awaitHumanAction())
+                    : new AiStrategy(),
+            )
         );
+
         this.deck = new Deck();
+
+        // Handler centralisé : toute la logique WS passe par ici
+        messenger.onMessage((msg, senderColor) => this.handleClientMessage(msg, senderColor));
+
         this.startGame();
     }
 
     // ─── Boucle principale ────────────────────────────────────────────────────
 
-    async startGame() {
+    private async startGame() {
         console.log("🎮 Game started");
 
         this.firstPlayerOfRound = 0;
@@ -58,6 +79,8 @@ export class Game {
             this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
             this.turn++;
         }
+
+        console.log("🏆 Game over!");
     }
 
     private startNewRound(): void {
@@ -92,12 +115,101 @@ export class Game {
         await this.waitForAnimationsOrTimeout();
     }
 
-    // ─── Helpers ─────────────────────────────────────────────────────────────
+    // ─── Handler centralisé des messages WS ──────────────────────────────────
+
+    private handleClientMessage(msg: ClientMessage, senderColor: MarbleColor | null): void {
+        switch (msg.type) {
+            case 'playAction':
+                this.handlePlayAction(msg.action, senderColor);
+                break;
+            case 'animationDone':
+                this.pendingAnimationResolve?.();
+                this.pendingAnimationResolve = null;
+                break;
+            // start / createRoom / joinRoom sont gérés par SessionManager avant
+            // que la Game soit créée — on les ignore silencieusement ici.
+        }
+    }
+
+    // ─── Gestion des actions humaines ────────────────────────────────────────
 
     /**
-     * Attend l'action du joueur avec un timeout annulable.
-     * Le timer est clearé dès que le joueur joue.
+     * Retourne une Promise qui sera résolue par `handlePlayAction`
+     * quand un message `playAction` valide arrive.
      */
+    private awaitHumanAction(): Promise<Action> {
+        return new Promise<Action>(resolve => {
+            this.pendingHumanActionResolve = resolve;
+        });
+    }
+
+    private handlePlayAction(action: Action, senderColor: MarbleColor | null): void {
+        if (!this.pendingHumanActionResolve) return; // pas de tour humain en cours
+
+        const currentPlayer = this.players[this.currentPlayerIndex]!;
+        if (!currentPlayer.isHuman) return;
+
+        // En multi-device : vérifier que l'action vient du bon joueur
+        if (senderColor !== null && senderColor !== currentPlayer.color) {
+            this.messenger.sendTo(senderColor, {
+                type: 'actionRejected',
+                reason: 'Not your turn',
+            });
+            return;
+        }
+
+        const validated = this.validateHumanAction(action, currentPlayer);
+        if (!validated) {
+            this.messenger.sendTo(currentPlayer.color, {
+                type: 'actionRejected',
+                reason: 'Invalid action',
+            });
+            return;
+        }
+
+        // Résoudre la Promise en attente et invalider immédiatement le slot
+        const resolve = this.pendingHumanActionResolve;
+        this.pendingHumanActionResolve = null;
+        resolve(validated);
+    }
+
+    /**
+     * Validation serveur d'une action humaine.
+     * Recalcule le coup légal côté serveur et compare avec ce qu'a envoyé le client.
+     * Retourne null si l'action est illégale.
+     */
+    private validateHumanAction(action: Action, player: Player): Action | null {
+        const allMarbles = this.players.flatMap(p => p.marblePositions);
+        const ctx: LegalMoveContext = {
+            ownMarbles: [...player.marblePositions],
+            allMarbles,
+            playerColor: player.color,
+        };
+
+        if (action.type === 'pass') {
+            return { ...action, playerColor: player.color };
+        }
+
+        if (action.type === 'discard') {
+            // TODO : vérifier qu'aucun coup légal n'existe avant d'accepter
+            return { type: 'discard', from: 0, to: 0, cardPlayed: [...player.cards], playerColor: player.color };
+        }
+
+        // Vérifier que la carte déclarée est bien dans la main du joueur
+        const card = action.cardPlayed?.[0];
+        if (!card) return null;
+        if (!player.cards.some(c => c.id === card.id)) return null;
+
+        // Le serveur recalcule lui-même l'action légale à partir de card + from.
+        // On ne fait pas confiance au type/to du client — le serveur est autoritaire.
+        const serverAction = getLegalAction(card, action.from, ctx);
+        if (!serverAction) return null;
+
+        return { ...serverAction, playerColor: player.color };
+    }
+
+    // ─── Attente avec timeout ─────────────────────────────────────────────────
+
     private waitForActionOrTimeout(player: Player, allMarbles: number[]): Promise<Action> {
         return new Promise<Action>((resolve) => {
             let settled = false;
@@ -105,6 +217,8 @@ export class Game {
             const timer = setTimeout(() => {
                 if (settled) return;
                 settled = true;
+                // Annuler tout slot humain en attente pour éviter les actions tardives
+                this.pendingHumanActionResolve = null;
                 console.log(`⏰ Timeout — ${player.name} passe son tour.`);
                 resolve({ type: 'pass', from: 0, to: 0, cardPlayed: null, playerColor: player.color });
             }, TURN_DURATION_SECONDS * 1000);
@@ -118,42 +232,63 @@ export class Game {
         });
     }
 
-    private broadcastAction(action: Action): void {
-        this.ws.send(JSON.stringify({
-            type: 'actionPlayed',
-            timestamp: new Date().toISOString(),
-            action,
-        }));
-    }
-
     private waitForAnimationsOrTimeout(): Promise<void> {
         const fallbackDelay = 10000;
 
         return new Promise<void>((resolve) => {
             let settled = false;
 
-            const timer = setTimeout(() => {
+            this.pendingAnimationResolve = () => {
                 if (settled) return;
                 settled = true;
+                resolve();
+            };
+
+            setTimeout(() => {
+                if (settled) return;
+                settled = true;
+                this.pendingAnimationResolve = null;
                 console.log(`⏰ Animation fallback timeout (${fallbackDelay}ms)`);
                 resolve();
             }, fallbackDelay);
-
-            const onMessage = (raw: MessageEvent) => {
-                try {
-                    const msg = JSON.parse(raw.data as string);
-                    if (msg.type === 'animationDone') {
-                        if (settled) return;
-                        settled = true;
-                        clearTimeout(timer);
-                        this.ws.removeEventListener('message', onMessage);
-                        resolve();
-                    }
-                } catch { /* ignore */ }
-            };
-            this.ws.addEventListener('message', onMessage);
         });
     }
+
+    // ─── Broadcast ───────────────────────────────────────────────────────────
+
+    private broadcastAction(action: Action): void {
+        this.messenger.send({
+            type: 'actionPlayed',
+            timestamp: new Date().toISOString(),
+            action,
+        });
+    }
+
+    private broadcastState(currentPlayer: Player, message = 'New turn'): void {
+        this.messenger.send({
+            type: 'gameState',
+            message,
+            timestamp: new Date().toISOString(),
+            gameState: {
+                players: this.players.map(p => ({
+                    name: p.name,
+                    color: p.color,
+                    isHuman: p.isHuman,
+                    isConnected: p.isConnected,
+                    marblePositions: p.marblePositions,
+                    cardsLeft: p.cards.length,
+                })),
+                currentTurn: currentPlayer.color,
+                timer: TURN_DURATION_SECONDS,
+                // TODO Phase 4 (multi-device) : envoyer via sendTo(color) pour ne
+                // révéler la main qu'au bon joueur. Pour l'instant, broadcast global.
+                hand: currentPlayer.cards,
+                discardedCards: this.discardedCards,
+            },
+        });
+    }
+
+    // ─── Mise à jour de l'état ────────────────────────────────────────────────
 
     private updateDiscardedCards(move: Action): void {
         if (move.cardPlayed) {
@@ -200,27 +335,7 @@ export class Game {
         }
     }
 
-    private broadcastState(currentPlayer: Player, message = 'New turn'): void {
-        this.ws.send(JSON.stringify({
-            type: 'gameState',
-            message,
-            timestamp: new Date().toISOString(),
-            gameState: {
-                players: this.players.map(p => ({
-                    name: p.name,
-                    color: p.color,
-                    isHuman: p.isHuman,
-                    isConnected: p.isConnected,
-                    marblePositions: p.marblePositions,
-                    cardsLeft: p.cards.length,
-                })),
-                currentTurn: currentPlayer.color,
-                timer: TURN_DURATION_SECONDS,
-                hand: currentPlayer.cards,
-                discardedCards: this.discardedCards,
-            },
-        }));
-    }
+    // ─── Helpers ─────────────────────────────────────────────────────────────
 
     private allHandsEmpty(): boolean {
         return this.players.every(p => p.handEmpty());

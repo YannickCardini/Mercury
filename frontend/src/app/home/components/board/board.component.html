@@ -32,7 +32,14 @@
         @else {
         <div [class]="getSquareClass(index)" [ngClass]="getSquareAnimClass(index)">
           @if (getMarbleOnSquare(index); as marbleColor) {
-          <div class="marble" [ngClass]="['marble-' + marbleColor, getMarbleAnimClass(index)]">
+          <div class="marble"
+            [ngClass]="[
+              'marble-' + marbleColor,
+              getMarbleAnimClass(index),
+              isSelectableMarble(index) ? 'marble-selectable' : '',
+              isSelectedMarble(index)   ? 'marble-selected'   : ''
+            ]"
+            (click)="onMarbleClick(index)">
             <div class="marble-highlight"></div>
           </div>
           }

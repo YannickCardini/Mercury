@@ -35,7 +35,7 @@ export interface Player {
   isHuman: boolean;
   isConnected: boolean;
   marblePositions: number[];
-  cardsLeft: number; // Nombre de cartes restantes dans la main du joueur
+  cardsLeft: number;
 }
 
 /**
@@ -48,10 +48,22 @@ export interface Action {
   from: number;
   /** Position d'arrivée du pion (0 si non applicable, ex: 'pass') */
   to: number;
-  /** Carte jouée pour effectuer cette action, null si timeout/pass forcé */
+  /** Carte(s) jouée(s) pour effectuer cette action, null si timeout/pass forcé */
   cardPlayed: Card[] | null;
-  /** Couleur du joueur qui a effectué l'action — évite de la recalculer côté front */
+  /** Couleur du joueur qui a effectué l'action */
   playerColor: MarbleColor;
+}
+
+// ── Configuration de partie ───────────────────────────────────────────────────
+
+export interface PlayerConfig {
+  name: string;
+  color: MarbleColor;
+  isHuman: boolean;
+}
+
+export interface GameConfig {
+  players: PlayerConfig[];
 }
 
 // ── État de jeu ───────────────────────────────────────────────────────────────
@@ -61,7 +73,11 @@ export interface GameState {
   currentTurn: MarbleColor;
   /** Durée du tour en secondes (ex: 30) */
   timer: number;
-  /** Main du joueur local (cartes qu'il peut jouer) */
+  /**
+   * Main du joueur courant.
+   * En mode single-device : contient toutes les cartes du joueur actif.
+   * En mode multi-device (Phase 4) : à envoyer uniquement au bon client via sendTo().
+   */
   hand: Card[];
   /** Toutes les cartes défaussées depuis le début de la partie */
   discardedCards: Card[];
@@ -104,18 +120,63 @@ export interface ActionPlayedMessage {
   action: Action;
 }
 
+/** Envoyé quand le serveur rejette une action humaine invalide */
+export interface ActionRejectedMessage {
+  type: 'actionRejected';
+  reason: string;
+}
+
+/** Envoyé au créateur d'une room multi-device */
+export interface RoomCreatedMessage {
+  type: 'roomCreated';
+  roomCode: string;
+}
+
+/** Envoyé à tous les membres d'une room tant qu'elle n'est pas complète */
+export interface WaitingForPlayersMessage {
+  type: 'waitingForPlayers';
+  connected: MarbleColor[];
+  missing: MarbleColor[];
+}
+
 export type ServerMessage =
   | WelcomeMessage
   | GameStateMessage
   | ResponseMessage
-  | ActionPlayedMessage;
+  | ActionPlayedMessage
+  | ActionRejectedMessage
+  | RoomCreatedMessage
+  | WaitingForPlayersMessage;
 
 // ── Messages WebSocket — Client → Serveur ─────────────────────────────────────
 
-/** Message envoyé par le client pour démarrer une partie */
+/**
+ * Démarre une partie immédiatement sur le WebSocket courant.
+ * Cas d'usage : single-device (tout le monde joue sur le même écran).
+ */
 export interface StartMessage {
   type: 'start';
-  players: Pick<Player, 'name' | 'color' | 'isHuman' | 'isConnected'>[];
+  config: GameConfig;
+}
+
+/**
+ * Crée une room multi-device.
+ * Le créateur est automatiquement inscrit comme premier joueur humain.
+ * Les autres joueurs humains rejoignent via JoinRoomMessage.
+ */
+export interface CreateRoomMessage {
+  type: 'createRoom';
+  config: GameConfig;
+}
+
+/**
+ * Rejoint une room existante via son code.
+ * `playerColor` identifie quel joueur humain se connecte depuis ce device.
+ */
+export interface JoinRoomMessage {
+  type: 'joinRoom';
+  roomCode: string;
+  playerColor: MarbleColor;
 }
 
 /** Message envoyé par le client quand il joue une action */
@@ -132,4 +193,9 @@ export interface AnimationDoneMessage {
   type: 'animationDone';
 }
 
-export type ClientMessage = StartMessage | PlayActionMessage | AnimationDoneMessage;
+export type ClientMessage =
+  | StartMessage
+  | CreateRoomMessage
+  | JoinRoomMessage
+  | PlayActionMessage
+  | AnimationDoneMessage;

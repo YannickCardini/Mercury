@@ -69,7 +69,7 @@ export class BoardComponent implements OnInit, OnDestroy {
   private actionPlayedSub: Subscription | null = null;
 
 
-  constructor(private gameStateService: GameStateService) {
+  constructor(protected gameStateService: GameStateService) {
 
     effect(() => {
       this.displayedGameData.set(this.gameStateService.data());
@@ -380,5 +380,24 @@ export class BoardComponent implements OnInit, OnDestroy {
       (p.marblePositions ?? []).includes(index)
     );
     return player ? player.color as MarbleColor : null;
+  }
+
+  // ── Interaction humain ────────────────────────────────────────────────────
+
+  /** Vrai si ce pion appartient au joueur local et peut être sélectionné. */
+  isSelectableMarble(index: number): boolean {
+    if (!this.gameStateService.isMyTurn()) return false;
+    return this.getMarbleOnSquare(index) === this.gameStateService.myPlayerColor();
+  }
+
+  isSelectedMarble(index: number): boolean {
+    return this.gameStateService.selectedMarblePosition() === index;
+  }
+
+  onMarbleClick(index: number): void {
+    if (!this.isSelectableMarble(index)) return;
+
+    const current = this.gameStateService.selectedMarblePosition();
+    this.gameStateService.selectedMarblePosition.set(current === index ? null : index);
   }
 }
