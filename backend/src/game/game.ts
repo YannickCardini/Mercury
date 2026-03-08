@@ -2,7 +2,7 @@ import { Deck } from "./deck.js";
 import { Player } from "./player.js";
 import { AiStrategy } from "./ai-strategy.js";
 import { HumanStrategy } from "./human-strategy.js";
-import { getLegalAction, type LegalMoveContext } from '../utils/utils.js';
+import { getLegalAction, findLegalMoveForCard, type LegalMoveContext } from '../utils/utils.js';
 import type { GameMessenger } from './game-messenger.js';
 import {
     getHomePositions,
@@ -100,7 +100,10 @@ export class Game {
         this.broadcastState(player, 'New turn');
 
         // 2️⃣ Attendre l'action du joueur/IA
-        const move = await this.waitForActionOrTimeout(player, allMarbles);
+        // Main vide → pass immédiat, pas besoin d'attendre (humain ou IA)
+        const move = player.handEmpty()
+            ? { type: 'pass' as const, from: 0, to: 0, cardPlayed: null, playerColor: player.color }
+            : await this.waitForActionOrTimeout(player, allMarbles);
         const enrichedMove: Action = { ...move, playerColor: player.color };
 
         // 3️⃣ Mettre à jour l'état interne
@@ -191,7 +194,9 @@ export class Game {
         }
 
         if (action.type === 'discard') {
-            // TODO : vérifier qu'aucun coup légal n'existe avant d'accepter
+            // N'accepter la défausse que si aucun coup légal n'est possible
+            const hasLegalMove = player.cards.some(card => findLegalMoveForCard(card, ctx) !== null);
+            if (hasLegalMove) return null;
             return { type: 'discard', from: 0, to: 0, cardPlayed: [...player.cards], playerColor: player.color };
         }
 
@@ -210,6 +215,32 @@ export class Game {
 
     // ─── Attente avec timeout ─────────────────────────────────────────────────
 
+    /**
+     * Si le joueur n'a pas joué avant la fin du timer, le serveur impose une action :
+     *  - coup légal (priorité IA) si possible
+     *  - défausse sinon
+     * `pass` est réservé à la main vide, géré en amont dans playOneTurn.
+     */
+    private computeFallbackAction(player: Player): Action {
+        const allMarbles = this.players.flatMap(p => p.marblePositions);
+        const ctx: LegalMoveContext = {
+            ownMarbles: [...player.marblePositions],
+            allMarbles,
+            playerColor: player.color,
+        };
+
+        for (const card of player.cards) {
+            const action = findLegalMoveForCard(card, ctx);
+            if (action) {
+                console.log(`⏰ Timeout — ${player.name} : coup imposé ${card.value}${card.suit} [${action.type}]`);
+                return { ...action, playerColor: player.color };
+            }
+        }
+
+        console.log(`⏰ Timeout — ${player.name} : défausse imposée (aucun coup légal)`);
+        return { type: 'discard', from: 0, to: 0, cardPlayed: [...player.cards], playerColor: player.color };
+    }
+
     private waitForActionOrTimeout(player: Player, allMarbles: number[]): Promise<Action> {
         return new Promise<Action>((resolve) => {
             let settled = false;
@@ -217,10 +248,8 @@ export class Game {
             const timer = setTimeout(() => {
                 if (settled) return;
                 settled = true;
-                // Annuler tout slot humain en attente pour éviter les actions tardives
                 this.pendingHumanActionResolve = null;
-                console.log(`⏰ Timeout — ${player.name} passe son tour.`);
-                resolve({ type: 'pass', from: 0, to: 0, cardPlayed: null, playerColor: player.color });
+                resolve(this.computeFallbackAction(player));
             }, TURN_DURATION_SECONDS * 1000);
 
             player.getAction(allMarbles).then((action) => {
@@ -264,28 +293,54 @@ export class Game {
         });
     }
 
+    /** Vrai si le joueur courant n'a aucun coup légal (peut défausser). */
+    private computeCanDiscard(player: Player): boolean {
+        if (player.handEmpty()) return false;
+        const allMarbles = this.players.flatMap(p => p.marblePositions);
+        const ctx: LegalMoveContext = {
+            ownMarbles: [...player.marblePositions],
+            allMarbles,
+            playerColor: player.color,
+        };
+        return !player.cards.some(card => findLegalMoveForCard(card, ctx) !== null);
+    }
+
     private broadcastState(currentPlayer: Player, message = 'New turn'): void {
-        this.messenger.send({
-            type: 'gameState',
-            message,
-            timestamp: new Date().toISOString(),
-            gameState: {
-                players: this.players.map(p => ({
-                    name: p.name,
-                    color: p.color,
-                    isHuman: p.isHuman,
-                    isConnected: p.isConnected,
-                    marblePositions: p.marblePositions,
-                    cardsLeft: p.cards.length,
-                })),
-                currentTurn: currentPlayer.color,
-                timer: TURN_DURATION_SECONDS,
-                // TODO Phase 4 (multi-device) : envoyer via sendTo(color) pour ne
-                // révéler la main qu'au bon joueur. Pour l'instant, broadcast global.
-                hand: currentPlayer.cards,
-                discardedCards: this.discardedCards,
-            },
-        });
+        const commonGameState = {
+            players: this.players.map(p => ({
+                name: p.name,
+                color: p.color,
+                isHuman: p.isHuman,
+                isConnected: p.isConnected,
+                marblePositions: p.marblePositions,
+                cardsLeft: p.cards.length,
+            })),
+            currentTurn: currentPlayer.color,
+            timer: TURN_DURATION_SECONDS,
+            discardedCards: this.discardedCards,
+            canDiscard: this.computeCanDiscard(currentPlayer),
+        };
+
+        const humanPlayers = this.players.filter(p => p.isHuman);
+
+        if (humanPlayers.length === 0) {
+            // Partie 100% IA — on diffuse sans main
+            this.messenger.send({
+                type: 'gameState', message,
+                timestamp: new Date().toISOString(),
+                gameState: { ...commonGameState, hand: [] },
+            });
+        } else {
+            // Chaque humain reçoit sa propre main via sendTo.
+            // En single-device sendTo == send ; en multi-device chacun reçoit les siennes.
+            for (const player of humanPlayers) {
+                this.messenger.sendTo(player.color, {
+                    type: 'gameState', message,
+                    timestamp: new Date().toISOString(),
+                    gameState: { ...commonGameState, hand: player.cards },
+                });
+            }
+        }
     }
 
     // ─── Mise à jour de l'état ────────────────────────────────────────────────

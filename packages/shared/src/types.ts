@@ -81,6 +81,11 @@ export interface GameState {
   hand: Card[];
   /** Toutes les cartes défaussées depuis le début de la partie */
   discardedCards: Card[];
+  /**
+   * Vrai si le joueur courant n'a aucun coup légal disponible.
+   * Le frontend l'utilise pour adapter le bouton Confirmer/Défausser.
+   */
+  canDiscard: boolean;
 }
 
 // ── Messages WebSocket — Serveur → Client ─────────────────────────────────────

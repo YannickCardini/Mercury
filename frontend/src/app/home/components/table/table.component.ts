@@ -9,7 +9,7 @@ import {
   OnDestroy
 } from '@angular/core';
 import { TockCardComponent } from 'src/app/shared/tock-card.component';
-import type { Action, Card } from '@keezen/shared';
+import type { Card } from '@keezen/shared';
 
 @Component({
   selector: 'app-table',
@@ -31,6 +31,22 @@ export class TableComponent implements OnInit, OnDestroy {
 
   // ── Dérivés ────────────────────────────────────────────────────
   canConfirm = computed(() => this.gameStateService.canPlay());
+
+  /** Vrai si le serveur indique qu'aucun coup légal n'est disponible. */
+  isDiscardMode = computed(() =>
+    this.gameStateService.data()?.gameState.canDiscard ?? false
+  );
+
+  /** Label dynamique du bouton principal. */
+  confirmOrDiscardLabel = computed(() =>
+    this.isDiscardMode() ? 'Discard' : 'Confirm'
+  );
+
+  /** Le bouton est actif : soit un coup est sélectionné, soit on peut défausser. */
+  confirmOrDiscardEnabled = computed(() => {
+    if (!this.gameStateService.isMyTurn()) return false;
+    return this.isDiscardMode() || this.gameStateService.canPlay();
+  });
 
   /** Couleur de l'arc : vert → orange → rouge */
   timerColor = computed(() => {
@@ -108,23 +124,32 @@ export class TableComponent implements OnInit, OnDestroy {
     }
   }
 
-  confirmMove(): void {
-    if (!this.canConfirm()) return;
+  /** Action du bouton principal : défausse ou confirmation selon le contexte. */
+  onConfirmOrDiscard(): void {
+    if (!this.confirmOrDiscardEnabled()) return;
 
-    const card = this.gameStateService.selectedCard()!;
-    const marblePos = this.gameStateService.selectedMarblePosition()!;
     const myColor = this.gameStateService.myPlayerColor()!;
 
-    // Le serveur est autoritaire sur type et to — on envoie card + from
-    const action: Action = {
-      type: 'move',   // placeholder : le serveur calcule le vrai type
-      from: marblePos,
-      to: 0,          // placeholder : le serveur calcule la destination
-      cardPlayed: [card],
-      playerColor: myColor,
-    };
+    if (this.isDiscardMode()) {
+      // Aucun coup légal → défausse directe
+      this.gameStateService.playAction({
+        type: 'discard',
+        from: 0,
+        to: 0,
+        cardPlayed: [],   // le serveur utilise player.cards
+        playerColor: myColor,
+      });
+    } else {
+      // Coup normal : le serveur calcule type et to à partir de card + from
+      this.gameStateService.playAction({
+        type: 'move',   // placeholder
+        from: this.gameStateService.selectedMarblePosition()!,
+        to: 0,          // placeholder
+        cardPlayed: [this.gameStateService.selectedCard()!],
+        playerColor: myColor,
+      });
+    }
 
-    this.gameStateService.playAction(action);
     this.selectedCardIndex.set(null);
     this.turnPhase.set('Choisissez une carte');
   }

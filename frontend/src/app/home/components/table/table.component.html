@@ -60,8 +60,11 @@
         </div>
       </div>
 
-      <button class="action-btn" [disabled]="!canConfirm()" (click)="confirmMove()">
-        Confirm
+      <button class="action-btn"
+        [class.action-btn--discard]="isDiscardMode()"
+        [disabled]="!confirmOrDiscardEnabled()"
+        (click)="onConfirmOrDiscard()">
+        {{ confirmOrDiscardLabel() }}
       </button>
 
     </div>

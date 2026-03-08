@@ -28,6 +28,7 @@ export interface CardInfo {
   value: string;
   suit: string;
   color: MarbleColor;
+  fromHand?: boolean;
 }
 
 export interface SquareAnimation {
@@ -85,14 +86,16 @@ export class BoardComponent implements OnInit, OnDestroy {
 
     // Étape 1 : fly card(s)
     if (action.cardPlayed?.length) {
+      const isLocalHuman = action.playerColor === this.gameStateService.myPlayerColor();
       if (action.type === 'discard') {
         // Toutes les cartes de la main s'envolent en séquence
-        await this.flyDiscardCards(action.cardPlayed, action.playerColor as MarbleColor);
+        await this.flyDiscardCards(action.cardPlayed, action.playerColor as MarbleColor, isLocalHuman);
       } else {
         const card: CardInfo = {
           value: action.cardPlayed[0].value,
           suit: action.cardPlayed[0].suit,
           color: action.playerColor as MarbleColor,
+          fromHand: isLocalHuman,
         };
         await this.flyCard(card);
       }
@@ -109,7 +112,7 @@ export class BoardComponent implements OnInit, OnDestroy {
   }
 
   /** Vol en séquence de plusieurs cartes (défausse totale). */
-  private flyDiscardCards(cards: Array<{ value: string; suit: string }>, color: MarbleColor): Promise<void> {
+  private flyDiscardCards(cards: Array<{ value: string; suit: string }>, color: MarbleColor, fromHand = false): Promise<void> {
     const STAGGER_MS = 220;   // délai entre chaque carte
     const FLY_MS = CARD_FLY_DURATION_MS;
 
@@ -121,6 +124,7 @@ export class BoardComponent implements OnInit, OnDestroy {
             value: c.value,
             suit: c.suit,
             color,
+            fromHand,
             flyIndex: i,
           };
 
@@ -197,11 +201,25 @@ export class BoardComponent implements OnInit, OnDestroy {
         break;
 
       case 'capture':
-        // Pour une capture, on peut mettre à jour avant d'animer l'impact
-        this.updateMarblePosition(action);
+        const captureSteps = this.calculateActionsMove(action);
+
+        // 1. Déplacement case par case jusqu'à l'avant-dernière case
+        for (let i = 0; i < captureSteps.length - 1; i++) {
+          const step = captureSteps[i];
+          this.updateMarblePosition(step);
+          await applyAndWait(step.to, { marbleClass: 'marble-moving' });
+        }
+
+        // 2. Le tout dernier saut : l'impact sur la case cible
+        const finalStep = captureSteps[captureSteps.length - 1];
+
+        // On met à jour la position de l'attaquant sur la case finale
+        this.updateMarblePosition(finalStep);
+
+        // On déclenche les animations de l'attaquant (slam) et de la victime (éjection)
         await Promise.all([
-          applyAndWait(action.from, { marbleClass: 'marble-capturing' }),
-          applyAndWait(action.to, { marbleClass: 'marble-captured-exit', squareClass: 'square-impact' }),
+          applyAndWait(finalStep.from, { marbleClass: 'marble-capturing' }),
+          applyAndWait(finalStep.to, { marbleClass: 'marble-captured-exit', squareClass: 'square-impact' }),
         ]);
         break;
 

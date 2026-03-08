@@ -223,56 +223,71 @@ $colors: (
    CAPTURE
    Durée : 700ms
    -------------------------------------------------------------------------- */
-@keyframes marbleCapturing {
+/* --------------------------------------------------------------------------
+   CAPTURE (Attaque, Éjection et Onde de choc)
+   -------------------------------------------------------------------------- */
+
+/* L'attaquant saute haut et s'écrase violemment */
+@keyframes marbleSlam {
     0% {
-        transform: scale(1.3);
-        filter: brightness(2) drop-shadow(0 0 8px rgba(255, 60, 60, 0.9));
-    }
-
-    35% {
-        transform: scale(0.9);
-        filter: brightness(1.6) drop-shadow(0 0 4px rgba(255, 60, 60, 0.5));
-    }
-
-    65% {
-        transform: scale(1.05);
-        filter: brightness(1.2);
-    }
-
-    100% {
-        transform: scale(1);
+        transform: translateY(0) scale(1);
         filter: brightness(1);
     }
+
+    40% {
+        transform: translateY(-100%) scale(1.2);
+        filter: brightness(1.5);
+    }
+
+    /* Sommet du saut */
+    50% {
+        transform: translateY(-100%) scale(1.2);
+    }
+
+    /* Temps de suspension (hang time) */
+    80% {
+        transform: translateY(15%) scale(0.85);
+    }
+
+    /* Écrasement (squash) sur la case */
+    100% {
+        transform: translateY(0) scale(1);
+        filter: brightness(1);
+    }
+
+    /* Reprise de forme */
 }
 
-@keyframes marbleCapturedExit {
+/* La victime prend le coup, flashe, et est éjectée au loin */
+@keyframes marbleKnockout {
     0% {
-        transform: scale(1);
+        transform: scale(1) rotate(0deg);
         opacity: 1;
+        filter: brightness(1);
     }
 
-    30% {
-        transform: scale(1.2) translateY(-20%);
-        opacity: 0.8;
+    15% {
+        transform: scale(1.4) rotate(-15deg);
+        filter: brightness(2) drop-shadow(0 0 10px red);
     }
 
+    /* Impact flash */
     100% {
-        transform: scale(0.2) translateY(-150%) rotate(720deg);
+        transform: translate(200%, -300%) scale(0.2) rotate(1080deg);
         opacity: 0;
     }
+
+    /* Éjection (Yeet) */
 }
 
-@keyframes squareImpact {
+/* L'onde de choc sur la case */
+@keyframes shockwaveSquare {
     0% {
-        box-shadow: inset 0 0 0 rgba(255, 60, 60, 0), 0 0 0 rgba(255, 60, 60, 0);
+        box-shadow: inset 0 0 0 rgba(255, 60, 60, 0), 0 0 0 0 rgba(255, 60, 60, 0.8);
     }
 
-    20% {
-        box-shadow: inset 0 0 12px rgba(255, 60, 60, 0.8), 0 0 20px rgba(255, 60, 60, 0.6);
-    }
-
-    60% {
-        box-shadow: inset 0 0 6px rgba(255, 60, 60, 0.4), 0 0 10px rgba(255, 60, 60, 0.2);
+    40% {
+        box-shadow: inset 0 0 20px rgba(255, 60, 60, 0.8), 0 0 0 25px rgba(255, 60, 60, 0);
     }
 
     100% {
@@ -281,18 +296,20 @@ $colors: (
 }
 
 .marble.marble-capturing {
-    animation: marbleCapturing var(--anim-capture) ease-out forwards;
+    animation: marbleSlam var(--anim-capture) cubic-bezier(0.25, 1, 0.5, 1) forwards;
+    z-index: 30;
+    /* L'attaquant passe par-dessus tout le monde */
     pointer-events: none;
 }
 
 .marble.marble-captured-exit {
-    animation: marbleCapturedExit var(--anim-capture) cubic-bezier(0.55, 0, 1, 0.45) forwards;
+    animation: marbleKnockout var(--anim-capture) cubic-bezier(0.17, 0.89, 0.32, 1.28) forwards;
+    z-index: 25;
     pointer-events: none;
-    z-index: 20;
 }
 
 .case-path.square-impact {
-    animation: squareImpact var(--anim-capture) ease-out forwards;
+    animation: shockwaveSquare var(--anim-capture) ease-out forwards;
 }
 
 /* --------------------------------------------------------------------------
@@ -912,4 +929,112 @@ $colors: (
 
 .flying-card--discard:not(.player-red):not(.player-green):not(.player-blue):not(.player-orange) {
     animation: cardDiscardFromTopLeft var(--anim-card-fly) cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* ==========================================================================
+   FLYING CARD — FROM HAND (carte jouée depuis la main du joueur local)
+
+   Remplace l'animation de coin par un envol depuis le bas de l'écran,
+   là où se trouve la zone de main du joueur humain.
+   ========================================================================== */
+
+@keyframes cardFlyFromBottom {
+    0% {
+        opacity: 0;
+        transform: translate(0, 300%) rotate(-5deg) scale(0.5);
+        filter: blur(3px);
+    }
+
+    35% {
+        opacity: 1;
+        filter: blur(0);
+        transform: translate(0, -10%) rotate(3deg) scale(1.1);
+    }
+
+    60% {
+        transform: translate(0, 4%) rotate(-1deg) scale(0.97);
+    }
+
+    80% {
+        transform: translate(0, -2%) rotate(0.5deg) scale(1.02);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translate(0, 0) rotate(0deg) scale(1);
+        filter: blur(0);
+    }
+}
+
+@keyframes cardDiscardFromBottom {
+    0% {
+        opacity: 0;
+        transform: translate(var(--stagger-x, 0px), 300%) rotate(calc(-5deg + var(--stagger-rot, 0deg))) scale(0.45);
+        filter: blur(3px);
+    }
+
+    30% {
+        opacity: 1;
+        filter: blur(0);
+        transform: translate(0, -8%) rotate(calc(3deg + var(--stagger-rot, 0deg) * 0.3)) scale(1.08);
+    }
+
+    55% {
+        transform: translate(0, 3%) rotate(-1deg) scale(0.96);
+    }
+
+    75% {
+        transform: translate(0, -1%) rotate(0.5deg) scale(1.01);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translate(0, 0) rotate(0deg) scale(1);
+        filter: blur(0);
+    }
+}
+
+/* Ces règles sont placées après les règles player-* pour les surcharger */
+.flying-card.flying-card--from-hand {
+    animation: cardFlyFromBottom var(--anim-card-fly) cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.flying-card--discard.flying-card--from-hand {
+    animation: cardDiscardFromBottom var(--anim-card-fly) cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* --------------------------------------------------------------------------
+   ÉTATS DE SÉLECTION (Selectable / Selected)
+   -------------------------------------------------------------------------- */
+
+
+
+.marble.marble-selectable {
+
+    &:hover {
+        transform: scale(1.15);
+        filter: brightness(1.2);
+    }
+}
+
+/* Lévitation et halo lumineux quand le pion est sélectionné */
+@keyframes levitateSelected {
+
+    0%,
+    100% {
+        transform: translateY(-15%) scale(1.15);
+    }
+
+    50% {
+        transform: translateY(-25%) scale(1.15);
+    }
+}
+
+.marble.marble-selected {
+    animation: levitateSelected 2s ease-in-out infinite;
+    border: 2px solid #ffffff;
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.5), 0 0 15px rgba(255, 255, 255, 0.8);
+    filter: brightness(1.3);
+    z-index: 20;
+    /* Passe au-dessus des autres pions */
 }

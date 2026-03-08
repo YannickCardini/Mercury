@@ -77,7 +77,7 @@
 
   <!-- Carte en vol : part du coin du joueur et se pose sur la pile -->
   @if (flyingCard(); as fc) {
-  <div class="flying-card" [ngClass]="'player-' + fc.color">
+  <div class="flying-card" [ngClass]="['player-' + fc.color, fc.fromHand ? 'flying-card--from-hand' : '']">
     <app-tock-card [value]="fc.value" [suit]="fc.suit">
     </app-tock-card>
   </div>
@@ -85,7 +85,7 @@
 
   <!-- Cartes en vol multiples lors d'un discard -->
   @for (fc of flyingCards(); track fc.flyIndex) {
-  <div class="flying-card flying-card--discard" [ngClass]="'player-' + fc.color"
+  <div class="flying-card flying-card--discard" [ngClass]="['player-' + fc.color, fc.fromHand ? 'flying-card--from-hand' : '']"
     [style.--fly-stagger-index]="fc.flyIndex" [style.z-index]="50 + fc.flyIndex">
     <app-tock-card [value]="fc.value" [suit]="fc.suit">
     </app-tock-card>
