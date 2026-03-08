@@ -244,6 +244,18 @@ enum TURN_PHASE {
     };
   }
 
+  // ── Highlighting cartes ────────────────────────────────────────
+  isCardPlayable(index: number): boolean {
+    const playable = this.gameStateService.playableCardIndices();
+    return playable !== null && playable.has(index);
+  }
+
+  isCardDimmed(index: number): boolean {
+    const playable = this.gameStateService.playableCardIndices();
+    if (playable === null) return false;
+    return !playable.has(index);
+  }
+
   // ── Données ────────────────────────────────────────────────────
   getPlayerHand(): Card[] {
     const gameData = this.gameStateService.data();

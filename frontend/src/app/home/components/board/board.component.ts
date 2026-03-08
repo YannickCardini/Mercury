@@ -423,6 +423,19 @@ export class BoardComponent implements OnInit, OnDestroy {
     return this.gameStateService.selectedMarblePosition() === index;
   }
 
+  /** Marble jouable avec la carte sélectionnée (à mettre en surbrillance). */
+  isPlayableMarble(index: number): boolean {
+    const playable = this.gameStateService.playableMarblePositions();
+    return playable !== null && playable.has(index);
+  }
+
+  /** Marble non-jouable avec la carte sélectionnée (à griser). */
+  isDimmedMarble(index: number): boolean {
+    const playable = this.gameStateService.playableMarblePositions();
+    if (playable === null) return false;
+    return this.getMarbleOnSquare(index) === this.gameStateService.myPlayerColor() && !playable.has(index);
+  }
+
   onMarbleClick(index: number): void {
     if (!this.isSelectableMarble(index)) return;
 

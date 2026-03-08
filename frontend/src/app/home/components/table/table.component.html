@@ -27,6 +27,8 @@
           [class.selected]="selectedCardIndex() === i"
           [class.card-flying-away]="flyingCardIndex() === i"
           [class.is-red]="card.suit === '♥' || card.suit === '♦'"
+          [class.card-playable]="isCardPlayable(i)"
+          [class.card-dimmed]="isCardDimmed(i)"
           [style]="getCardStyle(i, getPlayerHand().length)"
           (click)="onCardSelected(i)">
           <!-- Design de carte factorisé -->

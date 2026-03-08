@@ -1038,3 +1038,35 @@ $colors: (
     z-index: 20;
     /* Passe au-dessus des autres pions */
 }
+
+/* --------------------------------------------------------------------------
+   JOUABLE — Marble jouable avec la carte sélectionnée
+   Flottement doux pour indiquer l'interactivité, anneau vert discret.
+   -------------------------------------------------------------------------- */
+@keyframes floatPlayable {
+
+    0%,
+    100% {
+        transform: scale(1.1) translateY(-5%);
+    }
+
+    50% {
+        transform: scale(1.1) translateY(-14%);
+    }
+}
+
+.marble.marble-playable {
+    animation: floatPlayable 2s ease-in-out infinite;
+    filter: brightness(1.12) saturate(1.15);
+    z-index: 15;
+    cursor: pointer;
+}
+
+/* --------------------------------------------------------------------------
+   GRISÉ — Marble non-jouable avec la carte sélectionnée
+   Réduit, désaturé et repoussé visuellement.
+   -------------------------------------------------------------------------- */
+.marble.marble-dimmed {
+    cursor: not-allowed;
+    filter: brightness(0.85);
+}

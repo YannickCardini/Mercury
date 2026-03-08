@@ -11,6 +11,8 @@ import {
   PlayActionMessage,
   ServerMessage,
   MarbleColor,
+  getLegalAction,
+  type LegalMoveContext,
 } from '@keezen/shared';
 
 @Injectable({
@@ -42,12 +44,91 @@ export class GameStateService {
   /** Position de départ de la carte jouée (pour l'animation depuis la main). */
   playingCardStart = signal<{ dx: number; dy: number; angle: number } | null>(null);
 
-  /** Vrai quand une action complète peut être envoyée au serveur. */
-  canPlay = computed(() =>
-    this.isMyTurn() &&
-    this.selectedCard() !== null &&
-    this.selectedMarblePosition() !== null
-  );
+  /** Vrai quand une action complète et légale peut être envoyée au serveur. */
+  canPlay = computed(() => {
+    if (!this.isMyTurn()) return false;
+    const card = this.selectedCard();
+    const marblePos = this.selectedMarblePosition();
+    if (!card || marblePos === null) return false;
+
+    const data = this.data();
+    const myColor = this.myPlayerColor();
+    if (!data || !myColor) return false;
+
+    const player = data.gameState.players.find(p => p.color === myColor);
+    if (!player) return false;
+
+    const ctx: LegalMoveContext = {
+      ownMarbles: player.marblePositions,
+      allMarbles: data.gameState.players.flatMap(p => p.marblePositions),
+      playerColor: myColor,
+    };
+    return getLegalAction(card, marblePos, ctx) !== null;
+  });
+
+  /**
+   * Positions des marbles jouables avec la carte sélectionnée.
+   * null = pas de carte sélectionnée (aucun filtre actif).
+   * Seulement actif quand la carte est sélectionnée mais pas encore de marble.
+   */
+  playableMarblePositions = computed<Set<number> | null>(() => {
+    if (!this.isMyTurn()) return null;
+    const card = this.selectedCard();
+    if (!card || this.selectedMarblePosition() !== null) return null;
+
+    const data = this.data();
+    const myColor = this.myPlayerColor();
+    if (!data || !myColor) return null;
+
+    const player = data.gameState.players.find(p => p.color === myColor);
+    if (!player) return null;
+
+    const ctx: LegalMoveContext = {
+      ownMarbles: player.marblePositions,
+      allMarbles: data.gameState.players.flatMap(p => p.marblePositions),
+      playerColor: myColor,
+    };
+
+    const playable = new Set<number>();
+    for (const pos of player.marblePositions) {
+      if (getLegalAction(card, pos, ctx) !== null) {
+        playable.add(pos);
+      }
+    }
+    return playable;
+  });
+
+  /**
+   * Indices des cartes jouables avec le marble sélectionné.
+   * null = pas de marble sélectionné (aucun filtre actif).
+   * Seulement actif quand le marble est sélectionné mais pas encore de carte.
+   */
+  playableCardIndices = computed<Set<number> | null>(() => {
+    if (!this.isMyTurn()) return null;
+    const marblePos = this.selectedMarblePosition();
+    if (marblePos === null || this.selectedCard() !== null) return null;
+
+    const data = this.data();
+    const myColor = this.myPlayerColor();
+    if (!data || !myColor) return null;
+
+    const player = data.gameState.players.find(p => p.color === myColor);
+    if (!player) return null;
+
+    const ctx: LegalMoveContext = {
+      ownMarbles: player.marblePositions,
+      allMarbles: data.gameState.players.flatMap(p => p.marblePositions),
+      playerColor: myColor,
+    };
+
+    const playable = new Set<number>();
+    data.gameState.hand.forEach((card, i) => {
+      if (getLegalAction(card, marblePos, ctx) !== null) {
+        playable.add(i);
+      }
+    });
+    return playable;
+  });
 
   clearLocalHand() {
     this.data.update(state => {

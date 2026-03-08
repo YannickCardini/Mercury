@@ -11,3 +11,4 @@
 export * from './types.js';
 export * from './board-config.js';
 export * from './constants.js';
+export * from './move-validator.js';
