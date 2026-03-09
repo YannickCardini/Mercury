@@ -10,7 +10,8 @@ import {
   OnDestroy
 } from '@angular/core';
 import { TockCardComponent } from 'src/app/shared/tock-card.component';
-import type { Card } from '@keezen/shared';
+import type { Card, MarbleColor } from '@keezen/shared';
+import { Subscription } from 'rxjs';
 
 enum TURN_PHASE {
   DISCARD = "No playable moves",
@@ -34,10 +35,16 @@ enum TURN_PHASE {
   readonly timerCircumference = 2 * Math.PI * 27.5; // ≈ 172.79
   timeLeft = signal(0);
   timerInterval?: any; // Type 'any' pour setInterval --- IGNORE ---
+
   // ── Signaux UI ─────────────────────────────────────────────────
   selectedCardIndex = signal<number | null>(null);
   flyingCardIndex = signal<number | null>(null);
   turnPhase = signal<string>('Choose a card');
+
+  /** Bannière "temps écoulé" : couleur du joueur concerné, null = masqué */
+  timeoutBannerColor = signal<MarbleColor | null>(null);
+  private timeoutBannerTimeout?: ReturnType<typeof setTimeout>;
+  private timeoutSub?: Subscription;
 
   // ── Dérivés ────────────────────────────────────────────────────
 
@@ -88,10 +95,16 @@ enum TURN_PHASE {
       this.startTimer();
       this.updateTurnPhase();
     });
+
+    this.timeoutSub = this.gameStateService.turnTimedOut$.subscribe((color) => {
+      this.showTimeoutBanner(color);
+    });
   }
 
   ngOnDestroy(): void {
     this.clearTimer();
+    this.timeoutSub?.unsubscribe();
+    if (this.timeoutBannerTimeout) clearTimeout(this.timeoutBannerTimeout);
   }
 
   private updateTurnPhase() {
@@ -132,9 +145,19 @@ enum TURN_PHASE {
   }
 
   private onTimeUp(): void {
-    console.warn('Temps écoulé !');
+    if (this.gameStateService.isMyTurn()) {
+      this.gameStateService.sendTurnTimeout();
+    }
     this.selectedCardIndex.set(null);
     this.turnPhase.set(TURN_PHASE.WAIT);
+  }
+
+  private showTimeoutBanner(color: MarbleColor): void {
+    if (this.timeoutBannerTimeout) clearTimeout(this.timeoutBannerTimeout);
+    this.timeoutBannerColor.set(color);
+    this.timeoutBannerTimeout = setTimeout(() => {
+      this.timeoutBannerColor.set(null);
+    }, 4000);
   }
 
   // ── Interactions ───────────────────────────────────────────────

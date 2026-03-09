@@ -118,11 +118,13 @@ export interface ResponseMessage {
  * Message envoyé par le serveur dès qu'un joueur a joué une action.
  * Le serveur attend un `AnimationDoneMessage` du client avant de passer
  * au tour suivant — ce qui garantit que les animations sont terminées.
+ * `isTimeout` est vrai si l'action a été jouée automatiquement suite à un dépassement de temps.
  */
 export interface ActionPlayedMessage {
   type: 'actionPlayed';
   timestamp: string;
   action: Action;
+  isTimeout?: boolean;
 }
 
 /** Envoyé quand le serveur rejette une action humaine invalide */
@@ -198,9 +200,20 @@ export interface AnimationDoneMessage {
   type: 'animationDone';
 }
 
+/**
+ * Message envoyé par le client quand son timer de tour arrive à 0.
+ * Le serveur joue alors un coup automatique à la place du joueur humain.
+ * Le serveur dispose d'un timer de sécurité (TURN_DURATION + offset) au cas où
+ * le frontend serait déconnecté ou crashé.
+ */
+export interface TurnTimeoutMessage {
+  type: 'turnTimeout';
+}
+
 export type ClientMessage =
   | StartMessage
   | CreateRoomMessage
   | JoinRoomMessage
   | PlayActionMessage
-  | AnimationDoneMessage;
+  | AnimationDoneMessage
+  | TurnTimeoutMessage;

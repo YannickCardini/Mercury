@@ -8,6 +8,7 @@ import {
   ActionPlayedMessage,
   ActionRejectedMessage,
   AnimationDoneMessage,
+  TurnTimeoutMessage,
   PlayActionMessage,
   ServerMessage,
   MarbleColor,
@@ -112,6 +113,8 @@ export class GameStateService {
   newTurn = new BehaviorSubject<Date | null>(null);
   actionPlayed$ = new Subject<Action>();
   actionRejected$ = new Subject<string>();
+  /** Émet la couleur du joueur dont le tour a expiré (timeout). */
+  turnTimedOut$ = new Subject<MarbleColor>();
 
   private ws: WebSocket | null = null;
 
@@ -141,6 +144,7 @@ export class GameStateService {
 
         case 'actionPlayed': {
           const msg = parsed as ActionPlayedMessage;
+          if (msg.isTimeout) this.turnTimedOut$.next(msg.action.playerColor);
           this.actionPlayed$.next(msg.action);
           break;
         }
@@ -205,6 +209,11 @@ export class GameStateService {
 
   sendAnimationDone(): void {
     const msg: AnimationDoneMessage = { type: 'animationDone' };
+    this.send(JSON.stringify(msg));
+  }
+
+  sendTurnTimeout(): void {
+    const msg: TurnTimeoutMessage = { type: 'turnTimeout' };
     this.send(JSON.stringify(msg));
   }
 

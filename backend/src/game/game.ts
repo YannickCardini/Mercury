@@ -8,6 +8,8 @@ import {
     getHomePositions,
     hasWon,
     TURN_DURATION_SECONDS,
+    TURN_DURATION_MS,
+    TURN_TIMEOUT_OFFSET_MS,
     CARDS_PER_HAND,
 } from '@keezen/shared';
 import type { Action, Card, ClientMessage, GameConfig, MarbleColor } from "@keezen/shared";
@@ -34,6 +36,9 @@ export class Game {
 
     /** Resolve de la Promise créée par `waitForAnimationsOrTimeout()`. */
     private pendingAnimationResolve: (() => void) | null = null;
+
+    /** Action jouée automatiquement suite à un `turnTimeout` du front (pour marquer isTimeout). */
+    private pendingTimeoutAction: Action | null = null;
 
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -101,9 +106,12 @@ export class Game {
 
         // 2️⃣ Attendre l'action du joueur/IA
         // Main vide → pass immédiat, pas besoin d'attendre (humain ou IA)
+        this.pendingTimeoutAction = null;
         const move = player.handEmpty()
             ? { type: 'pass' as const, from: 0, to: 0, cardPlayed: null, playerColor: player.color }
             : await this.waitForActionOrTimeout(player, allMarbles);
+        const isTimeout = this.pendingTimeoutAction !== null;
+        this.pendingTimeoutAction = null;
         const enrichedMove: Action = { ...move, playerColor: player.color };
 
         // 3️⃣ Mettre à jour l'état interne
@@ -112,7 +120,7 @@ export class Game {
         this.updateDiscardedCards(enrichedMove);
 
         // 4️⃣ Broadcast de l'action (pour animation carte + pion côté front)
-        this.broadcastAction(enrichedMove);
+        this.broadcastAction(enrichedMove, isTimeout);
 
         // 5️⃣ Attendre confirmation des animations (ou timeout fallback)
         await this.waitForAnimationsOrTimeout();
@@ -129,6 +137,9 @@ export class Game {
                 this.pendingAnimationResolve?.();
                 this.pendingAnimationResolve = null;
                 break;
+            case 'turnTimeout':
+                this.handleTurnTimeout(senderColor);
+                break;
             // start / createRoom / joinRoom sont gérés par SessionManager avant
             // que la Game soit créée — on les ignore silencieusement ici.
         }
@@ -144,6 +155,20 @@ export class Game {
         return new Promise<Action>(resolve => {
             this.pendingHumanActionResolve = resolve;
         });
+    }
+
+    private handleTurnTimeout(senderColor: MarbleColor | null): void {
+        if (!this.pendingHumanActionResolve) return;
+
+        const currentPlayer = this.players[this.currentPlayerIndex]!;
+        if (!currentPlayer.isHuman) return;
+        if (senderColor !== null && senderColor !== currentPlayer.color) return;
+
+        console.log(`⏰ Timeout signalé par le front — ${currentPlayer.name} : coup imposé`);
+        const resolve = this.pendingHumanActionResolve;
+        this.pendingHumanActionResolve = null;
+        this.pendingTimeoutAction = this.computeFallbackAction(currentPlayer);
+        resolve(this.pendingTimeoutAction);
     }
 
     private handlePlayAction(action: Action, senderColor: MarbleColor | null): void {
@@ -245,12 +270,17 @@ export class Game {
         return new Promise<Action>((resolve) => {
             let settled = false;
 
+            // Timer de sécurité : se déclenche si le frontend ne répond pas
+            // (déconnexion, crash). En temps normal, c'est le `turnTimeout` du front
+            // qui résout la promesse en premier (via handleTurnTimeout).
             const timer = setTimeout(() => {
                 if (settled) return;
                 settled = true;
                 this.pendingHumanActionResolve = null;
-                resolve(this.computeFallbackAction(player));
-            }, TURN_DURATION_SECONDS * 1000);
+                const fallback = this.computeFallbackAction(player);
+                this.pendingTimeoutAction = fallback;
+                resolve(fallback);
+            }, TURN_DURATION_MS + TURN_TIMEOUT_OFFSET_MS);
 
             player.getAction(allMarbles).then((action) => {
                 if (settled) return;
@@ -285,11 +315,12 @@ export class Game {
 
     // ─── Broadcast ───────────────────────────────────────────────────────────
 
-    private broadcastAction(action: Action): void {
+    private broadcastAction(action: Action, isTimeout = false): void {
         this.messenger.send({
             type: 'actionPlayed',
             timestamp: new Date().toISOString(),
             action,
+            isTimeout,
         });
     }
 

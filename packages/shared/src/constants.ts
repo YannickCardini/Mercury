@@ -20,6 +20,14 @@ export const TURN_DURATION_SECONDS = 30;
 /** Durée d'un tour de jeu en millisecondes. */
 export const TURN_DURATION_MS = TURN_DURATION_SECONDS * 1000;
 
+/**
+ * Délai de sécurité ajouté côté backend après TURN_DURATION_MS.
+ * Le frontend envoie `turnTimeout` à la fin de son timer.
+ * Si le message n'arrive pas (déconnexion, crash), le backend joue
+ * le coup fallback après TURN_DURATION_MS + TURN_TIMEOUT_OFFSET_MS.
+ */
+export const TURN_TIMEOUT_OFFSET_MS = 5000;
+
 // ── Durées d'animation des pions (ms) ────────────────────────────────────────
 
 export const MARBLE_ANIMATION_DURATIONS: Record<ActionType, number> = {

@@ -1,5 +1,17 @@
 <div class="game-board">
 
+  <!-- ===== BANNIÈRE TIMEOUT ===== -->
+  @if (timeoutBannerColor(); as color) {
+  <div class="timeout-banner" [ngClass]="'timeout-banner--' + color">
+    <span class="timeout-icon">⏰</span>
+    @if (color === gameStateService.myPlayerColor()) {
+      <span>Temps écoulé — l'ordinateur a joué à ta place</span>
+    } @else {
+      <span>Temps écoulé — l'ordinateur a joué pour {{ color }}</span>
+    }
+  </div>
+  }
+
   <!-- ===== TIMER (caché sur petits écrans) ===== -->
   <div class="timer-zone">
     <div class="timer-ring" [class.urgent]="timeLeft() <= 10">
