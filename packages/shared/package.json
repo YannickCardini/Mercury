@@ -1,6 +1,6 @@
 {
   "name": "@keezen/shared",
-  "version": "1.0.2",
+  "version": "1.0.4",
   "description": "Types, constantes et configuration du plateau partagés entre le frontend et le backend Keezen.",
   "type": "module",
   "main": "./dist/index.js",

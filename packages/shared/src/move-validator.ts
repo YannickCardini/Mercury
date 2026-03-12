@@ -20,7 +20,6 @@ import type { Action, Card, MarbleColor } from './types.js';
 const CARD_MOVE_DISTANCE: Partial<Record<string, number>> = {
     '2': 2,
     '3': 3,
-    '4': 4,
     '5': 5,
     '6': 6,
     '7': 7,
@@ -50,6 +49,15 @@ export function getPositionAfterMove(fromPosition: number, steps: number): numbe
 
     let targetIndex = currentIndex + steps;
     if (targetIndex >= MAIN_PATH.length) targetIndex = targetIndex % MAIN_PATH.length;
+    return MAIN_PATH[targetIndex] ?? null;
+}
+
+function getPositionAfterBackwardMove(fromPosition: number, steps: number): number | null {
+    const currentIndex = MAIN_PATH.indexOf(fromPosition);
+    if (currentIndex === -1) return null;
+
+    let targetIndex = currentIndex - steps;
+    if (targetIndex < 0) targetIndex = MAIN_PATH.length + targetIndex;
     return MAIN_PATH[targetIndex] ?? null;
 }
 
@@ -129,6 +137,12 @@ export function getLegalAction(
         return { type: 'swap', from: marblePosition, to: target, cardPlayed: [card], playerColor };
     }
 
+    if (card.value === '4') {
+        if (!isOnMainPath(marblePosition)) return null;
+        if (START_POSITIONS[playerColor] === marblePosition) return null;
+        return buildBackwardMoveAction(card, marblePosition, 4, ctx);
+    }
+
     const distance = CARD_MOVE_DISTANCE[card.value];
     if (distance !== undefined && isOnMainPath(marblePosition)) {
         return buildMoveAction(card, marblePosition, distance, ctx);
@@ -163,6 +177,38 @@ function buildMoveAction(
 
     if (ownMarbles.includes(to)) return null;
     if (!pathIsClear(from, steps, playerColor, allMarbles)) return null;
+
+    if (allMarbles.includes(to)) {
+        return {
+            type: 'capture',
+            from,
+            to,
+            cardPlayed: [card],
+            playerColor,
+        };
+    }
+
+    return {
+        type: 'move',
+        from,
+        to,
+        cardPlayed: [card],
+        playerColor,
+    };
+}
+
+function buildBackwardMoveAction(
+    card: Card,
+    from: number,
+    steps: number,
+    ctx: LegalMoveContext
+): Action | null {
+    const { playerColor, ownMarbles, allMarbles } = ctx;
+
+    const to = getPositionAfterBackwardMove(from, steps);
+    if (to === null) return null;
+
+    if (ownMarbles.includes(to)) return null;
 
     if (allMarbles.includes(to)) {
         return {

@@ -261,34 +261,33 @@ export class BoardComponent implements OnInit, OnDestroy {
   }
 
   private calculateActionsMove(action: Action): Action[] {
-    const calculatePath = (from: number, to: number): number[] => {
-      const startIndex = MAIN_PATH.indexOf(from);
-      const endIndex = MAIN_PATH.indexOf(to);
+    const startIndex = MAIN_PATH.indexOf(action.from);
+    const endIndex = MAIN_PATH.indexOf(action.to);
 
-      if (startIndex === -1 || endIndex === -1) return [];
+    if (startIndex === -1 || endIndex === -1) return [];
 
-      const path: number[] = [];
-      let currentIndex = startIndex;
+    const forwardDist = (endIndex - startIndex + MAIN_PATH.length) % MAIN_PATH.length;
+    const backwardDist = (startIndex - endIndex + MAIN_PATH.length) % MAIN_PATH.length;
+    const goBackward = backwardDist < forwardDist;
 
-      while (currentIndex !== endIndex) {
-        path.push(MAIN_PATH[currentIndex]);
-        currentIndex = (currentIndex + 1) % MAIN_PATH.length;
-      }
-      path.push(MAIN_PATH[endIndex]);
+    const path: number[] = [];
+    let currentIndex = startIndex;
 
-      return path;
-    };
+    while (currentIndex !== endIndex) {
+      path.push(MAIN_PATH[currentIndex]);
+      currentIndex = goBackward
+        ? (currentIndex - 1 + MAIN_PATH.length) % MAIN_PATH.length
+        : (currentIndex + 1) % MAIN_PATH.length;
+    }
+    path.push(MAIN_PATH[endIndex]);
 
-    const path = calculatePath(action.from, action.to);
     const actions: Action[] = [];
-
-    // On boucle pour créer une action par segment (ex: 15->6, puis 6->9)
     for (let i = 0; i < path.length - 1; i++) {
       actions.push({
-        ...action,             // On copie les infos (playerColor, cardPlayed)
-        from: path[i],        // Case de départ du segment
-        to: path[i + 1],      // Case d'arrivée du segment
-        type: 'move'          // On force le type en 'move'
+        ...action,
+        from: path[i],
+        to: path[i + 1],
+        type: 'move'
       });
     }
 
