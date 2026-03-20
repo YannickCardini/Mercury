@@ -4,6 +4,35 @@ import { Injectable } from '@angular/core';
 export class SoundService {
 
   private ctx: AudioContext | null = null;
+  private buffers = new Map<string, AudioBuffer>();
+
+  constructor() {
+    this.preloadAssets();
+  }
+
+  private async preloadAssets(): Promise<void> {
+    const assets: Array<{ key: string; url: string }> = [
+      { key: 'new_turn',  url: 'assets/sounds/new_turn.wav' },
+      { key: 'card',      url: 'assets/sounds/card.wav'      },
+      { key: 'capture',   url: 'assets/sounds/capture.wav'   },
+      { key: 'teleport',  url: 'assets/sounds/teleport.wav'  },
+      { key: 'victory',   url: 'assets/sounds/victory.wav'   },
+      { key: 'defeat',    url: 'assets/sounds/defeat.wav'    },
+    ];
+
+    for (const { key, url } of assets) {
+      try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const arrayBuffer = await response.arrayBuffer();
+        const ctx = this.getCtx();
+        const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+        this.buffers.set(key, audioBuffer);
+      } catch (err) {
+        console.warn(`[SoundService] Could not load asset "${url}", falling back to synthesis.`, err);
+      }
+    }
+  }
 
   private getCtx(): AudioContext {
     if (!this.ctx || this.ctx.state === 'closed') {
@@ -14,6 +43,17 @@ export class SoundService {
       this.ctx.resume();
     }
     return this.ctx;
+  }
+
+  private playBuffer(key: string): boolean {
+    const buffer = this.buffers.get(key);
+    if (!buffer) return false;
+    const ctx = this.getCtx();
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(ctx.destination);
+    source.start();
+    return true;
   }
 
   /** Short, low thud — heavy marble rolling. */
@@ -68,6 +108,8 @@ export class SoundService {
 
   /** Sharp impact — marble knocked off the board. */
   playCapture(): void {
+    if (this.playBuffer('capture')) return;
+
     const ctx = this.getCtx();
     const t = ctx.currentTime;
 
@@ -115,6 +157,8 @@ export class SoundService {
 
   /** Double-hit whoosh — two marbles swapping places. */
   playSwap(): void {
+    if (this.playBuffer('teleport')) return;
+
     const ctx = this.getCtx();
     const t = ctx.currentTime;
 
@@ -160,6 +204,8 @@ export class SoundService {
 
   /** Paper whoosh — card played/thrown onto the discard pile. */
   playCard(): void {
+    if (this.playBuffer('card')) return;
+
     const ctx = this.getCtx();
     const t = ctx.currentTime;
 
@@ -211,6 +257,8 @@ export class SoundService {
 
   /** Soft single bell — new turn notification. */
   playNewTurn(): void {
+    if (this.playBuffer('new_turn')) return;
+
     const ctx = this.getCtx();
     const t = ctx.currentTime;
 
@@ -239,5 +287,55 @@ export class SoundService {
     gain2.connect(ctx.destination);
     osc2.start(t + 0.04);
     osc2.stop(t + 1.0);
+  }
+
+  /** Triumphant fanfare — human player wins. */
+  playVictory(): void {
+    if (this.playBuffer('victory')) return;
+
+    const ctx = this.getCtx();
+    const t = ctx.currentTime;
+
+    // Rising arpeggio C4–E4–G4–C5
+    const notes = [262, 330, 392, 523];
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const start = t + i * 0.15;
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, start);
+      gain.gain.setValueAtTime(0.0, start);
+      gain.gain.linearRampToValueAtTime(0.4, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.01, start + 0.6);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + 0.6);
+    });
+  }
+
+  /** Low descending tone — human player loses. */
+  playDefeat(): void {
+    if (this.playBuffer('defeat')) return;
+
+    const ctx = this.getCtx();
+    const t = ctx.currentTime;
+
+    // Descending minor: A4–F4–D4
+    const notes = [440, 349, 294];
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const start = t + i * 0.2;
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, start);
+      gain.gain.setValueAtTime(0.0, start);
+      gain.gain.linearRampToValueAtTime(0.3, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.01, start + 0.7);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + 0.7);
+    });
   }
 }

@@ -1,4 +1,4 @@
-import { Component, signal, computed, OnDestroy } from '@angular/core';
+import { Component, signal, computed, effect, OnDestroy } from '@angular/core';
 import { IonContent } from '@ionic/angular/standalone';
 import { BoardComponent } from './components/board/board.component';
 import { TableComponent } from './components/table/table.component';
@@ -32,6 +32,16 @@ export class HomePage implements OnDestroy {
   private newTurnSub: Subscription | null = null;
 
   constructor(public gameStateService: GameStateService, private soundService: SoundService) {
+    effect(() => {
+      const winner = this.gameStateService.winner();
+      if (!winner) return;
+      if (winner === this.gameStateService.myPlayerColor()) {
+        this.soundService.playVictory();
+      } else {
+        this.soundService.playDefeat();
+      }
+    });
+
     // ✅ Subscription RxJS propre — réactive à chaque next() du BehaviorSubject,
     // contrairement à .value qui est un snapshot lu une seule fois au moment
     // de l'exécution de l'effect.
@@ -45,9 +55,10 @@ export class HomePage implements OnDestroy {
       const player = gameData.gameState.players.find(p => p.color === currentTurn);
       this.newTurnColor.set(currentTurn);
       this.newTurnName.set(player?.name ?? currentTurn);
-      this.showNewTurnBanner.set(true);
-      if (this.gameStateService.isMyTurn()) {
-        this.soundService.playNewTurn();
+      if (player?.cardsLeft && player.cardsLeft > 0) {
+        this.showNewTurnBanner.set(true);
+        if (this.gameStateService.isMyTurn())
+          this.soundService.playNewTurn();
       }
 
       if (this.newTurnTimeout) clearTimeout(this.newTurnTimeout);
@@ -81,10 +92,10 @@ export class HomePage implements OnDestroy {
     // Tous les autres joueurs restent IA.
     const config: GameConfig = {
       players: [
-        { name: 'Moi',      color: 'red',    isHuman: true  },
-        { name: 'IA Vert',  color: 'green',  isHuman: false },
-        { name: 'IA Bleu',  color: 'blue',   isHuman: false },
-        { name: 'IA Orange',color: 'orange', isHuman: false },
+        { name: 'Moi', color: 'red', isHuman: true },
+        { name: 'IA Vert', color: 'green', isHuman: false },
+        { name: 'IA Bleu', color: 'blue', isHuman: false },
+        { name: 'IA Orange', color: 'orange', isHuman: false },
       ],
     };
     this.gameStateService.setConfig(config);

@@ -153,7 +153,7 @@ export class BoardComponent implements OnInit, OnDestroy {
     return this.computePreviewFromAction(action);
   });
 
-  debug = true;
+  debug = false;
 
   // ── Timers internes ─────────────────────────────────────────────────────────
   private flyingCardTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -443,9 +443,19 @@ export class BoardComponent implements OnInit, OnDestroy {
   }
 
   onMarbleMouseEnter(index: number): void {
-    if (this.gameStateService.isMyTurn() && this.gameStateService.selectedCard()) {
-      this.hoveredMarble.set(index);
+    if (!this.gameStateService.isMyTurn() || !this.gameStateService.selectedCard()) return;
+
+    const card = this.gameStateService.selectedCard();
+    const isJackPhase2 = card?.value === 'J' && this.gameStateService.selectedMarblePosition() !== null;
+
+    if (!isJackPhase2) {
+      const data = this.gameStateService.data();
+      const myColor = this.gameStateService.myPlayerColor();
+      const player = data?.gameState.players.find(p => p.color === myColor);
+      if (!player?.marblePositions.includes(index)) return;
     }
+
+    this.hoveredMarble.set(index);
   }
 
   onMarbleMouseLeave(index: number): void {
