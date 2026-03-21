@@ -1,0 +1,716 @@
+@use "sass:color";
+
+// ─── Palette ──────────────────────────────────────────────────────────────────
+$c-red:    #ef4444;
+$c-green:  #22c55e;
+$c-blue:   #3b82f6;
+$c-orange: #f97316;
+$c-gold:   #f0c040;
+$bg-dark:  #0f172a;
+$bg-mid:   #1a2840;
+
+// ─── ion-content ──────────────────────────────────────────────────────────────
+.home-content {
+  --background: #{$bg-dark};
+  --overflow: hidden;
+}
+
+// ─── Root wrapper ─────────────────────────────────────────────────────────────
+.home-wrap {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 35%, $bg-mid 0%, $bg-dark 80%);
+
+  // Grid pattern
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  // Central blue halo
+  &::after {
+    content: '';
+    position: absolute;
+    width: 700px;
+    height: 700px;
+    border-radius: 50%;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(circle, rgba($c-blue, 0.10) 0%, transparent 65%);
+    animation: haloPulse 5s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 0;
+  }
+}
+
+@keyframes haloPulse {
+  0%, 100% { opacity: 0.6; transform: translate(-50%, -50%) scale(1); }
+  50%       { opacity: 1;   transform: translate(-50%, -50%) scale(1.18); }
+}
+
+// ─── Top navigation ───────────────────────────────────────────────────────────
+.home-nav {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+}
+
+.nav-brand {
+  display: flex;
+  gap: 3px;
+}
+
+.nav-letter {
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: rgba(255,255,255,0.55);
+  letter-spacing: 0.05em;
+  animation: navLetterFloat 3s ease-in-out infinite;
+  animation-delay: calc(var(--i) * 0.1s);
+  display: inline-block;
+  transition: color 0.3s;
+
+  &:hover { color: white; }
+}
+
+@keyframes navLetterFloat {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-3px); }
+}
+
+.nav-login-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 50px;
+  color: rgba(255,255,255,0.75);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+
+  &:hover {
+    background: rgba($c-blue, 0.15);
+    border-color: rgba($c-blue, 0.4);
+    color: white;
+  }
+}
+
+// ─── Hero ─────────────────────────────────────────────────────────────────────
+.home-hero {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  padding: 0 20px 20px;
+}
+
+// ─── Animated title ───────────────────────────────────────────────────────────
+.hero-title-wrap {
+  text-align: center;
+}
+
+.hero-title {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin: 0 0 10px;
+}
+
+.hero-letter {
+  font-size: clamp(2.8rem, 9vw, 5.5rem);
+  font-weight: 900;
+  color: white;
+  letter-spacing: 0.04em;
+  text-shadow:
+    0 0 30px rgba($c-blue, 0.8),
+    0 0 60px rgba($c-blue, 0.35);
+  animation: heroLetterFloat 2.6s ease-in-out infinite;
+  animation-delay: calc(var(--i) * 0.13s);
+  display: inline-block;
+}
+
+@keyframes heroLetterFloat {
+  0%, 100% { transform: translateY(0);    opacity: 1;    }
+  45%       { transform: translateY(-14px); opacity: 0.85; }
+  60%       { transform: translateY(-14px); opacity: 0.85; }
+}
+
+.hero-tagline {
+  margin: 0;
+  font-size: clamp(0.8rem, 2.5vw, 1rem);
+  font-weight: 500;
+  color: rgba(255,255,255,0.45);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+// ─── Marble orbit decoration ──────────────────────────────────────────────────
+.home-orbit {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  flex-shrink: 0;
+}
+
+.ho-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px dashed rgba(255,255,255,0.12);
+  animation: orbitRingSpin 7s linear infinite;
+}
+
+@keyframes orbitRingSpin {
+  to { transform: rotate(360deg); }
+}
+
+.ho-marble {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  top: -11px;
+  left: calc(50% - 11px);
+  box-shadow: 0 3px 10px rgba(0,0,0,0.5);
+  animation: homeOrbitSpin 7s linear infinite;
+  animation-delay: var(--orbit-delay);
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 18%;
+    left: 18%;
+    width: 28%;
+    height: 28%;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,255,255,0.7), transparent 70%);
+  }
+
+  &.ho-red    { background: radial-gradient(circle at 35% 35%, color.adjust($c-red, $lightness: 15%), $c-red 60%, color.adjust($c-red, $lightness: -15%));       box-shadow: 0 0 10px rgba($c-red, 0.5),    0 3px 8px rgba(0,0,0,0.4); }
+  &.ho-green  { background: radial-gradient(circle at 35% 35%, color.adjust($c-green, $lightness: 15%), $c-green 60%, color.adjust($c-green, $lightness: -15%)); box-shadow: 0 0 10px rgba($c-green, 0.5),  0 3px 8px rgba(0,0,0,0.4); }
+  &.ho-orange { background: radial-gradient(circle at 35% 35%, color.adjust($c-orange, $lightness: 15%), $c-orange 60%, color.adjust($c-orange, $lightness: -15%)); box-shadow: 0 0 10px rgba($c-orange, 0.5), 0 3px 8px rgba(0,0,0,0.4); }
+  &.ho-blue   { background: radial-gradient(circle at 35% 35%, color.adjust($c-blue, $lightness: 15%), $c-blue 60%, color.adjust($c-blue, $lightness: -15%));     box-shadow: 0 0 10px rgba($c-blue, 0.5),   0 3px 8px rgba(0,0,0,0.4); }
+}
+
+@keyframes homeOrbitSpin {
+  from { transform: rotate(0deg)   translateY(-70px) rotate(0deg); }
+  to   { transform: rotate(360deg) translateY(-70px) rotate(-360deg); }
+}
+
+.ho-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ho-core {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #7dd3fc, $c-blue 60%, #1e3a5f);
+  box-shadow: 0 0 18px rgba($c-blue, 0.65), 0 0 36px rgba($c-blue, 0.3);
+  animation: corePulse 2s ease-in-out infinite;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 18%;
+    left: 18%;
+    width: 28%;
+    height: 28%;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,255,255,0.65), transparent 70%);
+  }
+}
+
+@keyframes corePulse {
+  0%, 100% { transform: scale(1);    box-shadow: 0 0 18px rgba($c-blue, 0.65), 0 0 36px rgba($c-blue, 0.3); }
+  50%       { transform: scale(1.18); box-shadow: 0 0 28px rgba($c-blue, 0.9),  0 0 56px rgba($c-blue, 0.5); }
+}
+
+// ─── Action buttons ───────────────────────────────────────────────────────────
+.hero-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 340px;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 15px 20px;
+  border-radius: 16px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  transition: transform 0.18s, box-shadow 0.18s, background 0.18s;
+  position: relative;
+  overflow: hidden;
+
+  // Shine on hover
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 60%);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  &:hover::before { opacity: 1; }
+
+  &:hover  { transform: translateY(-2px) scale(1.01); }
+  &:active { transform: translateY(0)    scale(0.98); }
+}
+
+// Play Now
+.play-btn {
+  background: linear-gradient(135deg,
+    rgba($c-green, 0.22) 0%,
+    rgba($c-green, 0.10) 100%);
+  border: 1px solid rgba($c-green, 0.45);
+  color: white;
+  box-shadow: 0 4px 20px rgba($c-green, 0.18);
+
+  &:hover {
+    box-shadow: 0 6px 30px rgba($c-green, 0.35),
+                inset 0 1px 0 rgba(255,255,255,0.12);
+    border-color: rgba($c-green, 0.7);
+  }
+}
+
+// Custom Game
+.custom-btn {
+  background: linear-gradient(135deg,
+    rgba($c-orange, 0.18) 0%,
+    rgba($c-orange, 0.08) 100%);
+  border: 1px solid rgba($c-orange, 0.38);
+  color: rgba(255,255,255,0.9);
+  box-shadow: 0 4px 20px rgba($c-orange, 0.12);
+
+  &:hover {
+    box-shadow: 0 6px 28px rgba($c-orange, 0.3),
+                inset 0 1px 0 rgba(255,255,255,0.1);
+    border-color: rgba($c-orange, 0.65);
+  }
+}
+
+// Game Rules
+.rules-btn {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba($c-blue, 0.3);
+  color: rgba(255,255,255,0.75);
+
+  &:hover {
+    background: rgba($c-blue, 0.10);
+    box-shadow: 0 6px 28px rgba($c-blue, 0.2),
+                inset 0 1px 0 rgba(255,255,255,0.08);
+    border-color: rgba($c-blue, 0.6);
+    color: white;
+  }
+}
+
+// Marble badges on buttons
+.ab-marble {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  flex-shrink: 0;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 18%;
+    left: 18%;
+    width: 28%;
+    height: 28%;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,255,255,0.65), transparent 70%);
+  }
+
+  &.ab-green  { background: radial-gradient(circle at 35% 35%, color.adjust($c-green, $lightness: 12%), $c-green 60%, color.adjust($c-green, $lightness: -12%));   box-shadow: 0 0 8px rgba($c-green, 0.6); }
+  &.ab-orange { background: radial-gradient(circle at 35% 35%, color.adjust($c-orange, $lightness: 12%), $c-orange 60%, color.adjust($c-orange, $lightness: -12%)); box-shadow: 0 0 8px rgba($c-orange, 0.6); }
+  &.ab-blue   { background: radial-gradient(circle at 35% 35%, color.adjust($c-blue, $lightness: 12%), $c-blue 60%, color.adjust($c-blue, $lightness: -12%));       box-shadow: 0 0 8px rgba($c-blue, 0.6); }
+}
+
+.ab-text { flex: 1; }
+
+.ab-arrow {
+  opacity: 0.5;
+  transition: transform 0.2s, opacity 0.2s;
+}
+.action-btn:hover .ab-arrow {
+  transform: translateX(4px);
+  opacity: 0.9;
+}
+
+// ─── Footer ───────────────────────────────────────────────────────────────────
+.home-footer {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 20px 18px;
+}
+
+.settings-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 50px;
+  color: rgba(255,255,255,0.4);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+
+  &:hover {
+    background: rgba(255,255,255,0.1);
+    border-color: rgba(255,255,255,0.2);
+    color: rgba(255,255,255,0.8);
+  }
+}
+
+// ─── Modal overlay ────────────────────────────────────────────────────────────
+.modal-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(5, 12, 28, 0.7);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s;
+
+  &.active {
+    opacity: 1;
+    pointer-events: all;
+
+    .modal-card {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+  }
+}
+
+// ─── Modal card ───────────────────────────────────────────────────────────────
+.modal-card {
+  position: relative;
+  width: 100%;
+  max-width: 380px;
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 24px;
+  padding: 28px 24px 24px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04);
+  transform: translateY(24px) scale(0.96);
+  opacity: 0;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+              opacity 0.25s ease;
+}
+
+.modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.5);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, color 0.2s;
+
+  &:hover {
+    background: rgba(255,255,255,0.12);
+    color: white;
+  }
+}
+
+// ─── Modal header ─────────────────────────────────────────────────────────────
+.modal-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.modal-marbles {
+  display: flex;
+  gap: 6px;
+}
+
+.mm {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  display: inline-block;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 18%;
+    left: 18%;
+    width: 28%;
+    height: 28%;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,255,255,0.6), transparent 70%);
+  }
+
+  &.mm-red    { background: radial-gradient(circle at 35% 35%, color.adjust($c-red,    $lightness: 15%), $c-red    55%, color.adjust($c-red,    $lightness: -10%)); }
+  &.mm-green  { background: radial-gradient(circle at 35% 35%, color.adjust($c-green,  $lightness: 15%), $c-green  55%, color.adjust($c-green,  $lightness: -10%)); }
+  &.mm-blue   { background: radial-gradient(circle at 35% 35%, color.adjust($c-blue,   $lightness: 15%), $c-blue   55%, color.adjust($c-blue,   $lightness: -10%)); }
+  &.mm-orange { background: radial-gradient(circle at 35% 35%, color.adjust($c-orange, $lightness: 15%), $c-orange 55%, color.adjust($c-orange, $lightness: -10%)); }
+  &.mm-gold   { background: radial-gradient(circle at 35% 35%, color.adjust($c-gold,   $lightness: 15%), $c-gold   55%, color.adjust($c-gold,   $lightness: -10%)); }
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: white;
+  letter-spacing: 0.02em;
+}
+
+// ─── Login form ───────────────────────────────────────────────────────────────
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.5);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.form-input {
+  padding: 11px 14px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  color: white;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s, background 0.2s;
+
+  &::placeholder { color: rgba(255,255,255,0.28); }
+
+  &:focus {
+    border-color: rgba($c-blue, 0.6);
+    background: rgba($c-blue, 0.06);
+  }
+}
+
+.form-submit {
+  margin-top: 6px;
+  padding: 13px;
+  background: linear-gradient(135deg, $c-blue, color.adjust($c-blue, $lightness: -10%));
+  border: none;
+  border-radius: 12px;
+  color: white;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.03em;
+  box-shadow: 0 4px 18px rgba($c-blue, 0.4);
+  transition: transform 0.15s, box-shadow 0.15s;
+
+  &:hover  { transform: translateY(-1px); box-shadow: 0 6px 24px rgba($c-blue, 0.55); }
+  &:active { transform: translateY(0);    box-shadow: 0 2px 10px rgba($c-blue, 0.35); }
+}
+
+// ─── Modal footer (login) ─────────────────────────────────────────────────────
+.modal-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-switch {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.45);
+  font-size: 0.83rem;
+  cursor: pointer;
+  transition: color 0.2s;
+
+  b { color: rgba($c-blue, 0.9); }
+  &:hover { color: rgba(255,255,255,0.75); b { color: $c-blue; } }
+}
+
+.or-divider {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(255,255,255,0.2);
+  font-size: 0.78rem;
+
+  &::before, &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(255,255,255,0.1);
+  }
+}
+
+.btn-guest {
+  padding: 10px 18px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  color: rgba(255,255,255,0.55);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+
+  &:hover {
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(255,255,255,0.2);
+    color: rgba(255,255,255,0.85);
+  }
+}
+
+// ─── Settings card ────────────────────────────────────────────────────────────
+.settings-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-bottom: 20px;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.info-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+
+  &:last-child { border-bottom: none; }
+}
+
+.info-key {
+  flex: 1;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.4);
+}
+
+.info-val {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.75);
+}
+
+.info-link {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba($c-blue, 0.85);
+  text-decoration: none;
+  transition: color 0.2s;
+  &:hover { color: $c-blue; }
+}
+
+// ─── Social links ─────────────────────────────────────────────────────────────
+.social-title {
+  margin: 0 0 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.35);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.social-row {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.social-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255,255,255,0.55);
+  transition: background 0.2s, color 0.2s, border-color 0.2s, transform 0.15s;
+
+  svg { width: 20px; height: 20px; }
+
+  &:hover {
+    transform: translateY(-2px);
+    color: white;
+    background: rgba(255,255,255,0.1);
+    border-color: rgba(255,255,255,0.2);
+  }
+
+  &.discord:hover  { background: rgba(88, 101, 242, 0.2); border-color: rgba(88, 101, 242, 0.5); }
+  &.twitter:hover  { background: rgba(255,255,255, 0.1); }
+}

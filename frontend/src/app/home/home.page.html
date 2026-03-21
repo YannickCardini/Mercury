@@ -1,13 +1,206 @@
-<ion-header [translucent]="true">
-  <ion-toolbar>
-    <ion-title>home</ion-title>
-  </ion-toolbar>
-</ion-header>
+<ion-content [fullscreen]="true" class="home-content">
+  <div class="home-wrap">
 
-<ion-content [fullscreen]="true">
-  <ion-header collapse="condense">
-    <ion-toolbar>
-      <ion-title size="large">home</ion-title>
-    </ion-toolbar>
-  </ion-header>
+    <!-- ── Top navigation ─────────────────────────────── -->
+    <nav class="home-nav">
+      <div class="nav-brand">
+        <span *ngFor="let l of titleLetters; let i = index" class="nav-letter" [style.--i]="i"> </span>
+      </div>
+      <button class="nav-login-btn" (click)="openLogin()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="8" r="5" />
+          <path d="M3 21v-1a9 9 0 0 1 18 0v1" />
+        </svg>
+        <span>Connexion</span>
+      </button>
+    </nav>
+
+    <!-- ── Hero ───────────────────────────────────────── -->
+    <main class="home-hero">
+
+      <!-- Animated title -->
+      <div class="hero-title-wrap">
+        <h1 class="hero-title">
+          <span *ngFor="let l of titleLetters; let i = index" class="hero-letter" [style.--i]="i">{{ l }}</span>
+        </h1>
+        <p class="hero-tagline">Strategic board game</p>
+      </div>
+
+      <!-- Marble orbit decoration -->
+      <div class="home-orbit">
+        <div class="ho-ring"></div>
+        <div class="ho-marble ho-red" style="--orbit-delay: 0s"></div>
+        <div class="ho-marble ho-green" style="--orbit-delay: -1.5s"></div>
+        <div class="ho-marble ho-orange" style="--orbit-delay: -3s"></div>
+        <div class="ho-marble ho-blue" style="--orbit-delay: -4.5s"></div>
+        <div class="ho-center">
+          <div class="ho-core"></div>
+        </div>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="hero-actions">
+        <button class="action-btn play-btn">
+          <span class="ab-marble ab-green"></span>
+          <span class="ab-text">Play Now</span>
+          <svg class="ab-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12h14M12 5l7 7-7 7" />
+          </svg>
+        </button>
+
+        <button class="action-btn custom-btn">
+          <span class="ab-marble ab-orange"></span>
+          <span class="ab-text">Custom Game</span>
+          <svg class="ab-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12h14M12 5l7 7-7 7" />
+          </svg>
+        </button>
+
+        <button class="action-btn rules-btn">
+          <span class="ab-marble ab-blue"></span>
+          <span class="ab-text">Game Rules</span>
+          <svg class="ab-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12h14M12 5l7 7-7 7" />
+          </svg>
+        </button>
+      </div>
+    </main>
+
+    <!-- ── Footer ─────────────────────────────────────── -->
+    <footer class="home-footer">
+      <button class="settings-btn" (click)="openSettings()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+          stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3" />
+          <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42
+                   M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+        </svg>
+        <span>v1.0.0</span>
+      </button>
+    </footer>
+
+    <!-- ══════════════ LOGIN MODAL ══════════════ -->
+    <div class="modal-overlay" [class.active]="showLogin" (click)="closeLogin()">
+      <div class="modal-card" (click)="$event.stopPropagation()">
+
+        <button class="modal-close" (click)="closeLogin()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 6 6 18M6 6l12 12" />
+          </svg>
+        </button>
+
+        <div class="modal-header">
+          <div class="modal-marbles">
+            <span class="mm mm-red"></span>
+            <span class="mm mm-green"></span>
+            <span class="mm mm-blue"></span>
+            <span class="mm mm-orange"></span>
+          </div>
+          <h2 class="modal-title">
+            {{ loginMode === 'login' ? 'Connexion' : 'Créer un compte' }}
+          </h2>
+        </div>
+
+        <form class="modal-form" (ngSubmit)="$event.preventDefault()">
+          <div class="form-group" *ngIf="loginMode === 'signup'">
+            <label class="form-label">Pseudo</label>
+            <input type="text" class="form-input" placeholder="Votre pseudo">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-input" placeholder="votre&#64;email.com">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Mot de passe</label>
+            <input type="password" class="form-input" placeholder="••••••••">
+          </div>
+          <button type="submit" class="form-submit">
+            {{ loginMode === 'login' ? 'Se connecter' : "S'inscrire" }}
+          </button>
+        </form>
+
+        <div class="modal-footer">
+          <button class="btn-switch" (click)="switchMode(loginMode === 'login' ? 'signup' : 'login')">
+            <span *ngIf="loginMode === 'login'">Pas encore de compte ?&nbsp;<b>S'inscrire</b></span>
+            <span *ngIf="loginMode === 'signup'">Déjà un compte ?&nbsp;<b>Se connecter</b></span>
+          </button>
+          <div class="or-divider"><span>ou</span></div>
+          <button class="btn-guest" (click)="closeLogin()">
+            Continuer sans compte&nbsp;→
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ══════════════ SETTINGS / INFO MODAL ══════════════ -->
+    <div class="modal-overlay" [class.active]="showSettings" (click)="closeSettings()">
+      <div class="modal-card settings-card" (click)="$event.stopPropagation()">
+
+        <button class="modal-close" (click)="closeSettings()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 6 6 18M6 6l12 12" />
+          </svg>
+        </button>
+
+        <div class="modal-header">
+          <div class="modal-marbles">
+            <span class="mm mm-gold"></span>
+            <span class="mm mm-blue"></span>
+          </div>
+          <h2 class="modal-title">À propos</h2>
+        </div>
+
+        <div class="settings-info">
+          <div class="info-row">
+            <span class="info-key">Version</span>
+            <span class="info-val">1.0.0</span>
+          </div>
+          <div class="info-row">
+            <span class="info-key">Contact</span>
+            <a class="info-link" href="#">contact&#64;keenzen.com</a>
+          </div>
+          <div class="info-row">
+            <span class="info-key">Développeur</span>
+            <span class="info-val">Keenzen Team</span>
+          </div>
+        </div>
+
+        <div class="social-section">
+          <p class="social-title">Retrouvez-nous</p>
+          <div class="social-row">
+            <!-- GitHub -->
+            <a href="#" class="social-btn" (click)="$event.preventDefault()" title="GitHub">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path
+                  d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.21 11.38.6.11.82-.26.82-.57v-2.19c-3.34.72-4.04-1.61-4.04-1.61-.54-1.37-1.32-1.74-1.32-1.74-1.08-.74.08-.73.08-.73 1.2.08 1.83 1.23 1.83 1.23 1.07 1.83 2.8 1.3 3.49.99.1-.77.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.12-.3-.54-1.52.12-3.17 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 3-.4c1.02 0 2.04.14 3 .4 2.28-1.55 3.29-1.23 3.29-1.23.66 1.65.24 2.87.12 3.17.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.63-5.48 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.22.7.82.58C20.56 21.8 24 17.3 24 12c0-6.63-5.37-12-12-12z" />
+              </svg>
+            </a>
+            <!-- Discord -->
+            <a href="#" class="social-btn discord" (click)="$event.preventDefault()" title="Discord">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path
+                  d="M20.317 4.37a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
+              </svg>
+            </a>
+            <!-- X / Twitter -->
+            <a href="#" class="social-btn twitter" (click)="$event.preventDefault()" title="Twitter / X">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path
+                  d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.748l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+              </svg>
+            </a>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
 </ion-content>
