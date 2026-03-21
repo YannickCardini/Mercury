@@ -114,8 +114,9 @@
         transition: stroke-dashoffset 1s linear, stroke 0.5s;
     }
 
-    &.urgent .timer-arc {
+    &.urgent {
         filter: drop-shadow(0 0 6px var(--danger));
+        clip-path: circle(54%);
     }
 }
 
