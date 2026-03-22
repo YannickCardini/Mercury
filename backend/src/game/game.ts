@@ -4,7 +4,7 @@ import { Player } from "./player.js";
 import { AiStrategy } from "./ai-strategy.js";
 import { HumanStrategy } from "./human-strategy.js";
 import { getLegalAction, findLegalMoveForCard, getLegalSplit7Action, MAIN_PATH, type LegalMoveContext } from '../utils/utils.js';
-import type { GameMessenger } from './game-messenger.js';
+import { MultiWsMessenger, type GameMessenger } from './game-messenger.js';
 import { GameRegistry } from '../session/game-registry.js';
 import {
     getHomePositions,
@@ -44,6 +44,12 @@ export class Game {
     /** Action jouée automatiquement suite à un `turnTimeout` du front (pour marquer isTimeout). */
     private pendingTimeoutAction: Action | null = null;
 
+    /** Vrai quand la partie a été annulée (plus aucun humain connecté). */
+    private aborted = false;
+
+    /** Callback appelé quand un joueur abandonne (pour nettoyer playerIdentities). */
+    private onPlayerAbandoned: ((gameId: string, color: MarbleColor) => void) | null = null;
+
     // ─────────────────────────────────────────────────────────────────────────
 
     constructor(config: GameConfig, messenger: GameMessenger) {
@@ -70,6 +76,10 @@ export class Game {
 
     getMessenger(): GameMessenger {
         return this.messenger;
+    }
+
+    setOnPlayerAbandoned(cb: (gameId: string, color: MarbleColor) => void): void {
+        this.onPlayerAbandoned = cb;
     }
 
     resendStateToPlayer(color: MarbleColor): void {
@@ -101,10 +111,13 @@ export class Game {
         });
     }
 
-    /** Mark a player as permanently disconnected. */
+    /** Mark a player as permanently disconnected and check if game should abort. */
     markDisconnected(color: MarbleColor): void {
         const player = this.players.find(p => p.color === color);
-        if (player) player.isConnected = false;
+        if (player) {
+            player.isConnected = false;
+            this.checkAbort();
+        }
     }
 
     // ─── Boucle principale ────────────────────────────────────────────────────
@@ -116,7 +129,7 @@ export class Game {
         this.currentPlayerIndex = 0;
         this.dealCards();
 
-        while (!this.gameIsOver()) {
+        while (!this.aborted && !this.gameIsOver()) {
             if (this.allHandsEmpty()) {
                 this.startNewRound();
                 continue;
@@ -124,14 +137,18 @@ export class Game {
 
             await this.playOneTurn();
 
+            if (this.aborted) break;
+
             this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
             this.turn++;
         }
 
-        console.log("🏆 Game over!");
-        const winner = this.players.find(p => hasWon(p.marblePositions, p.color))!;
-        this.messenger.send({ type: 'gameEnded', winner: winner.color });
-        GameRegistry.delete(this.id);
+        if (!this.aborted) {
+            console.log("🏆 Game over!");
+            const winner = this.players.find(p => hasWon(p.marblePositions, p.color))!;
+            this.messenger.send({ type: 'gameEnded', winner: winner.color, reason: 'win' });
+            GameRegistry.delete(this.id);
+        }
     }
 
     private startNewRound(): void {
@@ -186,6 +203,9 @@ export class Game {
             case 'turnTimeout':
                 this.handleTurnTimeout(senderColor);
                 break;
+            case 'abandonGame':
+                this.handleAbandonGame(senderColor);
+                break;
             // start / createRoom / joinRoom sont gérés par SessionManager avant
             // que la Game soit créée — on les ignore silencieusement ici.
         }
@@ -216,6 +236,64 @@ export class Game {
         this.pendingTimeoutAction = this.computeFallbackAction(currentPlayer);
         resolve(this.pendingTimeoutAction);
     }
+
+    // ─── Abandon & abort ───────────────────────────────────────────────────
+
+    private handleAbandonGame(senderColor: MarbleColor | null): void {
+        if (!senderColor) return; // abandon only makes sense in multi-device
+
+        const player = this.players.find(p => p.color === senderColor);
+        if (!player || !player.isHuman) return;
+
+        console.log(`🏳️ ${player.name} (${senderColor}) a abandonné la partie`);
+
+        player.isConnected = false;
+
+        // Close their WebSocket without starting the reconnect timer
+        if (this.messenger instanceof MultiWsMessenger) {
+            this.messenger.forceDisconnect(senderColor);
+        }
+
+        // Clean up their identity so they cannot rejoin
+        this.onPlayerAbandoned?.(this.id, senderColor);
+
+        this.checkAbort();
+    }
+
+    /** Abort the game if no human players are still connected. */
+    private checkAbort(): void {
+        const connectedHumans = this.players.filter(p => p.isHuman && p.isConnected).length;
+        if (connectedHumans === 0) {
+            this.abortGame();
+        }
+    }
+
+    /** Stop the game immediately and clean up. Idempotent. */
+    private abortGame(): void {
+        if (this.aborted) return;
+        this.aborted = true;
+
+        console.log("🚫 Game aborted — no connected human players remain");
+
+        // Notify any still-connected clients (unlikely but possible with bots-only race)
+        this.messenger.send({ type: 'gameEnded', winner: null, reason: 'abandoned' });
+
+        // Unblock any pending promises so the game loop can exit
+        if (this.pendingHumanActionResolve) {
+            const currentPlayer = this.players[this.currentPlayerIndex]!;
+            this.pendingHumanActionResolve({
+                type: 'pass', from: 0, to: 0,
+                cardPlayed: null, playerColor: currentPlayer.color,
+            });
+            this.pendingHumanActionResolve = null;
+        }
+        this.pendingAnimationResolve?.();
+        this.pendingAnimationResolve = null;
+
+        GameRegistry.delete(this.id);
+    }
+
+    // ─── Gestion des actions humaines ────────────────────────────────────────
 
     private handlePlayAction(action: Action, senderColor: MarbleColor | null): void {
         if (!this.pendingHumanActionResolve) return; // pas de tour humain en cours

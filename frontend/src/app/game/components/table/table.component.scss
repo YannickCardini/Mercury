@@ -414,6 +414,38 @@
     }
 }
 
+/* =========================================
+   RESIGN BUTTON — top-right floating
+   ========================================= */
+.resign-btn {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    z-index: 30;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(8px);
+
+    &:hover {
+        background: rgba(248, 113, 113, 0.12);
+        border-color: rgba(248, 113, 113, 0.3);
+        color: var(--danger);
+    }
+
+    &:active {
+        transform: scale(0.92);
+    }
+}
+
 .action-btn {
     flex: 0 0 auto;
     width: clamp(110px, 30%, 200px);
@@ -769,6 +801,106 @@
 
     100% {
         opacity: 0.4;
+    }
+}
+
+/* =========================================
+   RESIGN OVERLAY
+   ========================================= */
+.resign-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 200;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: overlayFadeIn 0.2s ease;
+}
+
+@keyframes overlayFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.resign-dialog {
+    background: linear-gradient(145deg, #1e293b, #0f172a);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 1.5rem 2rem;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    animation: dialogSlideIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    max-width: 300px;
+    width: 85%;
+
+    &__title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: white;
+        margin: 0 0 0.4rem;
+    }
+
+    &__text {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        margin: 0 0 1.25rem;
+    }
+
+    &__actions {
+        display: flex;
+        gap: 0.75rem;
+        justify-content: center;
+    }
+
+    &__cancel,
+    &__confirm {
+        flex: 1;
+        padding: 0.65rem 1rem;
+        border-radius: 10px;
+        border: none;
+        font-weight: 600;
+        font-size: 0.85rem;
+        font-family: 'DM Sans', sans-serif;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    &__cancel {
+        background: rgba(255, 255, 255, 0.08);
+        color: rgba(255, 255, 255, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+
+        &:hover {
+            background: rgba(255, 255, 255, 0.12);
+        }
+    }
+
+    &__confirm {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: white;
+        box-shadow: 0 4px 16px rgba(239, 68, 68, 0.3);
+
+        &:hover {
+            box-shadow: 0 6px 24px rgba(239, 68, 68, 0.4);
+            transform: translateY(-1px);
+        }
+
+        &:active {
+            transform: translateY(0);
+        }
+    }
+}
+
+@keyframes dialogSlideIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9) translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
     }
 }
 

@@ -22,6 +22,12 @@ export class AppComponent implements OnInit {
       this.navCtrl.navigateRoot(['/home']);
     });
 
+    // Handle game abandoned (all human players left)
+    this.gameStateService.gameAbandoned$.subscribe(() => {
+      this.gameStateService.reset();
+      this.navCtrl.navigateRoot(['/home']);
+    });
+
     const guestPlayerId = localStorage.getItem('guest_player_id');
     const activeGameId = localStorage.getItem('active_game_id');
 

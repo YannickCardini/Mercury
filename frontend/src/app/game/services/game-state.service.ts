@@ -241,6 +241,8 @@ export class GameStateService {
   gameStarted$ = new Subject<void>();
   /** Émet quand le serveur ferme la connexion car un autre onglet a pris la relève (code 4001). */
   sessionReplaced$ = new Subject<void>();
+  /** Émet quand la partie est annulée car plus aucun humain n'est connecté. */
+  gameAbandoned$ = new Subject<void>();
 
   private tabLock = inject(TabLockService);
   private ws: WebSocket | null = null;
@@ -337,9 +339,13 @@ export class GameStateService {
 
         case 'gameEnded': {
           const msg = parsed as GameEndedMessage;
-          this.winner.set(msg.winner);
           localStorage.removeItem('active_game_id');
           this.tabLock.releaseSession();
+          if (msg.reason === 'abandoned') {
+            this.gameAbandoned$.next();
+          } else {
+            this.winner.set(msg.winner);
+          }
           break;
         }
       }
@@ -398,6 +404,33 @@ export class GameStateService {
       localStorage.setItem('browser_id', browserId);
     }
     this.send(JSON.stringify({ type: 'joinMatchmaking', playerName, browserId }));
+  }
+
+  sendAbandonGame(): void {
+    this.send(JSON.stringify({ type: 'abandonGame' }));
+    localStorage.removeItem('guest_player_id');
+    localStorage.removeItem('active_game_id');
+    this.tabLock.releaseSession();
+    this.reset();
+  }
+
+  /** Reset all game state so navigation to home starts clean. */
+  reset(): void {
+    this.data.set(null);
+    this.winner.set(null);
+    this.myPlayerColor.set(null);
+    this.guestPlayerId.set(null);
+    this.activeGameId.set(null);
+    this.selectedCard.set(null);
+    this.selectedMarblePosition.set(null);
+    this.selectedSwapTargetPosition.set(null);
+    this.sevenFirstSteps.set(7);
+    this.selectedSplit7MarblePosition.set(null);
+    this.playingCardStart.set(null);
+    this.boardContainerSize.set(0);
+    this.isConnected.set(false);
+    this.ws?.close();
+    this.ws = null;
   }
 
   sendJoinGame(guestPlayerId: string, activeGameId: string): void {

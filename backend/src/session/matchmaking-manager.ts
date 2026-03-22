@@ -129,6 +129,17 @@ export class MatchmakingManager {
         // Wire up permanent disconnect callback
         messenger.setOnPermanentDisconnect((color) => game.markDisconnected(color));
 
+        // Wire up abandon callback to clean up playerIdentities
+        game.setOnPlayerAbandoned((gameId, color) => {
+            if (!playerIdentities) return;
+            for (const [guestId, identity] of playerIdentities) {
+                if (identity.gameId === gameId && identity.color === color) {
+                    playerIdentities.delete(guestId);
+                    break;
+                }
+            }
+        });
+
         // Register guest player identities and send welcome messages
         for (const p of humanPlayers) {
             playerIdentities?.set(p.guestPlayerId, { gameId: game.id, color: p.color });

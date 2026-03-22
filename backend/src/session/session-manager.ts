@@ -136,6 +136,16 @@ export class SessionManager {
             // Wire up permanent disconnect callback
             room.messenger.setOnPermanentDisconnect((color) => game.markDisconnected(color));
 
+            // Wire up abandon callback to clean up playerIdentities
+            game.setOnPlayerAbandoned((gameId, color) => {
+                for (const [guestId, identity] of this.playerIdentities) {
+                    if (identity.gameId === gameId && identity.color === color) {
+                        this.playerIdentities.delete(guestId);
+                        break;
+                    }
+                }
+            });
+
             // Generate guest IDs for each human player and send welcome
             for (const hc of room.humanColors) {
                 const guestId = crypto.randomUUID();

@@ -138,6 +138,24 @@ export class MultiWsMessenger implements GameMessenger {
         });
     }
 
+    /**
+     * Force-disconnect a player: closes their WebSocket and removes them
+     * from the connections map without starting the 180s reconnection timer.
+     * Used when a player explicitly abandons the game.
+     */
+    forceDisconnect(color: MarbleColor): void {
+        const timer = this.disconnectTimers.get(color);
+        if (timer) {
+            clearTimeout(timer);
+            this.disconnectTimers.delete(color);
+        }
+
+        const ws = this.connections.get(color);
+        // Remove from map first so the close handler won't start the reconnect timer
+        this.connections.delete(color);
+        ws?.close(4002, 'Player abandoned the game');
+    }
+
     /** Envoie à tous les clients connectés (broadcast). */
     send(msg: object): void {
         const json = JSON.stringify(msg);

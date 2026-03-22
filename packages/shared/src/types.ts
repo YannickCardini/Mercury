@@ -143,10 +143,11 @@ export interface ActionRejectedMessage {
   reason: string;
 }
 
-/** Envoyé par le serveur quand un joueur a gagné la partie */
+/** Envoyé par le serveur quand la partie se termine (victoire ou abandon). */
 export interface GameEndedMessage {
   type: 'gameEnded';
-  winner: MarbleColor;
+  winner: MarbleColor | null;
+  reason?: 'win' | 'abandoned';
 }
 
 /**
@@ -263,6 +264,15 @@ export interface JoinGameMessage {
   activeGameId: string;
 }
 
+/**
+ * Envoyé par le client quand il abandonne la partie en cours.
+ * Le serveur marque le joueur comme déconnecté et vérifie si la partie
+ * doit être annulée (plus aucun humain connecté).
+ */
+export interface AbandonGameMessage {
+  type: 'abandonGame';
+}
+
 export type ClientMessage =
   | StartMessage
   | CreateRoomMessage
@@ -271,4 +281,5 @@ export type ClientMessage =
   | PlayActionMessage
   | AnimationDoneMessage
   | TurnTimeoutMessage
-  | JoinGameMessage;
+  | JoinGameMessage
+  | AbandonGameMessage;

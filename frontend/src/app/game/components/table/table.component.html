@@ -12,6 +12,16 @@
   </div>
   }
 
+  <!-- ===== RESIGN BUTTON (top-right corner) ===== -->
+  @if (gameStateService.myPlayerColor()) {
+  <button class="resign-btn" (click)="onResign()" title="Resign">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
+      <line x1="4" y1="22" x2="4" y2="15"/>
+    </svg>
+  </button>
+  }
+
   <!-- ===== TIMER (caché sur petits écrans) ===== -->
   <div class="timer-zone">
     <div class="timer-ring" [class.urgent]="timeLeft() <= 10">
@@ -127,5 +137,19 @@
 
     </div>
   </div>
+
+  <!-- ===== CONFIRM RESIGN OVERLAY ===== -->
+  @if (showResignConfirm()) {
+  <div class="resign-overlay" (click)="cancelResign()">
+    <div class="resign-dialog" (click)="$event.stopPropagation()">
+      <p class="resign-dialog__title">Abandon the game?</p>
+      <p class="resign-dialog__text">You will not be able to rejoin this game.</p>
+      <div class="resign-dialog__actions">
+        <button class="resign-dialog__cancel" (click)="cancelResign()">Cancel</button>
+        <button class="resign-dialog__confirm" (click)="confirmResign()">Resign</button>
+      </div>
+    </div>
+  </div>
+  }
 
 </div>

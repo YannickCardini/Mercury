@@ -13,6 +13,7 @@ import { TockCardComponent } from 'src/app/shared/tock-card.component';
 import type { Card, MarbleColor } from '@keezen/shared';
 import { getValidSevenStepsForMarble, getPositionAfterMove, getLegalSplit7Action, type LegalMoveContext } from '@keezen/shared';
 import { Subscription } from 'rxjs';
+import { NavController } from '@ionic/angular/standalone';
 import { SoundService } from '../../services/sound.service';
 
 enum TURN_PHASE {
@@ -132,6 +133,9 @@ enum TURN_PHASE {
     });
   });
 
+  /** Vrai quand le dialogue de confirmation d'abandon est affiché. */
+  showResignConfirm = signal(false);
+
   /** Bannière "temps écoulé" : couleur du joueur concerné, null = masqué */
   timeoutBannerColor = signal<MarbleColor | null>(null);
   private timeoutBannerTimeout?: ReturnType<typeof setTimeout>;
@@ -173,7 +177,7 @@ enum TURN_PHASE {
     return timer > 0 ? this.timeLeft() / timer : 0;
   });
 
-  constructor(protected gameStateService: GameStateService, private soundService: SoundService) {
+  constructor(protected gameStateService: GameStateService, private soundService: SoundService, private navCtrl: NavController) {
     // Clear the flying card once the server updates the hand
     effect(() => {
       this.gameStateService.data()?.gameState.hand;
@@ -388,6 +392,21 @@ enum TURN_PHASE {
 
     this.selectedCardIndex.set(null);
     this.turnPhase.set('Wait for your turn');
+  }
+
+  // ── Abandon ──────────────────────────────────────────────────────
+  onResign(): void {
+    this.showResignConfirm.set(true);
+  }
+
+  confirmResign(): void {
+    this.showResignConfirm.set(false);
+    this.gameStateService.sendAbandonGame();
+    this.navCtrl.navigateRoot(['/home']);
+  }
+
+  cancelResign(): void {
+    this.showResignConfirm.set(false);
   }
 
   // ── Disposition des cartes en éventail ─────────────────────────
