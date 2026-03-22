@@ -1,9 +1,11 @@
+import crypto from 'node:crypto';
 import { Deck } from "./deck.js";
 import { Player } from "./player.js";
 import { AiStrategy } from "./ai-strategy.js";
 import { HumanStrategy } from "./human-strategy.js";
 import { getLegalAction, findLegalMoveForCard, getLegalSplit7Action, MAIN_PATH, type LegalMoveContext } from '../utils/utils.js';
 import type { GameMessenger } from './game-messenger.js';
+import { GameRegistry } from '../session/game-registry.js';
 import {
     getHomePositions,
     hasWon,
@@ -15,6 +17,8 @@ import {
 import type { Action, Card, ClientMessage, GameConfig, MarbleColor } from "@keezen/shared";
 
 export class Game {
+
+    readonly id: string = crypto.randomUUID();
 
     private players: Player[];
     private turn: number = 0;
@@ -64,6 +68,45 @@ export class Game {
         this.startGame();
     }
 
+    getMessenger(): GameMessenger {
+        return this.messenger;
+    }
+
+    resendStateToPlayer(color: MarbleColor): void {
+        const currentPlayer = this.players[this.currentPlayerIndex]!;
+        const player = this.players.find(p => p.color === color);
+        if (!player) return;
+
+        const commonGameState = {
+            players: this.players.map(p => ({
+                name: p.name,
+                color: p.color,
+                isHuman: p.isHuman,
+                isConnected: p.isConnected,
+                marblePositions: p.marblePositions,
+                cardsLeft: p.cards.length,
+            })),
+            currentTurn: currentPlayer.color,
+            timer: TURN_DURATION_SECONDS,
+            discardedCards: this.discardedCards,
+            canDiscard: this.computeCanDiscard(currentPlayer),
+        };
+
+        this.messenger.sendTo(color, {
+            type: 'gameState',
+            message: 'Reconnected',
+            timestamp: new Date().toISOString(),
+            gameState: { ...commonGameState, hand: player.cards },
+            myColor: color,
+        });
+    }
+
+    /** Mark a player as permanently disconnected. */
+    markDisconnected(color: MarbleColor): void {
+        const player = this.players.find(p => p.color === color);
+        if (player) player.isConnected = false;
+    }
+
     // ─── Boucle principale ────────────────────────────────────────────────────
 
     private async startGame() {
@@ -88,6 +131,7 @@ export class Game {
         console.log("🏆 Game over!");
         const winner = this.players.find(p => hasWon(p.marblePositions, p.color))!;
         this.messenger.send({ type: 'gameEnded', winner: winner.color });
+        GameRegistry.delete(this.id);
     }
 
     private startNewRound(): void {

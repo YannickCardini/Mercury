@@ -103,7 +103,11 @@
   </div>
 
   <!-- ===== FOOTER ===== -->
-  <div class="control-dashboard">
+  <div class="control-dashboard"
+       [style.border-top-color]="gameStateService.myPlayerColor() ?? ''"
+       [style.box-shadow]="gameStateService.myPlayerColor()
+         ? '0 -4px 16px ' + getMyColorGlow()
+         : ''">
     <div class="dashboard-grid">
 
       <div class="player-profile">

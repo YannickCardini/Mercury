@@ -1,6 +1,8 @@
+import crypto from 'node:crypto';
 import { Game } from '../game/game.js';
 import { SingleWsMessenger, MultiWsMessenger } from '../game/game-messenger.js';
 import { MatchmakingManager } from './matchmaking-manager.js';
+import { GameRegistry } from './game-registry.js';
 import type { GameConfig, MarbleColor } from '@keezen/shared';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -27,14 +29,34 @@ export class SessionManager {
     private rooms = new Map<string, PendingRoom>();
     private matchmaking = new MatchmakingManager();
 
+    /** Maps guest_player_id → { gameId, color } for reconnection lookups. */
+    readonly playerIdentities = new Map<string, { gameId: string; color: MarbleColor }>();
+
     /**
      * Démarre une partie immédiatement sur le WS courant.
      * Utilisé pour le mode single-device (start message).
      */
     startSingleDevice(ws: WebSocket, config: GameConfig): void {
         const messenger = new SingleWsMessenger(ws);
-        new Game(config, messenger);
-        console.log(`🎮 Partie single-device lancée`);
+        const game = new Game(config, messenger);
+        GameRegistry.register(game.id, game);
+
+        // Generate guest IDs for human players (single-device: only one human expected)
+        for (const p of config.players.filter(p => p.isHuman)) {
+            const guestId = crypto.randomUUID();
+            this.playerIdentities.set(guestId, { gameId: game.id, color: p.color });
+            // Send welcome with guest identity
+            ws.send(JSON.stringify({
+                type: 'welcome',
+                message: 'Game started',
+                timestamp: new Date().toISOString(),
+                gameState: null,
+                guestPlayerId: guestId,
+                gameId: game.id,
+            }));
+        }
+
+        console.log(`🎮 Partie single-device lancée (game ${game.id})`);
     }
 
     /**
@@ -108,7 +130,25 @@ export class SessionManager {
         if (room.humanColors.every(c => room.connected.has(c))) {
             this.rooms.delete(roomCode);
             console.log(`🚀 Room ${roomCode} complète — lancement de la partie`);
-            new Game(room.config, room.messenger);
+            const game = new Game(room.config, room.messenger);
+            GameRegistry.register(game.id, game);
+
+            // Wire up permanent disconnect callback
+            room.messenger.setOnPermanentDisconnect((color) => game.markDisconnected(color));
+
+            // Generate guest IDs for each human player and send welcome
+            for (const hc of room.humanColors) {
+                const guestId = crypto.randomUUID();
+                this.playerIdentities.set(guestId, { gameId: game.id, color: hc });
+                room.messenger.sendTo(hc, {
+                    type: 'welcome',
+                    message: 'Game started',
+                    timestamp: new Date().toISOString(),
+                    gameState: null,
+                    guestPlayerId: guestId,
+                    gameId: game.id,
+                });
+            }
         }
     }
 
@@ -118,7 +158,7 @@ export class SessionManager {
      * (ou remplit avec des bots après 30 s).
      */
     joinMatchmaking(ws: WebSocket, playerName?: string): void {
-        this.matchmaking.joinQueue(ws, playerName);
+        this.matchmaking.joinQueue(ws, playerName, this.playerIdentities);
     }
 
     private broadcastRoomStatus(roomCode: string): void {

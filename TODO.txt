@@ -1,0 +1,171 @@
+================================================================================
+                              KEENZEN - TODO LIST
+================================================================================
+
+Each task is numbered [T-XX] for easy reference.
+Priority: HIGH = blocks normal gameplay, MEDIUM = quality of life, LOW = polish.
+
+================================================================================
+  SECTION 1: RECONNECTION & SESSION IDENTITY
+================================================================================
+
+[T-01] Display the local player's color in the game UI (MEDIUM)
+  Context: When a player reconnects to a game (page refresh or reopening the
+  app), the game state is restored via `resendStateToPlayer()` and the board
+  renders correctly, but the player has no visual indication of which color
+  they are controlling.
+  Steps:
+    - In the TableComponent (frontend/src/app/game/components/table/),
+      display the local player's color prominently (e.g. "You are playing as
+      RED" or a colored badge).
+    - The value is available via `gameStateService.myPlayerColor` signal.
+    - Ensure this indicator is visible at all times during the game, not just
+      on reconnection.
+
+[T-02] Restore full game control after reconnection (HIGH)
+  Context: When a player refreshes the page or reconnects to their game
+  instance, the board is displayed but the player cannot interact with it
+  (cannot select cards or marbles, cannot play actions). The reconnection
+  flow (AppComponent detects localStorage keys -> sends JoinGameMessage ->
+  server rebinds WebSocket via MultiWsMessenger.reconnect() -> game calls
+  resendStateToPlayer()) restores the visual state but does not fully
+  restore the interactive state on the frontend.
+  Steps:
+    - Investigate why the frontend is not interactive after reconnection.
+      Likely causes:
+        a) The `myPlayerColor` signal is not set after reconnection (it may
+           only be set on WelcomeMessage, not on JoinGame response).
+        b) The `isMyTurn` computed signal may not resolve correctly if
+           `myPlayerColor` is null/undefined.
+        c) The game component route may not be navigated to after reconnection.
+    - Ensure that after a successful JoinGame reconnection, the frontend:
+        a) Sets `myPlayerColor` from the server response.
+        b) Navigates to the game view if not already there.
+        c) Re-enables card/marble selection and action submission.
+    - Test: Refresh the page mid-game during your turn -> you should be able
+      to select a card and play immediately.
+
+================================================================================
+  SECTION 2: MULTIPLE TABS / DUPLICATE SESSIONS
+================================================================================
+
+[T-03] Prevent multiple matchmaking entries from the same browser (HIGH)
+  Context: If a user opens multiple browser tabs and clicks "Play Now" in
+  each, every tab opens its own WebSocket and sends a JoinMatchmakingMessage.
+  The MatchmakingManager treats each connection as a separate player, creating
+  multiple player slots for the same person. Since localStorage stores only
+  one `guest_player_id` and `active_game_id`, earlier entries get overwritten,
+  leading to orphaned game slots and potential self-play (matched against
+  yourself).
+  Steps:
+    - Option A (frontend): Use a BroadcastChannel or localStorage event
+      listener to detect if another tab is already in matchmaking or in a
+      game. If so, block "Play Now" and show a message like "You are already
+      in a game in another tab."
+    - Option B (backend): In MatchmakingManager, track players by a stable
+      browser identity (e.g. a persistent `browserId` stored in localStorage
+      and sent with each connection). Reject duplicate matchmaking joins from
+      the same browserId.
+    - Option C (combined): Implement both for defense in depth.
+  Expected result: A user clicking "Play Now" in two tabs should only create
+  one matchmaking entry. The second tab should be informed that they are
+  already queued or in a game.
+
+[T-04] Handle multiple tabs connected to the same game (MEDIUM)
+  Context: If two tabs are open for the same game, both send JoinGameMessage
+  with the same guestPlayerId. MultiWsMessenger stores one WebSocket per
+  color, so the second tab overwrites the first. The first tab silently loses
+  its connection and becomes a dead view. Both tabs may try to send actions,
+  causing race conditions.
+  Steps:
+    - When MultiWsMessenger.reconnect() is called and there is already an
+      active (non-closed) WebSocket for that color, close the old WebSocket
+      with a specific close code/reason (e.g. "replaced by new connection").
+    - On the frontend, handle this close code by showing a message like
+      "This game session was opened in another tab" and redirect to home.
+    - Alternatively, prevent the second tab from connecting at all (see T-03
+      Option A with BroadcastChannel).
+
+================================================================================
+  SECTION 3: GAME ABANDONMENT
+================================================================================
+
+[T-05] Add a "Resign / Abandon" button to the game UI (MEDIUM)
+  Steps:
+    - Add a new WebSocket message type `AbandonGameMessage` in
+      packages/shared/src/types.ts (client -> server).
+    - Add a UI button in the TableComponent (e.g. a "Resign" button in a
+      menu or corner of the screen). Ask for confirmation before sending.
+    - On the frontend, send `AbandonGameMessage` when confirmed.
+    - On the backend (Game class), handle this message:
+        a) Mark the player as disconnected (`player.isConnected = false`).
+        b) Close their WebSocket connection.
+        c) Remove their entry from `playerIdentities` so they cannot rejoin.
+        d) Check if the game should be aborted (see T-06).
+    - After abandoning, navigate the player back to the home screen and
+      clear `guest_player_id` and `active_game_id` from localStorage.
+
+[T-06] Abort game when no human players remain (HIGH)
+  Context: Currently, when a player disconnects permanently (180s reconnect
+  window expires), `game.markDisconnected(color)` sets `isConnected = false`
+  but the game loop continues indefinitely with the disconnected player as a
+  "ghost." There is no logic to stop the game when all human players have
+  left.
+  Steps:
+    - In the Game class, after any player is marked as disconnected (either
+      via permanent disconnect timeout or explicit abandon from T-05):
+        a) Count remaining connected human players:
+           `players.filter(p => p.isHuman && p.isConnected).length`
+        b) If count === 0, abort the game immediately.
+    - When aborting:
+        a) Break out of the game loop cleanly (e.g. set a flag checked in
+           the main loop, or resolve/reject pending promises).
+        b) Send a `GameEndedMessage` to any still-connected clients with a
+           reason like "game_abandoned" (may need to add a reason field to
+           GameEndedMessage or create a new GameAbortedMessage).
+        c) Remove the game from GameRegistry.
+        d) Clean up all related entries in `playerIdentities`.
+    - Also consider: if only one human remains and they are playing against
+      bots, the game can still continue (bots don't disconnect). Only abort
+      when zero humans are connected.
+    - Edge case: a human disconnects, the 180s timer starts, and during that
+      window the last other human also disconnects. Both timers may fire.
+      Ensure the abort logic is idempotent and handles concurrent disconnects.
+
+================================================================================
+  SECTION 4: DISCONNECTED PLAYER BEHAVIOR DURING GAME
+================================================================================
+
+[T-07] Auto-play for disconnected human players (MEDIUM)
+  Context: When a human player disconnects but the game is not aborted
+  (because other humans are still playing), the game loop currently hangs
+  waiting for that player's action via WebSocket, until the server-side
+  timeout fires (TURN_DURATION_MS + TURN_TIMEOUT_OFFSET_MS = ~32s). This
+  causes a long delay every time it is the disconnected player's turn.
+  Steps:
+    - In `playOneTurn()`, before waiting for a human action, check if the
+      current player is `isHuman && !isConnected`.
+    - If so, skip the WebSocket wait entirely and immediately play an
+      auto-action (use the same fallback logic as the timeout handler:
+      best legal move or discard).
+    - Alternatively, replace the disconnected human's strategy with the AI
+      strategy (BotPlayer) for the remainder of the game.
+    - Notify remaining connected players that "Player X has disconnected,
+      a bot is playing for them" (add a new message type or a field in
+      GameStateMessage).
+
+================================================================================
+  SECTION 5: CLEANUP & EDGE CASES
+================================================================================
+
+[T-08] Clean up stale localStorage on game end (LOW)
+  Context: When a game ends normally (a player wins), the frontend should
+  clear `guest_player_id` and `active_game_id` from localStorage. If not
+  cleared, the next time the user opens the app, AppComponent will try to
+  reconnect to a game that no longer exists.
+  Steps:
+    - On receiving `GameEndedMessage` in GameStateService, call
+      `localStorage.removeItem('guest_player_id')` and
+      `localStorage.removeItem('active_game_id')`.
+    - On the backend, when a game ends, clean up the corresponding entries
+      in `playerIdentities` and remove the game from `GameRegistry`.

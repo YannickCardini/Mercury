@@ -102,6 +102,8 @@ export interface WelcomeMessage {
   message: string;
   timestamp: string;
   gameState: GameState;
+  guestPlayerId: string;
+  gameId: string;
 }
 
 /** Message envoyé par le serveur à chaque changement d'état */
@@ -110,6 +112,8 @@ export interface GameStateMessage {
   message: string;
   timestamp: string;
   gameState: GameState;
+  /** Present only on reconnection — tells the client which color they control. */
+  myColor?: MarbleColor;
 }
 
 /** Message envoyé par le serveur en réponse à une action du client */
@@ -154,6 +158,7 @@ export interface MatchmakingStatusMessage {
   connectedCount: number;
   totalNeeded: number;
   myColor: MarbleColor;
+  guestPlayerId: string;
 }
 
 /** Envoyé au créateur d'une room multi-device */
@@ -245,6 +250,17 @@ export interface TurnTimeoutMessage {
   type: 'turnTimeout';
 }
 
+/**
+ * Sent by the client on app init when localStorage contains a guest_player_id
+ * and an active_game_id. The server re-binds this WebSocket to the player's slot
+ * in the running game if the reconnection window (180 s) has not expired.
+ */
+export interface JoinGameMessage {
+  type: 'joinGame';
+  guestPlayerId: string;
+  activeGameId: string;
+}
+
 export type ClientMessage =
   | StartMessage
   | CreateRoomMessage
@@ -252,4 +268,5 @@ export type ClientMessage =
   | JoinMatchmakingMessage
   | PlayActionMessage
   | AnimationDoneMessage
-  | TurnTimeoutMessage;
+  | TurnTimeoutMessage
+  | JoinGameMessage;

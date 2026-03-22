@@ -436,6 +436,16 @@ enum TURN_PHASE {
     return gameData?.gameState.currentTurn || '#7c3aed';
   }
 
+  getMyColorGlow(): string {
+    const colorMap: Record<string, string> = {
+      red: 'rgba(239, 68, 68, 0.25)',
+      blue: 'rgba(59, 130, 246, 0.25)',
+      green: 'rgba(34, 197, 94, 0.25)',
+      orange: 'rgba(249, 115, 22, 0.25)',
+    };
+    return colorMap[this.gameStateService.myPlayerColor() ?? ''] ?? 'transparent';
+  }
+
   getDiscardedCards(): Card[] {
     const gameData = this.gameStateService.data();
     return gameData?.gameState.discardedCards || [];

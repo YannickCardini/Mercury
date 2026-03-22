@@ -336,7 +336,8 @@
 .control-dashboard {
     background: var(--surface);
     backdrop-filter: blur(24px) saturate(1.8);
-    border-top: 1px solid var(--border);
+    border-top: 3px solid var(--border);
+    transition: border-top-color 0.3s ease, box-shadow 0.3s ease;
     padding: 1rem 1.25rem;
     padding-bottom: calc(1rem + env(safe-area-inset-bottom));
     z-index: 20;

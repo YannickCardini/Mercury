@@ -9,9 +9,11 @@ import {
   ActionRejectedMessage,
   GameEndedMessage,
   MatchmakingStatusMessage,
+  WelcomeMessage,
   AnimationDoneMessage,
   TurnTimeoutMessage,
   PlayActionMessage,
+  JoinGameMessage,
   ServerMessage,
   MarbleColor,
   getLegalAction,
@@ -36,6 +38,11 @@ export class GameStateService {
   // ── Identité du joueur local ──────────────────────────────────────────────
   /** Couleur du joueur humain local. null = mode spectateur (4 IA). */
   myPlayerColor = signal<MarbleColor | null>(null);
+
+  /** Guest player ID for reconnection. */
+  guestPlayerId = signal<string | null>(null);
+  /** Active game ID for reconnection. */
+  activeGameId = signal<string | null>(null);
 
   /** Vrai quand c'est le tour du joueur local. */
   isMyTurn = computed(() => {
@@ -268,11 +275,29 @@ export class GameStateService {
           break;
         }
 
+        case 'welcome': {
+          const welcomeMsg = parsed as WelcomeMessage;
+          // Store guest identity for reconnection
+          this.guestPlayerId.set(welcomeMsg.guestPlayerId);
+          this.activeGameId.set(welcomeMsg.gameId);
+          localStorage.setItem('guest_player_id', welcomeMsg.guestPlayerId);
+          localStorage.setItem('active_game_id', welcomeMsg.gameId);
+          // welcome with gameState: null is just an identity message, don't update data
+          if (welcomeMsg.gameState) {
+            this.data.set(welcomeMsg as unknown as GameStateMessage);
+            this.gameStarted$.next();
+          }
+          break;
+        }
+
         case 'gameState':
-        case 'welcome':
         case 'response': {
           const msg = parsed as GameStateMessage;
           this.data.set(msg);
+          // On reconnection, the server includes myColor so we restore the local player identity
+          if (msg.myColor) {
+            this.myPlayerColor.set(msg.myColor);
+          }
           this.gameStarted$.next();
           if (msg.message === 'New turn') {
             this.newTurn.next(new Date());
@@ -281,7 +306,10 @@ export class GameStateService {
         }
 
         case 'matchmakingStatus': {
-          this.matchmakingStatus$.next(parsed as MatchmakingStatusMessage);
+          const mmMsg = parsed as MatchmakingStatusMessage;
+          this.guestPlayerId.set(mmMsg.guestPlayerId);
+          localStorage.setItem('guest_player_id', mmMsg.guestPlayerId);
+          this.matchmakingStatus$.next(mmMsg);
           break;
         }
 
@@ -306,6 +334,7 @@ export class GameStateService {
         case 'gameEnded': {
           const msg = parsed as GameEndedMessage;
           this.winner.set(msg.winner);
+          localStorage.removeItem('active_game_id');
           break;
         }
       }
@@ -353,6 +382,11 @@ export class GameStateService {
 
   sendJoinMatchmaking(playerName?: string): void {
     this.send(JSON.stringify({ type: 'joinMatchmaking', playerName }));
+  }
+
+  sendJoinGame(guestPlayerId: string, activeGameId: string): void {
+    const msg: JoinGameMessage = { type: 'joinGame', guestPlayerId, activeGameId };
+    this.send(JSON.stringify(msg));
   }
 
   send(message: string): void {

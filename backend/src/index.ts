@@ -3,7 +3,9 @@ import cors from 'cors';
 import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
 import { SessionManager } from './session/session-manager.js';
+import { GameRegistry } from './session/game-registry.js';
 import type { ClientMessage } from '@keezen/shared';
+import { MultiWsMessenger } from './game/game-messenger.js';
 
 const app = express();
 app.use(cors());
@@ -47,6 +49,32 @@ wss.on('connection', (ws: WebSocket) => {
                 case 'joinMatchmaking':
                     sessionManager.joinMatchmaking(ws, msg.playerName);
                     break;
+
+                case 'joinGame': {
+                    const identity = sessionManager.playerIdentities.get(msg.guestPlayerId);
+                    if (!identity) {
+                        ws.send(JSON.stringify({ type: 'actionRejected', reason: 'Session expired or not found' }));
+                        break;
+                    }
+                    const game = GameRegistry.get(identity.gameId);
+                    if (!game) {
+                        ws.send(JSON.stringify({ type: 'actionRejected', reason: 'Session expired or not found' }));
+                        break;
+                    }
+                    const messenger = game.getMessenger();
+                    if (messenger instanceof MultiWsMessenger) {
+                        const ok = messenger.reconnect(identity.color, ws);
+                        if (ok) {
+                            game.resendStateToPlayer(identity.color);
+                            console.log(`🔄 Reconnection réussie pour ${identity.color} (game ${identity.gameId})`);
+                        } else {
+                            ws.send(JSON.stringify({ type: 'actionRejected', reason: 'Session expired or not found' }));
+                        }
+                    } else {
+                        ws.send(JSON.stringify({ type: 'actionRejected', reason: 'Session expired or not found' }));
+                    }
+                    break;
+                }
 
                 default:
                     // playAction / animationDone avant la création d'une partie → ignoré

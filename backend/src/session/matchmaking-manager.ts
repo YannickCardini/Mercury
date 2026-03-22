@@ -8,8 +8,10 @@
 // par des bots et la partie démarre quand même.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import crypto from 'node:crypto';
 import { Game } from '../game/game.js';
 import { MultiWsMessenger } from '../game/game-messenger.js';
+import { GameRegistry } from './game-registry.js';
 import type { GameConfig, MarbleColor } from '@keezen/shared';
 
 const COLORS: MarbleColor[] = ['red', 'green', 'blue', 'orange'];
@@ -19,26 +21,31 @@ interface MatchPlayer {
     ws: WebSocket;
     color: MarbleColor;
     name: string;
+    guestPlayerId: string;
 }
 
 interface PendingMatchmaking {
     messenger: MultiWsMessenger;
     players: MatchPlayer[];
     timer: NodeJS.Timeout | null;
+    playerIdentities: Map<string, { gameId: string; color: MarbleColor }> | null;
 }
 
 export class MatchmakingManager {
 
     private session: PendingMatchmaking | null = null;
 
-    joinQueue(ws: WebSocket, playerName: string = 'Player'): void {
+    joinQueue(ws: WebSocket, playerName: string = 'Player', playerIdentities?: Map<string, { gameId: string; color: MarbleColor }>): void {
         if (!this.session) {
             this.session = {
                 messenger: new MultiWsMessenger(),
                 players: [],
                 timer: null,
+                playerIdentities: playerIdentities ?? null,
             };
         }
+        // Update reference if provided (in case session already existed)
+        if (playerIdentities) this.session.playerIdentities = playerIdentities;
 
         const takenColors = new Set(this.session.players.map(p => p.color));
         const color = COLORS.find(c => !takenColors.has(c));
@@ -48,7 +55,8 @@ export class MatchmakingManager {
             return;
         }
 
-        const player: MatchPlayer = { ws, color, name: playerName };
+        const guestPlayerId = crypto.randomUUID();
+        const player: MatchPlayer = { ws, color, name: playerName, guestPlayerId };
         this.session.players.push(player);
         this.session.messenger.addConnection(color, ws);
 
@@ -102,11 +110,30 @@ export class MatchmakingManager {
         };
 
         const messenger = this.session.messenger;
-        const humanCount = this.session.players.length;
+        const humanPlayers = [...this.session.players];
+        const playerIdentities = this.session.playerIdentities;
+        const humanCount = humanPlayers.length;
         this.session = null;
 
         console.log(`🚀 Matchmaking — lancement avec ${humanCount} humain(s) et ${4 - humanCount} bot(s)`);
-        new Game(config, messenger);
+        const game = new Game(config, messenger);
+        GameRegistry.register(game.id, game);
+
+        // Wire up permanent disconnect callback
+        messenger.setOnPermanentDisconnect((color) => game.markDisconnected(color));
+
+        // Register guest player identities and send welcome messages
+        for (const p of humanPlayers) {
+            playerIdentities?.set(p.guestPlayerId, { gameId: game.id, color: p.color });
+            messenger.sendTo(p.color, {
+                type: 'welcome',
+                message: 'Game started',
+                timestamp: new Date().toISOString(),
+                gameState: null,
+                guestPlayerId: p.guestPlayerId,
+                gameId: game.id,
+            });
+        }
     }
 
     private broadcastStatus(): void {
@@ -118,6 +145,7 @@ export class MatchmakingManager {
                 connectedCount,
                 totalNeeded: 4,
                 myColor: player.color,
+                guestPlayerId: player.guestPlayerId,
             }));
         }
     }
