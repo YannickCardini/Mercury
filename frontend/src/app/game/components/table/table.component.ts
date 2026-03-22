@@ -13,7 +13,7 @@ import { TockCardComponent } from 'src/app/shared/tock-card.component';
 import type { Card, MarbleColor } from '@keezen/shared';
 import { getValidSevenStepsForMarble, getPositionAfterMove, getLegalSplit7Action, type LegalMoveContext } from '@keezen/shared';
 import { Subscription } from 'rxjs';
-import { NavController } from '@ionic/angular/standalone';
+import { Router } from '@angular/router';
 import { SoundService } from '../../services/sound.service';
 
 enum TURN_PHASE {
@@ -177,7 +177,7 @@ enum TURN_PHASE {
     return timer > 0 ? this.timeLeft() / timer : 0;
   });
 
-  constructor(protected gameStateService: GameStateService, private soundService: SoundService, private navCtrl: NavController) {
+  constructor(protected gameStateService: GameStateService, private soundService: SoundService, private router: Router) {
     // Clear the flying card once the server updates the hand
     effect(() => {
       this.gameStateService.data()?.gameState.hand;
@@ -402,7 +402,7 @@ enum TURN_PHASE {
   confirmResign(): void {
     this.showResignConfirm.set(false);
     this.gameStateService.sendAbandonGame();
-    this.navCtrl.navigateRoot(['/home']);
+    this.router.navigate(['/home']);
   }
 
   cancelResign(): void {

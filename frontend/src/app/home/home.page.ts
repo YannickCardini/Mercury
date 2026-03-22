@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { IonContent, NavController } from '@ionic/angular/standalone';
+import { Router } from '@angular/router';
 import { Subscription, take } from 'rxjs';
 import { version } from '../../../../package.json';
 import { GameStateService } from '../game/services/game-state.service';
@@ -13,7 +13,7 @@ import { environment } from 'src/environments/environment';
   selector: 'app-home',
   templateUrl: './home.page.html',
   styleUrls: ['./home.page.scss'],
-  imports: [IonContent, CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule],
 })
 export class HomePage implements OnInit, OnDestroy {
   readonly titleLetters = ['K', 'E', 'E', 'N', 'Z', 'E', 'N'];
@@ -37,7 +37,7 @@ export class HomePage implements OnInit, OnDestroy {
   /** Shown when the user tries to open matchmaking while another tab is active. */
   duplicateTabMessage = false;
 
-  constructor(private navCtrl: NavController, private gameStateService: GameStateService, private tabLock: TabLockService) { }
+  constructor(private router: Router, private gameStateService: GameStateService, private tabLock: TabLockService) { }
   ngOnInit() { }
 
   ngOnDestroy(): void {
@@ -83,7 +83,7 @@ export class HomePage implements OnInit, OnDestroy {
       this.gameStateService.myPlayerColor.set(this.myMatchmakingColor);
       this.cleanupMatchmaking();
       this.showMatchmaking = false;
-      this.navCtrl.navigateRoot(['/game']);
+      this.router.navigate(['/game']);
 
     });
 

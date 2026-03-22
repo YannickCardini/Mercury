@@ -9,10 +9,19 @@ $c-gold:   #f0c040;
 $bg-dark:  #0f172a;
 $bg-mid:   #1a2840;
 
-// ─── ion-content ──────────────────────────────────────────────────────────────
+// ─── Host ────────────────────────────────────────────────────────────────────
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 .home-content {
-  --background: #{$bg-dark};
-  --overflow: hidden;
+  background: $bg-dark;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  position: relative;
 }
 
 // ─── Root wrapper ─────────────────────────────────────────────────────────────

@@ -1,5 +1,4 @@
-import { Component, signal, computed, effect, OnDestroy, ViewChild } from '@angular/core';
-import { IonContent } from '@ionic/angular/standalone';
+import { Component, signal, computed, effect, OnDestroy, ViewChild, AfterViewInit } from '@angular/core';
 import { BoardComponent } from './components/board/board.component';
 import { TableComponent } from './components/table/table.component';
 import { VictoryOverlayComponent } from './components/victory-overlay/victory-overlay.component';
@@ -13,9 +12,9 @@ import { NEW_TURN_BANNER_DURATION_MS, GameConfig } from '@keezen/shared';
   selector: 'app-game',
   templateUrl: 'game.page.html',
   styleUrl: 'game.page.scss',
-  imports: [IonContent, BoardComponent, TableComponent, VictoryOverlayComponent],
+  imports: [BoardComponent, TableComponent, VictoryOverlayComponent],
 })
-export class GamePage implements OnDestroy {
+export class GamePage implements OnDestroy, AfterViewInit {
 
   @ViewChild(BoardComponent) private boardRef?: BoardComponent;
 
@@ -76,10 +75,9 @@ export class GamePage implements OnDestroy {
     if (this.newTurnTimeout) clearTimeout(this.newTurnTimeout);
   }
 
-  ionViewDidEnter(): void {
+  ngAfterViewInit(): void {
     if (this.gameStateService.isConnected()) {
-      // Déjà connecté via matchmaking — recalculer la taille du board après la transition Ionic
-      this.boardRef?.calculateSquareSize();
+      requestAnimationFrame(() => this.boardRef?.calculateSquareSize());
       return;
     }
     this.connect();
