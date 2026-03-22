@@ -1,5 +1,13 @@
 @use "sass:color";
 
+:host {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+}
+
 /* ─────────────────────────────────────────────────────────────
    VARIABLES THÈME
    ───────────────────────────────────────────────────────────── */
@@ -22,9 +30,10 @@ $colors: (
     display: flex;
     justify-content: center;
     align-items: center;
-    width: 100%;
-    height: 100%;
-    max-width: 100vw;
+    flex-shrink: 0;
+    /* 15 colonnes + 2×padding (0.2ss) + 2×border (1px) */
+    width: calc(var(--square-size) * 15.4 + 2px);
+    height: calc(var(--square-size) * 15.4 + 2px);
 
     /* GLASSMORPHISM */
     background: rgba(255, 255, 255, 0.15);
@@ -36,7 +45,6 @@ $colors: (
     padding: calc(var(--square-size) * 0.2);
     box-sizing: border-box;
     position: relative;
-    /* nécessaire pour positionner l'overlay */
 }
 
 /* --- Grille Ionic Override --- */
@@ -207,11 +215,29 @@ $colors: (
 
 /* Squash + rebound du pion entrant au moment de l'impact */
 @keyframes marbleEnterImpact {
-    0%   { transform: scale(1); filter: brightness(1); }
-    20%  { transform: scale(1.2, 0.7); filter: brightness(1.6); }
-    50%  { transform: scale(0.95, 1.05); filter: brightness(1.2); }
-    75%  { transform: scale(1.04, 0.98); }
-    100% { transform: scale(1); filter: brightness(1); }
+    0% {
+        transform: scale(1);
+        filter: brightness(1);
+    }
+
+    20% {
+        transform: scale(1.2, 0.7);
+        filter: brightness(1.6);
+    }
+
+    50% {
+        transform: scale(0.95, 1.05);
+        filter: brightness(1.2);
+    }
+
+    75% {
+        transform: scale(1.04, 0.98);
+    }
+
+    100% {
+        transform: scale(1);
+        filter: brightness(1);
+    }
 }
 
 /* Onde de choc sur la case à l'impact */
@@ -1153,13 +1179,27 @@ $colors: (
 }
 
 @keyframes previewPathPulse {
-    0%, 100% { opacity: 0.6; }
-    50%       { opacity: 1; }
+
+    0%,
+    100% {
+        opacity: 0.6;
+    }
+
+    50% {
+        opacity: 1;
+    }
 }
 
 @keyframes previewDestPulse {
-    0%, 100% { box-shadow: 0 0 0 2px rgba(255, 220, 80, 0.7), 0 0 12px rgba(255, 220, 80, 0.5); }
-    50%       { box-shadow: 0 0 0 3px rgba(255, 220, 80, 0.9), 0 0 20px rgba(255, 220, 80, 0.7); }
+
+    0%,
+    100% {
+        box-shadow: 0 0 0 2px rgba(255, 220, 80, 0.7), 0 0 12px rgba(255, 220, 80, 0.5);
+    }
+
+    50% {
+        box-shadow: 0 0 0 3px rgba(255, 220, 80, 0.9), 0 0 20px rgba(255, 220, 80, 0.7);
+    }
 }
 
 /* Lévitation et halo lumineux quand le pion est sélectionné */
