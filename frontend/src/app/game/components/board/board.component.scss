@@ -630,9 +630,37 @@ $colors: (
     }
 
     &.disconnected {
-        opacity: 0.6;
-        filter: grayscale(80%);
+        opacity: 0.5;
+        filter: grayscale(20%) brightness(0.85) sepia(20%);
+        outline: 2px dashed rgba(210, 70, 70, 0.5);
+        outline-offset: 2px;
+        animation: disconnectedPulse 2s ease-in-out infinite;
     }
+
+    .disconnected-badge {
+        position: absolute;
+        top: 50%;
+        right: calc(var(--square-size) * 0.18);
+        transform: translateY(-50%);
+        color: rgba(210, 70, 70, 0.85);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        pointer-events: none;
+
+        svg {
+            width: calc(var(--square-size) * 0.38);
+            height: calc(var(--square-size) * 0.38);
+            min-width: 12px;
+            min-height: 12px;
+        }
+    }
+}
+
+@keyframes disconnectedPulse {
+    0%, 100% { outline-color: rgba(210, 70, 70, 0.2); }
+    50% { outline-color: rgba(210, 70, 70, 0.8); }
 }
 
 /* ==========================================================================

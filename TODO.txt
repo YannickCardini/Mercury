@@ -121,41 +121,75 @@ Tasks:
      shown via `*ngIf="player && !player.isConnected"`.
 
 ------------------------------------------------------------------------------
-[6] Tie the timer animation to the current-turn player
+[6] Redesign the player-info panels and tie the timer to the current-turn player
 ------------------------------------------------------------------------------
 Context:
-  - The SVG ring timer in table.component.ts (`timerCircumference`, `timerDashOffset`,
-    `timerColor`) currently always displays when a turn is active, regardless of
-    whose turn it is. The player must infer from context which player is active.
-  - `gameStateService.isMyTurn()` returns true only when it is the local user's
-    turn. `displayedGameData()?.gameState.currentTurn` holds the active player's
-    color.
-  - board.component.html has player-info panels placed at each side of the board
-    via `PLAYER_INFO_STARTS` positions.
-  - The proposed design (from the original note):
-      • On the board: show an animated circular arc/ring rotating around the
-        player-info panel of the CURRENT TURN player (all 4 players' turns).
-      • In the table component: show/animate the SVG ring timer ONLY when it is
-        the LOCAL user's turn. Grey it out or hide it during other players' turns.
+  - The `.player-card` is 5×square-size wide but only ~0.85×square-size tall
+    (one grid row). Its current single-row layout (avatar + name + 5 card dots)
+    is too cramped:
+      • Long player names hit `text-overflow: ellipsis` and are cut off.
+      • The `.disconnected-badge` is `position: absolute` on the right and
+        overlaps `.player-info` content rather than having its own space.
+      • There is no room for an individual turn timer.
+  - The SVG ring timer in table.component.ts (`timerCircumference`,
+    `timerDashOffset`, `timerColor`) always displays when a turn is active,
+    regardless of whose turn it is.
+  - `gameStateService.isMyTurn()` returns true only for the local player's turn.
+    `displayedGameData()?.gameState.currentTurn` holds the active player's color.
+  - board.component.html already binds `[class.active-turn]` on `.player-card`.
+  - The design must remain aesthetic and harmonious with the existing glassmorphism
+    theme (dark background, color accents per player, rounded cards).
 
 Tasks:
-  a. In board.component.html/scss:
-       - For each player-info cell, conditionally add a CSS animation class
-         (e.g., `[class.active-turn-ring]="isCurrentTurn(player.color)"`) that
-         renders a rotating arc or pulsing ring around the panel.
-       - The animation should use `gameStateService.data()?.gameState.currentTurn`
-         to determine which panel gets the ring.
-       - The ring should NOT show any countdown number; it is purely decorative/
-         indicative. Use a CSS animation (e.g., rotating border or conic-gradient)
-         rather than the SVG timer logic.
-  b. In table.component.html/scss:
-       - Wrap the SVG ring timer with `*ngIf="gameStateService.isMyTurn()"` OR
+  a. Redesign `.player-card` layout in board.component.html / board.component.scss:
+       - Keep the left `avatar-ring` (can shrink slightly: 50% instead of 60% of
+         square-size) to free up horizontal space.
+       - Change `.player-info` to `flex-direction: column` with two mini-rows:
+           • Top row: `.player-name` — give it `flex: 1; min-width: 0` so it can
+             shrink naturally. Use a slightly smaller font
+             (e.g. `calc(var(--square-size) * 0.32)`) and keep `text-overflow:
+             ellipsis` only as a last resort — with column layout and a proper
+             min-width it should rarely truncate.
+           • Bottom row: a flex row containing, in order:
+               1. `.cards-indicator` (the 5 card-count dots, left-aligned).
+               2. `.turn-timer` — a small inline countdown display visible only
+                  when `isCurrentTurn(pColor)`. See point (b) for its content.
+               3. `.disconnect-icon` — shown only when `!player.isConnected`,
+                  replacing the current absolute-positioned `.disconnected-badge`.
+                  Give it a fixed `width` / `flex-shrink: 0` so it never overlaps.
+       - Remove the `position: absolute` from `.disconnected-badge` and integrate
+         the wifi-off SVG as the `.disconnect-icon` element in the bottom row.
+       - Adjust paddings/gaps so all three bottom-row items fit without overflow.
+
+  b. Add a per-player mini timer inside `.turn-timer` (board.component.html/scss):
+       - The timer value comes from `gameStateService.timeLeft()` (already a
+         signal in table.component.ts — expose it via GameStateService or pass it
+         as an `@Input` / computed to the board).
+       - Display it as a small SVG arc or a simple text countdown (e.g. "12s")
+         — keep it compact: `calc(var(--square-size) * 0.28)` font size or a
+         tiny SVG circle of diameter ≈ 0.5×square-size.
+       - Show `.turn-timer` only when `isCurrentTurn(pColor)` is true (use
+         `@if` in the template); hide it for idle players to keep panels clean.
+       - Color the timer with the player's theme color for visual consistency.
+
+  c. Add a "whose turn" animated ring around the active player's panel
+     (board.component.scss):
+       - The existing `&.active-turn` rule already adds a colored `box-shadow`
+         ring. Extend it with a subtle CSS `animation` (e.g. a slow breathing
+         `box-shadow` pulse at 1.5 s period) to make the active panel stand out
+         more dynamically without being distracting.
+       - Do NOT use a rotating conic-gradient border — it fights with the
+         `border-radius` of the card. Stick to animated `box-shadow` layers.
+       - The ring must be visually distinct from both `.no-cards` (opacity/grey)
+         and `.disconnected` (dashed outline + sepia) states.
+
+  d. Update the table SVG ring timer (table.component.html/scss):
+       - Wrap the SVG ring timer with `@if (gameStateService.isMyTurn())` OR
          apply a `[class.timer-inactive]` class when it is NOT the local player's
          turn, visually dimming/greying the timer.
        - The countdown sound (`playCountdownTick`) already plays only on the
-         local player's turn (line 253 — `isMyTurn()` check is already in place).
-       - The SVG arc animation (`timerDashOffset`, `timerColor`) can remain as-is
-         but should only be prominent/colored during the local player's turn.
-  c. Coordinate the two animations: the board ring indicates whose turn it is
-     globally; the table timer tells the local player how much time they have
-     left. They serve different purposes and can coexist.
+         local player's turn — no change needed there.
+       - The per-player mini timer in the board panels (task b) and the full SVG
+         ring in the table serve different purposes: the board timer gives a quick
+         glance for all players; the table timer is the precise local countdown.
+         Both can and should coexist.
