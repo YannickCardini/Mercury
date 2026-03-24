@@ -72,6 +72,7 @@ $bg-mid:   #1a2840;
 .home-nav {
   position: relative;
   z-index: 10;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -127,12 +128,14 @@ $bg-mid:   #1a2840;
   position: relative;
   z-index: 1;
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 28px;
   padding: 0 20px 20px;
+  overflow: hidden;
 }
 
 // ─── Animated title ───────────────────────────────────────────────────────────
@@ -411,6 +414,7 @@ $bg-mid:   #1a2840;
 .home-footer {
   position: relative;
   z-index: 10;
+  flex-shrink: 0;
   display: flex;
   justify-content: flex-end;
   padding: 12px 20px 18px;
