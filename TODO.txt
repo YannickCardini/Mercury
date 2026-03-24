@@ -1,0 +1,119 @@
+================================================================================
+  KEENZEN — TODO LIST
+================================================================================
+
+────────────────────────────────────────────────────────────────────────────────
+TASK 1 — Auto-redirect to /game when an active session is found on home load
+────────────────────────────────────────────────────────────────────────────────
+Context:
+  When a user is disconnected mid-game (page refresh, network drop, app close),
+  their session credentials are persisted in localStorage:
+    - localStorage key "active_game_id"  → the ongoing game ID
+    - localStorage key "guest_player_id" → the player's identity token
+  The route guard (frontend/src/app/game/game.guard.ts) already allows access to
+  /game when both keys are present. However, nothing redirects the user away from
+  /home automatically — they have to navigate manually or know to go to /game.
+
+Goal:
+  If both "active_game_id" and "guest_player_id" are present in localStorage when
+  HomePage loads, automatically navigate the user to /game without any user action.
+
+Steps:
+  1. In frontend/src/app/home/home.page.ts, inside ngOnInit():
+     - Read localStorage.getItem('active_game_id') and
+       localStorage.getItem('guest_player_id').
+     - If both values are non-null and non-empty, call
+       this.router.navigate(['/game']).
+     - Do not show any home UI in this case (the redirect should be immediate).
+
+  2. Verify that game.page.ts already handles the reconnection case once /game
+     loads. Confirm that when isConnected() is false on ngAfterViewInit(), it calls
+     connect() → sendJoinGame(guestPlayerId, activeGameId) via the WebSocket so
+     the backend restores the game state.
+     (Current code calls sendStart() instead — verify if joinGame logic is wired
+     correctly for the reconnection path.)
+
+Note: The guard at frontend/src/app/game/game.guard.ts is already correct.
+      Only the home page needs the redirect logic added.
+
+
+────────────────────────────────────────────────────────────────────────────────
+TASK 2 — Show an error in the matchmaking modal when the backend is unreachable
+────────────────────────────────────────────────────────────────────────────────
+Context:
+  When the user clicks "Play Now" on the home page, openMatchmaking() in
+  frontend/src/app/home/home.page.ts:
+    1. Sets showMatchmaking = true (displays the "Finding a game…" modal).
+    2. Calls gameStateService.connect(wsUrl, callback) to open a WebSocket.
+  If the backend is unreachable (server down, wrong URL, network error), the
+  WebSocket triggers onerror and/or onclose in game-state.service.ts, which
+  only sets isConnected.set(false). The modal stays open with "Finding a game…"
+  and the animated dots forever — no error is ever shown to the user.
+
+Goal:
+  When the WebSocket fails to connect (or closes before a game starts),
+  hide the "Finding a game" modal and display a clear error message to the user.
+
+Steps:
+  1. In frontend/src/app/game/services/game-state.service.ts:
+     - Add a new Subject: connectionError$ = new Subject<void>() (or with a
+       string message for the error reason).
+     - In ws.onerror: emit this.connectionError$.next().
+     - In ws.onclose: if the close happens before any game state was received
+       (i.e., this.data() is still null), also emit this.connectionError$.next().
+
+  2. In frontend/src/app/home/home.page.ts:
+     - Add a property: matchmakingError = false (or a string for the message).
+     - In openMatchmaking(), after calling gameStateService.connect(), subscribe
+       to gameStateService.connectionError$ (store the sub in a private field
+       for cleanup).
+     - On connectionError$ emission:
+         a) Set showMatchmaking = false.
+         b) Set matchmakingError = true (show the error banner).
+         c) Auto-hide the error after ~4 seconds (setTimeout).
+     - Unsubscribe in cancelMatchmaking() and cleanupMatchmaking().
+
+  3. In frontend/src/app/home/home.page.html:
+     - Add an error banner element (similar to the existing .duplicate-tab-banner)
+       that appears when matchmakingError is true, e.g.:
+         "Could not connect to the server. Please try again."
+
+
+────────────────────────────────────────────────────────────────────────────────
+TASK 3 — Visually disable the table component when it is not the player's turn
+────────────────────────────────────────────────────────────────────────────────
+Context:
+  The table component (frontend/src/app/game/components/table/) contains the
+  player's hand (cards), the confirm/discard button, the resign button, and the
+  seven-split selector. When it is not the local player's turn:
+    - onCardSelected() already returns early (no selection is applied).
+    - confirmOrDiscardEnabled() already returns false (button is disabled).
+  However, the component has no visual treatment to communicate the "inactive"
+  state — cards look identical whether it is the player's turn or not.
+
+Goal:
+  Apply a visually disabled/grayed-out appearance to the table component
+  (specifically the cards hand and action button area) when it is not the
+  local player's turn (gameStateService.isMyTurn() === false).
+
+Steps:
+  1. In frontend/src/app/game/components/table/table.component.html:
+     - Add a conditional CSS class on the root element or the .hand-zone and
+       .control-dashboard elements, e.g.:
+         [class.turn-inactive]="!gameStateService.isMyTurn()"
+     - Apply this class consistently to: .hand-zone, .control-dashboard,
+       and optionally .seven-split-bar.
+
+  2. In frontend/src/app/game/components/table/table.component.scss:
+     - Define the .turn-inactive modifier:
+         - Reduce opacity of cards (e.g., opacity: 0.45).
+         - Apply a desaturation filter if desired (filter: grayscale(0.5)).
+         - Set pointer-events: none on card buttons and the confirm button so
+           they do not respond to hover/click.
+     - Ensure the resign button (.resign-btn) is NOT affected by this graying,
+       since the player should always be able to resign regardless of turn.
+     - Ensure the timer ring (.timer-zone) is also NOT grayed out (the timer
+       already has its own .timer-inactive state).
+
+  3. Verify the transition looks smooth by optionally adding a CSS transition
+     on opacity (e.g., transition: opacity 0.25s ease).

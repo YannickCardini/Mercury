@@ -281,6 +281,12 @@ $bg-mid:   #1a2840;
   to   { opacity: 1; transform: translateY(0); }
 }
 
+.connection-error-banner {
+  background: rgba($c-red, 0.15);
+  border-color: rgba($c-red, 0.4);
+  color: $c-red;
+}
+
 // ─── Action buttons ───────────────────────────────────────────────────────────
 .hero-actions {
   display: flex;

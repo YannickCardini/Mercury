@@ -44,6 +44,11 @@
         You are already in a game or matchmaking in another tab.
       </div>
 
+      <!-- Connection error banner -->
+      <div class="duplicate-tab-banner connection-error-banner" *ngIf="matchmakingError">
+        Could not connect to the server. Please try again.
+      </div>
+
       <!-- Action buttons -->
       <div class="hero-actions">
         <button class="action-btn play-btn" (click)="openMatchmaking()">

@@ -32,9 +32,12 @@ export class HomePage implements OnInit, OnDestroy {
 
   private matchmakingSub: Subscription | null = null;
   private gameStartSub: Subscription | null = null;
+  private connectionErrorSub: Subscription | null = null;
 
   /** Shown when the user tries to open matchmaking while another tab is active. */
   duplicateTabMessage = false;
+  /** Shown when the WebSocket fails to connect. */
+  matchmakingError = false;
 
   constructor(private router: Router, private gameStateService: GameStateService, private tabLock: TabLockService) { }
   ngOnInit() { }
@@ -82,7 +85,15 @@ export class HomePage implements OnInit, OnDestroy {
       this.cleanupMatchmaking();
       this.showMatchmaking = false;
       this.router.navigate(['/game']);
+    });
 
+    this.connectionErrorSub = this.gameStateService.connectionError$.pipe(take(1)).subscribe(() => {
+      this.cleanupMatchmaking();
+      this.gameStateService.disconnect();
+      this.tabLock.releaseSession();
+      this.showMatchmaking = false;
+      this.matchmakingError = true;
+      setTimeout(() => this.matchmakingError = false, 4000);
     });
 
   }
@@ -97,7 +108,9 @@ export class HomePage implements OnInit, OnDestroy {
   private cleanupMatchmaking(): void {
     this.matchmakingSub?.unsubscribe();
     this.gameStartSub?.unsubscribe();
+    this.connectionErrorSub?.unsubscribe();
     this.matchmakingSub = null;
     this.gameStartSub = null;
+    this.connectionErrorSub = null;
   }
 }

@@ -246,6 +246,8 @@ export class GameStateService {
   sessionReplaced$ = new Subject<void>();
   /** Émet quand la partie est annulée car plus aucun humain n'est connecté. */
   gameAbandoned$ = new Subject<void>();
+  /** Émet quand le WebSocket échoue à se connecter ou se ferme avant que la partie commence. */
+  connectionError$ = new Subject<void>();
 
   private tabLock = inject(TabLockService);
   private ws: WebSocket | null = null;
@@ -355,12 +357,17 @@ export class GameStateService {
       }
     };
 
-    this.ws.onerror = () => this.isConnected.set(false);
+    this.ws.onerror = () => {
+      this.isConnected.set(false);
+      this.connectionError$.next();
+    };
     this.ws.onclose = (event: CloseEvent) => {
       this.isConnected.set(false);
       if (event.code === 4001) {
         this.tabLock.releaseSession();
         this.sessionReplaced$.next();
+      } else if (this.data() === null) {
+        this.connectionError$.next();
       }
     };
   }
