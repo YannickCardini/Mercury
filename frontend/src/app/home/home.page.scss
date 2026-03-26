@@ -1292,3 +1292,138 @@ $bg-mid: #1a2840;
     background: rgba(255, 255, 255, 0.1);
   }
 }
+
+// ─── Google Sign-In nav button ────────────────────────────────────────────────
+.btn-google-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  background: #fff;
+  border: 1px solid #dadce0;
+  border-radius: 50px;
+  color: #3c4043;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, box-shadow 0.15s;
+
+  &:hover {
+    background: #f8f8f8;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  }
+
+  &:active {
+    background: #f1f1f1;
+  }
+}
+
+// ─── Nav avatar (logged-in state) ─────────────────────────────────────────────
+.nav-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+// ─── Google Sign-In modal button ──────────────────────────────────────────────
+.btn-google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 16px;
+  background: #fff;
+  border: 1px solid #dadce0;
+  border-radius: 12px;
+  color: #3c4043;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, box-shadow 0.15s;
+
+  &:hover {
+    background: #f8f8f8;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.2);
+  }
+
+  &:active {
+    background: #f1f1f1;
+  }
+}
+
+// ─── Auth error banner ────────────────────────────────────────────────────────
+.login-error-banner {
+  padding: 10px 14px;
+  background: rgba($c-red, 0.12);
+  border: 1px solid rgba($c-red, 0.3);
+  border-radius: 10px;
+  color: rgba($c-red, 0.9);
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-align: center;
+  margin-bottom: 4px;
+}
+
+// ─── Auth user info (modal, logged-in) ────────────────────────────────────────
+.auth-user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  margin-bottom: 4px;
+}
+
+.auth-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+}
+
+.auth-user-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.auth-user-name {
+  margin: 0 0 2px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.auth-user-stats {
+  margin: 0;
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.btn-logout {
+  padding: 7px 12px;
+  background: rgba($c-red, 0.1);
+  border: 1px solid rgba($c-red, 0.25);
+  border-radius: 8px;
+  color: rgba($c-red, 0.85);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  flex-shrink: 0;
+
+  &:hover {
+    background: rgba($c-red, 0.18);
+    border-color: rgba($c-red, 0.45);
+    color: $c-red;
+  }
+}
