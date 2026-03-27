@@ -537,6 +537,7 @@ $colors: (
         justify-content: center;
         align-items: center;
         flex-shrink: 0;
+        cursor: pointer;
 
         .avatar-color {
             width: 70%;
@@ -1256,5 +1257,166 @@ $colors: (
     box-shadow: 0 12px 24px rgba(0, 0, 0, 0.5), 0 0 15px rgba(255, 255, 255, 0.8);
     filter: brightness(1.5);
     z-index: 20;
+}
 
+/* ==========================================================================
+   PROFILE PANEL
+   ========================================================================== */
+
+.profile-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+}
+
+.profile-panel {
+    position: fixed;
+    z-index: 201;
+    width: 220px;
+    background: rgba(15, 23, 42, 0.96);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
+    padding: 12px;
+    color: #e2e8f0;
+    font-size: 13px;
+
+    @each $color, $value in $colors {
+        &.profile-panel--#{$color} {
+            border-top: 3px solid $value;
+        }
+    }
+
+    &__header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+
+    &__photo {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        object-fit: cover;
+        flex-shrink: 0;
+        border: 2px solid rgba(255, 255, 255, 0.15);
+
+        &--fallback {
+            @each $color, $value in $colors {
+                &.theme-#{$color} {
+                    background: $value;
+                }
+            }
+        }
+    }
+
+    &__name-block {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+    }
+
+    &__name {
+        font-weight: 600;
+        font-size: 14px;
+        color: #f1f5f9;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    &__rank {
+        font-size: 11px;
+        font-weight: 700;
+        color: $c-gold;
+        letter-spacing: 0.05em;
+    }
+
+    &__stats {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+
+    &__stat {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+        padding: 6px 12px;
+        flex: 1;
+    }
+
+    &__stat-value {
+        font-size: 18px;
+        font-weight: 700;
+        color: #f1f5f9;
+        line-height: 1;
+    }
+
+    &__stat-label {
+        font-size: 10px;
+        color: #94a3b8;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-top: 2px;
+    }
+
+    &__since {
+        font-size: 11px;
+        color: #64748b;
+        text-align: center;
+    }
+
+    &__loading {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 80px;
+    }
+
+    &__spinner {
+        width: 24px;
+        height: 24px;
+        border: 3px solid rgba(255, 255, 255, 0.1);
+        border-top-color: rgba(255, 255, 255, 0.6);
+        border-radius: 50%;
+        animation: panelSpin 0.7s linear infinite;
+    }
+
+    &__guest {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        padding: 12px 0;
+        color: #94a3b8;
+        font-size: 13px;
+    }
+
+    &__guest-icon {
+        font-size: 28px;
+        margin-bottom: 4px;
+    }
+
+    &__guest-sub {
+        font-size: 11px;
+        color: #64748b;
+    }
+
+    &__error {
+        text-align: center;
+        padding: 16px 0;
+        color: #94a3b8;
+        font-size: 12px;
+    }
+}
+
+@keyframes panelSpin {
+    to { transform: rotate(360deg); }
 }

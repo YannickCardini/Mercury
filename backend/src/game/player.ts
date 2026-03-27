@@ -9,6 +9,7 @@ export class Player {
     public isConnected: boolean = true;
     public marblePositions: number[];
     public picture?: string;
+    public userId?: string;
 
     constructor(
         public readonly name: string,

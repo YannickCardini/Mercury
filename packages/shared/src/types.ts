@@ -37,6 +37,7 @@ export interface Player {
   marblePositions: number[];
   cardsLeft: number;
   picture?: string;
+  userId?: string;
 }
 
 /**
@@ -68,6 +69,7 @@ export interface PlayerConfig {
   color: MarbleColor;
   isHuman: boolean;
   picture?: string;
+  userId?: string;
 }
 
 export interface GameConfig {
@@ -212,6 +214,7 @@ export interface JoinMatchmakingMessage {
   /** Persistent browser identity used to prevent duplicate matchmaking entries from the same browser. */
   browserId?: string;
   picture?: string;
+  userId?: string;
 }
 
 /**

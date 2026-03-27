@@ -90,7 +90,47 @@ router.post('/google', async (req: Request, res: Response) => {
         picture: user.picture,
         points: user.points,
         ranking: user.ranking,
+        createdAt: user.createdAt,
     });
+});
+
+// GET /api/auth/user/:id — public profile for a given user
+router.get('/user/:id', async (req: Request, res: Response) => {
+    const { id } = req.params as { id: string };
+    try {
+        const container = await getUsersContainer();
+        const { resource } = await container.item(id, id).read<UserDoc>();
+        if (!resource) {
+            res.status(404).json({ error: 'User not found' });
+            return;
+        }
+        res.json({
+            name: resource.name,
+            picture: resource.picture,
+            points: resource.points,
+            ranking: resource.ranking,
+            createdAt: resource.createdAt,
+        });
+    } catch (err) {
+        console.error('❌ Cosmos DB error (GET /user/:id):', err);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+// GET /api/auth/leaderboard — top 100 players sorted by ranking
+router.get('/leaderboard', async (_req: Request, res: Response) => {
+    try {
+        const container = await getUsersContainer();
+        const { resources } = await container.items
+            .query<Pick<UserDoc, 'name' | 'picture' | 'points' | 'ranking'>>(
+                'SELECT TOP 100 c.name, c.picture, c.points, c.ranking FROM c ORDER BY c.points DESC'
+            )
+            .fetchAll();
+        res.json(resources);
+    } catch (err) {
+        console.error('❌ Cosmos DB error (GET /leaderboard):', err);
+        res.status(500).json({ error: 'Database error' });
+    }
 });
 
 export default router;

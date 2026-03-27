@@ -1,10 +1,12 @@
-import { Component, HostListener, OnInit, OnDestroy, signal, computed, effect } from '@angular/core';
+import { Component, HostListener, OnInit, OnDestroy, signal, computed, effect, inject } from '@angular/core';
 import { GameStateService } from '../../services/game-state.service';
 import { SoundService } from '../../services/sound.service';
 import { IonCol, IonGrid, IonRow } from '@ionic/angular/standalone';
 import { CommonModule } from '@angular/common';
 import { TockCardComponent } from 'src/app/shared/tock-card.component';
-import { Subscription } from 'rxjs';
+import { Subscription, firstValueFrom } from 'rxjs';
+import { HttpClient } from '@angular/common/http';
+import { environment } from 'src/environments/environment';
 
 import {
   MarbleColor,
@@ -30,6 +32,23 @@ import {
   getActionForSteps,
   type LegalMoveContext,
 } from '@mercury/shared';
+
+export interface ProfileData {
+  name: string;
+  picture: string;
+  points: number;
+  ranking: number;
+  createdAt: string;
+}
+
+export interface ProfilePanelState {
+  color: MarbleColor;
+  data: ProfileData | null;
+  loading: boolean;
+  isGuest: boolean;
+  x: number;
+  y: number;
+}
 
 export interface CardInfo {
   value: string;
@@ -154,6 +173,12 @@ export class BoardComponent implements OnInit, OnDestroy {
   });
 
   debug = false;
+
+  // ── Profile panel ────────────────────────────────────────────────────────────
+  private http = inject(HttpClient);
+  readonly isHoverDevice = window.matchMedia('(hover: hover)').matches;
+  profilePanel = signal<ProfilePanelState | null>(null);
+  private panelCloseTimer?: ReturnType<typeof setTimeout>;
 
   // ── Timers internes ─────────────────────────────────────────────────────────
   private flyingCardTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -742,5 +767,99 @@ export class BoardComponent implements OnInit, OnDestroy {
       const currentTarget = this.gameStateService.selectedSwapTargetPosition();
       this.gameStateService.selectedSwapTargetPosition.set(currentTarget === index ? null : index);
     }
+  }
+
+  // ── Profile panel ─────────────────────────────────────────────────────────
+
+  onAvatarClick(color: MarbleColor, event: MouseEvent): void {
+    event.stopPropagation();
+    if (this.profilePanel()?.color === color) {
+      this.closeProfilePanel();
+      return;
+    }
+    this.openProfilePanel(color, event.currentTarget as HTMLElement);
+  }
+
+  onAvatarMouseEnter(color: MarbleColor, event: MouseEvent): void {
+    if (!this.isHoverDevice) return;
+    if (this.panelCloseTimer) {
+      clearTimeout(this.panelCloseTimer);
+      this.panelCloseTimer = undefined;
+    }
+    if (this.profilePanel()?.color !== color) {
+      this.openProfilePanel(color, event.currentTarget as HTMLElement);
+    }
+  }
+
+  onAvatarMouseLeave(): void {
+    if (!this.isHoverDevice) return;
+    this.panelCloseTimer = setTimeout(() => this.closeProfilePanel(), 150);
+  }
+
+  onPanelMouseEnter(): void {
+    if (this.panelCloseTimer) {
+      clearTimeout(this.panelCloseTimer);
+      this.panelCloseTimer = undefined;
+    }
+  }
+
+  onPanelMouseLeave(): void {
+    if (!this.isHoverDevice) return;
+    this.closeProfilePanel();
+  }
+
+  closeProfilePanel(): void {
+    this.profilePanel.set(null);
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    this.closeProfilePanel();
+  }
+
+  private openProfilePanel(color: MarbleColor, el: HTMLElement): void {
+    const player = this.getPlayer(color);
+    const PANEL_W = 224;
+    const PANEL_H = 200;
+
+    const rect = el.getBoundingClientRect();
+    let x = rect.right + 8;
+    let y = rect.top;
+
+    if (x + PANEL_W > window.innerWidth - 8) x = rect.left - PANEL_W - 8;
+    if (x < 8) x = 8;
+    if (y + PANEL_H > window.innerHeight - 8) y = window.innerHeight - PANEL_H - 8;
+    if (y < 8) y = 8;
+
+    const isGuest = !player?.userId;
+    this.profilePanel.set({ color, data: null, loading: !isGuest, isGuest, x, y });
+
+    if (player?.userId) {
+      firstValueFrom(
+        this.http.get<ProfileData>(`${environment.apiUrl}/api/auth/user/${player.userId}`)
+      ).then(data => {
+        const current = this.profilePanel();
+        if (current?.color === color) {
+          this.profilePanel.set({ ...current, data, loading: false });
+        }
+      }).catch(() => {
+        const current = this.profilePanel();
+        if (current?.color === color) {
+          this.profilePanel.set({ ...current, loading: false });
+        }
+      });
+    }
+  }
+
+  computeMemberSince(createdAt: string): string {
+    const created = new Date(createdAt);
+    const now = new Date();
+    const months =
+      (now.getFullYear() - created.getFullYear()) * 12 +
+      (now.getMonth() - created.getMonth());
+    if (months < 1) return 'Member for less than a month';
+    if (months < 12) return `Member for ${months} month${months > 1 ? 's' : ''}`;
+    const years = Math.floor(months / 12);
+    return `Member for ${years} year${years > 1 ? 's' : ''}`;
   }
 }

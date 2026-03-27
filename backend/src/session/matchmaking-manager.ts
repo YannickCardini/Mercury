@@ -24,6 +24,7 @@ interface MatchPlayer {
     guestPlayerId: string;
     browserId?: string;
     picture?: string;
+    userId?: string;
 }
 
 interface PendingMatchmaking {
@@ -37,7 +38,7 @@ export class MatchmakingManager {
 
     private session: PendingMatchmaking | null = null;
 
-    joinQueue(ws: WebSocket, playerName: string = 'Player', playerIdentities?: Map<string, { gameId: string; color: MarbleColor }>, browserId?: string, picture?: string): void {
+    joinQueue(ws: WebSocket, playerName: string = 'Player', playerIdentities?: Map<string, { gameId: string; color: MarbleColor }>, browserId?: string, picture?: string, userId?: string): void {
         if (!this.session) {
             this.session = {
                 messenger: new MultiWsMessenger(),
@@ -64,7 +65,7 @@ export class MatchmakingManager {
         }
 
         const guestPlayerId = crypto.randomUUID();
-        const player: MatchPlayer = { ws, color, name: playerName, guestPlayerId, ...(browserId ? { browserId } : {}), ...(picture ? { picture } : {}) };
+        const player: MatchPlayer = { ws, color, name: playerName, guestPlayerId, ...(browserId ? { browserId } : {}), ...(picture ? { picture } : {}), ...(userId ? { userId } : {}) };
         this.session.players.push(player);
         this.session.messenger.addConnection(color, ws);
 
@@ -115,6 +116,7 @@ export class MatchmakingManager {
                 name: playersByColor.get(color)?.name ?? 'Bot',
                 isHuman: playersByColor.has(color),
                 picture: playersByColor.get(color)?.picture,
+                userId: playersByColor.get(color)?.userId,
             })),
         };
 

@@ -232,7 +232,7 @@
     </div>
 
     <!-- ══════════════ MATCHMAKING MODAL ══════════════ -->
-    <div class="modal-overlay" [class.active]="showMatchmaking" (click)="cancelMatchmaking()">
+    <div class="modal-overlay" [class.active]="showMatchmaking">
       <div class="modal-card matchmaking-card" (click)="$event.stopPropagation()">
 
         <button class="modal-close" (click)="cancelMatchmaking()">

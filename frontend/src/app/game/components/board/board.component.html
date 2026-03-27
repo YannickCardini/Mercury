@@ -13,7 +13,10 @@
         <div class="player-card" [class.active-turn]="isCurrentTurn(pColor)"
           [class.disconnected]="player && !player.isConnected" [class.no-cards]="player && player.cardsLeft === 0"
           [ngClass]="'theme-' + pColor">
-          <div class="avatar-ring">
+          <div class="avatar-ring"
+            (click)="onAvatarClick(pColor, $event)"
+            (mouseenter)="onAvatarMouseEnter(pColor, $event)"
+            (mouseleave)="onAvatarMouseLeave()">
             @if (player?.picture) {
               <img class="avatar-img" [src]="player!.picture" [alt]="player!.name" referrerpolicy="no-referrer" />
             } @else {
@@ -119,4 +122,54 @@
   </div>
   }
 </div>
+
+<!-- Profile panel (backdrop + panel, fixed to viewport) -->
+@if (profilePanel(); as panel) {
+  @if (!isHoverDevice) {
+    <div class="profile-backdrop" (click)="closeProfilePanel()"></div>
+  }
+  <div class="profile-panel"
+    [style.left.px]="panel.x"
+    [style.top.px]="panel.y"
+    [ngClass]="'profile-panel--' + panel.color"
+    (click)="$event.stopPropagation()"
+    (mouseenter)="onPanelMouseEnter()"
+    (mouseleave)="onPanelMouseLeave()">
+
+    @if (panel.isGuest) {
+      <div class="profile-panel__guest">
+        <div class="profile-panel__guest-icon">👤</div>
+        <span>Guest player</span>
+        <span class="profile-panel__guest-sub">Not signed in</span>
+      </div>
+    } @else if (panel.loading) {
+      <div class="profile-panel__loading">
+        <div class="profile-panel__spinner"></div>
+      </div>
+    } @else if (panel.data; as data) {
+      <div class="profile-panel__header">
+        @if (data.picture) {
+          <img class="profile-panel__photo" [src]="data.picture" [alt]="data.name" referrerpolicy="no-referrer" />
+        } @else {
+          <div class="profile-panel__photo profile-panel__photo--fallback" [ngClass]="'theme-' + panel.color"></div>
+        }
+        <div class="profile-panel__name-block">
+          <span class="profile-panel__name">{{ data.name }}</span>
+          @if (data.ranking > 0) {
+            <span class="profile-panel__rank">#{{ data.ranking }}</span>
+          }
+        </div>
+      </div>
+      <div class="profile-panel__stats">
+        <div class="profile-panel__stat">
+          <span class="profile-panel__stat-value">{{ data.points }}</span>
+          <span class="profile-panel__stat-label">points</span>
+        </div>
+      </div>
+      <div class="profile-panel__since">{{ computeMemberSince(data.createdAt) }}</div>
+    } @else {
+      <div class="profile-panel__error">Could not load profile</div>
+    }
+  </div>
+}
 </div>

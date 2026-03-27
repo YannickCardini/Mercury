@@ -167,8 +167,8 @@ export class SessionManager {
      * Le serveur assigne une couleur et démarre la partie dès que 4 joueurs sont là
      * (ou remplit avec des bots après 30 s).
      */
-    joinMatchmaking(ws: WebSocket, playerName?: string, browserId?: string, picture?: string): void {
-        this.matchmaking.joinQueue(ws, playerName, this.playerIdentities, browserId, picture);
+    joinMatchmaking(ws: WebSocket, playerName?: string, browserId?: string, picture?: string, userId?: string): void {
+        this.matchmaking.joinQueue(ws, playerName, this.playerIdentities, browserId, picture, userId);
     }
 
     private broadcastRoomStatus(roomCode: string): void {

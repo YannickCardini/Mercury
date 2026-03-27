@@ -6,6 +6,7 @@ import { HumanStrategy } from "./human-strategy.js";
 import { getLegalAction, findLegalMoveForCard, getLegalSplit7Action, MAIN_PATH, type LegalMoveContext } from '../utils/utils.js';
 import { MultiWsMessenger, type GameMessenger } from './game-messenger.js';
 import { GameRegistry } from '../session/game-registry.js';
+import { updateUserPoints, recomputeRankings } from '../db.js';
 import {
     getHomePositions,
     hasWon,
@@ -47,6 +48,12 @@ export class Game {
     /** Vrai quand la partie a été annulée (plus aucun humain connecté). */
     private aborted = false;
 
+    /** Vrai quand la partie est terminée (victoire naturelle ou abandon). */
+    private gameFinished = false;
+
+    /** UserIds des joueurs déjà pénalisés pour abandon (-2), pour ne pas aussi leur infliger -1. */
+    private penalizedUserIds = new Set<string>();
+
     /** Callback appelé quand un joueur abandonne (pour nettoyer playerIdentities). */
     private onPlayerAbandoned: ((gameId: string, color: MarbleColor) => void) | null = null;
 
@@ -65,6 +72,7 @@ export class Game {
                     : new AiStrategy(),
             );
             if (cfg.picture) player.picture = cfg.picture;
+            if (cfg.userId) player.userId = cfg.userId;
             return player;
         });
 
@@ -98,6 +106,7 @@ export class Game {
                 marblePositions: p.marblePositions,
                 cardsLeft: p.cards.length,
                 picture: p.picture,
+                userId: p.userId,
             })),
             currentTurn: currentPlayer.color,
             timer: TURN_DURATION_SECONDS,
@@ -119,6 +128,12 @@ export class Game {
         const player = this.players.find(p => p.color === color);
         if (player) {
             player.isConnected = false;
+            if (player.userId && !this.gameFinished && !this.penalizedUserIds.has(player.userId)) {
+                this.penalizedUserIds.add(player.userId);
+                updateUserPoints(player.userId, -2)
+                    .then(() => recomputeRankings())
+                    .catch(err => console.error('❌ Failed to update points on disconnect:', err));
+            }
             this.checkAbort();
         }
     }
@@ -148,9 +163,13 @@ export class Game {
 
         if (!this.aborted) {
             console.log("🏆 Game over!");
+            this.gameFinished = true;
             const winner = this.players.find(p => hasWon(p.marblePositions, p.color))!;
             this.messenger.send({ type: 'gameEnded', winner: winner.color, reason: 'win' });
             GameRegistry.delete(this.id);
+            this.applyEndGamePoints(winner.color).catch(err =>
+                console.error('❌ Failed to update points after game end:', err)
+            );
         }
     }
 
@@ -264,6 +283,13 @@ export class Game {
 
         player.isConnected = false;
 
+        if (player.userId) {
+            this.penalizedUserIds.add(player.userId);
+            updateUserPoints(player.userId, -2)
+                .then(() => recomputeRankings())
+                .catch(err => console.error('❌ Failed to update points on abandon:', err));
+        }
+
         // Close their WebSocket without starting the reconnect timer
         if (this.messenger instanceof MultiWsMessenger) {
             this.messenger.forceDisconnect(senderColor);
@@ -287,6 +313,7 @@ export class Game {
     private abortGame(): void {
         if (this.aborted) return;
         this.aborted = true;
+        this.gameFinished = true;
 
         console.log("🚫 Game aborted — no connected human players remain");
 
@@ -501,6 +528,7 @@ export class Game {
                 marblePositions: p.marblePositions,
                 cardsLeft: p.cards.length,
                 picture: p.picture,
+                userId: p.userId,
             })),
             currentTurn: currentPlayer.color,
             timer: TURN_DURATION_SECONDS,
@@ -612,6 +640,25 @@ export class Game {
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
+
+    private async applyEndGamePoints(winnerColor: MarbleColor): Promise<void> {
+        const updates: Array<{ userId: string; delta: number }> = [];
+
+        for (const player of this.players) {
+            if (!player.isHuman || !player.userId) continue;
+            if (this.penalizedUserIds.has(player.userId)) continue;
+            const delta = player.color === winnerColor ? 3 : -1;
+            updates.push({ userId: player.userId, delta });
+        }
+
+        for (const { userId, delta } of updates) {
+            await updateUserPoints(userId, delta);
+        }
+
+        if (updates.length > 0) {
+            await recomputeRankings();
+        }
+    }
 
     private allHandsEmpty(): boolean {
         return this.players.every(p => p.handEmpty());

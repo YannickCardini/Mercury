@@ -1,4 +1,4 @@
-import { CosmosClient, type Container } from '@azure/cosmos';
+import { CosmosClient, type Container, type PatchOperation } from '@azure/cosmos';
 
 let client: CosmosClient | null = null;
 
@@ -25,4 +25,26 @@ export async function getUsersContainer(): Promise<Container> {
     });
     usersContainer = container;
     return container;
+}
+
+export async function updateUserPoints(userId: string, delta: number): Promise<void> {
+    const container = await getUsersContainer();
+    const ops: PatchOperation[] = [{ op: 'incr', path: '/points', value: delta }];
+    await container.item(userId, userId).patch(ops);
+}
+
+export async function recomputeRankings(): Promise<void> {
+    const container = await getUsersContainer();
+    const { resources: users } = await container.items
+        .query<{ id: string; points: number }>('SELECT c.id, c.points FROM c ORDER BY c.points DESC')
+        .fetchAll();
+
+    let rank = 1;
+    for (let i = 0; i < users.length; i++) {
+        if (i > 0 && users[i]!.points < users[i - 1]!.points) {
+            rank = i + 1;
+        }
+        const ops: PatchOperation[] = [{ op: 'replace', path: '/ranking', value: rank }];
+        await container.item(users[i]!.id, users[i]!.id).patch(ops);
+    }
 }
