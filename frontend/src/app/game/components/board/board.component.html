@@ -14,7 +14,11 @@
           [class.disconnected]="player && !player.isConnected" [class.no-cards]="player && player.cardsLeft === 0"
           [ngClass]="'theme-' + pColor">
           <div class="avatar-ring">
-            <div class="avatar-color"></div>
+            @if (player?.picture) {
+              <img class="avatar-img" [src]="player!.picture" [alt]="player!.name" referrerpolicy="no-referrer" />
+            } @else {
+              <div class="avatar-color"></div>
+            }
           </div>
           <div class="player-info">
             <span class="player-name">{{ getDisplayName(player) }}</span>

@@ -408,13 +408,13 @@ export class GameStateService {
     this.send(JSON.stringify(msg));
   }
 
-  sendJoinMatchmaking(playerName?: string): void {
+  sendJoinMatchmaking(playerName?: string, picture?: string): void {
     let browserId = localStorage.getItem('browser_id');
     if (!browserId) {
       browserId = crypto.randomUUID();
       localStorage.setItem('browser_id', browserId);
     }
-    this.send(JSON.stringify({ type: 'joinMatchmaking', playerName, browserId }));
+    this.send(JSON.stringify({ type: 'joinMatchmaking', playerName, browserId, picture }));
   }
 
   sendAbandonGame(): void {

@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, firstValueFrom } from 'rxjs';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { BehaviorSubject, Subject, firstValueFrom } from 'rxjs';
 import { GoogleSignIn } from '@capawesome/capacitor-google-sign-in';
 import { environment } from 'src/environments/environment';
 
@@ -20,6 +20,8 @@ export class AuthService {
     private http = inject(HttpClient);
 
     readonly user$ = new BehaviorSubject<AuthUser | null>(this.loadStoredUser());
+    readonly loginError$ = new Subject<'google' | 'server'>();
+    readonly isLoading$ = new BehaviorSubject<boolean>(false);
 
     constructor() {
         void GoogleSignIn.initialize({
@@ -46,6 +48,7 @@ export class AuthService {
     }
 
     private async handleRedirectCallback(): Promise<void> {
+        this.isLoading$.next(true);
         try {
             const { idToken } = await GoogleSignIn.handleRedirectCallback();
             const user = await firstValueFrom(
@@ -55,6 +58,10 @@ export class AuthService {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
         } catch (err) {
             console.error('Google redirect callback error:', err);
+            const isServerError = err instanceof HttpErrorResponse && err.status >= 500;
+            this.loginError$.next(isServerError ? 'server' : 'google');
+        } finally {
+            this.isLoading$.next(false);
         }
     }
 

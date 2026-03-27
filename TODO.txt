@@ -1,104 +1,185 @@
-================================================================================
- MERCURY – TODO LIST
-================================================================================
+═══════════════════════════════════════════════════════════════
+ MERCURY — TODO LIST
+═══════════════════════════════════════════════════════════════
+
+────────────────────────────────────────────────────────────────
+ 1. Sign-in error: display on home page when modal is closed
+────────────────────────────────────────────────────────────────
+
+Context:
+  - Auth errors are emitted via `auth.loginError$` in `auth.service.ts`.
+  - In `home.page.ts` (ngOnInit), when `loginError$` fires, the code
+    currently sets `this.showLogin = true`, which forces the login modal
+    open even if the user had dismissed it.
+  - The login-error banner (`login-error-banner`) is inside the login
+    modal, so it is never shown when the modal is closed.
+
+What to do:
+  1. In `home.page.ts`, when `loginError$` fires, do NOT open the login
+     modal (`showLogin`) if it is already closed (i.e., do not set
+     `this.showLogin = true` on error).
+  2. Add a separate error banner to `home.page.html` (outside all modals,
+     e.g. near the existing `duplicate-tab-banner` and
+     `connection-error-banner` banners) that is conditionally visible
+     when `loginError` is true AND `showLogin` is false.
+  3. The in-modal banner (`login-error-banner`) should remain for errors
+     that occur while the modal is open.
+
+
+────────────────────────────────────────────────────────────────
+ 2. Sign-in: add loading state during backend verification
+────────────────────────────────────────────────────────────────
+
+Context:
+  - On web, `GoogleSignIn.signIn()` (called in `auth.service.ts`) redirects
+    the page to Google and returns. When Google redirects back, the token
+    is in the URL hash and `handleRedirectCallback()` is called
+    automatically in the `AuthService` constructor.
+  - `handleRedirectCallback()` posts the idToken to
+    `POST /api/auth/google` — this HTTP call can take a noticeable amount
+    of time.
+  - On native (Android), `GoogleSignIn.signIn()` returns an idToken
+    directly (no page redirect), but the subsequent backend verification
+    call in `handleRedirectCallback()` still takes time.
+  - Currently there is no loading indicator during this backend round-trip.
+
+What to do:
+  1. Add a `isLoading` signal (or BehaviorSubject) to `auth.service.ts`
+     that is set to `true` at the start of `handleRedirectCallback()` and
+     back to `false` when it completes (success or error).
+  2. In `home.page.html`, display a spinner/loading indicator on the
+     Google Sign-In button (or modal area) while `auth.isLoading` is true.
+     Disable the button during loading to prevent duplicate requests.
+
+
+────────────────────────────────────────────────────────────────
+ 3. Board player cards: use profile picture and account name
+────────────────────────────────────────────────────────────────
+
+Context:
+  - In `board.component.html`, each `.player-card` renders an
+    `.avatar-ring > .avatar-color` (a solid color circle) and a
+    `.player-name` from `getDisplayName(player)`.
+  - `getDisplayName()` in `board.component.ts` truncates `player.name`
+    to 8 characters.
+  - The `Player` interface in `packages/shared/src/types.ts` does not
+    have a `picture` field.
+  - `AuthService` stores the logged-in user's `picture` (Google avatar
+    URL) and `name`, but this data is not propagated to the game state.
+
+What to do:
+
+  Part A — Add `picture` to the Player type and game state:
+    1. Add `picture?: string` to the `Player` interface in
+       `packages/shared/src/types.ts`.
+    2. In the backend (`backend/src/game/player.ts`), add a `picture`
+       property to the `Player` class (optional, set when the player is
+       authenticated via Google).
+    3. When creating a game and an authenticated user joins (via
+       `auth-router.ts` → Cosmos DB user), populate `player.picture`
+       with the user's `picture` URL from the database.
+    4. Ensure `player.picture` is included when the backend serializes
+       `GameState` (i.e., in the `players` array of `GameStateMessage`).
+
+  Part B — Display the picture in the board:
+    1. In `board.component.html`, inside `.avatar-ring`, conditionally
+       render an `<img>` tag (same dimensions as the current `.avatar-color`
+       circle) if `player.picture` is set. Otherwise, keep the current
+       `.avatar-color` solid circle as fallback.
+
+  Part C — Display the account name in the board:
+    1. Replace the current `getDisplayName()` logic in `board.component.ts`
+       with the following name resolution (applied when `player.picture`
+       is set, indicating the player is authenticated):
+         a. Extract first name: the substring before the first space.
+         b. Extract last name: the substring after the last space.
+         c. Max display length: 8 characters.
+         d. Priority:
+            - If first name ≤ 8 chars → display first name.
+            - Else if last name ≤ 8 chars → display last name.
+            - Else → display first name truncated to 8 chars.
+    2. For guest players (no `player.picture`), keep the existing
+       truncation behavior (truncate `player.name` to 8 chars).
+
+
+────────────────────────────────────────────────────────────────
+ 4. Matchmaking modal: disable close-on-backdrop-click
+────────────────────────────────────────────────────────────────
+
+Context:
+  - In `home.page.html`, the matchmaking modal overlay is:
+      <div class="modal-overlay" [class.active]="showMatchmaking"
+           (click)="cancelMatchmaking()">
+    Clicking the backdrop (outside the modal card) calls
+    `cancelMatchmaking()`, which disconnects the WebSocket and cancels
+    the matchmaking search.
+  - This is intentional for other modals (login, settings, rules) but
+    NOT desired for matchmaking: the user should only be able to cancel
+    via the explicit "Cancel" button inside the modal.
+
+What to do:
+  1. In `home.page.html`, remove `(click)="cancelMatchmaking()"` from
+     the matchmaking modal overlay `<div class="modal-overlay ...">`.
+  2. The "Cancel" button inside the modal (and the X close button) must
+     remain the only way to cancel matchmaking and close the modal.
+  3. Verify that the other modals (login, settings, rules) retain their
+     existing backdrop-click-to-close behavior (they are unrelated and
+     should not be modified).
+
+
+────────────────────────────────────────────────────────────────
+ 5. Bug: double timer instance causing 2× speed and duplicate sounds
+────────────────────────────────────────────────────────────────
+
+Context:
+  - The turn timer (30-second countdown) is managed in `TableComponent`
+    (`table.component.ts`) via a `setInterval` in `startTimer()`.
+  - `startTimer()` is called from an `ngOnInit` subscription to
+    `gameStateService.newTurn` (a `BehaviorSubject`).
+  - Two bugs cause two simultaneous timer instances:
+
+    Bug A — Subscription leak:
+      In `ngOnInit`, the `newTurn.subscribe(...)` call is not assigned
+      to a variable and is therefore never unsubscribed in `ngOnDestroy`.
+      If the `TableComponent` is destroyed and recreated (e.g. by Angular
+      re-rendering the game page), the old subscription remains active on
+      the BehaviorSubject alongside the new one. Both subscriptions call
+      `startTimer()` independently, resulting in two `setInterval` loops
+      running simultaneously. This makes the timer decrement 2 seconds
+      per second (turn ends in 15s instead of 30s) and causes all
+      timer-triggered effects (countdown tick sounds, time-up sound,
+      `sendTurnTimeout()`) to fire twice.
+
+    Bug B — BehaviorSubject replay on subscribe:
+      `newTurn` is a `BehaviorSubject` (not a plain `Subject`). On each
+      new subscription it immediately emits its last stored value. If
+      `TableComponent` subscribes after a turn has already started (e.g.
+      on reconnect or re-render), `startTimer()` is called once on
+      subscription (from the replayed value) and again when the next
+      real new-turn event fires.
+
+  Symptoms:
+    - Timer counts down at double speed (2 seconds lost per real second).
+    - Countdown tick sound (< 5 s remaining) plays twice per tick.
+    - Time-up sound and `sendTurnTimeout()` trigger twice.
+    - Bot auto-play sound fires twice when the server auto-plays.
+
+What to do:
+  1. In `table.component.ts` (`ngOnInit`), store the subscription from
+     `gameStateService.newTurn.subscribe(...)` in a class property
+     (e.g. `private newTurnSub?: Subscription`) and unsubscribe it in
+     `ngOnDestroy`, just like `timeoutSub` and `autoPlaySub` are handled.
+  2. To prevent the BehaviorSubject's initial replay from triggering an
+     unwanted `startTimer()` call on subscribe, apply `.pipe(skip(1))`
+     before subscribing (skip the replayed current value, only react to
+     genuinely new turn events emitted after subscription), OR change
+     `newTurn` from a `BehaviorSubject` to a plain `Subject` in
+     `game-state.service.ts` if there is no other consumer that relies
+     on the replay behavior.
+
 
 --------------------------------------------------------------------------------
- 1. Replace the login button with a dedicated Google Sign-In button
---------------------------------------------------------------------------------
-
-The only authentication option is Google Sign-In. There should be no generic
-"Connect" or "Login" button. Replace it with a styled Google Sign-In button.
-
-Files:
-  - frontend/src/app/home/home.page.html  (button markup)
-  - frontend/src/app/home/home.page.ts    (button handler)
-  - frontend/src/app/services/auth.service.ts  (signInWithGoogle() method)
-
-Steps:
-  - In home.page.html, remove the current connection button.
-  - Add a Google Sign-In button in its place (follow Google branding guidelines:
-    correct logo, label "Sign in with Google", correct colors).
-  - The button must call the existing signInWithGoogle() method from AuthService.
-  - No other login option should be visible.
-
---------------------------------------------------------------------------------
- 2. Display error messages to the user on auth or DB failures
---------------------------------------------------------------------------------
-
-When Google Sign-In fails or the backend cannot connect to Cosmos DB, the user
-must see an explicit error message instead of silent failure.
-
-Files:
-  - frontend/src/app/services/auth.service.ts
-  - frontend/src/app/home/home.page.ts / home.page.html
-  - backend/src/auth/auth-router.ts
-  - backend/src/db.ts
-
-Steps:
-  - In auth.service.ts: catch errors thrown during Google Sign-In and propagate
-    them (throw, return an error state, or emit on an error observable/signal).
-  - In home.page.ts: catch these errors and display a user-visible message
-    (e.g., Ionic <ion-toast> or <ion-alert>) with a human-readable description:
-      - "Could not sign in with Google. Please try again."
-      - "Server error. Please try again later." (for backend failures)
-  - In auth-router.ts: ensure the POST /api/auth/google endpoint returns a
-    proper HTTP 500 with a JSON error body if Cosmos DB is unreachable.
-  - In db.ts: ensure connection errors are thrown (not swallowed) so that the
-    router can catch them and return the appropriate HTTP response.
-
---------------------------------------------------------------------------------
- 3. Style the Google profile picture to fit the app design
---------------------------------------------------------------------------------
-
-The Google profile picture URL is already fetched and stored in user.picture.
-The photo must be displayed with correct styling so it integrates cleanly into
-the existing app design.
-
-Files:
-  - frontend/src/app/home/home.page.html  (any avatar/photo display area)
-  - frontend/src/app/services/auth.service.ts  (provides user.picture)
-  - Any shared avatar component if it exists
-
-Steps:
-  - Identify every location in the UI where user.picture is (or should be)
-    rendered.
-  - Apply CSS so the image is:
-      - Circular (border-radius: 50% or equivalent)
-      - Fixed size consistent with the surrounding design
-      - Matching the border/shadow style used elsewhere in the app
-  - Add an onerror fallback on the <img> tag: if the Google image URL fails to
-    load, fall back to the default avatar ring or a placeholder icon.
-  - Verify the result looks correct on both mobile (Capacitor Android) and web.
-
---------------------------------------------------------------------------------
- 4. Show the logged-in user's photo and name in the player info area
---------------------------------------------------------------------------------
-
-When a user is authenticated, replace their avatar ring and guest name with
-their Google profile photo and a display name derived from their Google account.
-
-Files:
-  - frontend/src/app/game/components/table/table.component.ts
-  - frontend/src/app/services/auth.service.ts
-
-Display name fallback logic (apply in order):
-  1. Use givenName (Google first name) if its length is <= 10 characters.
-  2. Otherwise, use familyName (Google last name) if its length is <= 10 chars.
-  3. Otherwise, truncate givenName to 8 characters and append "…".
-  4. As a last resort, use the full user.name from Google (already stored in DB).
-
-Steps:
-  - In table.component.ts, inject AuthService and check if the current seat
-    belongs to the authenticated user.
-  - If yes:
-      - Display user.picture as the avatar image (replacing the avatar ring
-        SVG/icon). Apply the same styling as described in task 3.
-      - Compute and display the display name using the fallback logic above.
-  - If no (guest or other player):
-      - Keep the current behavior: show the avatar ring and guest name.
-
---------------------------------------------------------------------------------
- 5. Update player points in the database after each game outcome
+ 6. Update player points in the database after each game outcome
 --------------------------------------------------------------------------------
 
 When a connected (non-guest) player's game ends, update their `points` field in
@@ -138,7 +219,7 @@ Steps:
      update for them.
 
 --------------------------------------------------------------------------------
- 6. Show a player profile panel on avatar click (or hover on web)
+ 7. Show a player profile panel on avatar click (or hover on web)
 --------------------------------------------------------------------------------
 
 Clicking on a player's avatar ring (or hovering on desktop) must open a panel
@@ -189,7 +270,7 @@ Steps:
      show a minimal version ("Guest player — not signed in").
 
 --------------------------------------------------------------------------------
- 7. Implement the ranking (leaderboard ladder) system
+ 8. Implement the ranking (leaderboard ladder) system
 --------------------------------------------------------------------------------
 
 A player's ranking is their integer position in the global leaderboard, ordered
@@ -222,3 +303,4 @@ Steps:
      endpoint so the frontend can display it in the profile panel (task 6).
 
 ================================================================================
+

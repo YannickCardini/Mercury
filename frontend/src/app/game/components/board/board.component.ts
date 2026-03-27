@@ -637,7 +637,13 @@ export class BoardComponent implements OnInit, OnDestroy {
 
   getDisplayName(player: Player | undefined): string {
     if (!player) return 'En attente';
-    return player.name.length > 8 ? player.name.slice(0, 8) : player.name;
+    const name = player.name;
+    const spaceIndex = name.indexOf(' ');
+    const firstName = spaceIndex === -1 ? name : name.slice(0, spaceIndex);
+    const lastName = spaceIndex === -1 ? name : name.slice(name.lastIndexOf(' ') + 1);
+    if (firstName.length <= 8) return firstName;
+    if (lastName.length <= 8) return lastName;
+    return firstName.slice(0, 8);
   }
 
   getArrivalNumber(index: number): number | null {

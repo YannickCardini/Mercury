@@ -1353,6 +1353,22 @@ $bg-mid: #1a2840;
   }
 }
 
+// ─── Button loading spinner ───────────────────────────────────────────────────
+.btn-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(60, 64, 67, 0.2);
+  border-top-color: #3c4043;
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: btnSpin 0.7s linear infinite;
+}
+
+@keyframes btnSpin {
+  to { transform: rotate(360deg); }
+}
+
 // ─── Auth error banner ────────────────────────────────────────────────────────
 .login-error-banner {
   padding: 10px 14px;

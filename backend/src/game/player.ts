@@ -8,6 +8,7 @@ export class Player {
     public cards: Card[] = [];
     public isConnected: boolean = true;
     public marblePositions: number[];
+    public picture?: string;
 
     constructor(
         public readonly name: string,

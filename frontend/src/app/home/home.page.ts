@@ -34,6 +34,7 @@ export class HomePage implements OnInit, OnDestroy {
   private matchmakingSub: Subscription | null = null;
   private gameStartSub: Subscription | null = null;
   private connectionErrorSub: Subscription | null = null;
+  private loginErrorSub: Subscription | null = null;
 
   /** Shown when the user tries to open matchmaking while another tab is active. */
   duplicateTabMessage = false;
@@ -41,6 +42,7 @@ export class HomePage implements OnInit, OnDestroy {
   matchmakingError = false;
 
   loginError = false;
+  loginErrorMessage = '';
 
   constructor(
     private router: Router,
@@ -49,10 +51,19 @@ export class HomePage implements OnInit, OnDestroy {
     readonly auth: AuthService,
   ) { }
 
-  ngOnInit() { }
+  ngOnInit(): void {
+    this.loginErrorSub = this.auth.loginError$.subscribe(type => {
+      this.loginErrorMessage = type === 'server'
+        ? 'Server error. Please try again later.'
+        : 'Could not sign in with Google. Please try again.';
+      this.loginError = true;
+      setTimeout(() => this.loginError = false, 4000);
+    });
+  }
 
   ngOnDestroy(): void {
     this.cleanupMatchmaking();
+    this.loginErrorSub?.unsubscribe();
   }
 
   openLogin() { this.showLogin = true; }
@@ -65,6 +76,7 @@ export class HomePage implements OnInit, OnDestroy {
       this.closeLogin();
     } catch (err) {
       console.error('Google login error:', err);
+      this.loginErrorMessage = 'Could not sign in with Google. Please try again.';
       this.loginError = true;
       setTimeout(() => this.loginError = false, 4000);
     }
@@ -95,8 +107,11 @@ export class HomePage implements OnInit, OnDestroy {
     this.matchmakingConnected = 0;
     this.myMatchmakingColor = null;
 
+    const user = this.auth.user$.getValue();
+    const playerName = user?.name ?? generateGuestName();
+    const playerPicture = user?.picture;
     this.gameStateService.connect(environment.wsUrl, () => {
-      this.gameStateService.sendJoinMatchmaking(generateGuestName());
+      this.gameStateService.sendJoinMatchmaking(playerName, playerPicture);
     });
 
     this.matchmakingSub = this.gameStateService.matchmakingStatus$.subscribe(status => {

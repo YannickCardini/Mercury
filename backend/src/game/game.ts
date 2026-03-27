@@ -55,16 +55,18 @@ export class Game {
     constructor(config: GameConfig, messenger: GameMessenger) {
         this.messenger = messenger;
 
-        this.players = config.players.map(cfg =>
-            new Player(
+        this.players = config.players.map(cfg => {
+            const player = new Player(
                 cfg.name,
                 cfg.color,
                 cfg.isHuman,
                 cfg.isHuman
                     ? new HumanStrategy(() => this.awaitHumanAction())
                     : new AiStrategy(),
-            )
-        );
+            );
+            if (cfg.picture) player.picture = cfg.picture;
+            return player;
+        });
 
         this.deck = new Deck();
 
@@ -95,6 +97,7 @@ export class Game {
                 isConnected: p.isConnected,
                 marblePositions: p.marblePositions,
                 cardsLeft: p.cards.length,
+                picture: p.picture,
             })),
             currentTurn: currentPlayer.color,
             timer: TURN_DURATION_SECONDS,
@@ -497,6 +500,7 @@ export class Game {
                 isConnected: p.isConnected,
                 marblePositions: p.marblePositions,
                 cardsLeft: p.cards.length,
+                picture: p.picture,
             })),
             currentTurn: currentPlayer.color,
             timer: TURN_DURATION_SECONDS,
