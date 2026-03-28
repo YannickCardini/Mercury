@@ -21,6 +21,7 @@ export class AuthService {
 
     readonly user$ = new BehaviorSubject<AuthUser | null>(this.loadStoredUser());
     readonly loginError$ = new Subject<'google' | 'server'>();
+    readonly updateError$ = new Subject<string>();
     readonly isLoading$ = new BehaviorSubject<boolean>(false);
 
     constructor() {
@@ -39,6 +40,29 @@ export class AuthService {
     async login(): Promise<void> {
         // Navigates the page to Google OAuth — never resolves on web
         await GoogleSignIn.signIn();
+    }
+
+    async updateProfile(name: string, picture: string): Promise<void> {
+        const user = this.user$.getValue();
+        if (!user) return;
+        try {
+            const updatedUser = await firstValueFrom(
+                this.http.patch<AuthUser>(`${environment.apiUrl}/api/auth/user/${user.id}`, { name, picture })
+            );
+            this.user$.next(updatedUser);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedUser));
+        } catch (err) {
+            let message = 'Failed to update profile. Please try again.';
+            if (err instanceof HttpErrorResponse) {
+                if (err.status === 413) {
+                    message = 'Image is too large. Please choose a smaller image (max 2 MB).';
+                } else if ((err.error as { error?: string })?.error) {
+                    message = (err.error as { error: string }).error;
+                }
+            }
+            this.updateError$.next(message);
+            throw err;
+        }
     }
 
     async logout(): Promise<void> {

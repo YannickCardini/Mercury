@@ -94,6 +94,68 @@ router.post('/google', async (req: Request, res: Response) => {
     });
 });
 
+// PATCH /api/auth/user/:id — update name and/or picture
+router.patch('/user/:id', async (req: Request, res: Response) => {
+    const { id } = req.params as { id: string };
+    const { name, picture } = req.body as { name?: string; picture?: string };
+
+    // Validate name
+    if (name !== undefined) {
+        if (typeof name !== 'string' || name.length < 1 || name.length > 30) {
+            res.status(400).json({ error: 'Name must be between 1 and 30 characters' });
+            return;
+        }
+        if (!/^[\p{L}\p{N} \-_']+$/u.test(name)) {
+            res.status(400).json({ error: 'Name contains invalid characters' });
+            return;
+        }
+    }
+
+    // Validate picture
+    if (picture !== undefined) {
+        if (typeof picture !== 'string') {
+            res.status(400).json({ error: 'Invalid picture format' });
+            return;
+        }
+        const dataUrlMatch = /^data:(image\/(?:jpeg|png|webp));base64,(.+)$/.exec(picture);
+        if (!dataUrlMatch) {
+            res.status(400).json({ error: 'Picture must be a base64 data URL (image/jpeg, image/png, or image/webp)' });
+            return;
+        }
+        const rawBytes = dataUrlMatch[2].length * 3 / 4;
+        if (rawBytes > 2 * 1024 * 1024) {
+            res.status(400).json({ error: 'Picture exceeds 2 MB limit' });
+            return;
+        }
+    }
+
+    try {
+        const container = await getUsersContainer();
+        const { resource } = await container.item(id, id).read<UserDoc>();
+        if (!resource) {
+            res.status(404).json({ error: 'User not found' });
+            return;
+        }
+
+        if (name !== undefined) resource.name = name;
+        if (picture !== undefined) resource.picture = picture;
+
+        await container.item(id, id).replace(resource);
+        res.json({
+            id: resource.id,
+            email: resource.email,
+            name: resource.name,
+            picture: resource.picture,
+            points: resource.points,
+            ranking: resource.ranking,
+            createdAt: resource.createdAt,
+        });
+    } catch (err) {
+        console.error('❌ Cosmos DB error (PATCH /user/:id):', err);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
 // GET /api/auth/user/:id — public profile for a given user
 router.get('/user/:id', async (req: Request, res: Response) => {
     const { id } = req.params as { id: string };

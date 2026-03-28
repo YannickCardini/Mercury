@@ -1383,63 +1383,174 @@ $bg-mid: #1a2840;
 }
 
 // ─── Auth user info (modal, logged-in) ────────────────────────────────────────
-.auth-user-info {
+// ─── Profile card (login modal — authenticated state) ─────────────────────────
+.profile-card {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 12px;
-  padding: 14px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
-  margin-bottom: 4px;
+  gap: 0;
+  padding: 8px 0 4px;
+  text-align: center;
 }
 
-.auth-avatar {
-  width: 44px;
-  height: 44px;
+.profile-avatar-wrap {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  margin-bottom: 14px;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba($c-blue, 0.5), rgba($c-green, 0.3));
+    z-index: 0;
+  }
+
+  &.editable .profile-avatar {
+    opacity: 0.5;
+  }
+}
+
+.profile-avatar {
+  position: relative;
+  z-index: 1;
+  width: 80px;
+  height: 80px;
   border-radius: 50%;
   object-fit: cover;
-  flex-shrink: 0;
-  border: 2px solid rgba(255, 255, 255, 0.15);
+  border: 3px solid rgba(15, 23, 42, 1);
+  transition: opacity 0.2s;
 }
 
-.auth-user-details {
-  flex: 1;
-  min-width: 0;
-}
-
-.auth-user-name {
-  margin: 0 0 2px;
-  font-size: 0.92rem;
-  font-weight: 700;
+.profile-avatar-change {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  cursor: pointer;
   color: rgba(255, 255, 255, 0.9);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
 }
 
-.auth-user-stats {
-  margin: 0;
+.profile-name {
+  margin: 0 0 5px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.profile-stats {
+  margin: 0 0 20px;
   font-size: 0.78rem;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.38);
+  letter-spacing: 0.02em;
 }
 
-.btn-logout {
-  padding: 7px 12px;
-  background: rgba($c-red, 0.1);
-  border: 1px solid rgba($c-red, 0.25);
+.profile-edit-fields {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.edit-name-input {
+  width: 100%;
+  padding: 9px 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.9rem;
+  text-align: center;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+
+  &::placeholder {
+    color: rgba(255, 255, 255, 0.22);
+  }
+
+  &:focus {
+    border-color: rgba($c-blue, 0.5);
+  }
+}
+
+.edit-error {
+  font-size: 0.78rem;
+  color: rgba($c-red, 0.9);
+  padding: 7px 10px;
+  background: rgba($c-red, 0.08);
   border-radius: 8px;
-  color: rgba($c-red, 0.85);
-  font-size: 0.78rem;
+  border: 1px solid rgba($c-red, 0.2);
+  text-align: left;
+}
+
+.profile-actions {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.btn-action {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 14px;
+  border-radius: 10px;
+  font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
-  white-space: nowrap;
   transition: background 0.15s, border-color 0.15s, color 0.15s;
-  flex-shrink: 0;
+  white-space: nowrap;
 
-  &:hover {
-    background: rgba($c-red, 0.18);
-    border-color: rgba($c-red, 0.45);
-    color: $c-red;
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  &.btn-action-secondary {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.11);
+    color: rgba(255, 255, 255, 0.6);
+
+    &:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.1);
+      color: rgba(255, 255, 255, 0.85);
+    }
+  }
+
+  &.btn-action-primary {
+    background: rgba($c-blue, 0.18);
+    border: 1px solid rgba($c-blue, 0.35);
+    color: rgba($c-blue, 0.95);
+
+    &:hover:not(:disabled) {
+      background: rgba($c-blue, 0.28);
+      border-color: rgba($c-blue, 0.55);
+    }
+  }
+
+  &.btn-action-danger {
+    background: rgba($c-red, 0.08);
+    border: 1px solid rgba($c-red, 0.2);
+    color: rgba($c-red, 0.8);
+
+    &:hover:not(:disabled) {
+      background: rgba($c-red, 0.15);
+      border-color: rgba($c-red, 0.4);
+      color: $c-red;
+    }
   }
 }
