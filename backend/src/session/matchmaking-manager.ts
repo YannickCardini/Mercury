@@ -111,13 +111,16 @@ export class MatchmakingManager {
         const playersByColor = new Map(this.session.players.map(p => [p.color, p]));
 
         const config: GameConfig = {
-            players: COLORS.map(color => ({
-                color,
-                name: playersByColor.get(color)?.name ?? 'Bot',
-                isHuman: playersByColor.has(color),
-                picture: playersByColor.get(color)?.picture,
-                userId: playersByColor.get(color)?.userId,
-            })),
+            players: COLORS.map(color => {
+                const p = playersByColor.get(color);
+                return {
+                    color,
+                    name: p?.name ?? 'Bot',
+                    isHuman: playersByColor.has(color),
+                    ...(p?.picture ? { picture: p.picture } : {}),
+                    ...(p?.userId ? { userId: p.userId } : {}),
+                };
+            }),
         };
 
         const messenger = this.session.messenger;

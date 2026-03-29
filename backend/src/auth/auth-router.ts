@@ -122,7 +122,7 @@ router.patch('/user/:id', async (req: Request, res: Response) => {
             res.status(400).json({ error: 'Picture must be a base64 data URL (image/jpeg, image/png, or image/webp)' });
             return;
         }
-        const rawBytes = dataUrlMatch[2].length * 3 / 4;
+        const rawBytes = dataUrlMatch?[2].length * 3 / 4 : 0;
         if (rawBytes > 2 * 1024 * 1024) {
             res.status(400).json({ error: 'Picture exceeds 2 MB limit' });
             return;
