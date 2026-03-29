@@ -19,7 +19,8 @@
     "google-auth-library": "^10.6.2",
     "@codetrix-studio/capacitor-google-auth": "^3.4.0-rc.4",
     "ws": "^8.19.0",
-    "@azure/cosmos": "4.9.2"
+    "@azure/cosmos": "4.9.2",
+    "dotenv": "^17.3.1"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
@@ -29,7 +30,6 @@
     "nodemon": "^3.1.14",
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
-    "dotenv": "^17.3.1",
     "typescript": "^5.9.3"
   }
 }

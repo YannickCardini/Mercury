@@ -1,5 +1,6 @@
 export const environment = {
     production: true,
-    apiUrl: 'https://keenzen-api-dae7g0h0hghfhzff.canadacentral-01.azurewebsites.net',
-    wsUrl: 'wss://keenzen-api-dae7g0h0hghfhzff.canadacentral-01.azurewebsites.net'
+    googleClientId: '211257291077-apkc083sbsabvleeb6j75efbjps5qphh.apps.googleusercontent.com',
+    apiUrl: 'https://mercury-api-e5gqghhkdtfheqht.francecentral-01.azurewebsites.net',
+    wsUrl: 'wss://mercury-api-e5gqghhkdtfheqht.francecentral-01.azurewebsites.net'
 };
