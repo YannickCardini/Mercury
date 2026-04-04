@@ -12,6 +12,7 @@ frontend/node_modules/
 # Android
 frontend/android/app/build/
 frontend/android/.gradle/
+frontend/android/app/google-services.json
 
 # Secrets et Logs
 .env

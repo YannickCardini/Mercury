@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { BehaviorSubject, Subject, firstValueFrom } from 'rxjs';
 import { GoogleSignIn } from '@capawesome/capacitor-google-sign-in';
+import { Capacitor } from '@capacitor/core';
 import { environment } from 'src/environments/environment';
 
 export interface AuthUser {
@@ -25,21 +26,73 @@ export class AuthService {
     readonly isLoading$ = new BehaviorSubject<boolean>(false);
 
     constructor() {
+        const platform = Capacitor.getPlatform();
+        console.log('[Auth] Platform:', platform);
+        console.log('[Auth] Initializing GoogleSignIn with clientId:', environment.googleClientId);
+
         void GoogleSignIn.initialize({
             clientId: environment.googleClientId,
-            redirectUrl: window.location.origin,
+            scopes: ['https://www.googleapis.com/auth/userinfo.profile'],
         });
 
         // On web, signIn() redirects the page to Google and the promise never resolves.
         // When Google redirects back, the id_token is in the URL hash — handle it here.
         if (window.location.hash.includes('id_token')) {
+            console.log('[Auth] id_token found in URL hash, handling redirect callback...');
             void this.handleRedirectCallback();
         }
     }
 
     async login(): Promise<void> {
-        // Navigates the page to Google OAuth — never resolves on web
-        await GoogleSignIn.signIn();
+        const platform = Capacitor.getPlatform();
+        console.log('[Auth] login() called, platform:', platform);
+        this.isLoading$.next(true);
+        try {
+            console.log('[Auth] Calling GoogleSignIn.signIn()...');
+            const result = await GoogleSignIn.signIn();
+            console.log('[Auth] GoogleSignIn.signIn() result:', JSON.stringify(result));
+
+            if (result.idToken) {
+                console.log('[Auth] idToken received, length:', result.idToken.length);
+                await this.verifyTokenWithServer(result.idToken);
+            } else {
+                console.warn('[Auth] No idToken in result — on Android this is unexpected. Full result:', JSON.stringify(result));
+            }
+        } catch (err) {
+            console.error('[Auth] GoogleSignIn.signIn() error:', err);
+            if (err instanceof Error) {
+                console.error('[Auth] Error name:', err.name);
+                console.error('[Auth] Error message:', err.message);
+                console.error('[Auth] Error stack:', err.stack);
+            } else {
+                console.error('[Auth] Raw error (non-Error object):', JSON.stringify(err));
+            }
+            this.loginError$.next('google');
+        } finally {
+            this.isLoading$.next(false);
+        }
+    }
+
+    // Extraction de la logique de vérification pour la réutiliser
+    private async verifyTokenWithServer(idToken: string): Promise<void> {
+        console.log('[Auth] Verifying idToken with server at:', environment.apiUrl);
+        try {
+            const user = await firstValueFrom(
+                this.http.post<AuthUser>(`${environment.apiUrl}/api/auth/google`, { idToken })
+            );
+            console.log('[Auth] Server verification success, user:', user.email);
+            this.user$.next(user);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+        } catch (err) {
+            console.error('[Auth] Server verification error:', err);
+            if (err instanceof HttpErrorResponse) {
+                console.error('[Auth] HTTP status:', err.status);
+                console.error('[Auth] HTTP error body:', JSON.stringify(err.error));
+            }
+            const isServerError = err instanceof HttpErrorResponse && err.status >= 500;
+            this.loginError$.next(isServerError ? 'server' : 'google');
+            throw err;
+        }
     }
 
     async updateProfile(name: string, picture: string): Promise<void> {
@@ -75,18 +128,14 @@ export class AuthService {
         this.isLoading$.next(true);
         try {
             const { idToken } = await GoogleSignIn.handleRedirectCallback();
-            const user = await firstValueFrom(
-                this.http.post<AuthUser>(`${environment.apiUrl}/api/auth/google`, { idToken })
-            );
-            this.user$.next(user);
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+            if (idToken) {
+                await this.verifyTokenWithServer(idToken);
+            }
         } catch (err) {
             console.error('Google redirect callback error:', err);
-            const isServerError = err instanceof HttpErrorResponse && err.status >= 500;
-            this.loginError$.next(isServerError ? 'server' : 'google');
         } finally {
             this.isLoading$.next(false);
-            history.replaceState(null, '', window.location.pathname + window.location.search);
+            history.replaceState(null, '', window.location.pathname);
         }
     }
 

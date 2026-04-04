@@ -1,4 +1,5 @@
-html, body {
+html,
+body {
   margin: 0;
   padding: 0;
   width: 100%;
@@ -12,4 +13,11 @@ app-root {
   height: 100%;
   box-sizing: border-box;
   padding-top: env(safe-area-inset-top);
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+  /* Supprime le rectangle bleu */
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+  /* Sécurité pour certains navigateurs */
 }

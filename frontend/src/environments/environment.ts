@@ -3,5 +3,5 @@ export const environment = {
     apiUrl: 'http://localhost:8080',
     wsUrl: 'ws://localhost:8080',
     // CLIENT_ID_WEB depuis Google Cloud Console
-    googleClientId: '211257291077-apkc083sbsabvleeb6j75efbjps5qphh.apps.googleusercontent.com',
+    googleClientId: '211257291077-4uhmhpvlo13ub7f03imeu2du5l3g8ndl.apps.googleusercontent.com',
 };

@@ -44,6 +44,9 @@
           },
           "configurations": {
             "production": {
+              "allowedCommonJsDependencies": [
+                "@stencil/core"
+              ],
               "budgets": [
                 {
                   "type": "initial",
