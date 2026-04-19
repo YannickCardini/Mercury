@@ -1,7 +1,7 @@
 ================================================================================
 BUG ACTIF : Google Sign-In Android ne fonctionne pas
 ================================================================================
-Dernière mise à jour : 2026-04-04
+Dernière mise à jour : 2026-04-18
 
 --------------------------------------------------------------------------------
 OBJECTIF
@@ -163,3 +163,131 @@ async login(): Promise<void> {
 const user = await firstValueFrom(
     this.http.post<AuthUser>(`${environment.apiUrl}/api/auth/google`, { idToken })
 );
+
+================================================================================
+SESSION DE DIAGNOSTIC — 2026-04-18
+================================================================================
+
+--------------------------------------------------------------------------------
+VÉRIFICATIONS EFFECTUÉES (tout est CORRECT côté config)
+--------------------------------------------------------------------------------
+
+1. Signature APK au runtime (./gradlew signingReport)
+   Variant debug → SHA-1 : 80:C5:9D:0D:2E:4C:0E:0D:7A:1E:E3:DE:6E:0A:05:CD:91:C0:25:78
+   Toutes les variantes (debug, debugAndroidTest, tous les sous-modules Capacitor)
+   utilisent bien /home/loubard/.android/debug.keystore.
+   → Identique au SHA-1 enregistré dans Google Cloud ✓
+   → Identique au certificate_hash dans google-services.json ✓
+
+2. Audit Google Cloud Console (projet mercury-491304) via navigateur :
+
+   [Audience]
+     - Publishing status          : Testing
+     - User type                  : External
+     - Test users                 : 1 user (1 test, 0 other)
+                                    → yannick.cardini@gmail.com EST bien dans la liste ✓
+     - OAuth user cap             : 100
+
+   [Branding]
+     - App name                   : "Mercury" ✓
+     - User support email         : yannick.cardini@gmail.com ✓
+     - Developer contact email    : yannick.cardini@gmail.com ✓
+     - Verification status        : "not required since app is in Testing status"
+
+   [Data Access / Scopes]
+     - openid ✓
+     - .../auth/userinfo.email ✓
+     - .../auth/userinfo.profile ✓
+     - Pas de scopes sensibles ni restreints
+
+   [Clients]
+     - Mercury Android Debug (créé le 2026-04-01)
+         client_id   : 211257291077-pesle08guglamsenieugfpc8ebn6c0o1
+         package     : app.android.mercury ✓
+         SHA-1       : 80:C5:9D:…:25:78 ✓
+         Last used   : 2026-04-05 (les requêtes ATTEIGNENT bien Google)
+         Ownership   : non vérifiée (marquée "optional")
+
+     - Web client (auto created by Google Service) (créé le 2026-04-04)
+         client_id   : 211257291077-4uhmhpvlo13ub7f03imeu2du5l3g8ndl
+         Authorized JavaScript origins / Redirect URIs :
+           http://localhost
+           http://localhost:5000
+           http://localhost:4200
+           https://mercury-491304.firebaseapp.com
+           https://mercury-491304.firebaseapp.com/__/auth/handler
+           https://orange-mushroom-06fe48c03.6.azurestaticapps.net
+           https://mercury-api-e5gqghhkdtfheqht.francecentral-01.azurewebsites.net/auth/login/google/callback
+
+   Avertissements du Project Checkup (non bloquants) :
+     - "App ownership not verified" pour Mercury Android Debug (optional)
+     - Web client utilise le flux implicite déprécié (créé par Firebase)
+
+CONCLUSION CONFIG : rien à corriger côté Google Cloud.
+Les requêtes ATTEIGNENT bien Google (Last used date à jour),
+c'est GMS sur l'appareil qui rejette après sélection du compte.
+
+--------------------------------------------------------------------------------
+ANALYSE DU PLUGIN
+--------------------------------------------------------------------------------
+
+Le plugin @capawesome/capacitor-google-sign-in@0.1.2 utilise
+**GetSignInWithGoogleOption** (flux "bouton Sign in with Google"),
+PAS GetGoogleIdOption (flux identity).
+
+Source vérifiée :
+  node_modules/@capawesome/capacitor-google-sign-in/android/src/main/java/
+    io/capawesome/capacitorjs/plugins/googlesignin/GoogleSignIn.java (ligne 78)
+
+    GetSignInWithGoogleOption.Builder optionBuilder =
+        new GetSignInWithGoogleOption.Builder(clientId);
+
+Pourquoi l'erreur apparaît comme "user canceled" :
+  - Quand GMS échoue (code 16), Credential Manager ferme la bottom sheet
+  - Cela lève une GetCredentialCancellationException
+  - Le plugin (lignes 104-106) mappe TOUTE GetCredentialCancellationException
+    vers SIGN_IN_CANCELED, qu'il s'agisse d'un vrai cancel ou d'un échec GMS.
+  - L'erreur réelle (code 16) est uniquement visible en logcat.
+
+L'API du plugin n'expose AUCUN paramètre pour :
+  - filterByAuthorizedAccounts
+  - autoSelectEnabled
+  - passer en GetGoogleIdOption
+
+--------------------------------------------------------------------------------
+TENTATIVES DE CORRECTION — 
+--------------------------------------------------------------------------------
+
+[TENTATIVE 1 — ÉCHEC] Retirer les scopes de GoogleSignIn.initialize()
+  Action : supprimé scopes: ['...userinfo.profile']
+  Résultat : même erreur SIGN_IN_CANCELED / code 16 reauth failed.
+
+[TENTATIVE 2 — NON CONCLUANT, config correcte] Vérifier SHA-1 runtime
+  Action : ./gradlew signingReport depuis frontend/android
+  Résultat : SHA-1 confirmé identique au keystore enregistré.
+  → N'était PAS la cause.
+
+[TENTATIVE 3 — NON CONCLUANT, config correcte] Audit OAuth consent screen
+  Action : vérifié via navigateur :
+           publishing status, test users, branding, scopes,
+           clients Android/Web, authorized origins.
+  Résultat : tout est correctement configuré.
+  → N'était PAS la cause.
+
+[TENTATIVE 4 — ÉCHEC] Clear GMS data + app data + reboot
+  Action :
+    - Settings → Apps → Mercury → Storage → Clear data
+    - Settings → Apps → Google Play services → Storage → Clear all data
+    - Reboot
+    - Rebuild + réinstallation
+  Résultat : même erreur.
+  → Ce n'est PAS un simple cache GMS corrompu.
+
+[TENTATIVE 5 — ÉCHEC] Essayer un autre compte Google sur l'appareil
+  Action : ajouté un second compte comme test user, signé dans ce compte
+           sur le téléphone, retry du flow.
+  Résultat : même erreur avec l'autre compte.
+  → Ce n'est PAS spécifique au compte yannick.cardini, ni à la 2FA.
+
+
+

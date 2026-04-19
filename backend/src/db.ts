@@ -30,7 +30,12 @@ export async function getUsersContainer(): Promise<Container> {
 export async function updateUserPoints(userId: string, delta: number): Promise<void> {
     const container = await getUsersContainer();
     const ops: PatchOperation[] = [{ op: 'incr', path: '/points', value: delta }];
-    await container.item(userId, userId).patch(ops);
+    try {
+        await container.item(userId, userId).patch(ops);
+    } catch (err: unknown) {
+        if ((err as { code?: number }).code === 404) return;
+        throw err;
+    }
 }
 
 export async function recomputeRankings(): Promise<void> {

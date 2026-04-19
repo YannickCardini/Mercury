@@ -179,6 +179,48 @@ router.get('/user/:id', async (req: Request, res: Response) => {
     }
 });
 
+// POST /api/auth/bot — création/récupération d'un bot sans compte Google
+router.post('/bot', async (req: Request, res: Response) => {
+    const { secret, botId, name } = req.body as { secret?: string; botId?: string; name?: string };
+
+    if (!secret || secret !== process.env['BOT_SECRET']) {
+        res.status(401).json({ error: 'Invalid bot secret' });
+        return;
+    }
+    if (!botId || botId.length < 1 || botId.length > 64 || !/^[\w-]+$/.test(botId)) {
+        res.status(400).json({ error: 'botId must be 1–64 alphanumeric/dash characters' });
+        return;
+    }
+    if (!name || name.length < 1 || name.length > 30) {
+        res.status(400).json({ error: 'name must be 1–30 characters' });
+        return;
+    }
+
+    const now = new Date().toISOString();
+    let user: UserDoc;
+
+    try {
+        const container = await getUsersContainer();
+        try {
+            const { resource } = await container.item(botId, botId).read<UserDoc>();
+            if (!resource) throw Object.assign(new Error('Not found'), { code: 404 });
+            resource.lastLogin = now;
+            await container.item(botId, botId).replace(resource);
+            user = resource;
+        } catch (err: unknown) {
+            if ((err as { code?: number }).code !== 404) throw err;
+            user = { id: botId, email: '', name, picture: '', points: 0, ranking: 0, lastLogin: now, createdAt: now };
+            await container.items.create(user);
+        }
+    } catch (err) {
+        console.error('❌ Cosmos DB error (POST /bot):', err);
+        res.status(500).json({ error: 'Database error' });
+        return;
+    }
+
+    res.json({ userId: user.id, name: user.name, points: user.points, ranking: user.ranking });
+});
+
 // GET /api/auth/leaderboard — top 100 players sorted by ranking
 router.get('/leaderboard', async (_req: Request, res: Response) => {
     try {
