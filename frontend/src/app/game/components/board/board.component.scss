@@ -577,6 +577,7 @@ $colors: (
             white-space: nowrap;
             flex: 1;
             min-width: 0;
+            cursor: pointer;
         }
 
         .cards-indicator {
@@ -699,7 +700,7 @@ $colors: (
     position: absolute;
     left: 50%;
     top: 50%;
-    transform: translate(-50%, -50%);
+    transform: translate(calc(-50% + 6px), -50%);
     width: calc(var(--square-size) * 3);
     height: calc(var(--square-size) * 3);
     display: flex;

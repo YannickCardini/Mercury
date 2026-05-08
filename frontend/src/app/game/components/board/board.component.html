@@ -24,7 +24,7 @@
             }
           </div>
           <div class="player-info">
-            <span class="player-name">{{ getDisplayName(player) }}</span>
+            <span class="player-name" (click)="onAvatarClick(pColor, $event)">{{ getDisplayName(player) }}</span>
             @if (player && !player.isConnected) {
             <div class="disconnect-icon">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
