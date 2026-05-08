@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, inject } from '@angular/core';
+import { Component, OnInit, signal, computed, inject } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
@@ -27,6 +27,13 @@ export class LeaderboardPage implements OnInit {
   entries = signal<LeaderboardEntry[]>([]);
   loading = signal(true);
   error = signal('');
+  searchQuery = signal('');
+
+  filteredEntries = computed(() => {
+    const q = this.searchQuery().toLowerCase().trim();
+    if (!q) return this.entries();
+    return this.entries().filter(e => e.name.toLowerCase().includes(q));
+  });
 
   ngOnInit(): void {
     firstValueFrom(

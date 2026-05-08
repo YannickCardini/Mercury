@@ -10,18 +10,45 @@
       <h1 class="lb-title">Leaderboard</h1>
     </div>
 
+    @if (!loading() && !error()) {
+      <div class="lb-search-wrap">
+        <svg class="lb-search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input
+          class="lb-search"
+          type="text"
+          placeholder="Search by name…"
+          [value]="searchQuery()"
+          (input)="searchQuery.set($any($event.target).value)"
+          autocomplete="off"
+        />
+        @if (searchQuery()) {
+          <button class="lb-search-clear" (click)="searchQuery.set('')" aria-label="Clear search">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        }
+      </div>
+    }
+
     @if (loading()) {
       <div class="lb-state">
         <div class="lb-spinner"></div>
       </div>
     } @else if (error()) {
       <div class="lb-state lb-state--error">{{ error() }}</div>
+    } @else if (filteredEntries().length === 0) {
+      <div class="lb-state">No player found.</div>
     } @else {
       <ol class="lb-list">
-        @for (entry of entries(); track entry.ranking; let i = $index) {
-          <li class="lb-row" [class.lb-row--top3]="i < 3" (click)="openProfile(entry.id)" role="button" tabindex="0" (keydown.enter)="openProfile(entry.id)">
-            <span class="lb-rank" [class.lb-rank--gold]="i === 0" [class.lb-rank--silver]="i === 1" [class.lb-rank--bronze]="i === 2">
-              {{ i + 1 }}
+        @for (entry of filteredEntries(); track entry.ranking) {
+          <li class="lb-row" [class.lb-row--top3]="entry.ranking <= 3" (click)="openProfile(entry.id)" role="button" tabindex="0" (keydown.enter)="openProfile(entry.id)">
+            <span class="lb-rank" [class.lb-rank--gold]="entry.ranking === 1" [class.lb-rank--silver]="entry.ranking === 2" [class.lb-rank--bronze]="entry.ranking === 3">
+              {{ entry.ranking }}
             </span>
             @if (entry.picture) {
               <img class="lb-avatar" [src]="entry.picture" [alt]="entry.name" referrerpolicy="no-referrer" />

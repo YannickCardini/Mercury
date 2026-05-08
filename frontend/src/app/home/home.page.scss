@@ -578,7 +578,7 @@ $bg-mid: #1a2840;
 
 // ─── Modal overlay ────────────────────────────────────────────────────────────
 .modal-overlay {
-  position: absolute;
+  position: fixed;
   inset: 0;
   z-index: 100;
   display: flex;
@@ -1407,6 +1407,18 @@ $bg-mid: #1a2840;
   margin-bottom: 4px;
 }
 
+.login-info-banner {
+  padding: 10px 14px;
+  background: rgba($c-blue, 0.12);
+  border: 1px solid rgba($c-blue, 0.3);
+  border-radius: 10px;
+  color: rgba($c-blue, 0.9);
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-align: center;
+  margin-bottom: 4px;
+}
+
 // ─── Auth user info (modal, logged-in) ────────────────────────────────────────
 // ─── Profile card (login modal — authenticated state) ─────────────────────────
 .profile-card {
@@ -2049,9 +2061,10 @@ $bg-mid: #1a2840;
   max-width: 440px;
   display: flex;
   flex-direction: column;
-  max-height: min(85vh, 760px);
+  max-height: min(85dvh, 760px);
   min-height: 0;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .custom-create-btn {

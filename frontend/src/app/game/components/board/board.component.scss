@@ -584,6 +584,8 @@ $colors: (
             gap: 3px;
             align-items: center;
             flex-shrink: 0;
+            padding: 2px;
+            overflow: visible;
         }
 
         .card-slot {

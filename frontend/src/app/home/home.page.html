@@ -219,6 +219,10 @@
             {{ loginErrorMessage }}
           </div>
 
+          <div class="login-info-banner" *ngIf="loginPromptReason === 'custom-game'">
+            Custom Game requires an account to play.
+          </div>
+
           <button class="btn-google" (click)="loginWithGoogle()" [disabled]="auth.isLoading$ | async">
             <span *ngIf="auth.isLoading$ | async" class="btn-spinner"></span>
             <svg *ngIf="!(auth.isLoading$ | async)" width="18" height="18" viewBox="0 0 48 48">
@@ -235,7 +239,7 @@
           </button>
 
           <div class="or-divider"><span>ou</span></div>
-          <button class="btn-guest" (click)="closeLogin()">
+          <button class="btn-guest" (click)="continueAsGuest()">
             Continue without account&nbsp;→
           </button>
         </ng-container>
@@ -378,9 +382,9 @@
             <span>{{ customCreating ? 'Creating…' : 'Create new room' }}</span>
           </button>
 
-          <div class="custom-divider"><span>or join with a code</span></div>
+          <div class="custom-divider" *ngIf="!customCreating"><span>or join with a code</span></div>
 
-          <form class="custom-join" (ngSubmit)="joinCustomRoomByCode()">
+          <form class="custom-join" *ngIf="!customCreating" (ngSubmit)="joinCustomRoomByCode()">
             <input
               type="text"
               class="custom-join-input"

@@ -62,6 +62,7 @@ export class HomePage implements OnInit, OnDestroy {
   readonly appVersion = version;
 
   showLogin = false;
+  loginPromptReason: 'custom-game' | null = null;
   showSettings = false;
   showRules = false;
   showMatchmaking = false;
@@ -212,7 +213,17 @@ export class HomePage implements OnInit, OnDestroy {
   }
 
   openLogin() { this.showLogin = true; }
-  closeLogin() { this.showLogin = false; this.editingProfile = false; this.editError = ''; }
+  closeLogin() { this.showLogin = false; this.editingProfile = false; this.editError = ''; this.loginPromptReason = null; }
+
+  continueAsGuest(): void {
+    const reason = this.loginPromptReason;
+    this.closeLogin();
+    if (reason === 'custom-game') {
+      this.loginErrorMessage = 'Custom Game requires an account. Sign in to play.';
+      this.loginError = true;
+      setTimeout(() => this.loginError = false, 4000);
+    }
+  }
   switchMode(mode: 'login' | 'signup') { this.loginMode = mode; }
 
   toggleEditProfile(user: AuthUser): void {
@@ -364,6 +375,11 @@ export class HomePage implements OnInit, OnDestroy {
   async openCustomGame(): Promise<void> {
     if (this.hasActiveGame()) {
       this.router.navigate(['/game']);
+      return;
+    }
+    if (!this.auth.user$.getValue()) {
+      this.loginPromptReason = 'custom-game';
+      this.showLogin = true;
       return;
     }
     if (await this.tabLock.isOtherTabActive()) {
