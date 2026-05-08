@@ -318,7 +318,7 @@ export class HomePage implements OnInit, OnDestroy {
     this.myMatchmakingColor = null;
 
     const user = this.auth.user$.getValue();
-    const playerName = user?.name ?? generateGuestName();
+    const playerName = user?.name;
     const playerPicture = user?.picture;
     const userId = user?.id;
     this.gameStateService.connect(environment.wsUrl, () => {
@@ -466,7 +466,7 @@ export class HomePage implements OnInit, OnDestroy {
     if (this.customCreating) return;
     this.customCreating = true;
     const user = this.auth.user$.getValue();
-    const playerName = user?.name ?? generateGuestName();
+    const playerName = user?.name ?? generateGuestName('red');
     this.customError = '';
     this.tabLock.claimSession();
     this.wireCustomRoomSubs();
@@ -484,7 +484,7 @@ export class HomePage implements OnInit, OnDestroy {
     }
     this.customCreating = true;
     const user = this.auth.user$.getValue();
-    const playerName = user?.name ?? generateGuestName();
+    const playerName = user?.name ?? '';
     this.customError = '';
     this.tabLock.claimSession();
     this.wireCustomRoomSubs();

@@ -41,7 +41,7 @@ export class MatchmakingManager {
 
     private session: PendingMatchmaking | null = null;
 
-    joinQueue(ws: WebSocket, playerName: string = 'Player', playerIdentities?: Map<string, { gameId: string; color: MarbleColor }>, browserId?: string, picture?: string, userId?: string): void {
+    joinQueue(ws: WebSocket, playerName?: string, playerIdentities?: Map<string, { gameId: string; color: MarbleColor }>, browserId?: string, picture?: string, userId?: string): void {
         if (!this.session) {
             this.session = {
                 messenger: new MultiWsMessenger(),
@@ -69,14 +69,17 @@ export class MatchmakingManager {
         }
 
         const guestPlayerId = crypto.randomUUID();
-        const player: MatchPlayer = { ws, color, name: playerName, guestPlayerId, ...(browserId ? { browserId } : {}), ...(picture ? { picture } : {}), ...(userId ? { userId } : {}) };
+        const finalName = playerName && playerName.length > 0
+            ? playerName
+            : `Guest #${COLORS.indexOf(color) + 1}`;
+        const player: MatchPlayer = { ws, color, name: finalName, guestPlayerId, ...(browserId ? { browserId } : {}), ...(picture ? { picture } : {}), ...(userId ? { userId } : {}) };
         this.session.players.push(player);
         this.session.messenger.addConnection(color, ws);
 
         ws.addEventListener('close', () => this.handleDisconnect(color));
 
         this.broadcastStatus();
-        console.log(`🔍 Matchmaking — ${playerName} (${color}) rejoint (${this.session.players.length}/4)`);
+        console.log(`🔍 Matchmaking — ${finalName} (${color}) rejoint (${this.session.players.length}/4)`);
 
         if (!this.session.botDispatchTimer) {
             this.session.botDispatchTimer = setInterval(

@@ -108,7 +108,13 @@ export class CustomGameManager {
         }
 
         const guestPlayerId = crypto.randomUUID();
-        const player = this.makePlayer(ws, color, info, guestPlayerId);
+        const resolvedInfo = {
+            ...info,
+            playerName: info.playerName && info.playerName.length > 0
+                ? info.playerName
+                : `Guest #${COLORS.indexOf(color) + 1}`,
+        };
+        const player = this.makePlayer(ws, color, resolvedInfo, guestPlayerId);
         room.players.push(player);
         room.messenger.addConnection(color, ws);
         if (info.userId) this.presence.register(info.userId, ws);
@@ -117,7 +123,7 @@ export class CustomGameManager {
 
         this.bumpExpiry(room);
         this.broadcastStatus(code);
-        console.log(`➕ ${info.playerName} (${color}) joined custom room ${code}`);
+        console.log(`➕ ${resolvedInfo.playerName} (${color}) joined custom room ${code}`);
     }
 
     private makePlayer(

@@ -1,32 +1,81 @@
-# TODO
+## TASK 1 — Make player name clickable to open profile panel (same as avatar icon)
 
-## 1. Loading indicator on the "Create new room" button (Custom Game modal)
+Context:
+- In the game board, each player's corner shows an avatar icon and a name.
+- The avatar icon already has a click handler (`onAvatarClick()` in
+  `frontend/src/app/game/components/board/board.component.ts:804`) that opens a
+  profile panel with info about that player.
+- The player name is rendered at
+  `frontend/src/app/game/components/board/board.component.html:27`
+  via `{{ getDisplayName(player) }}`, but has no click handler.
 
-**Where:** Custom Game modal, "choose" stage.
-- Template: [frontend/src/app/home/home.page.html:376-379](frontend/src/app/home/home.page.html#L376-L379) (`button.custom-create-btn` calling `createCustomRoom()`).
-- Component method: [frontend/src/app/home/home.page.ts:444-453](frontend/src/app/home/home.page.ts#L444-L453) (`createCustomRoom()`).
-- Stage transition is driven by `customRoomStatus$` subscription at [frontend/src/app/home/home.page.ts:396-407](frontend/src/app/home/home.page.ts#L396-L407), which sets `customStage = 'in-room'` only after the server replies.
+Steps:
+1. In `board.component.html`, add `(click)="onAvatarClick(pColor, $event)"` on
+   the element that wraps the player name (line ~27), the same way it is done
+   on the avatar icon element (line ~17).
+2. Add the same cursor styling (`cursor: pointer`) to the name element in
+   `board.component.scss` so the clickable area is visually obvious.
+3. No backend changes needed — `onAvatarClick()` already fetches profile data
+   from `/api/auth/user/{userId}` and positions the panel correctly.
 
-**Problem:**
-In production, there is a noticeable delay between clicking "Create new room" and the modal switching to the "in-room" stage. The delay is caused by the websocket round-trip: `gameStateService.connect(...)` opens a new WS connection, then `sendCreateCustomRoom(...)` is sent, and the UI only updates when the backend emits the `customRoomStatus` event. During this window, the button gives no visual feedback, so the user may think the click was ignored and click again.
 
-**Goal:**
-Show a loading state on the "Create new room" button (and prevent re-clicks) from the moment it is clicked until either:
-- the modal transitions to `customStage === 'in-room'`, or
-- an error occurs (`customError` set, or `connectionError$` / `actionRejected$` fires).
+## TASK 2 — Fix visual misalignment of the discard pile on the board
 
-**Suggested implementation steps:**
-1. Add a new comthis.gameStateService.connectponent flag, e.g. `customCreating = false`, alongside the existing `customStarting` flag at [frontend/src/app/home/home.page.ts:109](frontend/src/app/home/home.page.ts#L109). Reset it to `false` in `resetCustomGameState()` ([home.page.ts:378-391](frontend/src/app/home/home.page.ts#L378-L391)).
-2. In `createCustomRoom()` ([home.page.ts:444-453](frontend/src/app/home/home.page.ts#L444-L453)):
-   - Guard early-return if `customCreating` is already `true`.
-   - Set `customCreating = true` before calling `gameStateService.connect(...)`.
-   - Clear `customCreating = false` once the stage transitions to `'in-room'` (inside the `customRoomStatus$` subscription at [home.page.ts:396-407](frontend/src/app/home/home.page.ts#L396-L407)) and inside the error/rejection handlers at [home.page.ts:416-435](frontend/src/app/home/home.page.ts#L416-L435).
-3. In the template ([home.page.html:376-379](frontend/src/app/home/home.page.html#L376-L379)):
-   - Add `[disabled]="customCreating"` to the button.
-   - Swap the label/icon for a loading state when `customCreating` is true (mirror the existing `customStarting ? 'Starting…' : 'Start'` pattern at [home.page.html:511-513](frontend/src/app/home/home.page.html#L511-L513) — e.g. `{{ customCreating ? 'Creating…' : 'Create new room' }}`, optionally with a spinner replacing the `ab-marble` element).
-4. Apply the same treatment to the "Join" button at [home.page.html:395-397](frontend/src/app/home/home.page.html#L395-L397) / `joinCustomRoomByCode()` ([home.page.ts:455](frontend/src/app/home/home.page.ts#L455)) if it shares the same delay (verify by inspecting the same WS round-trip).
+Context:
+- The discard pile is rendered in `board.component.html:86-100` inside a
+  `.discard-zone` div that is absolutely positioned at `left: 50%; top: 50%;`
+  with `transform: translate(-50%, -50%)` (SCSS lines ~698-709).
+- Each stacked card is offset with
+  `transform: translate(calc(index * -3px), calc(index * 3px)) rotate(...)`,
+  making each card shift left relative to the previous one.
+- Because the stack grows to the left, the top card ends up left of the
+  intended center, making the entire pile look off-center on the board.
 
-**Acceptance criteria:**
-- Clicking "Create new room" immediately disables the button and shows a loading affordance (text change and/or spinner).
-- The loading affordance disappears as soon as the modal switches to the "in-room" stage, or when an error is shown.
-- A second click during the loading window is a no-op (no duplicate WS connections, no duplicate `createCustomRoom` messages sent).
+Steps:
+1. In `board.component.scss`, adjust the `.discard-zone` centering transform to
+   compensate for the leftward drift of the stack. For a maximum of 5 visible
+   cards offset by -3px each, the total leftward shift is up to -12px (4 gaps).
+   Add `translateX(6px)` to the `.discard-zone` transform to re-center the
+   visual midpoint of the pile:
+     `transform: translate(calc(-50% + 6px), -50%);`
+   Tune the pixel value if needed so the pile appears centered between the draw
+   deck and the board edges.
+2. Alternatively, change the card stacking direction so cards cascade to the
+   right (positive X) and upward (negative Y) instead, which keeps the
+   top/most-recent card roughly at the center point.
+3. Do not remove the cascade effect — only fix the centering.
+
+
+## TASK 3 — Rename unauthenticated players as "Guest #1" through "Guest #4"
+
+Context:
+- When a player is not logged in, the frontend currently calls `generateGuestName()`
+  (defined in `frontend/src/app/shared/guest-name.ts`) which generates a random
+  name like "SwiftFox42". The desired behaviour is to assign a deterministic
+  name "Guest #X" where X reflects the order in which the player joined the game
+  (1st joiner → "Guest #1", …, 4th joiner → "Guest #4").
+- Player colors are assigned in join order by the backend
+  (`backend/src/session/session-manager.ts:joinRoom()`). The color-to-slot
+  mapping is: RED = slot 1, GREEN = slot 2, BLUE = slot 3, ORANGE = slot 4
+  (based on the `MarbleColor` enum in `packages/shared/src/types.ts`).
+- `generateGuestName()` is called in `frontend/src/app/home/home.page.ts`
+  at lines ~321 and ~469 when `user` is null.
+
+Steps:
+1. In `frontend/src/app/home/home.page.ts`, replace calls to `generateGuestName()`
+   with a helper that derives the guest number from the player's assigned color slot:
+     - RED   → "Guest #1"
+     - GREEN → "Guest #2"
+     - BLUE  → "Guest #3"
+     - ORANGE → "Guest #4"
+   The player's color is available in the game config at the point these calls
+   are made. Pass it to the new helper instead of using the random generator.
+2. Update (or replace) the `generateGuestName()` function in
+   `frontend/src/app/shared/guest-name.ts` to accept a `MarbleColor` parameter
+   and return the corresponding "Guest #X" string. Remove the adjective/animal/
+   number random logic entirely since it will no longer be used.
+3. Ensure the generated name is sent to the backend in the `JoinGameMessage`
+   (`packages/shared/src/types.ts:315-319`) so other players see the correct
+   guest name in the board's player corners.
+4. No backend changes are required — the backend stores whatever name the client
+   sends and does not generate guest names itself.
