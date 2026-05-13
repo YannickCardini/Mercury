@@ -102,21 +102,22 @@ export class BoardComponent implements OnInit, OnDestroy {
   hoveredMarble = signal<number | null>(null);
 
   /** Squares à mettre en évidence : chemin intermédiaire + destination. */
-  previewInfo = computed<{ path: Set<number>; destination: number | null }>(() => {
-    if (!this.gameStateService.isMyTurn()) return { path: new Set(), destination: null };
+  previewInfo = computed<{ path: Set<number>; pathMarble2: Set<number>; destination: number | null }>(() => {
+    const empty = { path: new Set<number>(), pathMarble2: new Set<number>(), destination: null };
+    if (!this.gameStateService.isMyTurn()) return empty;
 
     const card = this.gameStateService.selectedCard();
-    if (!card) return { path: new Set(), destination: null };
+    if (!card) return empty;
 
     const focusedMarble = this.hoveredMarble() ?? this.gameStateService.selectedMarblePosition();
-    if (focusedMarble === null) return { path: new Set(), destination: null };
+    if (focusedMarble === null) return empty;
 
     const data = this.gameStateService.data();
     const myColor = this.gameStateService.myPlayerColor();
-    if (!data || !myColor) return { path: new Set(), destination: null };
+    if (!data || !myColor) return empty;
 
     const player = data.gameState.players.find(p => p.color === myColor);
-    if (!player) return { path: new Set(), destination: null };
+    if (!player) return empty;
 
     const marblesByColor = Object.fromEntries(
       data.gameState.players.map(p => [p.color, p.marblePositions])
@@ -142,9 +143,9 @@ export class BoardComponent implements OnInit, OnDestroy {
           const action2 = getActionForSteps(dummyCard, marble2, 7 - steps1, ctx);
           const preview1 = action1 ? this.computePreviewFromAction(action1) : { path: new Set<number>(), destination: null };
           const preview2 = action2 ? this.computePreviewFromAction(action2) : { path: new Set<number>(), destination: null };
-          const combinedPath = new Set([...preview1.path, ...preview2.path]);
-          if (preview1.destination !== null) combinedPath.add(preview1.destination);
-          return { path: combinedPath, destination: preview2.destination };
+          const path1 = new Set(preview1.path);
+          if (preview1.destination !== null) path1.add(preview1.destination);
+          return { path: path1, pathMarble2: preview2.path, destination: preview2.destination };
         }
         // Only first marble selected: always show marble1's path
         const action1 = getActionForSteps(dummyCard, marble1, steps1, ctx);
@@ -157,24 +158,25 @@ export class BoardComponent implements OnInit, OnDestroy {
           const action2 = getActionForSteps(dummyCard, focusedMarble, 7 - steps1, ctx);
           if (action2) {
             const preview2 = this.computePreviewFromAction(action2);
-            const combinedPath = new Set([...preview1.path, ...preview2.path]);
-            if (preview1.destination !== null) combinedPath.add(preview1.destination);
-            return { path: combinedPath, destination: preview2.destination };
+            const path1 = new Set(preview1.path);
+            if (preview1.destination !== null) path1.add(preview1.destination);
+            return { path: path1, pathMarble2: preview2.path, destination: preview2.destination };
           }
         }
 
-        return { path: preview1.path, destination: preview1.destination };
+        return { path: preview1.path, pathMarble2: new Set(), destination: preview1.destination };
       } else {
         action = getLegalAction(card, focusedMarble, ctx);
       }
     } else if (card.value === 'J') {
-      return { path: new Set(), destination: null };
+      return empty;
     } else {
       action = getLegalAction(card, focusedMarble, ctx);
     }
 
-    if (!action) return { path: new Set(), destination: null };
-    return this.computePreviewFromAction(action);
+    if (!action) return empty;
+    const preview = this.computePreviewFromAction(action);
+    return { path: preview.path, pathMarble2: new Set(), destination: preview.destination };
   });
 
   /**
@@ -514,6 +516,10 @@ export class BoardComponent implements OnInit, OnDestroy {
 
   isPreviewPath(index: number): boolean {
     return this.previewInfo().path.has(index);
+  }
+
+  isPreviewPathMarble2(index: number): boolean {
+    return this.previewInfo().pathMarble2.has(index);
   }
 
   isPreviewDestination(index: number): boolean {

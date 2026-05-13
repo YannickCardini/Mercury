@@ -54,6 +54,7 @@
         @else {
         <div [class]="getSquareClass(index)" [ngClass]="getSquareAnimClass(index)"
           [class.square-preview-path]="isPreviewPath(index)"
+          [class.square-preview-path-marble2]="isPreviewPathMarble2(index)"
           [class.square-preview-destination]="isPreviewDestination(index)">
           @if (getMarbleOnSquare(index); as marbleColor) {
           <div class="marble" [ngClass]="[

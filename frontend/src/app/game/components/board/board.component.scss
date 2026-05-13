@@ -1233,6 +1233,22 @@ $colors: (
     }
 }
 
+.case-path.square-preview-path-marble2 {
+    &::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        background: rgba(251, 191, 36, 0.1);
+        border: 2px dashed rgba(251, 191, 36, 0.7);
+        box-sizing: border-box;
+        pointer-events: none;
+        z-index: 5;
+        opacity: 0.85;
+        animation: previewPathPulse 1.2s ease-in-out infinite;
+    }
+}
+
 .case-path.square-preview-destination {
     &::before {
         content: '';

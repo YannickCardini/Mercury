@@ -64,6 +64,13 @@ enum TURN_PHASE {
     this.validSplitSevenSteps().length > 0
   );
 
+  /** Vrai quand le 7 vient d'être sélectionné mais aucun pion n'a encore été choisi. */
+  showSevenIntroHint = computed(() =>
+    this.gameStateService.isMyTurn() &&
+    this.gameStateService.selectedCard()?.value === '7' &&
+    this.gameStateService.selectedMarblePosition() === null
+  );
+
   /** Pas valides (1–7) pour le premier pion sélectionné avec le 7. */
   validSevenSteps = computed<number[]>(() => {
     const marble1 = this.gameStateService.selectedMarblePosition();

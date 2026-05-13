@@ -110,6 +110,13 @@
     </div>
   </div>
 
+  <!-- ===== HINT D'INTRODUCTION POUR LE 7 ===== -->
+  @if (showSevenIntroHint()) {
+  <div class="seven-intro-hint">
+    Move a marble 7 steps — or tap to split between two marbles.
+  </div>
+  }
+
   <!-- ===== SÉLECTEUR DE SPLIT DU 7 ===== -->
   @if (showSevenStepCounter()) {
   <div class="seven-split-bar" [class.seven-split-bar--split-active]="gameStateService.sevenFirstSteps() < 7"
