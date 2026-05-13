@@ -167,7 +167,8 @@ export class SessionManager {
             const game = new Game(room.config, room.messenger);
             GameRegistry.register(game.id, game);
 
-            // Wire up permanent disconnect callback
+            // Wire up disconnect callbacks (immediate + permanent)
+            room.messenger.setOnTempDisconnect((color) => game.markTempDisconnected(color));
             room.messenger.setOnPermanentDisconnect((color) => game.markDisconnected(color));
 
             // Wire up abandon callback to clean up playerIdentities

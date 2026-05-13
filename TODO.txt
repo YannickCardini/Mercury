@@ -1,0 +1,154 @@
+================================================================================
+MERCURY — TODO LIST
+================================================================================
+
+--------------------------------------------------------------------------------
+BUG 1 — Rejoining a game after leaving / disconnect state handling
+--------------------------------------------------------------------------------
+
+There are two distinct sub-bugs here:
+
+A) Rejoin after explicitly leaving a game does not work
+   Context:
+   - When a player sends `abandonGame`, `handleAbandonGame` in game.ts:289 runs:
+     it sets `player.isConnected = false`, calls `messenger.forceDisconnect()`, and
+     then calls `onPlayerAbandoned()` which DELETES the player's entry from
+     `sessionManager.playerIdentities` (session-manager.ts:175).
+   - When the player comes back (page reload), the frontend reads `guest_player_id`
+     and `active_game_id` from localStorage (game.page.ts:99-102) and sends a
+     `joinGame` message. The server looks up `playerIdentities` (index.ts:87) but
+     finds nothing → responds with `actionRejected: 'Session expired or not found'`.
+   - Additionally, `messenger.forceDisconnect()` removes the WebSocket entry from
+     the `connections` map without a timer, so even if the identity existed,
+     `messenger.reconnect()` would return false (game-messenger.ts:105-108).
+
+   What to fix:
+   1. For signed-in players (those with a `userId`), do NOT delete their entry from
+      `playerIdentities` on abandon, and do NOT call `forceDisconnect`. Instead,
+      keep their identity alive so they can reconnect later.
+   2. In `MultiWsMessenger.reconnect()` (game-messenger.ts:94), handle the case
+      where a player abandoned but is signed-in: allow re-adding their connection
+      even if there is no active connection or pending timer.
+   3. On reconnection (`game.resendStateToPlayer`), restore `player.isConnected = true`.
+   4. Guest players (no `userId`) can keep the current behavior: abandoning is final.
+
+B) When a player's WebSocket drops, they should appear as "disconnected" immediately
+   Context:
+   - `registerCloseHandler` (game-messenger.ts:124) starts a 180-second timer.
+     During those 180 seconds, `player.isConnected` stays `true` even though the
+     player has no active socket. Other players see them as still connected.
+   - `markDisconnected()` (game.ts:128), which sets `player.isConnected = false` and
+     broadcasts the updated game state, is only called after the 180s timer expires.
+
+   What to fix:
+   1. In `registerCloseHandler`, immediately after the WebSocket closes, set
+      `player.isConnected = false` (or add a new flag like `isTempDisconnected = true`)
+      and broadcast the updated game state to remaining players so the UI reflects
+      the disconnection in real time.
+   2. When the player successfully reconnects (in `MultiWsMessenger.reconnect()` and
+      `game.resendStateToPlayer()`), set `player.isConnected = true` again and
+      broadcast the updated state.
+   3. To trigger step 1, the `MultiWsMessenger` needs a callback similar to
+      `onPermanentDisconnect` but for immediate disconnects. Wire this callback up in
+      session-manager.ts or index.ts the same way `setOnPermanentDisconnect` is wired.
+
+--------------------------------------------------------------------------------
+BUG 2 — Player preview panel: add an X close button + fix click-outside
+--------------------------------------------------------------------------------
+
+Context:
+- The player profile panel is rendered in board.component.html:130-180.
+- On non-hover devices (mobile), a full-screen `.profile-backdrop` div is shown
+  (board.component.html:132), which closes the panel when clicked. This covers
+  click-outside functionality on touch devices.
+- On hover devices (desktop), the panel closes when the mouse leaves it.
+- There is currently NO visible close button (×) inside the panel itself.
+
+What to fix:
+1. Add a close button (×) in the top-right corner of the `.profile-panel` element
+   (board.component.html, inside the `@if (profilePanel(); as panel)` block).
+   - It should call `closeProfilePanel()` on click.
+   - It should be visible on both hover and non-hover devices.
+   - Style it as a small icon button positioned absolutely in the panel's top-right
+     corner, using the existing SCSS file (board.component.scss).
+2. Verify that click-outside (via the `.profile-backdrop`) correctly closes the panel
+   AFTER it has fully appeared (there may be a timing issue where the backdrop
+   intercepts the same tap event that opened the panel, causing it to immediately
+   close). If such an issue exists, add a short delay before the backdrop becomes
+   interactive, or use `event.stopPropagation()` on the avatar tap to prevent
+   propagation to the backdrop.
+
+--------------------------------------------------------------------------------
+TASK 3 — Mobile performance: reduce lag during gameplay
+--------------------------------------------------------------------------------
+
+Context:
+- The game runs noticeably slower on mobile phones, particularly during card
+  animations and board updates.
+- The board component (board.component.ts) is a large component using Angular signals
+  and computed properties. The table component (table.component.ts:36) already uses
+  `ChangeDetectionStrategy.OnPush`.
+- Animations use CSS transitions injected as CSS variables (board.component.ts:625).
+- The profile picture pipeline already optimizes images aggressively (image-utils.ts).
+
+Steps to investigate and implement:
+1. Audit `@for` / `*ngFor` loops in board.component.html and table.component.html.
+   Add `track` identifiers to all `@for` loops that are missing them, to avoid
+   full DOM re-creation on every state update.
+2. Verify that `ChangeDetectionStrategy.OnPush` is applied to board.component.ts.
+   If not, add it.
+3. Profile which computed signals in board.component.ts are recomputing on every
+   state update even when their inputs have not changed. Refactor expensive computed
+   values to be more granular (split large computed() into smaller ones that only
+   depend on the relevant slice of state).
+4. For animated elements (flying cards, marble transitions), add `will-change: transform`
+   in SCSS to hint the browser to promote them to their own compositing layer.
+   Remove `will-change` after the animation ends to avoid keeping layers alive.
+5. Replace CSS `top`/`left` positioning on animated elements with `transform: translate()`
+   where applicable — `transform` is GPU-composited and does not trigger layout.
+6. If the board SVG or marble grid causes heavy repaints, consider adding
+   `contain: layout style paint` CSS property to the board container.
+7. On native (Capacitor) platforms, check if any JS-heavy operations (sorting, mapping,
+   deep comparisons) run on the main thread during animations and can be deferred
+   with `requestAnimationFrame` or `setTimeout(..., 0)`.
+
+--------------------------------------------------------------------------------
+TASK 4 — Card 7 UX: make the split mechanic easier to understand and use
+--------------------------------------------------------------------------------
+
+Context:
+- Card 7 allows a player to move a marble 7 steps, or split those 7 steps between
+  two different marbles (e.g., 3 steps on marble A + 4 steps on marble B).
+- Current UX flow:
+  1. Player selects card 7 from their hand.
+  2. Player taps a marble on the board (first marble selection).
+  3. The seven-step split bar appears at the bottom (table.component.html:113-148),
+     showing 7 dots. By default, all 7 steps are assigned to the first marble.
+  4. To split: the player taps one of the 6 split dots (steps 1-6) to choose how
+     many steps go to the first marble. A "X/Y" counter shows the split.
+  5. Player taps a second marble to complete the split move.
+- Problems reported:
+  - Users do not know the split feature exists before selecting a marble
+    (the split bar is hidden until step 2).
+  - "Tap to split" hint only appears when all 7 steps are on marble 1 (step 3).
+  - The dots are small and hard to tap on mobile.
+  - There is no distinction between marble 1's path and marble 2's path in the board
+    preview — both segments render identically, making it hard to visualize the split.
+
+What to fix:
+1. Add an instructional text that appears as soon as card 7 is selected (before any
+   marble is tapped). Show it near the split bar area or above the board. Suggested
+   copy: "Move a marble 7 steps — or tap to split between two marbles."
+   Hide this text once the first marble is selected (the split bar takes over).
+2. Increase the touch target size of the split dots (`.split-dot` in table.component.scss)
+   on mobile. The visible dot can remain the same size, but the tappable area should
+   be at least 44×44 px (iOS HIG recommendation). Use padding or a larger transparent
+   hit area.
+3. In the board preview (board.component.ts:131-177), visually differentiate the two
+   marble paths when a split is active:
+   - Marble 1 path: render preview squares with the normal highlight style.
+   - Marble 2 path: render preview squares with a dashed border or a lower opacity,
+     so the player can distinguish which steps belong to which marble.
+4. (Optional, lower priority) Consider showing the split bar in a grayed-out / disabled
+   state even before a marble is selected, so players can discover the split mechanic
+   without having to stumble upon it. Activate the dots once marble 1 is chosen.

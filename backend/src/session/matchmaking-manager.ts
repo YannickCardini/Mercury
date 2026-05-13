@@ -177,7 +177,8 @@ export class MatchmakingManager {
         const game = new Game(config, messenger);
         GameRegistry.register(game.id, game);
 
-        // Wire up permanent disconnect callback
+        // Wire up disconnect callbacks (immediate + permanent)
+        messenger.setOnTempDisconnect((color) => game.markTempDisconnected(color));
         messenger.setOnPermanentDisconnect((color) => game.markDisconnected(color));
 
         // Wire up abandon callback to clean up playerIdentities

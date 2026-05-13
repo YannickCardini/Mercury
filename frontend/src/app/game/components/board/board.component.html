@@ -139,6 +139,8 @@
     (mouseenter)="onPanelMouseEnter()"
     (mouseleave)="onPanelMouseLeave()">
 
+    <button class="profile-panel__close-btn" (click)="closeProfilePanel()" aria-label="Close">&#x2715;</button>
+
     @if (panel.isGuest) {
       <div class="profile-panel__guest">
         <div class="profile-panel__guest-icon">👤</div>

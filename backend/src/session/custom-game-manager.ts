@@ -240,6 +240,7 @@ export class CustomGameManager {
         console.log(`🚀 Custom room ${room.code} — launching with 4 players`);
         const game = new Game(config, messenger);
         GameRegistry.register(game.id, game);
+        messenger.setOnTempDisconnect((color) => game.markTempDisconnected(color));
         messenger.setOnPermanentDisconnect((color) => game.markDisconnected(color));
         game.setOnPlayerAbandoned((gameId, color) => {
             for (const [guestId, identity] of playerIdentities) {

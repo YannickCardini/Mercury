@@ -98,6 +98,11 @@ export class Game {
         const player = this.players.find(p => p.color === color);
         if (!player) return;
 
+        // Restore the connection flag — they may have been marked as temporarily
+        // disconnected (or as abandoned, for signed-in players who came back).
+        const wasDisconnected = !player.isConnected;
+        player.isConnected = true;
+
         const commonGameState = {
             players: this.players.map(p => ({
                 name: p.name,
@@ -122,12 +127,32 @@ export class Game {
             gameState: { ...commonGameState, hand: player.cards },
             myColor: color,
         });
+
+        // Notify other players that this player is connected again — they need to
+        // update their UI (remove the "disconnected" indicator).
+        if (wasDisconnected) {
+            this.broadcastConnectionUpdate();
+        }
+    }
+
+    /**
+     * Mark a player as temporarily disconnected (their WebSocket just closed).
+     * Other players should see them as offline immediately, without waiting for
+     * the 180s reconnect window to expire. This does NOT trigger abort/win-by-default
+     * logic — that is reserved for the permanent disconnect path (`markDisconnected`).
+     */
+    markTempDisconnected(color: MarbleColor): void {
+        const player = this.players.find(p => p.color === color);
+        if (!player || !player.isConnected) return;
+        player.isConnected = false;
+        this.broadcastConnectionUpdate();
     }
 
     /** Mark a player as permanently disconnected and check if game should abort. */
     markDisconnected(color: MarbleColor): void {
         const player = this.players.find(p => p.color === color);
         if (player) {
+            const wasConnected = player.isConnected;
             player.isConnected = false;
             if (player.userId && !this.gameFinished && !this.penalizedUserIds.has(player.userId)) {
                 this.penalizedUserIds.add(player.userId);
@@ -135,7 +160,42 @@ export class Game {
                     .then(() => recomputeRankings())
                     .catch(err => console.error('❌ Failed to update points on disconnect:', err));
             }
+            if (wasConnected) this.broadcastConnectionUpdate();
             this.checkAbort();
+        }
+    }
+
+    /**
+     * Broadcast a lightweight state update reflecting current connection flags.
+     * Reuses the 'gameState' message shape but with a distinct message string so
+     * the frontend does not treat it as a new turn (which would reset the timer).
+     */
+    private broadcastConnectionUpdate(): void {
+        const currentPlayer = this.players[this.currentPlayerIndex]!;
+        const commonGameState = {
+            players: this.players.map(p => ({
+                name: p.name,
+                color: p.color,
+                isHuman: p.isHuman,
+                isConnected: p.isConnected,
+                marblePositions: p.marblePositions,
+                cardsLeft: p.cards.length,
+                picture: p.picture,
+                userId: p.userId,
+            })),
+            currentTurn: currentPlayer.color,
+            timer: TURN_DURATION_SECONDS,
+            discardedCards: this.discardedCards,
+            canDiscard: this.computeCanDiscard(currentPlayer),
+        };
+
+        for (const player of this.players.filter(p => p.isHuman)) {
+            this.messenger.sendTo(player.color, {
+                type: 'gameState',
+                message: 'Connection update',
+                timestamp: new Date().toISOString(),
+                gameState: { ...commonGameState, hand: player.cards },
+            });
         }
     }
 
@@ -292,7 +352,8 @@ export class Game {
         const player = this.players.find(p => p.color === senderColor);
         if (!player || !player.isHuman) return;
 
-        console.log(`🏳️ ${player.name} (${senderColor}) a abandonné la partie`);
+        const isSignedIn = !!player.userId;
+        console.log(`🏳️ ${player.name} (${senderColor}) a abandonné la partie${isSignedIn ? ' (signed-in — reconnect allowed)' : ''}`);
 
         player.isConnected = false;
 
@@ -303,13 +364,20 @@ export class Game {
                 .catch(err => console.error('❌ Failed to update points on abandon:', err));
         }
 
-        // Close their WebSocket without starting the reconnect timer
         if (this.messenger instanceof MultiWsMessenger) {
-            this.messenger.forceDisconnect(senderColor);
+            if (isSignedIn) {
+                // Signed-in player: keep the slot reservable so they can rejoin any time.
+                // Their guestPlayerId in playerIdentities is preserved.
+                this.messenger.softDisconnect(senderColor);
+            } else {
+                // Guest player: abandoning is final — close the WS and clean up identity.
+                this.messenger.forceDisconnect(senderColor);
+                this.onPlayerAbandoned?.(this.id, senderColor);
+            }
         }
 
-        // Clean up their identity so they cannot rejoin
-        this.onPlayerAbandoned?.(this.id, senderColor);
+        // Tell remaining players about the connection change
+        this.broadcastConnectionUpdate();
 
         this.checkAbort();
     }
