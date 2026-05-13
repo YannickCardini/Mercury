@@ -1,4 +1,4 @@
-import { Component, HostListener, OnInit, OnDestroy, signal, computed, effect, inject, ViewChild, ElementRef } from '@angular/core';
+import { ChangeDetectionStrategy, Component, HostListener, OnInit, OnDestroy, signal, computed, effect, inject, ViewChild, ElementRef } from '@angular/core';
 import { GameStateService } from '../../services/game-state.service';
 import { SoundService } from '../../services/sound.service';
 import { IonCol, IonGrid, IonRow } from '@ionic/angular/standalone';
@@ -73,7 +73,8 @@ export interface SquareAnimation {
   selector: 'app-board',
   templateUrl: 'board.component.html',
   styleUrls: ['board.component.scss'],
-  imports: [IonCol, IonRow, IonGrid, CommonModule, TockCardComponent]
+  imports: [IonCol, IonRow, IonGrid, CommonModule, TockCardComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class BoardComponent implements OnInit, OnDestroy {
 
@@ -175,6 +176,28 @@ export class BoardComponent implements OnInit, OnDestroy {
     if (!action) return { path: new Set(), destination: null };
     return this.computePreviewFromAction(action);
   });
+
+  /**
+   * Map de la couleur du pion sur chaque case, recalculée uniquement quand l'état
+   * affiché change. Évite `players.find` + `marblePositions.includes` par case
+   * appelés à chaque détection de changement (très coûteux sur mobile).
+   */
+  private marbleByPosition = computed<Map<number, MarbleColor>>(() => {
+    const m = new Map<number, MarbleColor>();
+    const gameData = this.displayedGameData();
+    if (!gameData || !this.gameStateService.isConnected()) return m;
+    for (const player of gameData.gameState.players) {
+      const color = player.color as MarbleColor;
+      const positions = player.marblePositions ?? [];
+      for (const pos of positions) {
+        if (pos !== 0) m.set(pos, color);
+      }
+    }
+    return m;
+  });
+
+  /** Cache statique des classes de case (dépend uniquement de l'index). */
+  private squareClassCache = new Map<number, string>();
 
   debug = false;
 
@@ -665,18 +688,30 @@ export class BoardComponent implements OnInit, OnDestroy {
   }
 
   getSquareClass(index: number): string {
-    if (!this.squareToDisplay.includes(index)) return 'case-hidden';
+    const cached = this.squareClassCache.get(index);
+    if (cached !== undefined) return cached;
 
-    for (const [color, pos] of Object.entries(this.starts)) {
-      if (pos === index) return `case-path start start-${color}`;
+    let result: string;
+    if (!this.squareToDisplay.includes(index)) {
+      result = 'case-hidden';
+    } else {
+      result = 'case-path normal';
+      for (const [color, pos] of Object.entries(this.starts)) {
+        if (pos === index) { result = `case-path start start-${color}`; break; }
+      }
+      if (result === 'case-path normal') {
+        for (const [color, positions] of Object.entries(this.homes)) {
+          if ((positions as number[]).includes(index)) { result = `case-path home home-${color}`; break; }
+        }
+      }
+      if (result === 'case-path normal') {
+        for (const [color, positions] of Object.entries(this.arrivals)) {
+          if ((positions as number[]).includes(index)) { result = `case-path arrival arrival-${color}`; break; }
+        }
+      }
     }
-    for (const [color, positions] of Object.entries(this.homes)) {
-      if ((positions as number[]).includes(index)) return `case-path home home-${color}`;
-    }
-    for (const [color, positions] of Object.entries(this.arrivals)) {
-      if ((positions as number[]).includes(index)) return `case-path arrival arrival-${color}`;
-    }
-    return 'case-path normal';
+    this.squareClassCache.set(index, result);
+    return result;
   }
 
   getPlayer(color: MarbleColor): Player | undefined {
@@ -710,13 +745,7 @@ export class BoardComponent implements OnInit, OnDestroy {
   }
 
   getMarbleOnSquare(index: number): MarbleColor | null {
-    const gameData = this.displayedGameData();
-    if (!gameData || !this.gameStateService.isConnected()) return null;
-
-    const player = gameData.gameState.players.find(p =>
-      (p.marblePositions ?? []).includes(index)
-    );
-    return player ? player.color as MarbleColor : null;
+    return this.marbleByPosition().get(index) ?? null;
   }
 
   // ── Interaction humain ────────────────────────────────────────────────────
