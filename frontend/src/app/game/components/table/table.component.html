@@ -181,10 +181,11 @@
   </div>
 
   <!-- ===== FOOTER ===== -->
-  <div class="control-dashboard" [class.turn-inactive]="!gameStateService.isMyTurn()"
-    [style.border-top-color]="gameStateService.myPlayerColor() ?? ''" [style.box-shadow]="gameStateService.myPlayerColor()
-         ? '0 -4px 16px ' + getMyColorGlow()
-         : ''">
+  <div class="control-dashboard"
+    [class.turn-inactive]="!gameStateService.isMyTurn()"
+    [class.turn-active]="gameStateService.isMyTurn()"
+    [style.border-top-color]="gameStateService.myPlayerColor() ?? ''"
+    [style.--turn-glow]="getMyColorGlow()">
     <div class="dashboard-grid">
 
       <div class="player-profile">

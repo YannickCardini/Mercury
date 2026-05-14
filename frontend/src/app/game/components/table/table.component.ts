@@ -573,10 +573,10 @@ enum TURN_PHASE {
 
   getMyColorGlow(): string {
     const colorMap: Record<string, string> = {
-      red: 'rgba(239, 68, 68, 0.25)',
-      blue: 'rgba(59, 130, 246, 0.25)',
-      green: 'rgba(34, 197, 94, 0.25)',
-      orange: 'rgba(249, 115, 22, 0.25)',
+      red: 'rgba(239, 68, 68, 0.6)',
+      blue: 'rgba(59, 130, 246, 0.6)',
+      green: 'rgba(34, 197, 94, 0.6)',
+      orange: 'rgba(249, 115, 22, 0.6)',
     };
     return colorMap[this.gameStateService.myPlayerColor() ?? ''] ?? 'transparent';
   }

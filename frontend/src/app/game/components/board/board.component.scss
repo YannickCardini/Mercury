@@ -127,7 +127,7 @@ $colors: (
     height: 80%;
     border-radius: 50%;
     z-index: 10;
-    border: 1px solid rgba(255, 255, 255, 0.6);
+    border: 2.5px solid rgba(255, 255, 255, 0.9);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5), inset -2px -2px 6px rgba(0, 0, 0, 0.3);
     cursor: default;
     -webkit-tap-highlight-color: transparent;
@@ -1255,8 +1255,10 @@ $colors: (
         position: absolute;
         inset: 0;
         border-radius: 50%;
-        background: rgba(255, 220, 80, 0.22);
-        box-shadow: 0 0 0 2px rgba(255, 220, 80, 0.7), 0 0 12px rgba(255, 220, 80, 0.5);
+        background: rgba(255, 220, 80, 0.50);
+        border: 2px solid rgba(255, 220, 80, 0.85);
+        box-sizing: border-box;
+        box-shadow: 0 0 0 2px rgba(255, 220, 80, 0.8), 0 0 20px rgba(255, 220, 80, 0.7);
         pointer-events: none;
         z-index: 5;
         animation: previewDestPulse 1s ease-in-out infinite;
@@ -1279,11 +1281,11 @@ $colors: (
 
     0%,
     100% {
-        box-shadow: 0 0 0 2px rgba(255, 220, 80, 0.7), 0 0 12px rgba(255, 220, 80, 0.5);
+        box-shadow: 0 0 0 3px rgba(255, 220, 80, 0.85), 0 0 24px rgba(255, 220, 80, 0.7);
     }
 
     50% {
-        box-shadow: 0 0 0 3px rgba(255, 220, 80, 0.9), 0 0 20px rgba(255, 220, 80, 0.7);
+        box-shadow: 0 0 0 5px rgba(255, 220, 80, 1), 0 0 40px rgba(255, 220, 80, 0.9);
     }
 }
 
