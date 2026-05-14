@@ -1,0 +1,264 @@
+@use "sass:color";
+
+$c-red: #ef4444;
+$c-green: #22c55e;
+$c-blue: #3b82f6;
+$c-orange: #f97316;
+
+:host {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: block;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ÉCRAN DE CHARGEMENT
+   ═══════════════════════════════════════════════════════════════ */
+.loading-screen {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 32px;
+    background: radial-gradient(ellipse at 50% 40%, #1e3a5f 0%, #0a1628 100%);
+    overflow: hidden;
+
+    /* Grille de fond façon "plateau de jeu" */
+    &::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background-image:
+            linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+        background-size: 40px 40px;
+        pointer-events: none;
+    }
+
+    /* Halo central lumineux */
+    &::after {
+        content: '';
+        position: absolute;
+        width: 500px;
+        height: 500px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(59, 130, 246, 0.12) 0%, transparent 70%);
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        animation: haloPulse 3s ease-in-out infinite;
+        pointer-events: none;
+    }
+}
+
+/* ── Titre animé lettre par lettre ───────────────────────────── */
+.loading-title {
+    display: flex;
+    gap: 6px;
+    z-index: 1;
+}
+
+.title-letter {
+    font-size: clamp(2.5rem, 8vw, 5rem);
+    font-weight: 900;
+    color: white;
+    letter-spacing: 0.05em;
+    text-shadow: 0 0 30px rgba($c-blue, 0.8), 0 0 60px rgba($c-blue, 0.4);
+    animation: letterFloat 2.4s ease-in-out infinite;
+    animation-delay: calc(var(--i) * 0.12s);
+    display: inline-block;
+}
+
+@keyframes letterFloat {
+
+    0%,
+    100% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+
+    40% {
+        transform: translateY(-12px);
+        opacity: 0.85;
+    }
+
+    60% {
+        transform: translateY(-12px);
+        opacity: 0.85;
+    }
+}
+
+/* ── Orbite de billes ────────────────────────────────────────── */
+.marble-orbit {
+    position: relative;
+    width: 180px;
+    height: 180px;
+    z-index: 1;
+}
+
+.orbit-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 1px dashed rgba(255, 255, 255, 0.15);
+    animation: orbitRingSpin 6s linear infinite;
+}
+
+@keyframes orbitRingSpin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.orbit-marble {
+    position: absolute;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    top: -13px;
+    left: calc(50% - 13px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), inset -2px -2px 5px rgba(0, 0, 0, 0.3);
+    animation: orbitSpin 6s linear infinite;
+    animation-delay: var(--orbit-delay);
+
+    &::after {
+        content: '';
+        position: absolute;
+        top: 18%;
+        left: 18%;
+        width: 28%;
+        height: 28%;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(255, 255, 255, 0.8), transparent 70%);
+    }
+
+    &.marble-red {
+        background: radial-gradient(circle at 35% 35%, color.adjust($c-red, $lightness: 15%), $c-red 60%, color.adjust($c-red, $lightness: -15%));
+    }
+
+    &.marble-green {
+        background: radial-gradient(circle at 35% 35%, color.adjust($c-green, $lightness: 15%), $c-green 60%, color.adjust($c-green, $lightness: -15%));
+    }
+
+    &.marble-blue {
+        background: radial-gradient(circle at 35% 35%, color.adjust($c-blue, $lightness: 15%), $c-blue 60%, color.adjust($c-blue, $lightness: -15%));
+    }
+
+    &.marble-orange {
+        background: radial-gradient(circle at 35% 35%, color.adjust($c-orange, $lightness: 15%), $c-orange 60%, color.adjust($c-orange, $lightness: -15%));
+    }
+}
+
+@keyframes orbitSpin {
+
+    /* Chaque bille fait le tour complet en restant "au-dessus" de l'anneau */
+    from {
+        transform: rotate(0deg) translateY(-90px) rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg) translateY(-90px) rotate(-360deg);
+    }
+}
+
+/* Centre de l'orbite */
+.orbit-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.orbit-center-core {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #7dd3fc, $c-blue 60%, #1e3a5f);
+    box-shadow: 0 0 20px rgba($c-blue, 0.6), 0 0 40px rgba($c-blue, 0.3);
+    animation: corePulse 1.8s ease-in-out infinite;
+
+    &::after {
+        content: '';
+        position: absolute;
+        top: 18%;
+        left: 18%;
+        width: 28%;
+        height: 28%;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(255, 255, 255, 0.7), transparent 70%);
+    }
+}
+
+@keyframes corePulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 20px rgba($c-blue, 0.6), 0 0 40px rgba($c-blue, 0.3);
+    }
+
+    50% {
+        transform: scale(1.15);
+        box-shadow: 0 0 30px rgba($c-blue, 0.9), 0 0 60px rgba($c-blue, 0.5);
+    }
+}
+
+@keyframes haloPulse {
+
+    0%,
+    100% {
+        opacity: 0.5;
+        transform: translate(-50%, -50%) scale(1);
+    }
+
+    50% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1.2);
+    }
+}
+
+/* ── Texte de statut ─────────────────────────────────────────── */
+.loading-status {
+    color: rgba(255, 255, 255, 0.65);
+    font-size: 0.95rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    z-index: 1;
+    margin: 0;
+}
+
+/* ── Points animés ───────────────────────────────────────────── */
+.loading-dots {
+    display: flex;
+    gap: 8px;
+    z-index: 1;
+
+    span {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: $c-blue;
+        animation: dotBounce 0.9s ease-in-out infinite;
+        animation-delay: var(--d);
+    }
+}
+
+@keyframes dotBounce {
+
+    0%,
+    80%,
+    100% {
+        transform: scale(0.6);
+        opacity: 0.4;
+    }
+
+    40% {
+        transform: scale(1.2);
+        opacity: 1;
+    }
+}

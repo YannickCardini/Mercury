@@ -203,6 +203,74 @@ $bg-dark: #0f172a;
   text-transform: uppercase;
 }
 
+// ── Stats block ───────────────────────────────────────────────────
+
+.stats-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 24px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  width: 100%;
+  min-width: 180px;
+}
+
+.stats-delta {
+  font-size: clamp(1.4rem, 4vw, 2rem);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+
+  &.gain { color: #4ade80; text-shadow: 0 0 12px rgba(74, 222, 128, 0.6); }
+  &.loss { color: #f87171; text-shadow: 0 0 12px rgba(248, 113, 113, 0.6); }
+  &:not(.gain):not(.loss) { color: rgba(255, 255, 255, 0.7); }
+}
+
+.stats-total,
+.stats-rank {
+  font-size: clamp(0.8rem, 1.8vw, 1rem);
+  color: rgba(255, 255, 255, 0.55);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+}
+
+.stats-calculating {
+  font-size: clamp(0.85rem, 2vw, 1rem);
+  color: rgba(255, 255, 255, 0.4);
+  font-style: italic;
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; }
+  50%       { opacity: 0.8; }
+}
+
+// ── Back to menu button ───────────────────────────────────────────
+
+.back-btn {
+  margin-top: 4px;
+  padding: 12px 32px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: clamp(0.9rem, 2.2vw, 1.05rem);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: background 0.18s, border-color 0.18s, transform 0.12s;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.18);
+    border-color: rgba(255, 255, 255, 0.45);
+  }
+
+  &:active { transform: scale(0.96); }
+}
+
 // ── Variante "Victory by Forfeit" ─────────────────────────────────
 // Ton plus sobre que la vraie victoire : argenté au lieu de doré,
 // sous-titre plus visible pour expliquer le contexte.

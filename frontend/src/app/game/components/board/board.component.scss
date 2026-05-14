@@ -1309,6 +1309,12 @@ $colors: (
     z-index: 20;
 }
 
+/* Second pion d'un split de 7 : halo doré pour le distinguer du pion principal */
+.marble.marble-selected-split2 {
+    border-color: #fbbf24;
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.5), 0 0 16px rgba(251, 191, 36, 0.9);
+}
+
 /* ==========================================================================
    PROFILE PANEL
    ========================================================================== */

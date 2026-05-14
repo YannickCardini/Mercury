@@ -1,4 +1,4 @@
-import { Component, input } from '@angular/core';
+import { Component, input, output } from '@angular/core';
 import { MarbleColor } from '@mercury/shared';
 
 interface ConfettiPiece {
@@ -17,6 +17,12 @@ export class VictoryOverlayComponent {
   name = input.required<string>();
   isWinner = input.required<boolean>();
   byDefault = input<boolean>(false);
+  isGuest = input<boolean>(false);
+  pointsDelta = input<number | null>(null);
+  newPoints = input<number | null>(null);
+  newRanking = input<number | null>(null);
+
+  backToMenu = output<void>();
 
   readonly particles: ConfettiPiece[] = Array.from({ length: 40 }, (_, i) => {
     const colors = ['#ef4444', '#22c55e', '#3b82f6', '#f97316', '#f0c040', '#a855f7', '#ffffff', '#fb7185'];

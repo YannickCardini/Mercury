@@ -3,6 +3,7 @@ import { Router, RouterOutlet } from '@angular/router';
 import { take } from 'rxjs';
 import { GameStateService } from './game/services/game-state.service';
 import { TabLockService } from './game/services/tab-lock.service';
+import { AppResumeService } from './services/app-resume.service';
 import { environment } from '../environments/environment';
 import { StatusBar } from '@capacitor/status-bar';
 
@@ -16,6 +17,8 @@ export class AppComponent implements OnInit {
   private gameStateService = inject(GameStateService);
   private tabLock = inject(TabLockService);
   private router = inject(Router);
+  /** Eagerly created so its resume listeners are wired for the whole app. */
+  protected appResume = inject(AppResumeService);
 
   async ngOnInit(): Promise<void> {
     StatusBar.setOverlaysWebView({ overlay: false }).catch(() => {});

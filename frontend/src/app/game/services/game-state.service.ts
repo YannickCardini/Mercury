@@ -9,6 +9,7 @@ import {
   ActionPlayedMessage,
   ActionRejectedMessage,
   GameEndedMessage,
+  GameStatsMessage,
   MatchmakingStatusMessage,
   CustomRoomStatusMessage,
   GameInviteResponseMessage,
@@ -39,6 +40,8 @@ export class GameStateService {
   isConnected = signal(false);
   winner = signal<MarbleColor | null>(null);
   winReason = signal<'win' | 'win_by_default' | null>(null);
+  /** Points stats received after game end. null until the server sends gameStats. */
+  gameStats = signal<GameStatsMessage | null>(null);
 
   // ── Identité du joueur local ──────────────────────────────────────────────
   /** Couleur du joueur humain local. null = mode spectateur (4 IA). */
@@ -386,6 +389,11 @@ export class GameStateService {
           }
           break;
         }
+
+        case 'gameStats': {
+          this.gameStats.set(parsed as GameStatsMessage);
+          break;
+        }
       }
     };
 
@@ -500,6 +508,7 @@ export class GameStateService {
     this.data.set(null);
     this.winner.set(null);
     this.winReason.set(null);
+    this.gameStats.set(null);
     this.myPlayerColor.set(null);
     this.guestPlayerId.set(null);
     this.activeGameId.set(null);

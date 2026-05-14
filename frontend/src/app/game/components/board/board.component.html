@@ -62,6 +62,7 @@
               getMarbleAnimClass(index),
               isSelectableMarble(index) ? 'marble-selectable' : '',
               isSelectedMarble(index)   ? 'marble-selected'   : '',
+              isSplit7SecondMarble(index) ? 'marble-selected-split2' : '',
               isMyMarble(index)         ? 'marble-mine'        : '',
               isDimmedMarble(index)     ? 'marble-dimmed'      : ''
             ]" (click)="onMarbleClick(index)" (mouseenter)="onMarbleMouseEnter(index)"
@@ -129,9 +130,7 @@
 <!-- NOTE: must remain OUTSIDE .board-container — backdrop-filter on that element
      would make position:fixed children position relative to it, not the viewport. -->
 @if (profilePanel(); as panel) {
-  @if (!isHoverDevice) {
-    <div class="profile-backdrop" (click)="closeProfilePanel()"></div>
-  }
+  <div class="profile-backdrop" (click)="closeProfilePanel()"></div>
   <div #profilePanelEl class="profile-panel"
     [style.left.px]="panel.x"
     [style.top.px]="panel.y"

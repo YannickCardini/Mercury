@@ -784,6 +784,11 @@ export class BoardComponent implements OnInit, OnDestroy {
       || this.gameStateService.selectedSplit7MarblePosition() === index;
   }
 
+  /** Vrai si ce pion est le second pion choisi pour un split de 7 (halo doré distinct). */
+  isSplit7SecondMarble(index: number): boolean {
+    return this.gameStateService.selectedSplit7MarblePosition() === index;
+  }
+
   /** Marble jouable avec la carte sélectionnée (à mettre en surbrillance). */
   isPlayableMarble(index: number): boolean {
     const playable = this.gameStateService.playableMarblePositions();

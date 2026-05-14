@@ -9,6 +9,7 @@ import { Subscription, firstValueFrom, take } from 'rxjs';
 import { version } from '../../../../package.json';
 import { GameStateService } from '../game/services/game-state.service';
 import { TabLockService } from '../game/services/tab-lock.service';
+import { AppResumeService } from '../services/app-resume.service';
 import { AuthService, type AuthUser } from '../services/auth.service';
 import { PresenceService } from '../services/presence.service';
 import type { GameInviteMessage, MarbleColor, CustomRoomPlayerInfo } from '@mercury/shared';
@@ -67,7 +68,6 @@ export class HomePage implements OnInit, OnDestroy {
   showRules = false;
   showMatchmaking = false;
   loginMode: 'login' | 'signup' = 'login';
-  activeGame = false;
 
   // ── Edit profile state ─────────────────────────────────────────────────────
   editingProfile = false;
@@ -153,6 +153,7 @@ export class HomePage implements OnInit, OnDestroy {
     private tabLock: TabLockService,
     private presenceService: PresenceService,
     readonly auth: AuthService,
+    readonly appResume: AppResumeService,
   ) { }
 
   private hasActiveGame(): boolean {
@@ -160,7 +161,9 @@ export class HomePage implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    this.activeGame = this.hasActiveGame();
+    // Re-sync the "Resume" banner from storage; AppResumeService keeps it
+    // updated afterwards (incl. clearing it when a stale game is detected).
+    this.appResume.refreshFromStorage();
     this.loginErrorSub = this.auth.loginError$.subscribe(type => {
       this.loginErrorMessage = type === 'server'
         ? 'Server error. Please try again later.'
@@ -186,7 +189,7 @@ export class HomePage implements OnInit, OnDestroy {
 
     this.gameInviteSub = this.presenceService.gameInvite$.subscribe(invite => {
       // If the user is busy (in a room/game flow), silently drop.
-      if (this.showCustomGame || this.activeGame) return;
+      if (this.showCustomGame || this.appResume.hasActiveGame()) return;
       this.pendingInvite = invite;
     });
   }
@@ -202,7 +205,7 @@ export class HomePage implements OnInit, OnDestroy {
   }
 
   private connectPresenceIfIdle(userId: string): void {
-    if (this.showCustomGame || this.showMatchmaking || this.activeGame) return;
+    if (this.showCustomGame || this.showMatchmaking || this.appResume.hasActiveGame()) return;
     this.presenceService.connect(environment.wsUrl, userId);
   }
 

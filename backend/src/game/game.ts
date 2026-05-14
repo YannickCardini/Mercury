@@ -6,7 +6,8 @@ import { HumanStrategy } from "./human-strategy.js";
 import { getLegalAction, findLegalMoveForCard, getLegalSplit7Action, MAIN_PATH, type LegalMoveContext } from '../utils/utils.js';
 import { MultiWsMessenger, type GameMessenger } from './game-messenger.js';
 import { GameRegistry } from '../session/game-registry.js';
-import { updateUserPoints, recomputeRankings } from '../db.js';
+import { updateUserPoints, recomputeRankings, getUserPointsAndRanking } from '../db.js';
+import { computeEndGamePointsDeltas } from './points.js';
 import {
     getHomePositions,
     hasWon,
@@ -755,22 +756,47 @@ export class Game {
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
     private async applyEndGamePoints(winnerColor: MarbleColor): Promise<void> {
-        const updates: Array<{ userId: string; delta: number }> = [];
+        // Collect non-penalized human players with a userId.
+        // Disconnect/abandon penalties are applied separately with a flat -2 (intentionally
+        // not Elo-weighted: they are a behaviour penalty, not a match outcome).
+        const participants = this.players
+            .filter(p => p.isHuman && p.userId && !this.penalizedUserIds.has(p.userId))
+            .map(p => ({ color: p.color, userId: p.userId! }));
 
-        for (const player of this.players) {
-            if (!player.isHuman || !player.userId) continue;
-            if (this.penalizedUserIds.has(player.userId)) continue;
-            const delta = player.color === winnerColor ? 3 : -1;
-            updates.push({ userId: player.userId, delta });
-        }
+        if (participants.length === 0) return;
 
-        for (const { userId, delta } of updates) {
-            await updateUserPoints(userId, delta);
-        }
+        // Fetch current points for every participant (needed for the Elo formula)
+        const currentStats = await Promise.all(
+            participants.map(async p => {
+                const s = await getUserPointsAndRanking(p.userId);
+                return { ...p, points: s?.points ?? 1000, isWinner: p.color === winnerColor };
+            })
+        );
 
-        if (updates.length > 0) {
-            await recomputeRankings();
-        }
+        // Compute weighted deltas using the Elo-like formula in points.ts
+        const deltas = computeEndGamePointsDeltas(
+            currentStats.map(p => ({ userId: p.userId, points: p.points, isWinner: p.isWinner }))
+        );
+
+        // Apply deltas in parallel, then recompute rankings once
+        await Promise.all(deltas.map(({ userId, delta }) => updateUserPoints(userId, delta)));
+        await recomputeRankings();
+
+        // Fetch updated stats and push a gameStats message to each player
+        await Promise.all(
+            currentStats.map(async p => {
+                const updated = await getUserPointsAndRanking(p.userId);
+                if (!updated) return;
+                const delta = deltas.find(d => d.userId === p.userId)?.delta ?? 0;
+                this.messenger.sendTo(p.color, {
+                    type: 'gameStats',
+                    pointsDelta: delta,
+                    newPoints: updated.points,
+                    newRanking: updated.ranking,
+                });
+                console.log(`📊 gameStats → ${p.color}: delta=${delta}, total=${updated.points}, rank=#${updated.ranking}`);
+            })
+        );
     }
 
     private allHandsEmpty(): boolean {

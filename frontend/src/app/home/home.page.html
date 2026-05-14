@@ -78,7 +78,7 @@
       </div>
 
       <!-- Resume game banner -->
-      <button class="resume-game-banner" *ngIf="activeGame" (click)="resumeGame()">
+      <button class="resume-game-banner" *ngIf="appResume.hasActiveGame()" (click)="resumeGame()">
         You have an ongoing game &mdash; Resume &rarr;
       </button>
 

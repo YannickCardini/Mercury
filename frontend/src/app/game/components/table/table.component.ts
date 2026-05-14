@@ -9,7 +9,9 @@ import {
   OnInit,
   OnDestroy,
   Output,
-  EventEmitter
+  EventEmitter,
+  ViewChild,
+  ElementRef
 } from '@angular/core';
 import { TockCardComponent } from 'src/app/shared/tock-card.component';
 import type { Card, MarbleColor } from '@mercury/shared';
@@ -18,6 +20,8 @@ import { Subscription } from 'rxjs';
 import { Router } from '@angular/router';
 import { SoundService } from '../../services/sound.service';
 import { AuthService } from 'src/app/services/auth.service';
+import { Haptics, ImpactStyle } from '@capacitor/haptics';
+import { Capacitor } from '@capacitor/core';
 
 enum TURN_PHASE {
   DISCARD = "No playable moves",
@@ -64,12 +68,38 @@ enum TURN_PHASE {
     this.validSplitSevenSteps().length > 0
   );
 
-  /** Vrai quand le 7 vient d'être sélectionné mais aucun pion n'a encore été choisi. */
-  showSevenIntroHint = computed(() =>
+  /** Texte d'aide contextuel affiché à chaque étape du flux du 7 (null = masqué). */
+  sevenHintText = computed<string | null>(() => {
+    if (!this.gameStateService.isMyTurn()) return null;
+    if (this.gameStateService.selectedCard()?.value !== '7') return null;
+    const marble1 = this.gameStateService.selectedMarblePosition();
+    if (marble1 === null) return 'Tap one of your marbles to play the 7';
+    if (this.gameStateService.sevenFirstSteps() === 7) {
+      return this.validSplitSevenSteps().length > 0
+        ? 'Drag the bar to split the 7 across two marbles'
+        : null;
+    }
+    if (this.gameStateService.selectedSplit7MarblePosition() === null) {
+      return 'Tap a second marble (gold) for the remaining steps';
+    }
+    return null;
+  });
+
+  /** Vrai quand le raccourci "tout sur le premier pion" doit être proposé. */
+  showUseAllSevenShortcut = computed(() =>
     this.gameStateService.isMyTurn() &&
     this.gameStateService.selectedCard()?.value === '7' &&
-    this.gameStateService.selectedMarblePosition() === null
+    this.gameStateService.selectedMarblePosition() !== null &&
+    this.gameStateService.sevenFirstSteps() < 7 &&
+    this.gameStateService.selectedSplit7MarblePosition() === null &&
+    this.validSevenSteps().includes(7)
   );
+
+  /** Référence à la rangée de pas du 7 (pour le drag tactile/souris). */
+  @ViewChild('dotsRowEl') dotsRowEl?: ElementRef<HTMLElement>;
+  /** Vrai pendant que l'utilisateur fait glisser la barre de split. */
+  isDraggingSplit = signal(false);
+  private splitPointerId: number | null = null;
 
   /** Pas valides (1–7) pour le premier pion sélectionné avec le 7. */
   validSevenSteps = computed<number[]>(() => {
@@ -269,6 +299,9 @@ enum TURN_PHASE {
         this.timeLeft.set(newTime);
         if (newTime <= 5 && this.gameStateService.isMyTurn()) {
           this.soundService.playCountdownTick(newTime);
+          if (Capacitor.isNativePlatform()) {
+            Haptics.impact({ style: ImpactStyle.Light });
+          }
         }
       }
     }, 1000);
@@ -306,15 +339,62 @@ enum TURN_PHASE {
     }, 4000);
   }
 
-  // ── 7 step counter ─────────────────────────────────────────────
-  selectSevenSteps(steps: number): void {
-    const current = this.gameStateService.sevenFirstSteps();
-    // Toggle off if clicking the already-selected step
-    if (current === steps) {
-      this.gameStateService.sevenFirstSteps.set(7);
-    } else {
-      this.gameStateService.sevenFirstSteps.set(steps);
+  // ── 7 split — drag & tap sur la barre de pas ───────────────────
+  onDotsRowPointerDown(event: PointerEvent): void {
+    if (!this.gameStateService.isMyTurn()) return;
+    event.preventDefault();
+    const row = event.currentTarget as HTMLElement;
+    this.splitPointerId = event.pointerId;
+    row.setPointerCapture(event.pointerId);
+    this.isDraggingSplit.set(true);
+    this.selectNearestDot(event.clientX);
+  }
+
+  onDotsRowPointerMove(event: PointerEvent): void {
+    if (!this.isDraggingSplit() || event.pointerId !== this.splitPointerId) return;
+    event.preventDefault();
+    this.selectNearestDot(event.clientX);
+  }
+
+  onDotsRowPointerUp(event: PointerEvent): void {
+    if (event.pointerId !== this.splitPointerId) return;
+    const row = event.currentTarget as HTMLElement;
+    if (row.hasPointerCapture(event.pointerId)) {
+      row.releasePointerCapture(event.pointerId);
     }
+    this.splitPointerId = null;
+    this.isDraggingSplit.set(false);
+  }
+
+  /** Sélectionne le pas activable dont le centre est le plus proche du pointeur. */
+  private selectNearestDot(clientX: number): void {
+    const row = this.dotsRowEl?.nativeElement;
+    if (!row) return;
+    let bestStep: number | null = null;
+    let bestDist = Infinity;
+    row.querySelectorAll<HTMLButtonElement>('.split-dot').forEach(dotEl => {
+      if (dotEl.disabled) return;
+      const rect = dotEl.getBoundingClientRect();
+      const dist = Math.abs(clientX - (rect.left + rect.width / 2));
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestStep = Number(dotEl.dataset['step']);
+      }
+    });
+    if (bestStep !== null && bestStep !== this.gameStateService.sevenFirstSteps()) {
+      this.applySevenSteps(bestStep);
+    }
+  }
+
+  private applySevenSteps(steps: number): void {
+    this.gameStateService.sevenFirstSteps.set(steps);
+    this.gameStateService.selectedSplit7MarblePosition.set(null);
+    this.updateTurnPhase();
+  }
+
+  /** Raccourci : attribuer les 7 pas au premier pion (annule le split). */
+  useAllSevenOnFirstMarble(): void {
+    this.gameStateService.sevenFirstSteps.set(7);
     this.gameStateService.selectedSplit7MarblePosition.set(null);
     this.updateTurnPhase();
   }

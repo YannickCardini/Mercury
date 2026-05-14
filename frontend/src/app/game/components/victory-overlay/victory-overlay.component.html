@@ -24,6 +24,25 @@
         {{ isWinner() ? 'won the game!' : 'won the game.' }}
       }
     </div>
+
+    <!-- Points stats block — shown for signed-in players -->
+    @if (!isGuest()) {
+      <div class="stats-block">
+        @if (pointsDelta() !== null && newPoints() !== null) {
+          <div class="stats-delta" [class.gain]="pointsDelta()! > 0" [class.loss]="pointsDelta()! < 0">
+            {{ pointsDelta()! > 0 ? '+' : '' }}{{ pointsDelta() }} pts
+          </div>
+          <div class="stats-total">New total: {{ newPoints() }} pts</div>
+          @if (newRanking() && newRanking()! > 0) {
+            <div class="stats-rank">New ranking: #{{ newRanking() }}</div>
+          }
+        } @else {
+          <div class="stats-calculating">Calculating…</div>
+        }
+      </div>
+    }
+
+    <button class="back-btn" (click)="backToMenu.emit()">Back to menu</button>
   </div>
 
 </div>

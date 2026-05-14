@@ -1,8 +1,10 @@
 import { Component, signal, computed, effect, OnDestroy, ViewChild, AfterViewInit } from '@angular/core';
+import { Router } from '@angular/router';
 import { BoardComponent } from './components/board/board.component';
 import { TableComponent } from './components/table/table.component';
 import { VictoryOverlayComponent } from './components/victory-overlay/victory-overlay.component';
 import { GameRulesModalComponent } from '../shared/game-rules-modal.component';
+import { LoadingScreenComponent } from '../shared/loading-screen.component';
 import { GameStateService } from './services/game-state.service';
 import { SoundService } from './services/sound.service';
 import { environment } from '../../environments/environment';
@@ -15,7 +17,7 @@ import { Capacitor } from '@capacitor/core';
   selector: 'app-game',
   templateUrl: 'game.page.html',
   styleUrl: 'game.page.scss',
-  imports: [BoardComponent, TableComponent, VictoryOverlayComponent, GameRulesModalComponent],
+  imports: [BoardComponent, TableComponent, VictoryOverlayComponent, GameRulesModalComponent, LoadingScreenComponent],
 })
 export class GamePage implements OnDestroy, AfterViewInit {
 
@@ -27,6 +29,13 @@ export class GamePage implements OnDestroy, AfterViewInit {
   newTurnName = signal<string>('');
   newTurnPicture = signal<string | null>(null);
 
+  /** Status line for the initial-load loading screen. */
+  loadingStatus = computed(() =>
+    this.gameStateService.isConnected()
+      ? 'Initializing game data...'
+      : 'Connecting to the server...'
+  );
+
   winnerName = computed(() => {
     const color = this.gameStateService.winner();
     if (!color) return '';
@@ -34,10 +43,18 @@ export class GamePage implements OnDestroy, AfterViewInit {
     return player?.name ?? color;
   });
 
+  /** True when the local player has no userId (guest / not signed in). */
+  isLocalPlayerGuest = computed(() => {
+    const color = this.gameStateService.myPlayerColor();
+    if (!color) return true;
+    const player = this.gameStateService.data()?.gameState.players.find(p => p.color === color);
+    return !player?.userId;
+  });
+
   private newTurnTimeout: ReturnType<typeof setTimeout> | null = null;
   private newTurnSub: Subscription | null = null;
 
-  constructor(public gameStateService: GameStateService, private soundService: SoundService) {
+  constructor(public gameStateService: GameStateService, private soundService: SoundService, private router: Router) {
     effect(() => {
       const winner = this.gameStateService.winner();
       if (!winner) return;
@@ -78,6 +95,12 @@ export class GamePage implements OnDestroy, AfterViewInit {
         this.newTurnPicture.set(null);
       }, NEW_TURN_BANNER_DURATION_MS);
     });
+  }
+
+  backToMenu(): void {
+    localStorage.removeItem('guest_player_id');
+    this.gameStateService.reset();
+    void this.router.navigate(['/home']);
   }
 
   ngOnDestroy(): void {

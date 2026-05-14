@@ -1,5 +1,16 @@
 <div class="game-board">
 
+  <!-- ===== TIMER MOBILE — barre en haut du panel, visible uniquement sur mobile ===== -->
+  @if (gameStateService.isMyTurn()) {
+  <div class="table-timer" [class.table-timer--urgent]="timeLeft() <= 5">
+    <div class="table-timer__track"></div>
+    <div class="table-timer__fill"
+      [style.transform]="'scaleX(' + timeRatio() + ')'"
+      [style.background-color]="timerColor()"></div>
+    <span class="table-timer__count" [style.color]="timerColor()">{{ timeLeft() }}s</span>
+  </div>
+  }
+
   <!-- ===== BANNIÈRE TIMEOUT ===== -->
   @if (timeoutBannerColor(); as color) {
   <div class="timeout-banner" [ngClass]="'timeout-banner--' + color">
@@ -110,19 +121,20 @@
     </div>
   </div>
 
-  <!-- ===== HINT D'INTRODUCTION POUR LE 7 ===== -->
-  @if (showSevenIntroHint()) {
-  <div class="seven-intro-hint">
-    Move a marble 7 steps — or tap to split between two marbles.
-  </div>
+  <!-- ===== HINT CONTEXTUEL POUR LE 7 ===== -->
+  @if (sevenHintText(); as hint) {
+  <div class="seven-intro-hint">{{ hint }}</div>
   }
 
   <!-- ===== SÉLECTEUR DE SPLIT DU 7 ===== -->
   @if (showSevenStepCounter()) {
   <div class="seven-split-bar" [class.seven-split-bar--split-active]="gameStateService.sevenFirstSteps() < 7"
+    [class.seven-split-bar--dragging]="isDraggingSplit()"
     [class.turn-inactive]="!gameStateService.isMyTurn()">
 
-    <div class="dots-row">
+    <div #dotsRowEl class="dots-row" (pointerdown)="onDotsRowPointerDown($event)"
+      (pointermove)="onDotsRowPointerMove($event)" (pointerup)="onDotsRowPointerUp($event)"
+      (pointercancel)="onDotsRowPointerUp($event)">
       @for (dot of allSevenDots(); track dot.step) {
       @if (dot.step > 1) {
       <div class="dot-connector"
@@ -132,10 +144,10 @@
         [class.dot-connector--split-point]="gameStateService.sevenFirstSteps() < 7 && dot.step === gameStateService.sevenFirstSteps() + 1">
       </div>
       }
-      <button class="split-dot" [class.split-dot--marble1]="dot.group === 'marble1'"
+      <button type="button" tabindex="-1" class="split-dot" [attr.data-step]="dot.step"
+        [class.split-dot--marble1]="dot.group === 'marble1'"
         [class.split-dot--marble2]="dot.group === 'marble2'" [class.split-dot--full]="dot.group === 'full'"
-        [class.split-dot--active]="dot.isActive" [class.split-dot--is-seven]="dot.step === 7" [disabled]="!dot.enabled"
-        (click)="selectSevenSteps(dot.step)">
+        [class.split-dot--active]="dot.isActive" [class.split-dot--is-seven]="dot.step === 7" [disabled]="!dot.enabled">
         <span class="split-dot__number">{{ dot.step }}</span>
       </button>
       }
@@ -147,9 +159,15 @@
         <span class="split-info__divider">/</span>
         <span class="split-info__marble2">{{ 7 - gameStateService.sevenFirstSteps() }}</span>
         } @else {
-        <span class="split-info__hint">Tap to split</span>
+        <span class="split-info__hint">Drag to split</span>
         }
     </div>
+
+    @if (showUseAllSevenShortcut()) {
+    <button type="button" class="seven-shortcut-btn" (click)="useAllSevenOnFirstMarble()">
+      Use all 7 on this marble
+    </button>
+    }
 
   </div>
   }

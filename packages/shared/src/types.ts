@@ -159,6 +159,22 @@ export interface GameEndedMessage {
 }
 
 /**
+ * Envoyé individuellement à chaque joueur humain connecté APRÈS que le serveur
+ * a appliqué les deltas de points et recalculé les classements. Permet à
+ * l'écran de fin de partie d'afficher le gain/perte, le nouveau total et le
+ * nouveau rang. Non envoyé aux invités (pas de `userId`).
+ */
+export interface GameStatsMessage {
+  type: 'gameStats';
+  /** Variation de points pour ce joueur (signée). */
+  pointsDelta: number;
+  /** Total de points après application du delta. */
+  newPoints: number;
+  /** Rang dans le classement après recalcul. */
+  newRanking: number;
+}
+
+/**
  * Envoyé par le serveur à chaque changement dans la session matchmaking.
  * Chaque joueur reçoit sa propre couleur assignée.
  */
@@ -233,6 +249,7 @@ export type ServerMessage =
   | RoomCreatedMessage
   | WaitingForPlayersMessage
   | GameEndedMessage
+  | GameStatsMessage
   | MatchmakingStatusMessage
   | CustomRoomStatusMessage
   | GameInviteMessage

@@ -52,6 +52,17 @@ export async function updateUserPoints(userId: string, delta: number): Promise<v
     }
 }
 
+export async function getUserPointsAndRanking(userId: string): Promise<{ points: number; ranking: number } | null> {
+    const container = await getUsersContainer();
+    try {
+        const { resource } = await container.item(userId, userId).read<{ points: number; ranking: number }>();
+        return resource ? { points: resource.points ?? 0, ranking: resource.ranking ?? 0 } : null;
+    } catch (err: unknown) {
+        if ((err as { code?: number }).code === 404) return null;
+        throw err;
+    }
+}
+
 export async function recomputeRankings(): Promise<void> {
     const container = await getUsersContainer();
     const { resources: users } = await container.items

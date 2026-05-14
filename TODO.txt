@@ -1,154 +1,264 @@
-================================================================================
-MERCURY — TODO LIST
-================================================================================
+# Mercury / Keenze — TODO
 
---------------------------------------------------------------------------------
-BUG 1 — Rejoining a game after leaving / disconnect state handling
---------------------------------------------------------------------------------
-
-There are two distinct sub-bugs here:
-
-A) Rejoin after explicitly leaving a game does not work
-   Context:
-   - When a player sends `abandonGame`, `handleAbandonGame` in game.ts:289 runs:
-     it sets `player.isConnected = false`, calls `messenger.forceDisconnect()`, and
-     then calls `onPlayerAbandoned()` which DELETES the player's entry from
-     `sessionManager.playerIdentities` (session-manager.ts:175).
-   - When the player comes back (page reload), the frontend reads `guest_player_id`
-     and `active_game_id` from localStorage (game.page.ts:99-102) and sends a
-     `joinGame` message. The server looks up `playerIdentities` (index.ts:87) but
-     finds nothing → responds with `actionRejected: 'Session expired or not found'`.
-   - Additionally, `messenger.forceDisconnect()` removes the WebSocket entry from
-     the `connections` map without a timer, so even if the identity existed,
-     `messenger.reconnect()` would return false (game-messenger.ts:105-108).
-
-   What to fix:
-   1. For signed-in players (those with a `userId`), do NOT delete their entry from
-      `playerIdentities` on abandon, and do NOT call `forceDisconnect`. Instead,
-      keep their identity alive so they can reconnect later.
-   2. In `MultiWsMessenger.reconnect()` (game-messenger.ts:94), handle the case
-      where a player abandoned but is signed-in: allow re-adding their connection
-      even if there is no active connection or pending timer.
-   3. On reconnection (`game.resendStateToPlayer`), restore `player.isConnected = true`.
-   4. Guest players (no `userId`) can keep the current behavior: abandoning is final.
-
-B) When a player's WebSocket drops, they should appear as "disconnected" immediately
-   Context:
-   - `registerCloseHandler` (game-messenger.ts:124) starts a 180-second timer.
-     During those 180 seconds, `player.isConnected` stays `true` even though the
-     player has no active socket. Other players see them as still connected.
-   - `markDisconnected()` (game.ts:128), which sets `player.isConnected = false` and
-     broadcasts the updated game state, is only called after the 180s timer expires.
-
-   What to fix:
-   1. In `registerCloseHandler`, immediately after the WebSocket closes, set
-      `player.isConnected = false` (or add a new flag like `isTempDisconnected = true`)
-      and broadcast the updated game state to remaining players so the UI reflects
-      the disconnection in real time.
-   2. When the player successfully reconnects (in `MultiWsMessenger.reconnect()` and
-      `game.resendStateToPlayer()`), set `player.isConnected = true` again and
-      broadcast the updated state.
-   3. To trigger step 1, the `MultiWsMessenger` needs a callback similar to
-      `onPermanentDisconnect` but for immediate disconnects. Wire this callback up in
-      session-manager.ts or index.ts the same way `setOnPermanentDisconnect` is wired.
-
---------------------------------------------------------------------------------
-BUG 2 — Player preview panel: add an X close button + fix click-outside
---------------------------------------------------------------------------------
-
+================================================================
+1. CLOSE IN-GAME PROFILE PANEL ON BACKDROP / OUTSIDE CLICK
+================================================================
 Context:
-- The player profile panel is rendered in board.component.html:130-180.
-- On non-hover devices (mobile), a full-screen `.profile-backdrop` div is shown
-  (board.component.html:132), which closes the panel when clicked. This covers
-  click-outside functionality on touch devices.
-- On hover devices (desktop), the panel closes when the mouse leaves it.
-- There is currently NO visible close button (×) inside the panel itself.
+- During a game, clicking a player's avatar opens an in-game profile panel
+  (see `frontend/src/app/game/components/board/board.component.ts` →
+  `openProfilePanel()` / `profilePanel` signal, and the template block in
+  `board.component.html` lines ~131-183).
+- The template already renders a `.profile-backdrop` element with
+  `(click)="closeProfilePanel()"`, but only when `!isHoverDevice`
+  (i.e. on touch devices).
+- Reported issue: on mobile, tapping outside the loaded modal does NOT
+  close it. The current implementation should already handle this, but in
+  practice it doesn't (likely a layering / pointer-events / loading-state
+  issue, or the backdrop is rendered after the panel finishes loading).
 
-What to fix:
-1. Add a close button (×) in the top-right corner of the `.profile-panel` element
-   (board.component.html, inside the `@if (profilePanel(); as panel)` block).
-   - It should call `closeProfilePanel()` on click.
-   - It should be visible on both hover and non-hover devices.
-   - Style it as a small icon button positioned absolutely in the panel's top-right
-     corner, using the existing SCSS file (board.component.scss).
-2. Verify that click-outside (via the `.profile-backdrop`) correctly closes the panel
-   AFTER it has fully appeared (there may be a timing issue where the backdrop
-   intercepts the same tap event that opened the panel, causing it to immediately
-   close). If such an issue exists, add a short delay before the backdrop becomes
-   interactive, or use `event.stopPropagation()` on the avatar tap to prevent
-   propagation to the backdrop.
+Goal:
+- When the in-game profile panel is open, tapping anywhere outside of the
+  panel must close it, on BOTH mobile (touch) and desktop (mouse).
 
---------------------------------------------------------------------------------
-TASK 3 — Mobile performance: reduce lag during gameplay
---------------------------------------------------------------------------------
+Sub-tasks:
+- [x] Reproduce the bug on a mobile viewport (touch emulation) once the
+      profile data has finished loading.
+- [x] Verify that `.profile-backdrop` is always rendered while
+      `profilePanel()` is truthy and covers the whole viewport
+      (`position: fixed; inset: 0; z-index`-layered correctly).
+- [x] Ensure the backdrop is rendered REGARDLESS of `panel.loading` /
+      `panel.isGuest` / `panel.data` state, so closing works at every step.
+- [x] Ensure the close trigger fires on `pointerdown`/`click` even on hover
+      devices (currently the backdrop is only shown when `!isHoverDevice`).
+      Removed the `!isHoverDevice` guard — backdrop always renders when the
+      panel is open, covering the full viewport at z-index 200 (panel at 201).
+- [ ] Verify the panel does NOT stay open after tapping another avatar,
+      a card, the board, or any blank space.
 
+================================================================
+2. IMPROVE THE "PLAY A 7" UX (ESPECIALLY ON MOBILE)
+================================================================
 Context:
-- The game runs noticeably slower on mobile phones, particularly during card
-  animations and board updates.
-- The board component (board.component.ts) is a large component using Angular signals
-  and computed properties. The table component (table.component.ts:36) already uses
-  `ChangeDetectionStrategy.OnPush`.
-- Animations use CSS transitions injected as CSS variables (board.component.ts:625).
-- The profile picture pipeline already optimizes images aggressively (image-utils.ts).
+- The "7" card lets the player split its 7 steps between two marbles
+  (see `gameStateService.sevenFirstSteps`, `selectedSplit7MarblePosition`,
+  and the `.seven-split-bar` UI in `table.component.html` ~lines 122-150,
+  plus the logic in `board.component.ts` lines ~134-140 and ~814-826).
+- User feedback: the current interface is not intuitive on mobile —
+  players struggle to understand they can pick a second marble and how
+  to set the split.
 
-Steps to investigate and implement:
-1. Audit `@for` / `*ngFor` loops in board.component.html and table.component.html.
-   Add `track` identifiers to all `@for` loops that are missing them, to avoid
-   full DOM re-creation on every state update.
-2. Verify that `ChangeDetectionStrategy.OnPush` is applied to board.component.ts.
-   If not, add it.
-3. Profile which computed signals in board.component.ts are recomputing on every
-   state update even when their inputs have not changed. Refactor expensive computed
-   values to be more granular (split large computed() into smaller ones that only
-   depend on the relevant slice of state).
-4. For animated elements (flying cards, marble transitions), add `will-change: transform`
-   in SCSS to hint the browser to promote them to their own compositing layer.
-   Remove `will-change` after the animation ends to avoid keeping layers alive.
-5. Replace CSS `top`/`left` positioning on animated elements with `transform: translate()`
-   where applicable — `transform` is GPU-composited and does not trigger layout.
-6. If the board SVG or marble grid causes heavy repaints, consider adding
-   `contain: layout style paint` CSS property to the board container.
-7. On native (Capacitor) platforms, check if any JS-heavy operations (sorting, mapping,
-   deep comparisons) run on the main thread during animations and can be deferred
-   with `requestAnimationFrame` or `setTimeout(..., 0)`.
+Goal:
+- Redesign the "play a 7" interaction so it is immediately obvious to a
+  first-time mobile user.
 
---------------------------------------------------------------------------------
-TASK 4 — Card 7 UX: make the split mechanic easier to understand and use
---------------------------------------------------------------------------------
+Sub-tasks:
+- [x] Audit the current 7-card flow on a small mobile viewport:
+      selecting the 7, picking the first marble, adjusting the split,
+      picking the second marble, confirming.
+- [x] Add clear visual affordances when a 7 is selected:
+        * `sevenHintText` computed drives a context-aware hint that
+          changes per step (pick marble → drag to split → pick 2nd marble).
+        * second split marble now gets a distinct gold halo
+          (`marble-selected-split2`) vs the white `marble-selected` mover;
+          candidate 2nd marbles already pulse via `marble-selectable`.
+        * `.split-dot` enlarged (2rem → 2.25rem; mobile 1.6rem → 2rem) and
+          the whole `.dots-row` is now the tap/drag surface.
+- [x] Make the split bar draggable (touch + mouse) instead of (or in
+      addition to) tapping individual dots — pointer events on `.dots-row`
+      with pointer capture, snapping to the nearest enabled dot.
+- [x] Provide an explicit "skip second marble / use all 7 on this one"
+      shortcut button when only one marble is selected (`seven-shortcut-btn`
+      → `useAllSevenOnFirstMarble()`, shown only when a full 7-move is legal).
+- [x] Show a live preview of the resulting marble positions for BOTH
+      marbles while the user is adjusting the split — already handled by
+      `board.component.ts` `previewInfo`, which reacts to `sevenFirstSteps`.
+- [~] Verify the redesign works for 1-marble and 2-marble cases, and
+      that cancelling (deselecting the card) cleanly resets
+      `sevenFirstSteps` and `selectedSplit7MarblePosition` — reset paths in
+      `onCardSelected` / `newTurn` confirmed; `ng build` passes. NOT yet
+      verified interactively in a mobile browser.
 
+================================================================
+3. MAKE THE TURN TIMER VISIBLE ON MOBILE
+================================================================
 Context:
-- Card 7 allows a player to move a marble 7 steps, or split those 7 steps between
-  two different marbles (e.g., 3 steps on marble A + 4 steps on marble B).
-- Current UX flow:
-  1. Player selects card 7 from their hand.
-  2. Player taps a marble on the board (first marble selection).
-  3. The seven-step split bar appears at the bottom (table.component.html:113-148),
-     showing 7 dots. By default, all 7 steps are assigned to the first marble.
-  4. To split: the player taps one of the 6 split dots (steps 1-6) to choose how
-     many steps go to the first marble. A "X/Y" counter shows the split.
-  5. Player taps a second marble to complete the split move.
-- Problems reported:
-  - Users do not know the split feature exists before selecting a marble
-    (the split bar is hidden until step 2).
-  - "Tap to split" hint only appears when all 7 steps are on marble 1 (step 3).
-  - The dots are small and hard to tap on mobile.
-  - There is no distinction between marble 1's path and marble 2's path in the board
-    preview — both segments render identically, making it hard to visualize the split.
+- The timer is currently rendered as a circular ring inside the table
+  component (`.timer-zone` / `.timer-ring` in
+  `table.component.html` lines ~82-92, logic at
+  `table.component.ts` lines ~183-281).
+- On mobile, the table component is small/hidden and the timer is not
+  obvious to the player.
 
-What to fix:
-1. Add an instructional text that appears as soon as card 7 is selected (before any
-   marble is tapped). Show it near the split bar area or above the board. Suggested
-   copy: "Move a marble 7 steps — or tap to split between two marbles."
-   Hide this text once the first marble is selected (the split bar takes over).
-2. Increase the touch target size of the split dots (`.split-dot` in table.component.scss)
-   on mobile. The visible dot can remain the same size, but the tappable area should
-   be at least 44×44 px (iOS HIG recommendation). Use padding or a larger transparent
-   hit area.
-3. In the board preview (board.component.ts:131-177), visually differentiate the two
-   marble paths when a split is active:
-   - Marble 1 path: render preview squares with the normal highlight style.
-   - Marble 2 path: render preview squares with a dashed border or a lower opacity,
-     so the player can distinguish which steps belong to which marble.
-4. (Optional, lower priority) Consider showing the split bar in a grayed-out / disabled
-   state even before a marble is selected, so players can discover the split mechanic
-   without having to stumble upon it. Activate the dots once marble 1 is chosen.
+Goal:
+- Provide a prominent, always-visible turn timer on mobile, with a clear
+  urgency cue when ≤ 5 seconds remain.
+
+Sub-tasks (pick option A OR option B; option B is preferred if feasible):
+- [ ] Option A — Floating timer: NOT CHOSEN.
+- [x] Option B — Border progress bar (preferred):
+        * `.mobile-timer` lives in `game.page` (timer state — `timeLeft` —
+          is on `GameStateService`, so no piping through the table).
+        * A 6px `.mobile-timer__fill` bar pinned to the top edge of the
+          board area, plus a compact second-count badge top-left.
+        * Width is `scaleX(timerRatio())` where
+          `timerRatio = timeLeft() / data().gameState.timer`, with
+          `transition: transform 1s linear` so it shrinks smoothly each tick.
+- [x] Urgency effect when `timeLeft() <= 5`:
+        * `timerColor()` shifts to red (`#f87171`) below the 5s mark,
+        * `.mobile-timer--urgent` adds a pulsing animation on bar + badge,
+        * `Haptics.impact({ Light })` fires once per remaining second on
+          native platforms (added in `table.component.ts` `startTimer`,
+          next to the existing countdown-tick sound).
+- [x] Mobile timer is only rendered during the player's own turn
+      (`@if (gameStateService.isMyTurn())`) and is CSS-gated to the same
+      mobile breakpoints where the desktop ring timer is hidden.
+- [x] Desktop timer untouched (`.timer-zone` / `.timer-ring` unchanged).
+- [~] NOT yet verified interactively in a mobile browser; `ng build` passes.
+
+================================================================
+4. ROBUST GAME-STATE REFRESH WHEN RETURNING TO THE APP (MOBILE)
+================================================================
+Context:
+- Reconnection logic lives in `frontend/src/app/app.component.ts`
+  (uses `localStorage` keys `active_game_id` + `guest_player_id`,
+  `TabLockService`, `GameStateService.connect/sendJoinGame`,
+  `gameStarted$` / `actionRejected$`).
+- The home screen shows a "You have an ongoing game — Resume →" banner
+  when `localStorage.getItem('active_game_id')` and `guest_player_id`
+  are both present (`home.page.ts` lines ~158-160,
+  `home.page.html` lines ~80-82).
+- Reported bugs on mobile:
+    (a) After leaving the app overnight and reopening, the home banner
+        showed "Resume the game" even though no game was actually in
+        progress on the server. A hard page reload removed it.
+    (b) While inside the game, switching away from the tab/app and
+        coming back left the game state stale (not updated).
+
+Goal:
+- On every "app becomes visible / regains focus" event, re-validate the
+  active game and the in-game state from the server, and show a clear
+  loading state while we do so.
+
+Sub-tasks:
+- [x] Add a global "app resumed" listener — new `AppResumeService`
+      (`services/app-resume.service.ts`, `providedIn: root`, eagerly
+      created from `AppComponent`). Wires `visibilitychange` → visible,
+      window `focus`, and Capacitor `App` `appStateChange { isActive }`
+      once; a `wasBackgrounded` guard + 1s debounce collapses the burst
+      of events into a single resume. Exposes `resumed$`.
+- [x] On "app resumed" with `active_game_id` + `guest_player_id` present:
+        * `validating` signal flips true → `AppComponent` shows a global
+          full-screen `<app-loading-screen>` overlay (z-index 9999, also
+          blocks board input during the check).
+        * Re-validates via `sendJoinGame`, racing `gameStarted$` (ok) vs
+          `actionRejected$` (gone) vs an 8s timeout.
+        * On rejection → `removeItem('active_game_id')`, release tab lock,
+          `GameStateService.reset()`, `hasActiveGame = false`.
+        * On confirm → server's `gameState` message refreshes
+          `GameStateService.data`; `hasActiveGame = true`.
+        * The `.loading-screen` markup was extracted into a shared
+          `LoadingScreenComponent` (`shared/loading-screen.component.*`),
+          now used by both the game page and the global overlay.
+- [x] Home page: dropped the local `activeGame` flag; the "Resume" banner
+      binds to `appResume.hasActiveGame()` (a signal). `ngOnInit` calls
+      `refreshFromStorage()`, and resume validation updates the signal —
+      so the banner only stays once the server confirms the game.
+- [x] Game page on resume: the same `AppResumeService` flow covers it —
+      if `!isConnected()` it reconnects via `GameStateService.connect`
+      then re-issues `sendJoinGame`; the visible state is only replaced
+      when the fresh `gameState` arrives (the `data` signal). No per-page
+      duplication.
+- [x] Telemetry: `console.log('[AppResume] ...')` traces across the whole
+      resume + validation flow.
+- [~] NOT yet verified interactively (backgrounding a real device /
+      overnight-stale-game repro); `ng build` passes.
+
+================================================================
+5. POINTS GAIN/LOSS WEIGHTED BY OPPONENT RANKING
+================================================================
+Context:
+- Current logic is flat: winner gets +3, every other human player gets
+  -1, and a disconnect costs -2 (see
+  `backend/src/game/game.ts` → `applyEndGamePoints()` at line ~757,
+  and `markDisconnected()` at line ~152).
+- Rankings are recomputed globally after each update via
+  `recomputeRankings()` in `backend/src/db.ts`.
+
+Goal:
+- Make the points delta depend on the opponents' standing: beating
+  high-ranked players should yield more points than beating low-ranked
+  ones, and losing to low-ranked players should cost more than losing
+  to top players.
+
+Sub-tasks:
+- [ ] Decide on a formula. Suggested simple approach (Elo-like):
+        * For each non-penalized human in the game, fetch their current
+          `points` (and/or `ranking`) at game end.
+        * Compute per-player delta as a function of the average
+          opponent rating relative to the player's own rating.
+        * Keep total winner gain in a reasonable bounded range (e.g.
+          +1 to +6) and loser loss in (e.g. -3 to -1) to avoid wild
+          swings.
+- [ ] Update `applyEndGamePoints(winnerColor)` in
+      `backend/src/game/game.ts`:
+        * Read current points for every human player with a `userId`
+          (batch query Cosmos `users` container by id).
+        * Compute deltas using the chosen formula.
+        * Apply deltas via `updateUserPoints`, then
+          `recomputeRankings()` once.
+- [ ] Decide whether the disconnect penalty (currently flat -2 in
+      `markDisconnected`) should also become rating-weighted. If yes,
+      apply the same logic; if no, document the decision in a code
+      comment.
+- [ ] Add the per-player `pointsDelta` to the `gameEnded` message
+      payload so the frontend can display it (see task 6).
+- [ ] Add unit tests around the new computation (pure function on
+      points/ranking input → deltas).
+
+================================================================
+6. END-OF-GAME SUMMARY SCREEN (POINTS DELTA, NEW TOTAL, NEW RANK)
+================================================================
+Context:
+- End-of-game UI today is the `VictoryOverlayComponent`
+  (`frontend/src/app/game/components/victory-overlay/`), which shows
+  only the winner's name, an emoji, "Victory!" / "Defeat", and confetti.
+- It currently exposes no way to return to the menu — the user has to
+  rely on browser navigation.
+- The backend updates points and rankings asynchronously after sending
+  `gameEnded` (see task 5).
+
+Goal:
+- After a game ends, show the local player how many points they
+  gained/lost, their new point total, their new ranking, and let them
+  go back to the home menu with a single tap/click.
+
+Sub-tasks:
+- [ ] Extend the `gameEnded` message (or add a follow-up message such
+      as `gameStats`) to include for the local player:
+        * `pointsDelta` (signed integer),
+        * `newPoints` (total after delta),
+        * `newRanking` (post-recompute rank).
+      Send it AFTER `applyEndGamePoints()` + `recomputeRankings()`
+      complete, so the values are authoritative.
+- [ ] In `GameStateService`, capture these stats into a signal/observable
+      consumable by `VictoryOverlayComponent` / `GamePage`.
+- [ ] Update `VictoryOverlayComponent`:
+        * Add inputs for `pointsDelta`, `newPoints`, `newRanking`.
+        * Render a stats block under the existing "won the game!" line:
+            - Big "+N points" / "-N points" with a color cue
+              (green for gain, red for loss, neutral if 0 or unranked).
+            - "New total: {{ newPoints }} pts".
+            - "New ranking: #{{ newRanking }}" (hide if 0/unranked).
+        * Handle the loading state gracefully if stats arrive a moment
+          after the overlay appears (e.g. show "Calculating…" while
+          the values are still null).
+- [ ] Add a primary "Back to menu" button in the overlay:
+        * Tapping it navigates to `/home`, clears `active_game_id` and
+          `guest_player_id` from localStorage, releases the tab lock,
+          and resets `GameStateService`.
+        * The button should be reachable on both mobile and desktop
+          without scrolling.
+- [ ] For guest players (no `userId`), hide the stats block but still
+      show the "Back to menu" button.
+- [ ] Update the `win_by_default` case so the same summary + "Back to
+      menu" button is shown.
