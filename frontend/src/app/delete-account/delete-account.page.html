@@ -1,0 +1,105 @@
+<div class="da-wrap">
+  <div class="da-card">
+
+    <div class="da-header">
+      <button class="da-back" (click)="goBack()">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+          stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+        Back
+      </button>
+      <h1 class="da-title">Delete Account</h1>
+    </div>
+
+    <div class="da-body">
+
+      <!-- Not logged in -->
+      <ng-container *ngIf="!(auth.user$ | async)">
+        <div class="da-icon da-icon--warn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+        </div>
+        <p class="da-lead">You are not signed in.</p>
+        <p class="da-sub">To request deletion of a guest session or for any other enquiry, please contact us directly:</p>
+        <a class="da-contact-link" href="mailto:yannick.cardini@gmail.com">yannick.cardini@gmail.com</a>
+        <button class="da-btn da-btn--secondary" (click)="goHome()">Go home</button>
+      </ng-container>
+
+      <!-- Confirm state -->
+      <ng-container *ngIf="(auth.user$ | async) && state === 'confirm'">
+        <div class="da-icon da-icon--danger">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+            <path d="M10 11v6M14 11v6"></path>
+            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>
+          </svg>
+        </div>
+
+        <p class="da-lead">Are you sure you want to delete your account?</p>
+
+        <ul class="da-consequences">
+          <li>Your profile, name, and picture will be permanently removed.</li>
+          <li>Your game statistics and ranking will be lost.</li>
+          <li>This action <strong>cannot be undone</strong>.</li>
+        </ul>
+
+        <p class="da-confirm-label">Type <strong>DELETE</strong> to confirm:</p>
+        <input
+          class="da-confirm-input"
+          type="text"
+          [(ngModel)]="confirmText"
+          placeholder="DELETE"
+          autocomplete="off"
+          spellcheck="false"
+        />
+
+        <button
+          class="da-btn da-btn--danger"
+          [disabled]="!canSubmit"
+          (click)="submit()"
+        >
+          Delete my account
+        </button>
+      </ng-container>
+
+      <!-- Deleting state -->
+      <ng-container *ngIf="state === 'deleting'">
+        <div class="da-spinner"></div>
+        <p class="da-lead">Deleting your account…</p>
+      </ng-container>
+
+      <!-- Done state -->
+      <ng-container *ngIf="state === 'done'">
+        <div class="da-icon da-icon--success">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </div>
+        <p class="da-lead">Account deleted.</p>
+        <p class="da-sub">Your account and all associated data have been permanently removed.</p>
+        <button class="da-btn da-btn--secondary" (click)="goHome()">Go home</button>
+      </ng-container>
+
+      <!-- Error state -->
+      <ng-container *ngIf="state === 'error'">
+        <div class="da-icon da-icon--warn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+        </div>
+        <p class="da-lead">Something went wrong.</p>
+        <p class="da-sub">{{ errorMessage }}</p>
+        <a class="da-contact-link" href="mailto:yannick.cardini@gmail.com">yannick.cardini@gmail.com</a>
+        <button class="da-btn da-btn--secondary" (click)="state = 'confirm'">Try again</button>
+      </ng-container>
+
+    </div>
+  </div>
+</div>

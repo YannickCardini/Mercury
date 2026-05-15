@@ -149,6 +149,18 @@ export class AuthService {
         }
     }
 
+    async deleteAccount(): Promise<void> {
+        const user = this.user$.getValue();
+        if (!user) return;
+        const token = this.getIdToken();
+        await firstValueFrom(
+            this.http.delete(`${environment.apiUrl}/api/auth/user/${user.id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            })
+        );
+        await this.logout();
+    }
+
     async logout(): Promise<void> {
         await GoogleSignIn.signOut();
         this.user$.next(null);

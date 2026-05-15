@@ -285,6 +285,34 @@ router.post('/worker', async (req: Request, res: Response) => {
     }
 });
 
+// DELETE /api/auth/user/:id — permanently delete account and all associated data
+router.delete('/user/:id', async (req: Request, res: Response) => {
+    const { id } = req.params as { id: string };
+
+    const authHeader = req.headers['authorization'];
+    const idToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
+    const verifiedSub = await verifyGoogleIdToken(idToken);
+
+    if (!verifiedSub || verifiedSub !== id) {
+        res.status(403).json({ error: 'Forbidden' });
+        return;
+    }
+
+    try {
+        const container = await getUsersContainer();
+        const { resource } = await container.item(id, id).read<UserDoc>();
+        if (!resource) {
+            res.status(404).json({ error: 'User not found' });
+            return;
+        }
+        await container.item(id, id).delete();
+        res.status(204).send();
+    } catch (err) {
+        console.error('❌ Cosmos DB error (DELETE /user/:id):', err);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
 // GET /api/auth/leaderboard — top 100 players sorted by ranking
 router.get('/leaderboard', async (_req: Request, res: Response) => {
     try {

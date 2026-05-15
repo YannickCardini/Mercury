@@ -1,0 +1,246 @@
+$c-silver: #94a3b8;
+$c-blue: #3b82f6;
+$c-red: #ef4444;
+$c-green: #22c55e;
+$bg-dark: #0f172a;
+$bg-mid: #1a2840;
+
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.da-wrap {
+  width: 100%;
+  min-height: 100%;
+  box-sizing: border-box;
+  background: radial-gradient(ellipse at 50% 30%, $bg-mid 0%, $bg-dark 80%);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 32px 16px 48px;
+}
+
+.da-card {
+  width: 100%;
+  max-width: 480px;
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.da-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.da-back {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  color: $c-silver;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  transition: background 0.15s, color 0.15s;
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #e2e8f0;
+  }
+}
+
+.da-title {
+  flex: 1;
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #e2e8f0;
+  letter-spacing: 0.5px;
+}
+
+.da-body {
+  padding: 32px 28px 36px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 16px;
+}
+
+.da-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+
+  svg {
+    width: 28px;
+    height: 28px;
+  }
+
+  &--danger {
+    background: rgba(239, 68, 68, 0.15);
+    color: $c-red;
+  }
+
+  &--warn {
+    background: rgba(234, 179, 8, 0.15);
+    color: #eab308;
+  }
+
+  &--success {
+    background: rgba(34, 197, 94, 0.15);
+    color: $c-green;
+  }
+}
+
+.da-lead {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.da-sub {
+  margin: 0;
+  font-size: 14px;
+  color: $c-silver;
+  line-height: 1.6;
+}
+
+.da-consequences {
+  margin: 0;
+  padding: 16px 20px;
+  background: rgba(239, 68, 68, 0.06);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 10px;
+  text-align: left;
+  font-size: 13.5px;
+  color: #cbd5e1;
+  line-height: 1.6;
+  list-style: none;
+  width: 100%;
+  box-sizing: border-box;
+
+  li {
+    padding-left: 16px;
+    position: relative;
+    margin-bottom: 6px;
+
+    &:last-child { margin-bottom: 0; }
+
+    &::before {
+      content: '•';
+      position: absolute;
+      left: 0;
+      color: $c-red;
+    }
+  }
+
+  strong {
+    color: #f1f5f9;
+    font-weight: 600;
+  }
+}
+
+.da-confirm-label {
+  margin: 0;
+  font-size: 13px;
+  color: $c-silver;
+  align-self: flex-start;
+
+  strong {
+    color: #e2e8f0;
+    font-family: monospace;
+    letter-spacing: 0.05em;
+  }
+}
+
+.da-confirm-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  color: #e2e8f0;
+  font-size: 14px;
+  font-family: monospace;
+  letter-spacing: 0.08em;
+  outline: none;
+  transition: border-color 0.15s;
+
+  &::placeholder { color: rgba(148, 163, 184, 0.5); }
+
+  &:focus {
+    border-color: rgba(239, 68, 68, 0.5);
+  }
+}
+
+.da-btn {
+  width: 100%;
+  padding: 11px 16px;
+  border-radius: 10px;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s, background 0.15s;
+
+  &--danger {
+    background: $c-red;
+    color: #fff;
+
+    &:hover:not(:disabled) { background: #dc2626; }
+    &:disabled { opacity: 0.4; cursor: not-allowed; }
+  }
+
+  &--secondary {
+    background: rgba(255, 255, 255, 0.08);
+    color: #e2e8f0;
+
+    &:hover { background: rgba(255, 255, 255, 0.13); }
+  }
+}
+
+.da-contact-link {
+  color: $c-blue;
+  font-size: 14px;
+  text-decoration: none;
+
+  &:hover { text-decoration: underline; }
+}
+
+.da-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top-color: $c-red;
+  border-radius: 50%;
+  animation: da-spin 0.7s linear infinite;
+  margin-bottom: 8px;
+}
+
+@keyframes da-spin {
+  to { transform: rotate(360deg); }
+}

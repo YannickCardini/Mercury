@@ -1270,6 +1270,18 @@ $bg-mid: #1a2840;
   }
 }
 
+.settings-delete-btn {
+  background: rgba(239, 68, 68, 0.07);
+  border-color: rgba(239, 68, 68, 0.25);
+  color: rgba(239, 68, 68, 0.85);
+
+  &:hover {
+    background: rgba(239, 68, 68, 0.14);
+    border-color: rgba(239, 68, 68, 0.5);
+    color: #ef4444;
+  }
+}
+
 // ─── Settings card ────────────────────────────────────────────────────────────
 .settings-info {
   display: flex;

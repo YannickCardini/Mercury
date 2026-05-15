@@ -28,4 +28,8 @@ export const routes: Routes = [
     path: 'privacy',
     loadComponent: () => import('./privacy/privacy.page').then(m => m.PrivacyPage)
   },
+  {
+    path: 'delete-account',
+    loadComponent: () => import('./delete-account/delete-account.page').then(m => m.DeleteAccountPage)
+  },
 ];

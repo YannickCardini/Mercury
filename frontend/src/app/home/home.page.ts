@@ -295,6 +295,7 @@ export class HomePage implements OnInit, OnDestroy {
   openSettings() { this.showSettings = true; this.workerLoginVisible = false; this.workerVersionTaps = 0; }
   closeSettings() { this.showSettings = false; this.workerLoginVisible = false; this.workerVersionTaps = 0; }
   openPrivacyPolicy() { this.showSettings = false; this.router.navigate(['/privacy']); }
+  openDeleteAccount() { this.showSettings = false; this.router.navigate(['/delete-account']); }
 
   // ── Worker (staff) login ───────────────────────────────────────────────────
   workerVersionTaps = 0;
