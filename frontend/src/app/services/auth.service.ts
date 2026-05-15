@@ -129,6 +129,26 @@ export class AuthService {
         }
     }
 
+    async loginAsWorker(username: string, password: string): Promise<void> {
+        this.isLoading$.next(true);
+        try {
+            const resp = await firstValueFrom(
+                this.http.post<{ user: AuthUser; sessionToken: string }>(
+                    `${environment.apiUrl}/api/auth/worker`, { username, password }
+                )
+            );
+            this.user$.next(resp.user);
+            this.idToken = resp.sessionToken;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(resp.user));
+            localStorage.setItem(ID_TOKEN_KEY, resp.sessionToken);
+        } catch {
+            this.loginError$.next('server');
+            throw new Error('Invalid credentials');
+        } finally {
+            this.isLoading$.next(false);
+        }
+    }
+
     async logout(): Promise<void> {
         await GoogleSignIn.signOut();
         this.user$.next(null);

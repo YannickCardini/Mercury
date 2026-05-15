@@ -269,7 +269,7 @@
         <div class="settings-info">
           <div class="info-row">
             <span class="info-key">Version</span>
-            <span class="info-val">{{ appVersion }}</span>
+            <span class="info-val" (click)="onVersionTap()" style="cursor:default;user-select:none">{{ appVersion }}</span>
           </div>
           <div class="info-row">
             <span class="info-key">Contact</span>
@@ -305,6 +305,17 @@
             <path d="M9 18l6-6-6-6" />
           </svg>
         </button>
+
+        <div *ngIf="workerLoginVisible" class="worker-login-section">
+          <p class="worker-login-label">Staff access</p>
+          <input class="worker-login-input" type="text" placeholder="Username" [(ngModel)]="workerUsername" autocomplete="off" />
+          <input class="worker-login-input" type="password" placeholder="Password" [(ngModel)]="workerPassword" autocomplete="off" />
+          <p *ngIf="workerLoginError" class="worker-login-error">{{ workerLoginError }}</p>
+          <button class="worker-login-btn" (click)="loginAsWorker()" [disabled]="workerLoginLoading">
+            <span *ngIf="workerLoginLoading" class="btn-spinner"></span>
+            <span *ngIf="!workerLoginLoading">Sign in</span>
+          </button>
+        </div>
 
       </div>
     </div>

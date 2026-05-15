@@ -292,9 +292,37 @@ export class HomePage implements OnInit, OnDestroy {
 
   resumeGame(): void { this.router.navigate(['/game']); }
 
-  openSettings() { this.showSettings = true; }
-  closeSettings() { this.showSettings = false; }
+  openSettings() { this.showSettings = true; this.workerLoginVisible = false; this.workerVersionTaps = 0; }
+  closeSettings() { this.showSettings = false; this.workerLoginVisible = false; this.workerVersionTaps = 0; }
   openPrivacyPolicy() { this.showSettings = false; this.router.navigate(['/privacy']); }
+
+  // ── Worker (staff) login ───────────────────────────────────────────────────
+  workerVersionTaps = 0;
+  workerLoginVisible = false;
+  workerUsername = '';
+  workerPassword = '';
+  workerLoginError = '';
+  workerLoginLoading = false;
+
+  onVersionTap(): void {
+    this.workerVersionTaps++;
+    if (this.workerVersionTaps >= 5) {
+      this.workerLoginVisible = true;
+    }
+  }
+
+  async loginAsWorker(): Promise<void> {
+    this.workerLoginError = '';
+    this.workerLoginLoading = true;
+    try {
+      await this.auth.loginAsWorker(this.workerUsername, this.workerPassword);
+      this.closeSettings();
+    } catch {
+      this.workerLoginError = 'Invalid credentials';
+    } finally {
+      this.workerLoginLoading = false;
+    }
+  }
 
   openRules() { this.showRules = true; }
   closeRules() { this.showRules = false; }

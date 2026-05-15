@@ -2495,3 +2495,74 @@ $bg-mid: #1a2840;
     box-shadow: none;
   }
 }
+
+// ─── Worker (staff) login ─────────────────────────────────────────────────────
+.worker-login-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 14px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.worker-login-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.3);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin: 0 0 2px;
+}
+
+.worker-login-input {
+  width: 100%;
+  padding: 9px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.87rem;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+
+  &::placeholder { color: rgba(255, 255, 255, 0.25); }
+  &:focus { border-color: rgba($c-blue, 0.5); }
+}
+
+.worker-login-error {
+  font-size: 0.8rem;
+  color: rgba(#ef4444, 0.85);
+  margin: 0;
+}
+
+.worker-login-btn {
+  width: 100%;
+  padding: 9px 12px;
+  background: rgba($c-blue, 0.15);
+  border: 1px solid rgba($c-blue, 0.3);
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.87rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+
+  &:hover:not(:disabled) {
+    background: rgba($c-blue, 0.25);
+    border-color: rgba($c-blue, 0.5);
+    color: white;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}

@@ -13,6 +13,9 @@ const googleClient = new OAuth2Client();
  */
 export async function verifyGoogleIdToken(idToken: string | undefined): Promise<string | null> {
     if (!idToken) return null;
+    if (process.env['WORKER_SESSION_TOKEN'] && idToken === process.env['WORKER_SESSION_TOKEN']) {
+        return '1337';
+    }
     try {
         const audiences = [process.env['GOOGLE_AUDIENCE_WEB']!, process.env['GOOGLE_AUDIENCE_ANDROID']!];
         const ticket = await googleClient.verifyIdToken({ idToken, audience: audiences });
@@ -232,6 +235,52 @@ router.post('/bot', async (req: Request, res: Response) => {
         res.json({ userId: resource.id, name: resource.name, picture: resource.picture, points: resource.points, ranking: resource.ranking });
     } catch (err) {
         console.error('❌ Cosmos DB error (POST /bot):', err);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+// POST /api/auth/worker — staff login for the dedicated Google review account (user 1337)
+router.post('/worker', async (req: Request, res: Response) => {
+    const { username, password } = req.body as { username?: string; password?: string };
+
+    const validUsername = process.env['WORKER_USERNAME'];
+    const validPassword = process.env['WORKER_PASSWORD'];
+    const sessionToken = process.env['WORKER_SESSION_TOKEN'];
+
+    if (!validUsername || !validPassword || !sessionToken) {
+        res.status(503).json({ error: 'Worker auth not configured' });
+        return;
+    }
+
+    if (!username || !password || username !== validUsername || password !== validPassword) {
+        res.status(401).json({ error: 'Invalid credentials' });
+        return;
+    }
+
+    const workerId = '1337';
+    try {
+        const container = await getUsersContainer();
+        const { resource } = await container.item(workerId, workerId).read<UserDoc>();
+        if (!resource) {
+            res.status(404).json({ error: 'Worker account not found' });
+            return;
+        }
+        resource.lastLogin = new Date().toISOString();
+        await container.item(workerId, workerId).replace(resource);
+        res.json({
+            user: {
+                id: resource.id,
+                email: resource.email,
+                name: resource.name,
+                picture: resource.picture,
+                points: resource.points,
+                ranking: resource.ranking,
+                createdAt: resource.createdAt,
+            },
+            sessionToken,
+        });
+    } catch (err) {
+        console.error('❌ Cosmos DB error (POST /worker):', err);
         res.status(500).json({ error: 'Database error' });
     }
 });
