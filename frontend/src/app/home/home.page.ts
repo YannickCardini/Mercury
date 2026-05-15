@@ -294,6 +294,7 @@ export class HomePage implements OnInit, OnDestroy {
 
   openSettings() { this.showSettings = true; }
   closeSettings() { this.showSettings = false; }
+  openPrivacyPolicy() { this.showSettings = false; this.router.navigate(['/privacy']); }
 
   openRules() { this.showRules = true; }
   closeRules() { this.showRules = false; }
