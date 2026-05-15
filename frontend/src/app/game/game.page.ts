@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { BoardComponent } from './components/board/board.component';
 import { TableComponent } from './components/table/table.component';
 import { VictoryOverlayComponent } from './components/victory-overlay/victory-overlay.component';
+import { TutorialOverlayComponent } from './components/tutorial-overlay/tutorial-overlay.component';
 import { GameRulesModalComponent } from '../shared/game-rules-modal.component';
 import { LoadingScreenComponent } from '../shared/loading-screen.component';
 import { GameStateService } from './services/game-state.service';
@@ -17,7 +18,7 @@ import { Capacitor } from '@capacitor/core';
   selector: 'app-game',
   templateUrl: 'game.page.html',
   styleUrl: 'game.page.scss',
-  imports: [BoardComponent, TableComponent, VictoryOverlayComponent, GameRulesModalComponent, LoadingScreenComponent],
+  imports: [BoardComponent, TableComponent, VictoryOverlayComponent, TutorialOverlayComponent, GameRulesModalComponent, LoadingScreenComponent],
 })
 export class GamePage implements OnDestroy, AfterViewInit {
 

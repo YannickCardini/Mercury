@@ -39,6 +39,8 @@
       [style.width.px]="gameStateService.boardContainerSize()">
       <app-table (rulesRequested)="showRules.set(true)"></app-table>
     </div>
+
+    <app-tutorial-overlay />
   </div>
   }
 

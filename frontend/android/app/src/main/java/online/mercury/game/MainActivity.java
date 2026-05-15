@@ -1,4 +1,4 @@
-package app.android.mercury;
+package online.mercury.game;
 
 import com.getcapacitor.BridgeActivity;
 

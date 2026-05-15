@@ -1,211 +1,78 @@
-================================================================================
-MERCURY — OUTSTANDING TASKS
-================================================================================
+TUTORIAL OVERLAY — REFINEMENTS
+==============================
 
---------------------------------------------------------------------------------
-TASK 1 — Improve marble visibility on home and start positions
-Priority: Medium
---------------------------------------------------------------------------------
+Context
+-------
+The tutorial overlay (frontend/src/app/game/components/tutorial-overlay/) shows
+contextual hints on the local player's turn. Each hint is a text "pill" with a
+pointer arrow, plus one or more yellow highlight rings around the target.
+There are 4 hints, driven by `hint()` in tutorial-overlay.component.ts:
+  - 'card'    → "Select a card from your hand"   (anchor: 'hand')
+  - 'marble'  → "Select a marble to move"        (anchor: 'board')
+  - 'confirm' → "Tap the button to confirm"      (anchor: 'confirm')
+  - 'discard' → "No playable cards — tap to discard" (anchor: 'confirm')
 
-PROBLEM:
-Each player's 4 home cells (CSS class `.home-[color]`) and 1 start cell
-(`.start-[color]`) share the same color as the marbles placed on them. Testers
-frequently cannot tell whether a marble is present or not.
+What already works well — DO NOT CHANGE
+---------------------------------------
+- The 'confirm' / 'discard' hint: pill + highlight on the confirm/discard
+  button (.action-btn, anchor 'confirm') is good as-is.
+- The 'marble' hint's highlight: the circular yellow ring around the
+  selectable marble (.highlight-board) is good as-is.
 
-RELEVANT FILES:
-  - frontend/src/app/game/components/board/board.component.scss
-      → `.marble`, `.marble-[color]`, `.home-[color]`, `.start-[color]`
-  - frontend/src/app/game/components/board/board.component.html
-      → The marble <div> is rendered inside the cell via:
-        `@if (getMarbleOnSquare(index); as marbleColor) { <div class="marble marble-[color]"> }`
-
-WHAT TO DO:
-  - Find a visual treatment that makes a marble clearly visible even when its
-    color matches the cell background. Options to consider:
-      a) Add a persistent white or dark border to all `.marble` elements
-         (e.g., `border: 2px solid rgba(255, 255, 255, 0.7)`).
-      b) Add a contrasting drop-shadow to marbles (e.g.,
-         `box-shadow: 0 0 0 2px rgba(255,255,255,0.5), 0 2px 4px rgba(0,0,0,0.5)`).
-      c) Increase the brightness/contrast of the marble gradient so it always
-         stands out from the cell background.
-  - Pick the approach that least disrupts the existing visual design.
-  - Do NOT change board geometry, cell sizes, or positions.
-  - Do NOT affect marble animations (`.marble-selectable`, `.marble-selected`,
-    `.marble-moving`, etc.) — only the base idle appearance.
-
-CONSTRAINT:
-  The fix must work for all four colors (red, green, blue, orange) on both their
-  matching home cells and start cells.
+The text pill + arrow for the 'card' and 'marble' hints look bad and need to
+be reworked. The two tasks below cover that.
 
 
---------------------------------------------------------------------------------
-TASK 2 — Strengthen the current-player turn indicator
-Priority: Medium
---------------------------------------------------------------------------------
+TASK 1 — Reposition the 'marble' hint pill next to the player's home corner
+---------------------------------------------------------------------------
+Problem:
+  The 'marble' hint currently places the pill at the union rect of all
+  `.marble-selectable` elements, above or below the board centre
+  (see `recompute()` -> `anchor === 'board'` branch). This placement looks bad.
 
-PROBLEM:
-When it is a player's turn, the `.control-dashboard` footer shows a colored
-border-top and a subtle glowing box-shadow. The `activeTurnPulse` animation
-is present but testers find it hard to notice whose turn it is.
+Key fact:
+  The 'marble' hint only ever appears on the player's very first action
+  (`hasConfirmed` is still false). On the first action the only selectable
+  marble is one marble sitting in the local player's home position. So the
+  hint always points at a single marble in the player's home corner.
 
-RELEVANT FILES:
-  - frontend/src/app/game/components/table/table.component.scss
-      → `.control-dashboard`, `.player-profile`, `.avatar`, `activeTurnPulse`
-  - frontend/src/app/game/components/table/table.component.html
-      → `.player-profile` section: avatar + "Currently playing" label + player name
-
-WHAT TO DO:
-  Strengthen the visual indicator for the active player's turn. Approaches to
-  consider (choose one or combine):
-    a) Increase the `box-shadow` intensity on `.control-dashboard` during the
-       active turn (larger spread, higher opacity).
-    b) Strengthen or replace the `activeTurnPulse` keyframe animation with a
-       more prominent glow cycle.
-    c) Add a pulsing colored border or background highlight to the `.avatar`
-       or `.player-profile` element.
-    d) Add a visible "Your turn!" badge or an animated colored dot next to the
-       player name when `isMyTurn === true`.
-  - Changes must be purely visual (CSS/SCSS only, or minor template addition).
-  - Do NOT break the dashboard layout or the timer display.
+Required change:
+  - In the 'board' branch of `recompute()`, position the pill + arrow next to
+    the local player's home position instead of the board-centre-relative
+    union placement.
+  - Identify the player's home squares from the board: home squares render
+    with class `home home-${color}` (see board.component.ts ~line 710,
+    `getSquareClass`). Use `gameStateService.myPlayerColor()` to pick the
+    color, e.g. query `.home-${myColor}`.
+  - Place the pill just outside that home cluster, with the arrow pointing
+    toward the marble. Keep the existing viewport clamping
+    (`clampPillIntoViewport`).
+  - Keep the existing circular highlight ring on the selectable marble
+    unchanged.
 
 
---------------------------------------------------------------------------------
-TASK 3 — Verify player name / color consistency (low priority)
-Priority: Low — likely not a real bug; confirm and close
---------------------------------------------------------------------------------
+TASK 2 — Rework the 'card' hint: highlight style + pill placement
+-----------------------------------------------------------------
+Problem:
+  a) The 'card' hint highlight currently uses `.highlight-hand` — a soft,
+     blurred radial-gradient glow (see tutorial-overlay.component.scss). This
+     design looks bad.
+  b) The pill placement above the card fan needs to be improved.
 
-PROBLEM:
-A tester reported that the player name shown at the bottom of the screen did not
-match the active player's color. This is suspected to be a UI misunderstanding,
-not a real bug.
-
-RELEVANT FILES:
-  - frontend/src/app/game/components/table/table.component.ts
-  - frontend/src/app/game/components/table/table.component.html
-      → `.player-profile` section: `.avatar` (colored square) + player name
-  - frontend/src/app/game/services/game-state.service.ts
-      → `data: signal<GameStateMessage | null>` — contains `currentTurn: MarbleColor`
-        and `players: Player[]` (each with `.color` and `.name`)
-
-WHAT TO DO:
-  1. Open `table.component.ts` and `table.component.html`.
-  2. Verify that the `.avatar` color and the displayed player name both come from
-     the same source: `data()?.currentTurn` (the active player's `MarbleColor`).
-  3. Confirm that the player name is found via:
-       `data()?.players.find(p => p.color === data()?.currentTurn)?.name`
-     (or equivalent) — not from a different signal or local state.
-  4. If the logic is correct → no code change needed, close this item.
-  5. If a bug is found → fix the template binding so avatar color and name always
-     refer to the same player.
+Required changes:
+  a) Replace the `.highlight-hand` blurred-glow style with a crisp yellow
+     border ring, matching the style already used for marbles/buttons
+     (`.highlight-board` / `.highlight-confirm`: `box-shadow` ring +
+     `highlightPulse` animation). Each `.playable-card` should get its own
+     ring. Note the card rings must still follow each card's fan rotation —
+     `orientedBox()` already computes per-card rotation; keep that working.
+  b) Improve the pill + arrow placement for the 'card' hint so it sits
+     cleanly relative to the highlighted card fan (currently centred above
+     the union rect of `.playable-card` elements). Keep viewport clamping.
 
 
-
---------------------------------------------------------------------------------
-TASK 4 — Make the destination cell highlight more prominent
-Priority: Medium
---------------------------------------------------------------------------------
-
-PROBLEM:
-After selecting a card and a marble, destination cells are highlighted with the
-`.square-preview-destination` class. The current styling is too subtle:
-`background: rgba(255, 220, 80, 0.22)` + golden box-shadow + `previewDestPulse`
-animation. Testers consistently miss the highlight.
-
-RELEVANT FILES:
-  - frontend/src/app/game/components/board/board.component.scss
-      → `.square-preview-destination` class and `@keyframes previewDestPulse`
-
-WHAT TO DO:
-  - Increase the background opacity of `.square-preview-destination`:
-      from `rgba(255, 220, 80, 0.22)` to approximately `rgba(255, 220, 80, 0.50)`.
-  - Strengthen the `previewDestPulse` keyframe: increase the box-shadow spread
-    radius and/or opacity at both keyframe steps.
-  - Optionally add a solid border to `.square-preview-destination`:
-      e.g., `border: 2px solid rgba(255, 220, 80, 0.85)`.
-  - Do NOT modify `.square-preview-path` or `.square-preview-path-marble2`
-    (path highlights should remain as-is).
-  - Do NOT alter board geometry, cell sizes, or any other existing animations.
-
-CONSTRAINT:
-  The highlight must remain visually distinct from the path preview cells
-  (`.square-preview-path`) so the player can still tell "where the marble
-  travels" apart from "where it lands".
-
-
---------------------------------------------------------------------------------
-TASK 5 — Add a contextual in-game guidance overlay for new players (PRIORITY)
-Priority: High — new feature
---------------------------------------------------------------------------------
-
-PROBLEM:
-There is no onboarding or hint system for first-time players. The game flow
-(select card → select marble → confirm move) is not self-explanatory, especially
-on mobile.
-
-CONTEXT — GAME STATE SIGNALS (from GameStateService):
-  - `isMyTurn: computed<boolean>` — true when it is the local player's turn
-  - `selectedCard: signal<Card | null>` — currently selected card (null = none)
-  - `selectedMarblePosition: signal<number | null>` — selected marble's board
-    position (null = none selected)
-  - `canPlay: computed<boolean>` — true when a complete legal move is ready
-
-CONTEXT — Z-INDEX HIERARCHY TO RESPECT:
-  - Board marbles:          z-index 10–30
-  - Flying card animation:  z-index 50
-  - Profile panel (fixed):  z-index 201
-  → The overlay must use z-index ≥ 300 to appear above everything.
-
-WHAT TO DO:
-
-  Step 1 — Propose implementation approach BEFORE writing any code.
-    - Describe how the overlay component will be structured.
-    - Identify any z-index or Ionic overlay conflicts (e.g., Ionic modals,
-      ion-popover, ion-toast) that could interfere.
-    - Get approval before proceeding.
-
-  Step 2 — Create a new Angular standalone component:
-      frontend/src/app/game/components/tutorial-overlay/
-        tutorial-overlay.component.ts
-        tutorial-overlay.component.html
-        tutorial-overlay.component.scss
-
-  Step 3 — Implement hint state machine based on game state signals:
-    ┌─────────────────────────────────────────────────────────────────────┐
-    │ Condition                                         │ Hint to show    │
-    ├─────────────────────────────────────────────────────────────────────┤
-    │ isMyTurn && !selectedCard                         │ "Select a card  │
-    │                                                   │  from your hand"│
-    ├─────────────────────────────────────────────────────────────────────┤
-    │ isMyTurn && selectedCard && !selectedMarblePos    │ "Select a marble│
-    │                                                   │  to move"       │
-    ├─────────────────────────────────────────────────────────────────────┤
-    │ isMyTurn && selectedMarblePos && canPlay          │ "Tap the button │
-    │                                                   │  to confirm"    │
-    ├─────────────────────────────────────────────────────────────────────┤
-    │ !isMyTurn                                         │ (hide overlay)  │
-    └─────────────────────────────────────────────────────────────────────┘
-
-  Step 4 — Design the overlay UX:
-    - Each hint must include:
-        a) A short text label (in English).
-        b) An animated pointer (arrow or finger icon) pointing toward the
-           relevant UI element (card hand zone, board area, or confirm button).
-    - The overlay auto-hides as soon as the user interacts with the
-      indicated element (driven by state signal transitions — no manual
-      dismiss needed).
-    - The overlay must NOT modify or wrap any existing component.
-    - It sits as a sibling in `frontend/src/app/game/game.page.html`,
-      positioned `fixed` over the game UI.
-
-  Step 5 — Add the component to the game page:
-    - Import `TutorialOverlayComponent` in `game.page.ts`.
-    - Add `<app-tutorial-overlay />` to `game.page.html`.
-
-  CONSTRAINTS:
-    - Do NOT alter `GameStateService` signals or any existing component logic.
-    - Hints are written in English only.
-    - The overlay must be easy to extend: adding a new hint step should
-      require only adding a new entry to the state machine (no structural
-      refactor).
-    - The overlay must feel subtle and helpful — not a blocking modal.
-      It should never prevent the user from interacting with the board.
+Out of scope
+------------
+- Do not change the 'confirm' / 'discard' hint.
+- Do not change the hint state machine / trigger logic in `hint()`.
+- Do not change when hints retire (`hasConfirmed` / `hasDiscarded`).

@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "app.android.mercury"
+    namespace = "online.mercury.game"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "app.android.mercury"
+        applicationId "online.mercury.game"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

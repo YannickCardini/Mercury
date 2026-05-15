@@ -30,6 +30,7 @@ app.get('/', (_req: Request, res: Response) => {
     res.send({ message: 'Mercury API est en ligne avec WebSockets !' });
 });
 
+
 // ─── SessionManager partagé entre toutes les connexions WS ───────────────────
 // Nécessaire pour que joinRoom() retrouve la room créée par une autre connexion.
 
