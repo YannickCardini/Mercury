@@ -194,8 +194,24 @@ $bg-mid: #1a2840;
   }
 }
 
-.pf-send-btn {
+.pf-send-btn-wrap {
+  position: relative;
+  display: inline-block;
   margin-top: 4px;
+
+  &--disabled {
+    cursor: not-allowed;
+  }
+
+  &:hover .pf-send-tooltip,
+  &:focus-within .pf-send-tooltip {
+    opacity: 1;
+    transform: translate(-50%, 0);
+    pointer-events: auto;
+  }
+}
+
+.pf-send-btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -219,6 +235,39 @@ $bg-mid: #1a2840;
     opacity: 0.5;
     cursor: not-allowed;
     box-shadow: none;
+    // Let pointer events bubble to the wrapper so the tooltip can trigger
+    // on hover even though the disabled button itself swallows them.
+    pointer-events: none;
+  }
+}
+
+.pf-send-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translate(-50%, 4px);
+  white-space: nowrap;
+  padding: 6px 10px;
+  background: rgba(15, 23, 42, 0.96);
+  color: #e2e8f0;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 10;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: rgba(15, 23, 42, 0.96);
   }
 }
 

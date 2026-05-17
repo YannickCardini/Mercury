@@ -130,7 +130,9 @@
 <!-- NOTE: must remain OUTSIDE .board-container — backdrop-filter on that element
      would make position:fixed children position relative to it, not the viewport. -->
 @if (profilePanel(); as panel) {
-  <div class="profile-backdrop" (click)="closeProfilePanel()"></div>
+  @if (!panel.openedByHover) {
+    <div class="profile-backdrop" (click)="closeProfilePanel()"></div>
+  }
   <div #profilePanelEl class="profile-panel"
     [style.left.px]="panel.x"
     [style.top.px]="panel.y"

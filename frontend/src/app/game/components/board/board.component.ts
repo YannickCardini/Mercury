@@ -51,6 +51,10 @@ export interface ProfilePanelState {
   userId: string | null;
   x: number;
   y: number;
+  // When true, the panel was opened via mouse hover: no backdrop is rendered
+  // (hover/leave events handle closing) so the backdrop cannot steal the
+  // cursor and cause an open/close flicker loop on the avatar.
+  openedByHover: boolean;
 }
 
 export interface CardInfo {
@@ -847,7 +851,7 @@ export class BoardComponent implements OnInit, OnDestroy {
       this.closeProfilePanel();
       return;
     }
-    this.openProfilePanel(color, event.currentTarget as HTMLElement);
+    this.openProfilePanel(color, event.currentTarget as HTMLElement, false);
   }
 
   onAvatarMouseEnter(color: MarbleColor, event: MouseEvent): void {
@@ -857,7 +861,7 @@ export class BoardComponent implements OnInit, OnDestroy {
       this.panelCloseTimer = undefined;
     }
     if (this.profilePanel()?.color !== color) {
-      this.openProfilePanel(color, event.currentTarget as HTMLElement);
+      this.openProfilePanel(color, event.currentTarget as HTMLElement, true);
     }
   }
 
@@ -887,7 +891,7 @@ export class BoardComponent implements OnInit, OnDestroy {
     this.closeProfilePanel();
   }
 
-  private openProfilePanel(color: MarbleColor, el: HTMLElement): void {
+  private openProfilePanel(color: MarbleColor, el: HTMLElement, openedByHover: boolean): void {
     const player = this.getPlayer(color);
     const PANEL_W = 224;
     const PANEL_H = 200;
@@ -902,7 +906,7 @@ export class BoardComponent implements OnInit, OnDestroy {
     if (y < 8) y = 8;
 
     const isGuest = !player?.userId;
-    this.profilePanel.set({ color, data: null, loading: !isGuest, isGuest, userId: player?.userId ?? null, x, y });
+    this.profilePanel.set({ color, data: null, loading: !isGuest, isGuest, userId: player?.userId ?? null, x, y, openedByHover });
 
     if (player?.userId) {
       firstValueFrom(

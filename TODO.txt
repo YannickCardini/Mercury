@@ -1,230 +1,116 @@
 ================================================================================
-MERCURY — TODO LIST
+TODO LIST
 ================================================================================
 
-────────────────────────────────────────────────────────────────────────────────
-BUG 1 — Custom game invitations not reliably delivered
-────────────────────────────────────────────────────────────────────────────────
+--------------------------------------------------------------------------------
+TASK 1 — BUG: Profile hover panel flickers (open/close loop) in game board
+--------------------------------------------------------------------------------
+
+Files involved:
+  - frontend/src/app/game/components/board/board.component.ts
+      (hover handlers at lines ~853-867, openProfilePanel at line ~890,
+       afterRender clamp logic at line ~226)
+  - frontend/src/app/game/components/board/board.component.html
+      (avatar-ring at lines 16-19, profile panel + backdrop at lines 132-182)
+  - frontend/src/app/game/components/board/board.component.scss
+      (.profile-backdrop and .profile-panel styles — check z-index and
+       pointer-events)
+
+Reproduction:
+  1. Start or join a game (route /game/...).
+  2. On a desktop browser (hover-capable device), hover the mouse over any
+     player's avatar (.avatar-ring) on the board.
+  3. The profile panel (`.profile-panel`) opens, but immediately closes and
+     reopens in a loop. The loop only stops if the cursor is moved onto the
+     panel itself, which cancels the close timer via onPanelMouseEnter().
+
+Likely root cause to investigate:
+  - The panel opens at `rect.right + 8` px to the right of the avatar
+    (see openProfilePanel, board.component.ts:890-905). There is an 8px gap
+    between the avatar and the panel.
+  - A full-viewport `.profile-backdrop` (board.component.html:133) is rendered
+    behind/around the panel. When the cursor leaves `.avatar-ring`, it lands
+    on the backdrop, which is neither the avatar nor the panel, so
+    `onAvatarMouseLeave()` fires and starts a 150 ms close timer.
+  - Additionally, the `afterRender` block (board.component.ts:226-247)
+    re-clamps and re-sets `profilePanel()` after each render, which may cause
+    layout thrashing and re-trigger mouseenter/mouseleave cycles.
+
+Required fix (implement ONE coherent solution):
+  a) Eliminate the dead zone between the avatar and the panel so the cursor
+     can travel from avatar → panel without entering a non-tracked area.
+     Options:
+       - Make `.profile-backdrop` ignore pointer events while the cursor is
+         intended to reach the panel (e.g. `pointer-events: none` on the
+         backdrop, keeping the click-to-close handled elsewhere, OR add an
+         invisible bridging hit-area between the avatar and the panel).
+       - Render the panel without the full-viewport backdrop on hover-capable
+         devices (keep the backdrop only when the panel was opened via click /
+         touch).
+  b) Ensure the `afterRender` re-positioning in board.component.ts:226-247
+     does not trigger an open/close cycle (e.g. only re-clamp once on open,
+     or compare position before calling `profilePanel.set(...)` to avoid
+     unnecessary re-renders — already done, verify it actually short-circuits).
+  c) Keep the existing 150 ms close grace timer (panelCloseTimer) but verify
+     it is sufficient and that onPanelMouseEnter reliably cancels it.
+
+Acceptance criteria:
+  - Hovering the avatar opens the panel exactly once; it stays open while the
+    cursor is over the avatar OR the panel (or in any bridging area between
+    them).
+  - Moving the cursor away from both the avatar and the panel closes the
+    panel after the existing grace delay, without re-opening.
+  - No visual flicker / repeated open-close cycle in any case.
+  - Click-to-open behavior on touch / non-hover devices is unchanged.
+  - Esc key and clicking outside still close the panel.
+
+--------------------------------------------------------------------------------
+TASK 2 — FEATURE: Hover tooltip on disabled "Send private message" button
+--------------------------------------------------------------------------------
+
+File involved:
+  - frontend/src/app/profile/profile.page.html (button at lines 53-65)
+  - frontend/src/app/profile/profile.page.ts (canSendMessage() at line 83)
+  - frontend/src/app/profile/profile.page.scss (.pf-send-btn at line 197)
+
 Context:
-  When user A (on desktop) invites user B (on mobile) by clicking their name
-  in the custom room lobby, user B sometimes does not receive the invite toast.
-  The bug is intermittent: retesting often works. User B has confirmed it
-  happens on both the mobile browser and the native Android app.
+  - On another user's profile page (/profile/:id), a "Send private message"
+    button is shown when viewing someone else's profile.
+  - The button is disabled when the current viewer is NOT signed in
+    (canSendMessage() returns false → currentUser() is null).
+  - A native `title` attribute is already set
+    ("Sign in to send a message"), but native browser tooltips do not show
+    reliably on disabled `<button>` elements (especially with
+    `cursor: not-allowed` and `opacity: 0.5`), so guest users get no visible
+    explanation of why the button is greyed out.
 
-Root cause to investigate:
-  - Backend: `custom-game-manager.ts` sends the invite via
-    `presence.send(toUserId, { type: 'gameInvite', ... })` (line ~178).
-    `PresenceManager.send()` delivers to all WebSockets registered for that
-    userId. Registration happens via `presence.register(userId, ws)` at room
-    join/create time (lines 81, 120 in custom-game-manager.ts).
-  - Frontend: `PresenceService` (frontend/src/app/services/presence.service.ts)
-    opens a dedicated WebSocket from the home page to receive invites.
-    This WebSocket must be registered on the backend's PresenceManager so that
-    `presence.send()` can find it.
-  - Likely race condition: if user B's presence WebSocket has not yet completed
-    registration by the time user A sends the invite, the backend finds no
-    active socket for that userId and silently drops the invite (returning
-    `delivered = false`), which incorrectly shows "undelivered/declined" to A.
+Required implementation:
+  1. Add a visible tooltip (custom Angular/CSS tooltip, NOT only the native
+     `title` attribute) that appears when a guest user hovers over the
+     disabled "Send private message" button.
+  2. Tooltip text (English, matching the rest of the profile page copy):
+     "Sign in to send a message".
+  3. The tooltip must trigger ONLY when the button is disabled
+     (canSendMessage() === false). When the user is signed in and the button
+     is enabled, no tooltip should be shown (or show a normal hover lift,
+     unchanged from current behavior).
+  4. The tooltip must be reachable by hover on a disabled element — wrap the
+     button in a hover-capable container (e.g. a `<span>` with `display:
+     inline-block`) so the parent receives the mouseenter events even though
+     the disabled button itself may not.
+  5. Style the tooltip to match the existing dark theme of the profile page
+     (see .modal-card / .pf-meta styling in profile.page.scss for reference
+     colors). Keep it small, with a subtle background, rounded corners, and a
+     short fade-in transition (~150 ms).
+  6. Accessibility: keep the existing `[title]` attribute as a fallback for
+     assistive tech, and add `aria-describedby` pointing to the tooltip
+     element when shown.
 
-Steps to fix:
-  1. In `PresenceService` (frontend), verify that a `userId` is sent when
-     opening the home-page presence WebSocket, so the backend can map it.
-  2. In `PresenceManager`, add reconnection/retry support: if `send()` returns
-     false, store the pending invite for a short grace period (e.g. 5 seconds)
-     and re-attempt delivery if the user reconnects within that window.
-  3. Alternatively (simpler): when the creator gets `delivered = false`, show
-     a UI message "User may be offline — retry?" with a retry button rather
-     than immediately marking it as declined.
-  4. Test the fix by having one device join the home page and immediately
-     triggering an invite from a second device before the WebSocket handshake
-     completes.
-
-
-────────────────────────────────────────────────────────────────────────────────
-BUG 2 — Intermittent "session expired" error on message send while still logged in
-────────────────────────────────────────────────────────────────────────────────
-Context:
-  When sending a chat message, the user sometimes sees a "Your session has
-  expired. Please sign in again" error even though they are visibly still
-  logged in. Reported on mobile browser and native Android. Possibly linked to
-  having the app open in multiple tabs or leaving the app open for over an hour.
-
-Root cause:
-  - `AuthService` (frontend/src/app/services/auth.service.ts) stores the Google
-    ID token in `localStorage['auth_id_token']` (line 25) and loads it once at
-    service initialization. There is NO refresh mechanism.
-  - Google ID tokens expire after approximately 1 hour. After expiry, the
-    backend's `verifyGoogleIdToken()` (auth-router.ts) rejects it with a 401,
-    which the frontend interprets as "session expired".
-  - In a new tab, `AuthService` re-reads the same stale token from localStorage,
-    so any request from that tab will fail if the token is already expired.
-
-Steps to fix:
-  1. Before any authenticated HTTP request, check whether the stored ID token is
-     still valid by inspecting its `exp` claim (decode the JWT payload with
-     `atob(token.split('.')[1])`).
-  2. If the token is expired (or will expire within 60 seconds), silently
-     re-authenticate using `GoogleSignIn.signIn()` (or the silent sign-in /
-     `getAuthorizationCode()` flow if available on the current platform) to
-     obtain a fresh token before sending the request.
-  3. Store the refreshed token in `localStorage['auth_id_token']` and update
-     `AuthService.idToken` in memory.
-  4. If silent refresh fails (user has revoked permissions), only then show the
-     "session expired" message and redirect to the login screen.
-  5. Relevant files: `auth.service.ts` (add refresh logic),
-     `messages-router.ts` (no backend changes needed).
-
-
-────────────────────────────────────────────────────────────────────────────────
-BUG 3 — Tutorial card-play instructions overlap with the new-turn banner
-────────────────────────────────────────────────────────────────────────────────
-Context:
-  When a player's turn starts, two elements appear simultaneously:
-    (a) The "new turn" banner (`.new-turn-overlay` in `game.page.html` line 18),
-        which displays for 2500 ms (`NEW_TURN_BANNER_DURATION_MS` in
-        packages/shared/src/constants.ts).
-    (b) The tutorial overlay pill ("Select a card from your hand"), which
-        appears as soon as `isMyTurn()` becomes true.
-  The two elements visually overlap and the tutorial hint is obscured.
-
-Steps to fix:
-  In `TutorialOverlayComponent` (frontend/src/app/game/components/
-  tutorial-overlay/tutorial-overlay.component.ts):
-
-  1. Add a private `isBannerVisible` signal (boolean, default false).
-  2. Subscribe to `GameStateService.newTurn` (the same RxJS Subject used in
-     `game.page.ts` line 72). When a new turn fires, set `isBannerVisible` to
-     `true` for exactly `NEW_TURN_BANNER_DURATION_MS` milliseconds, then reset
-     it to `false`. Use `setTimeout` and clean up in `ngOnDestroy`.
-  3. In the `hint` computed signal (line 98), add a guard at the top:
-       if (this.isBannerVisible()) return null;
-     This suppresses all hints while the banner is on screen.
-  4. Import `NEW_TURN_BANNER_DURATION_MS` from `@mercury/shared`.
-
-
-────────────────────────────────────────────────────────────────────────────────
-FEATURE 4 — Highlight playable cards in yellow during the first tutorial step
-────────────────────────────────────────────────────────────────────────────────
-Context:
-  During the very first tutorial step ("Select a card from your hand"), selectable
-  marbles are already highlighted with a gold pulsing ring when the "select a
-  marble" step is active. However, cards are NOT highlighted during the "select
-  a card" step — only a tooltip pill is shown. The request is to also surround
-  each playable card with a yellow highlight ring, matching the style already
-  used for marbles.
-
-Steps to implement:
-  In `TutorialOverlayComponent` (tutorial-overlay.component.ts):
-
-  1. In `recompute()` (line 187), inside the `anchor === 'hand'` branch
-     (currently lines 188–201), replace `this.highlights.set([])` with:
-       const boxes = cards.map(card => this.orientedBox(card, 'card'));
-       this.highlights.set(boxes);
-     This reuses the existing `orientedBox()` method (line 235) which already
-     handles the fan rotation of each card.
-
-  2. In the template (`tutorial-overlay.component.html`), verify that the
-     existing `@for` loop that renders highlight boxes handles the 'card' shape.
-     The CSS class for card highlights already exists as `.highlight-hand` in
-     `tutorial-overlay.component.scss` (with `border-radius: 10px` and the
-     gold `box-shadow` + `highlightPulse` animation).
-
-  3. The highlight rings must disappear as soon as the player taps a card
-     (this already happens automatically because selecting a card changes the
-     hint from `id: 'card'` to `id: 'marble'`, which triggers a recompute).
-
-  No backend changes needed.
-
-
-────────────────────────────────────────────────────────────────────────────────
-FEATURE 5 — Add a vibration toggle button in the in-game settings menu
-────────────────────────────────────────────────────────────────────────────────
-Context:
-  Some players dislike vibration feedback on mobile. Currently, haptic feedback
-  (`Haptics.impact()`) is always triggered on native platforms with no way to
-  opt out. The sound mute toggle is in the action menu (3-dot button, top-right
-  of the game screen, in `table.component.html` lines 49–67). A vibration
-  toggle should be added directly below the mute button in the same menu.
-
-Steps to implement:
-
-  1. In `SoundService` (frontend/src/app/game/services/sound.service.ts):
-     - Add a `vibrationEnabled` signal (default: read from
-       `localStorage['mercury-vibration'] ?? 'true'`), similar to `muted`.
-     - Add a `toggleVibration()` method that flips the signal and persists it
-       to `localStorage['mercury-vibration']`.
-
-  2. In `table.component.ts` (frontend/src/app/game/components/table/):
-     - Inject `SoundService` (already injected, line 230).
-     - At line 303, guard the `Haptics.impact()` call with:
-         if (Capacitor.isNativePlatform() && this.soundService.vibrationEnabled())
-           Haptics.impact({ style: ImpactStyle.Light });
-
-  3. In `game.page.ts` (frontend/src/app/game/game.page.ts):
-     - Inject `SoundService` (already injected, line 58).
-     - At line 88, guard the `Haptics.impact()` call with:
-         if (Capacitor.isNativePlatform() && this.soundService.vibrationEnabled())
-           Haptics.impact({ style: ImpactStyle.Medium });
-
-  4. In `table.component.html`, inside the `.menu-dropdown` div, add a new
-     button immediately after the mute button (after line 67):
-
-       <button class="menu-item"
-               [class.menu-item--muted]="!soundService.vibrationEnabled()"
-               (click)="soundService.toggleVibration()">
-         <!-- vibration icon (phone with wave lines) -->
-         Vibration {{ soundService.vibrationEnabled() ? 'On' : 'Off' }}
-       </button>
-
-     Only show this button when on a native platform
-     (`Capacitor.isNativePlatform()`), since vibration is not available on web.
-
-
-────────────────────────────────────────────────────────────────────────────────
-TASK 6 — Draft a UX redesign brief for the "7" card interaction (no code)
-────────────────────────────────────────────────────────────────────────────────
-Context:
-  Playing the "7" card allows the active player to split 7 movement steps
-  across two marbles (e.g. 3 steps for marble A, 4 steps for marble B).
-  The current implementation uses a horizontal dots row (`.seven-split-bar`)
-  with 7 draggable dots and pointer-event drag/snap logic
-  (`table.component.ts` lines ~342–400, `table.component.html` lines ~124–150).
-  This UX has been redesigned many times and remains problematic on mobile:
-    - The dots row and surrounding buttons frequently overflow the screen.
-    - The text instructions and interactive elements compete for limited vertical
-      space in the `.table-wrapper` panel.
-    - Users often do not understand the drag interaction on first use.
-
-DO NOT implement any code for this task.
-
-Instead, produce a structured design brief (as a document or prompt) that:
-
-  1. Describes the complete current flow step by step:
-       a. User selects the "7" card.
-       b. User taps a marble → the split bar appears.
-       c. User drags/taps the dot bar to choose how many steps go to marble 1
-          (1–6); the remaining steps are automatically assigned to marble 2.
-       d. User taps the second marble to assign the remaining steps.
-       e. User confirms the move.
-     Include the "use all 7 on one marble" shortcut (skip the split).
-
-  2. Clearly states the constraints:
-       - Primary platform is mobile (small screen, touch only).
-       - The `.table-wrapper` panel has limited height.
-       - The confirm button (`.action-btn`) must remain accessible at all times.
-       - No horizontal overflow allowed.
-
-  3. Lists the known UX problems:
-       - The 7-dot bar is too narrow on small screens and hard to drag precisely.
-       - The hint text ("Drag the bar…" / "Tap a second marble…") is often
-         clipped or hidden behind other elements.
-       - The two-step marble selection (first marble → split bar → second marble)
-         is not obvious without the hint text.
-
-  4. Asks Claude to propose 2–3 alternative UX patterns for the split
-     interaction, each accompanied by:
-       - A rough ASCII mockup of the mobile screen layout.
-       - A description of the interaction model (tap, swipe, slider, stepper…).
-       - Pros and cons relative to the constraints above.
-
-  This brief will be reviewed together before any implementation begins.
+Acceptance criteria:
+  - As a non-signed-in user visiting another user's profile, hovering the
+    greyed-out "Send private message" button shows a styled tooltip with the
+    text "Sign in to send a message".
+  - As a signed-in user, no tooltip is shown over the enabled button.
+  - On touch devices (no hover), the existing disabled state is unchanged —
+    no regression.
+  - No visual regression on the rest of the profile page.
