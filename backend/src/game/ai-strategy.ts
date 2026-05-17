@@ -27,7 +27,7 @@ export class AiStrategy implements PlayerStrategy {
             return { type: 'pass', from: 0, to: 0, cardPlayed: [], playerColor: ctx.playerColor };
         }
 
-        await sleep(500);
+        if (process.env['DEBUG'] !== 'true') await sleep(500);
 
         // 🔥 Pass 1 : priorité aux captures et promotions
         for (const targetValue of AI_CARD_PRIORITY) {

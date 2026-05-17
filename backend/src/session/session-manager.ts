@@ -67,6 +67,33 @@ export class SessionManager {
     }
 
     /**
+     * Mode DEBUG : lance immédiatement une partie 1 humain (red) vs 3 bots IA
+     * sur le WS courant. Saute la file de matchmaking publique.
+     */
+    startDebugGameVsBots(ws: WebSocket, playerName?: string, userId?: string, picture?: string): void {
+        const humanName = playerName && playerName.length > 0 ? playerName : 'Debug Player';
+        const config: GameConfig = {
+            players: [
+                { color: 'red', name: humanName, isHuman: true, ...(picture ? { picture } : {}), ...(userId ? { userId } : {}) },
+                { color: 'green', name: 'Bot Green', isHuman: false },
+                { color: 'blue', name: 'Bot Blue', isHuman: false },
+                { color: 'orange', name: 'Bot Orange', isHuman: false },
+            ],
+        };
+        // Annonce la couleur au frontend via le canal matchmakingStatus existant,
+        // pour que home.page mette à jour myMatchmakingColor avant la navigation.
+        ws.send(JSON.stringify({
+            type: 'matchmakingStatus',
+            connectedCount: 1,
+            totalNeeded: 4,
+            myColor: 'red',
+            guestPlayerId: crypto.randomUUID(),
+        }));
+        this.startSingleDevice(ws, config);
+        console.log(`🐛 DEBUG — partie instantanée vs 3 bots lancée pour ${humanName}`);
+    }
+
+    /**
      * Démarre une partie immédiatement sur le WS courant.
      * Utilisé pour le mode single-device (start message).
      */

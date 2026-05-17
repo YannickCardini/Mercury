@@ -226,6 +226,37 @@ export class GameStateService {
     return playable;
   });
 
+  /** Vrai si la carte 7 sélectionnée admet au moins une combinaison de split légale. */
+  canSplit7Anywhere = computed<boolean>(() => {
+    if (!this.isMyTurn()) return false;
+    const card = this.selectedCard();
+    if (!card || card.value !== '7') return false;
+    const data = this.data();
+    const myColor = this.myPlayerColor();
+    if (!data || !myColor) return false;
+    const player = data.gameState.players.find(p => p.color === myColor);
+    if (!player) return false;
+    const marblesByColor = Object.fromEntries(
+      data.gameState.players.map(p => [p.color, p.marblePositions])
+    ) as Record<MarbleColor, number[]>;
+    const ctx: LegalMoveContext = {
+      ownMarbles: player.marblePositions,
+      allMarbles: data.gameState.players.flatMap(p => p.marblePositions),
+      playerColor: myColor,
+      marblesByColor,
+    };
+    for (const m1 of player.marblePositions) {
+      const steps = getValidSevenStepsForMarble(m1, ctx).filter(s => s !== 7);
+      for (const s of steps) {
+        for (const m2 of player.marblePositions) {
+          if (m2 === m1) continue;
+          if (getLegalSplit7Action(card, m1, s, m2, ctx) !== null) return true;
+        }
+      }
+    }
+    return false;
+  });
+
   clearLocalHand() {
     this.data.update(state => {
       if (!state) return state;
@@ -448,13 +479,13 @@ export class GameStateService {
     this.send(JSON.stringify(msg));
   }
 
-  sendJoinMatchmaking(playerName?: string, picture?: string, userId?: string): void {
+  sendJoinMatchmaking(playerName?: string, picture?: string, userId?: string, debug?: boolean): void {
     let browserId = localStorage.getItem('browser_id');
     if (!browserId) {
       browserId = crypto.randomUUID();
       localStorage.setItem('browser_id', browserId);
     }
-    this.send(JSON.stringify({ type: 'joinMatchmaking', playerName, browserId, picture, userId }));
+    this.send(JSON.stringify({ type: 'joinMatchmaking', playerName, browserId, picture, userId, debug }));
   }
 
   private getOrCreateBrowserId(): string {

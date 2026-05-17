@@ -59,7 +59,11 @@ wss.on('connection', (ws: WebSocket) => {
                     break;
 
                 case 'joinMatchmaking':
-                    sessionManager.joinMatchmaking(ws, msg.playerName, msg.browserId, msg.picture, msg.userId);
+                    if (process.env['DEBUG'] === 'true' && msg.debug === true) {
+                        sessionManager.startDebugGameVsBots(ws, msg.playerName, msg.userId, msg.picture);
+                    } else {
+                        sessionManager.joinMatchmaking(ws, msg.playerName, msg.browserId, msg.picture, msg.userId);
+                    }
                     break;
 
                 case 'createCustomRoom':

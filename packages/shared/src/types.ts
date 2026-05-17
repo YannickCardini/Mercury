@@ -278,6 +278,8 @@ export interface JoinMatchmakingMessage {
   browserId?: string;
   picture?: string;
   userId?: string;
+  /** En mode debug, demande au serveur de lancer immédiatement une partie contre 3 bots IA. Honoré uniquement si le backend est lui-même en DEBUG. */
+  debug?: boolean;
 }
 
 /**

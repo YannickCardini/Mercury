@@ -672,6 +672,13 @@
     }
 }
 
+.action-btn-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 0 0 auto;
+}
+
 .action-btn {
     flex: 0 0 auto;
     width: clamp(110px, 30%, 200px);
@@ -703,6 +710,53 @@
 
     &:not(:disabled):active {
         transform: translateY(0) scale(0.98);
+    }
+
+    &--highlighted:not(:disabled) {
+        box-shadow:
+            0 0 0 3px rgba(255, 211, 77, 0.95),
+            0 0 18px 4px rgba(255, 211, 77, 0.45);
+        animation: confirmHighlightPulse 1.3s ease-in-out infinite;
+    }
+}
+
+.confirm-arrow {
+    display: flex;
+    align-items: center;
+    color: #ffd34d;
+    pointer-events: none;
+
+    svg {
+        display: block;
+        animation: confirmArrowBob 1.1s ease-in-out infinite;
+    }
+}
+
+@keyframes confirmHighlightPulse {
+
+    0%,
+    100% {
+        box-shadow:
+            0 0 0 3px rgba(255, 211, 77, 0.95),
+            0 0 18px 4px rgba(255, 211, 77, 0.45);
+    }
+
+    50% {
+        box-shadow:
+            0 0 0 5px rgba(255, 211, 77, 1),
+            0 0 26px 8px rgba(255, 211, 77, 0.65);
+    }
+}
+
+@keyframes confirmArrowBob {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    50% {
+        transform: translateX(-5px);
     }
 }
 
@@ -791,42 +845,66 @@
 }
 
 /* =========================================
-   7 INTRO HINT — visible before any marble is picked
+   7 SPLIT OVERLAY — bottom-sheet positioned above .control-dashboard
+   Backdrop dims the table area, sheet hosts the rule + dots bar.
+   pointer-events: none on backdrop so taps still reach the board behind.
    ========================================= */
-.seven-intro-hint {
+.seven-split-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: calc(var(--dashboard-height) + env(safe-area-inset-bottom));
+    z-index: 40;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 0.55rem 1.1rem;
-    background: rgba(15, 23, 42, 0.7);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px dashed rgba(192, 132, 252, 0.4);
-    border-radius: 999px;
-    color: rgba(255, 255, 255, 0.85);
-    font-size: 0.75rem;
-    font-weight: 500;
-    letter-spacing: 0.02em;
-    text-align: center;
-    max-width: 90%;
-    z-index: 12;
-    animation: sevenHintFadeIn 0.3s ease both;
-
-    @container game-board (max-width: 360px) {
-        font-size: 0.7rem;
-        padding: 0.45rem 0.9rem;
-    }
+    padding: 1rem;
+    box-sizing: border-box;
+    pointer-events: none;
+    animation: overlayFadeIn 0.2s ease;
 }
 
-@keyframes sevenHintFadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(6px);
+.seven-split-sheet {
+    pointer-events: auto;
+    background: linear-gradient(145deg, #1e293b, #0f172a);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 16px;
+    padding: 1rem 1.25rem 1.25rem;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    animation: dialogSlideIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    width: 100%;
+    max-width: 420px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.65rem;
+    box-sizing: border-box;
+
+    &__title {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: white;
+        margin: 0;
     }
 
-    to {
-        opacity: 1;
-        transform: translateY(0);
+    &__rule {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        margin: 0;
+        text-align: center;
+        line-height: 1.35;
+    }
+
+    &__hint {
+        font-size: 0.85rem;
+        color: #fbbf24;
+        margin: 0;
+        text-align: center;
+        font-weight: 500;
     }
 }
 

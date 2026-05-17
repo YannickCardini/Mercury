@@ -709,7 +709,7 @@ $colors: (
 .discard-zone {
     position: absolute;
     left: 50%;
-    top: 50%;
+    top: 49%;
     transform: translate(calc(-50% + 6px), -50%);
     width: calc(var(--square-size) * 3);
     height: calc(var(--square-size) * 3);
@@ -1523,5 +1523,121 @@ $colors: (
 @keyframes panelSpin {
     to {
         transform: rotate(360deg);
+    }
+}
+
+/* =========================================
+   7 SPLIT NUMPAD — marble-anchored, opens after first marble tap
+   ========================================= */
+.seven-numpad {
+    position: absolute;
+    z-index: 40;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: calc(var(--square-size) * 0.12);
+    padding: calc(var(--square-size) * 0.18) calc(var(--square-size) * 0.22);
+    background: rgba(15, 23, 42, 0.92);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(192, 132, 252, 0.45);
+    border-radius: calc(var(--square-size) * 0.3);
+    box-shadow:
+        0 8px 24px rgba(0, 0, 0, 0.45),
+        0 0 28px rgba(192, 132, 252, 0.25);
+    transform: translate(-50%, calc(-100% - 6px));
+    transform-origin: bottom center;
+    animation: numpadPopIn 0.18s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    pointer-events: auto;
+
+    &.seven-numpad--flipped {
+        transform: translate(-50%, 6px);
+        transform-origin: top center;
+    }
+
+    &__title {
+        font-family: 'DM Sans', sans-serif;
+        font-size: calc(var(--square-size) * 0.22);
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        color: rgba(255, 255, 255, 0.7);
+        white-space: nowrap;
+    }
+
+    &__grid {
+        display: grid;
+        grid-template-columns: repeat(3, calc(var(--square-size) * 0.9));
+        grid-auto-rows: calc(var(--square-size) * 0.9);
+        gap: calc(var(--square-size) * 0.08);
+    }
+
+    &__cell {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Playfair Display', serif;
+        font-size: calc(var(--square-size) * 0.42);
+        font-weight: 700;
+        color: rgba(255, 255, 255, 0.92);
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: calc(var(--square-size) * 0.22);
+        cursor: pointer;
+        padding: 0;
+        transition: background 0.12s ease, transform 0.12s ease,
+            border-color 0.12s ease, box-shadow 0.12s ease;
+        touch-action: manipulation;
+
+        &:hover:not(:disabled) {
+            background: rgba(192, 132, 252, 0.2);
+            border-color: rgba(192, 132, 252, 0.5);
+        }
+
+        &:active:not(:disabled) {
+            transform: scale(0.94);
+        }
+
+        &--active {
+            background: rgba(192, 132, 252, 0.45);
+            border-color: rgba(192, 132, 252, 0.9);
+            color: #fff;
+            box-shadow: 0 0 12px rgba(192, 132, 252, 0.5);
+        }
+
+        &:disabled {
+            opacity: 0.25;
+            cursor: not-allowed;
+            background: rgba(255, 255, 255, 0.04);
+            border-color: rgba(255, 255, 255, 0.08);
+            color: rgba(255, 255, 255, 0.4);
+        }
+    }
+}
+
+@keyframes numpadPopIn {
+    from {
+        opacity: 0;
+        transform: translate(-50%, calc(-100% - 6px)) scale(0.85);
+    }
+
+    to {
+        opacity: 1;
+        transform: translate(-50%, calc(-100% - 6px)) scale(1);
+    }
+}
+
+.seven-numpad.seven-numpad--flipped {
+    animation: numpadPopInFlipped 0.18s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes numpadPopInFlipped {
+    from {
+        opacity: 0;
+        transform: translate(-50%, 6px) scale(0.85);
+    }
+
+    to {
+        opacity: 1;
+        transform: translate(-50%, 6px) scale(1);
     }
 }

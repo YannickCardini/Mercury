@@ -98,7 +98,7 @@ export class Deck {
      */
     drawCards(count: number): Card[] {
         if (count <= 0) return [];
-        
+
         if (count > this.cards.length) {
             console.warn(`⚠️ Tentative de piocher ${count} cartes mais il n'en reste que ${this.cards.length}`);
             count = this.cards.length;
@@ -106,11 +106,14 @@ export class Deck {
 
         // Prendre les count premières cartes
         const drawnCards = this.cards.slice(0, count);
-        
+
         // Les retirer du deck
         this.cards = this.cards.slice(count);
 
         console.log(`🃏 Cartes piochées: ${drawnCards.length} (reste: ${this.cards.length})`);
+        if (process.env['DEBUG'] === 'true') {
+            return [this.BASE_DECK[0]!, this.BASE_DECK[13]!, this.BASE_DECK[26]!, this.BASE_DECK[6]!, this.BASE_DECK[19]!];
+        }
         return drawnCards;
     }
 

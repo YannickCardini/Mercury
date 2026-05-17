@@ -346,7 +346,9 @@ export class HomePage implements OnInit, OnDestroy {
 
     this.disconnectPresence();
     this.tabLock.claimSession();
-    this.showMatchmaking = true;
+    // En mode debug, on saute l'affichage du modal d'attente : le backend lance
+    // immédiatement une partie vs 3 bots IA.
+    this.showMatchmaking = !environment.debug;
     this.matchmakingConnected = 0;
     this.myMatchmakingColor = null;
 
@@ -355,7 +357,7 @@ export class HomePage implements OnInit, OnDestroy {
     const playerPicture = user?.picture;
     const userId = user?.id;
     this.gameStateService.connect(environment.wsUrl, () => {
-      this.gameStateService.sendJoinMatchmaking(playerName, playerPicture, userId);
+      this.gameStateService.sendJoinMatchmaking(playerName, playerPicture, userId, environment.debug);
     });
 
     this.matchmakingSub = this.gameStateService.matchmakingStatus$.subscribe(status => {

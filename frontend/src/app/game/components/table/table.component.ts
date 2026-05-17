@@ -60,12 +60,11 @@ enum TURN_PHASE {
     !this.gameStateService.canPlay()
   );
 
-  /** Vrai quand le compteur de pas du 7 doit être affiché. */
-  showSevenStepCounter = computed(() =>
+  /** Vrai quand l'overlay de sélection du 7 doit être affiché (carte 7 sélectionnée + au moins un split légal possible). */
+  showSevenSplitOverlay = computed(() =>
     this.gameStateService.isMyTurn() &&
     this.gameStateService.selectedCard()?.value === '7' &&
-    this.gameStateService.selectedMarblePosition() !== null &&
-    this.validSplitSevenSteps().length > 0
+    this.gameStateService.canSplit7Anywhere()
   );
 
   /** Texte d'aide contextuel affiché à chaque étape du flux du 7 (null = masqué). */
@@ -82,8 +81,17 @@ enum TURN_PHASE {
     if (this.gameStateService.selectedSplit7MarblePosition() === null) {
       return 'Tap a second marble (gold) for the remaining steps';
     }
-    return null;
+    return 'Hit Confirm to play your split';
   });
+
+  /** Vrai quand le split du 7 est entièrement défini et qu'il ne reste plus qu'à confirmer. */
+  isSevenSplitReady = computed(() =>
+    this.gameStateService.isMyTurn() &&
+    this.gameStateService.selectedCard()?.value === '7' &&
+    this.gameStateService.sevenFirstSteps() < 7 &&
+    this.gameStateService.selectedSplit7MarblePosition() !== null &&
+    this.gameStateService.canPlay()
+  );
 
   /** Vrai quand le raccourci "tout sur le premier pion" doit être proposé. */
   showUseAllSevenShortcut = computed(() =>

@@ -201,7 +201,7 @@ export class BoardComponent implements OnInit, OnDestroy {
   /** Cache statique des classes de case (dépend uniquement de l'index). */
   private squareClassCache = new Map<number, string>();
 
-  debug = false;
+  readonly debug = environment.debug;
 
   // ── Profile panel ────────────────────────────────────────────────────────────
   private http = inject(HttpClient);

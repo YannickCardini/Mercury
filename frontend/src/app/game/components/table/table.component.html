@@ -135,57 +135,6 @@
     </div>
   </div>
 
-  <!-- ===== HINT CONTEXTUEL POUR LE 7 ===== -->
-  @if (sevenHintText(); as hint) {
-  <div class="seven-intro-hint">{{ hint }}</div>
-  }
-
-  <!-- ===== SÉLECTEUR DE SPLIT DU 7 ===== -->
-  @if (showSevenStepCounter()) {
-  <div class="seven-split-bar" [class.seven-split-bar--split-active]="gameStateService.sevenFirstSteps() < 7"
-    [class.seven-split-bar--dragging]="isDraggingSplit()"
-    [class.turn-inactive]="!gameStateService.isMyTurn()">
-
-    <div #dotsRowEl class="dots-row" (pointerdown)="onDotsRowPointerDown($event)"
-      (pointermove)="onDotsRowPointerMove($event)" (pointerup)="onDotsRowPointerUp($event)"
-      (pointercancel)="onDotsRowPointerUp($event)">
-      @for (dot of allSevenDots(); track dot.step) {
-      @if (dot.step > 1) {
-      <div class="dot-connector"
-        [class.dot-connector--marble1]="gameStateService.sevenFirstSteps() < 7 && dot.step <= gameStateService.sevenFirstSteps()"
-        [class.dot-connector--marble2]="gameStateService.sevenFirstSteps() < 7 && dot.step > gameStateService.sevenFirstSteps()"
-        [class.dot-connector--full]="gameStateService.sevenFirstSteps() === 7"
-        [class.dot-connector--split-point]="gameStateService.sevenFirstSteps() < 7 && dot.step === gameStateService.sevenFirstSteps() + 1">
-      </div>
-      }
-      <button type="button" tabindex="-1" class="split-dot" [attr.data-step]="dot.step"
-        [class.split-dot--marble1]="dot.group === 'marble1'"
-        [class.split-dot--marble2]="dot.group === 'marble2'" [class.split-dot--full]="dot.group === 'full'"
-        [class.split-dot--active]="dot.isActive" [class.split-dot--is-seven]="dot.step === 7" [disabled]="!dot.enabled">
-        <span class="split-dot__number">{{ dot.step }}</span>
-      </button>
-      }
-    </div>
-
-    <div class="split-info">
-      @if (gameStateService.sevenFirstSteps() < 7) { <span class="split-info__marble1">{{
-        gameStateService.sevenFirstSteps() }}</span>
-        <span class="split-info__divider">/</span>
-        <span class="split-info__marble2">{{ 7 - gameStateService.sevenFirstSteps() }}</span>
-        } @else {
-        <span class="split-info__hint">Drag to split</span>
-        }
-    </div>
-
-    @if (showUseAllSevenShortcut()) {
-    <button type="button" class="seven-shortcut-btn" (click)="useAllSevenOnFirstMarble()">
-      Use all 7 on this marble
-    </button>
-    }
-
-  </div>
-  }
-
   <!-- ===== INFOS CONTEXTUELLES (au-dessus du footer, cachées sur petits écrans) ===== -->
   <div class="context-info">
     <span class="turn-phase">
@@ -210,13 +159,85 @@
         </div>
       </div>
 
-      <button class="action-btn" [class.action-btn--discard]="isDiscardMode()" [disabled]="!confirmOrDiscardEnabled()"
-        (click)="onConfirmOrDiscard()">
-        {{ confirmOrDiscardLabel() }}
-      </button>
+      <div class="action-btn-wrap">
+        @if (isSevenSplitReady()) {
+        <span class="confirm-arrow" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
+            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="5" y1="12" x2="19" y2="12" />
+            <polyline points="13 6 19 12 13 18" />
+          </svg>
+        </span>
+        }
+        <button class="action-btn" [class.action-btn--discard]="isDiscardMode()"
+          [class.action-btn--highlighted]="isSevenSplitReady()" [disabled]="!confirmOrDiscardEnabled()"
+          (click)="onConfirmOrDiscard()">
+          {{ confirmOrDiscardLabel() }}
+        </button>
+      </div>
 
     </div>
   </div>
+
+  <!-- ===== SEVEN SPLIT OVERLAY ===== -->
+  @if (showSevenSplitOverlay()) {
+  <div class="seven-split-overlay">
+    <div class="seven-split-sheet" [class.turn-inactive]="!gameStateService.isMyTurn()">
+      <p class="seven-split-sheet__title">Card 7</p>
+      @if (sevenHintText(); as hint) {
+      <p class="seven-split-sheet__hint">{{ hint }}</p>
+      } @else {
+      <p class="seven-split-sheet__rule">Move one marble 7 spaces, or split between two marbles.</p>
+      }
+
+      @if (gameStateService.selectedMarblePosition() !== null && validSplitSevenSteps().length > 0) {
+      <div class="seven-split-bar" [class.seven-split-bar--split-active]="gameStateService.sevenFirstSteps() < 7"
+        [class.seven-split-bar--dragging]="isDraggingSplit()"
+        [class.turn-inactive]="!gameStateService.isMyTurn()">
+
+        <div #dotsRowEl class="dots-row" (pointerdown)="onDotsRowPointerDown($event)"
+          (pointermove)="onDotsRowPointerMove($event)" (pointerup)="onDotsRowPointerUp($event)"
+          (pointercancel)="onDotsRowPointerUp($event)">
+          @for (dot of allSevenDots(); track dot.step) {
+          @if (dot.step > 1) {
+          <div class="dot-connector"
+            [class.dot-connector--marble1]="gameStateService.sevenFirstSteps() < 7 && dot.step <= gameStateService.sevenFirstSteps()"
+            [class.dot-connector--marble2]="gameStateService.sevenFirstSteps() < 7 && dot.step > gameStateService.sevenFirstSteps()"
+            [class.dot-connector--full]="gameStateService.sevenFirstSteps() === 7"
+            [class.dot-connector--split-point]="gameStateService.sevenFirstSteps() < 7 && dot.step === gameStateService.sevenFirstSteps() + 1">
+          </div>
+          }
+          <button type="button" tabindex="-1" class="split-dot" [attr.data-step]="dot.step"
+            [class.split-dot--marble1]="dot.group === 'marble1'"
+            [class.split-dot--marble2]="dot.group === 'marble2'" [class.split-dot--full]="dot.group === 'full'"
+            [class.split-dot--active]="dot.isActive" [class.split-dot--is-seven]="dot.step === 7"
+            [disabled]="!dot.enabled">
+            <span class="split-dot__number">{{ dot.step }}</span>
+          </button>
+          }
+        </div>
+
+        <div class="split-info">
+          @if (gameStateService.sevenFirstSteps() < 7) { <span class="split-info__marble1">{{
+            gameStateService.sevenFirstSteps() }}</span>
+            <span class="split-info__divider">/</span>
+            <span class="split-info__marble2">{{ 7 - gameStateService.sevenFirstSteps() }}</span>
+            } @else {
+            <span class="split-info__hint">Drag to split</span>
+            }
+        </div>
+
+        @if (showUseAllSevenShortcut()) {
+        <button type="button" class="seven-shortcut-btn" (click)="useAllSevenOnFirstMarble()">
+          Use all 7 on this marble
+        </button>
+        }
+
+      </div>
+      }
+    </div>
+  </div>
+  }
 
   <!-- ===== CONFIRM RESIGN OVERLAY ===== -->
   @if (showResignConfirm()) {
