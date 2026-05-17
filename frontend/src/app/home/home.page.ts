@@ -652,13 +652,13 @@ export class HomePage implements OnInit, OnDestroy {
 
   // ── Inbox ──────────────────────────────────────────────────────────────────
 
-  private authHeaders(): { Authorization: string } | null {
-    const idToken = this.auth.getIdToken();
+  private async authHeaders(): Promise<{ Authorization: string } | null> {
+    const idToken = await this.auth.getFreshIdToken();
     return idToken ? { Authorization: `Bearer ${idToken}` } : null;
   }
 
   private async refreshUnreadCount(): Promise<void> {
-    const headers = this.authHeaders();
+    const headers = await this.authHeaders();
     if (!headers) {
       this.unreadCount = 0;
       return;
@@ -683,7 +683,7 @@ export class HomePage implements OnInit, OnDestroy {
   }
 
   private async loadThreads(): Promise<void> {
-    const headers = this.authHeaders();
+    const headers = await this.authHeaders();
     if (!headers) {
       this.inboxError = 'Please sign in again to view your messages.';
       this.threadsLoading = false;
@@ -718,7 +718,7 @@ export class HomePage implements OnInit, OnDestroy {
     this.inboxView = 'thread';
     this.threadLoading = true;
 
-    const headers = this.authHeaders();
+    const headers = await this.authHeaders();
     if (!headers) {
       this.threadLoading = false;
       this.inboxError = 'Please sign in again.';
@@ -784,7 +784,7 @@ export class HomePage implements OnInit, OnDestroy {
     const text = this.composerText.trim();
     if (!text || text.length > this.composerMaxLength) return;
 
-    const headers = this.authHeaders();
+    const headers = await this.authHeaders();
     if (!headers) {
       this.inboxError = 'Please sign in again.';
       return;

@@ -122,7 +122,7 @@ export class ProfilePage implements OnInit, OnDestroy {
   async sendMessage(): Promise<void> {
     const text = this.messageText().trim();
     if (!text || text.length > this.maxLength) return;
-    const idToken = this.auth.getIdToken();
+    const idToken = await this.auth.getFreshIdToken();
     if (!idToken) {
       this.sendStatus.set('error');
       this.sendError.set('Please sign in again to send a message.');

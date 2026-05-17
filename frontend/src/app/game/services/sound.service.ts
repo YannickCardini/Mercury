@@ -7,10 +7,16 @@ export class SoundService {
   private buffers = new Map<string, AudioBuffer>();
 
   readonly muted = signal<boolean>(localStorage.getItem('mercury-muted') === 'true');
+  readonly vibrationEnabled = signal<boolean>((localStorage.getItem('mercury-vibration') ?? 'true') === 'true');
 
   toggleMute(): void {
     this.muted.set(!this.muted());
     localStorage.setItem('mercury-muted', String(this.muted()));
+  }
+
+  toggleVibration(): void {
+    this.vibrationEnabled.set(!this.vibrationEnabled());
+    localStorage.setItem('mercury-vibration', String(this.vibrationEnabled()));
   }
 
   constructor() {

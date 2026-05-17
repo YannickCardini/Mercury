@@ -175,6 +175,8 @@ enum TURN_PHASE {
 
   @Output() rulesRequested = new EventEmitter<void>();
 
+  readonly isNative = Capacitor.isNativePlatform();
+
   /** Vrai quand le dialogue de confirmation d'abandon est affiché. */
   showResignConfirm = signal(false);
 
@@ -299,7 +301,7 @@ enum TURN_PHASE {
         this.timeLeft.set(newTime);
         if (newTime <= 5 && this.gameStateService.isMyTurn()) {
           this.soundService.playCountdownTick(newTime);
-          if (Capacitor.isNativePlatform()) {
+          if (Capacitor.isNativePlatform() && this.soundService.vibrationEnabled()) {
             Haptics.impact({ style: ImpactStyle.Light });
           }
         }

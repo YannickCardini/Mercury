@@ -84,7 +84,7 @@ export class GamePage implements OnDestroy, AfterViewInit {
         this.showNewTurnBanner.set(true);
         if (this.gameStateService.isMyTurn()) {
           this.soundService.playNewTurn();
-          if (Capacitor.isNativePlatform()) {
+          if (Capacitor.isNativePlatform() && this.soundService.vibrationEnabled()) {
             Haptics.impact({ style: ImpactStyle.Medium });
           }
         }

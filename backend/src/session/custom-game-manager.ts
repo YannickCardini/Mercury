@@ -167,30 +167,37 @@ export class CustomGameManager {
     /**
      * Push a `gameInvite` to the recipient's online socket(s). Only the room
      * creator can send invites, and only for their own room. If the recipient
-     * is offline, push an immediate `gameInviteResponse` with accepted=false
-     * back to the creator so their UI can flip to "undelivered/declined".
+     * has no registered socket yet, the invite is queued for up to 5 seconds
+     * (covers the race where their presence WS is still connecting). A
+     * `gameInviteResponse { accepted: false }` is sent to the creator only
+     * after the TTL expires with no delivery.
      */
     private handleInviteUser(ws: WebSocket, toUserId: string, roomCode: string): void {
         const room = this.rooms.get(roomCode);
         if (!room || room.creatorWs !== ws) return;
         const creator = room.players.find(p => p.ws === ws);
         if (!creator || !creator.userId) return;
-        const delivered = this.presence.send(toUserId, {
-            type: 'gameInvite',
-            fromUserId: creator.userId,
-            fromUserName: creator.name,
-            ...(creator.picture ? { fromUserPicture: creator.picture } : {}),
-            roomCode: room.code,
-        });
-        if (!delivered) {
-            try {
-                ws.send(JSON.stringify({
-                    type: 'gameInviteResponse',
-                    fromUserId: toUserId,
-                    accepted: false,
-                }));
-            } catch { /* ignore */ }
-        }
+        this.presence.sendOrQueue(
+            toUserId,
+            {
+                type: 'gameInvite',
+                fromUserId: creator.userId,
+                fromUserName: creator.name,
+                ...(creator.picture ? { fromUserPicture: creator.picture } : {}),
+                roomCode: room.code,
+            },
+            5_000,
+            () => {
+                // User did not connect within 5 s — notify the creator.
+                try {
+                    ws.send(JSON.stringify({
+                        type: 'gameInviteResponse',
+                        fromUserId: toUserId,
+                        accepted: false,
+                    }));
+                } catch { /* ignore */ }
+            },
+        );
     }
 
     private startRoomFromCreator(ws: WebSocket): void {

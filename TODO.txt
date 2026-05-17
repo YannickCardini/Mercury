@@ -1,78 +1,230 @@
-TUTORIAL OVERLAY — REFINEMENTS
-==============================
+================================================================================
+MERCURY — TODO LIST
+================================================================================
 
-Context
--------
-The tutorial overlay (frontend/src/app/game/components/tutorial-overlay/) shows
-contextual hints on the local player's turn. Each hint is a text "pill" with a
-pointer arrow, plus one or more yellow highlight rings around the target.
-There are 4 hints, driven by `hint()` in tutorial-overlay.component.ts:
-  - 'card'    → "Select a card from your hand"   (anchor: 'hand')
-  - 'marble'  → "Select a marble to move"        (anchor: 'board')
-  - 'confirm' → "Tap the button to confirm"      (anchor: 'confirm')
-  - 'discard' → "No playable cards — tap to discard" (anchor: 'confirm')
+────────────────────────────────────────────────────────────────────────────────
+BUG 1 — Custom game invitations not reliably delivered
+────────────────────────────────────────────────────────────────────────────────
+Context:
+  When user A (on desktop) invites user B (on mobile) by clicking their name
+  in the custom room lobby, user B sometimes does not receive the invite toast.
+  The bug is intermittent: retesting often works. User B has confirmed it
+  happens on both the mobile browser and the native Android app.
 
-What already works well — DO NOT CHANGE
----------------------------------------
-- The 'confirm' / 'discard' hint: pill + highlight on the confirm/discard
-  button (.action-btn, anchor 'confirm') is good as-is.
-- The 'marble' hint's highlight: the circular yellow ring around the
-  selectable marble (.highlight-board) is good as-is.
+Root cause to investigate:
+  - Backend: `custom-game-manager.ts` sends the invite via
+    `presence.send(toUserId, { type: 'gameInvite', ... })` (line ~178).
+    `PresenceManager.send()` delivers to all WebSockets registered for that
+    userId. Registration happens via `presence.register(userId, ws)` at room
+    join/create time (lines 81, 120 in custom-game-manager.ts).
+  - Frontend: `PresenceService` (frontend/src/app/services/presence.service.ts)
+    opens a dedicated WebSocket from the home page to receive invites.
+    This WebSocket must be registered on the backend's PresenceManager so that
+    `presence.send()` can find it.
+  - Likely race condition: if user B's presence WebSocket has not yet completed
+    registration by the time user A sends the invite, the backend finds no
+    active socket for that userId and silently drops the invite (returning
+    `delivered = false`), which incorrectly shows "undelivered/declined" to A.
 
-The text pill + arrow for the 'card' and 'marble' hints look bad and need to
-be reworked. The two tasks below cover that.
-
-
-TASK 1 — Reposition the 'marble' hint pill next to the player's home corner
----------------------------------------------------------------------------
-Problem:
-  The 'marble' hint currently places the pill at the union rect of all
-  `.marble-selectable` elements, above or below the board centre
-  (see `recompute()` -> `anchor === 'board'` branch). This placement looks bad.
-
-Key fact:
-  The 'marble' hint only ever appears on the player's very first action
-  (`hasConfirmed` is still false). On the first action the only selectable
-  marble is one marble sitting in the local player's home position. So the
-  hint always points at a single marble in the player's home corner.
-
-Required change:
-  - In the 'board' branch of `recompute()`, position the pill + arrow next to
-    the local player's home position instead of the board-centre-relative
-    union placement.
-  - Identify the player's home squares from the board: home squares render
-    with class `home home-${color}` (see board.component.ts ~line 710,
-    `getSquareClass`). Use `gameStateService.myPlayerColor()` to pick the
-    color, e.g. query `.home-${myColor}`.
-  - Place the pill just outside that home cluster, with the arrow pointing
-    toward the marble. Keep the existing viewport clamping
-    (`clampPillIntoViewport`).
-  - Keep the existing circular highlight ring on the selectable marble
-    unchanged.
+Steps to fix:
+  1. In `PresenceService` (frontend), verify that a `userId` is sent when
+     opening the home-page presence WebSocket, so the backend can map it.
+  2. In `PresenceManager`, add reconnection/retry support: if `send()` returns
+     false, store the pending invite for a short grace period (e.g. 5 seconds)
+     and re-attempt delivery if the user reconnects within that window.
+  3. Alternatively (simpler): when the creator gets `delivered = false`, show
+     a UI message "User may be offline — retry?" with a retry button rather
+     than immediately marking it as declined.
+  4. Test the fix by having one device join the home page and immediately
+     triggering an invite from a second device before the WebSocket handshake
+     completes.
 
 
-TASK 2 — Rework the 'card' hint: highlight style + pill placement
------------------------------------------------------------------
-Problem:
-  a) The 'card' hint highlight currently uses `.highlight-hand` — a soft,
-     blurred radial-gradient glow (see tutorial-overlay.component.scss). This
-     design looks bad.
-  b) The pill placement above the card fan needs to be improved.
+────────────────────────────────────────────────────────────────────────────────
+BUG 2 — Intermittent "session expired" error on message send while still logged in
+────────────────────────────────────────────────────────────────────────────────
+Context:
+  When sending a chat message, the user sometimes sees a "Your session has
+  expired. Please sign in again" error even though they are visibly still
+  logged in. Reported on mobile browser and native Android. Possibly linked to
+  having the app open in multiple tabs or leaving the app open for over an hour.
 
-Required changes:
-  a) Replace the `.highlight-hand` blurred-glow style with a crisp yellow
-     border ring, matching the style already used for marbles/buttons
-     (`.highlight-board` / `.highlight-confirm`: `box-shadow` ring +
-     `highlightPulse` animation). Each `.playable-card` should get its own
-     ring. Note the card rings must still follow each card's fan rotation —
-     `orientedBox()` already computes per-card rotation; keep that working.
-  b) Improve the pill + arrow placement for the 'card' hint so it sits
-     cleanly relative to the highlighted card fan (currently centred above
-     the union rect of `.playable-card` elements). Keep viewport clamping.
+Root cause:
+  - `AuthService` (frontend/src/app/services/auth.service.ts) stores the Google
+    ID token in `localStorage['auth_id_token']` (line 25) and loads it once at
+    service initialization. There is NO refresh mechanism.
+  - Google ID tokens expire after approximately 1 hour. After expiry, the
+    backend's `verifyGoogleIdToken()` (auth-router.ts) rejects it with a 401,
+    which the frontend interprets as "session expired".
+  - In a new tab, `AuthService` re-reads the same stale token from localStorage,
+    so any request from that tab will fail if the token is already expired.
+
+Steps to fix:
+  1. Before any authenticated HTTP request, check whether the stored ID token is
+     still valid by inspecting its `exp` claim (decode the JWT payload with
+     `atob(token.split('.')[1])`).
+  2. If the token is expired (or will expire within 60 seconds), silently
+     re-authenticate using `GoogleSignIn.signIn()` (or the silent sign-in /
+     `getAuthorizationCode()` flow if available on the current platform) to
+     obtain a fresh token before sending the request.
+  3. Store the refreshed token in `localStorage['auth_id_token']` and update
+     `AuthService.idToken` in memory.
+  4. If silent refresh fails (user has revoked permissions), only then show the
+     "session expired" message and redirect to the login screen.
+  5. Relevant files: `auth.service.ts` (add refresh logic),
+     `messages-router.ts` (no backend changes needed).
 
 
-Out of scope
-------------
-- Do not change the 'confirm' / 'discard' hint.
-- Do not change the hint state machine / trigger logic in `hint()`.
-- Do not change when hints retire (`hasConfirmed` / `hasDiscarded`).
+────────────────────────────────────────────────────────────────────────────────
+BUG 3 — Tutorial card-play instructions overlap with the new-turn banner
+────────────────────────────────────────────────────────────────────────────────
+Context:
+  When a player's turn starts, two elements appear simultaneously:
+    (a) The "new turn" banner (`.new-turn-overlay` in `game.page.html` line 18),
+        which displays for 2500 ms (`NEW_TURN_BANNER_DURATION_MS` in
+        packages/shared/src/constants.ts).
+    (b) The tutorial overlay pill ("Select a card from your hand"), which
+        appears as soon as `isMyTurn()` becomes true.
+  The two elements visually overlap and the tutorial hint is obscured.
+
+Steps to fix:
+  In `TutorialOverlayComponent` (frontend/src/app/game/components/
+  tutorial-overlay/tutorial-overlay.component.ts):
+
+  1. Add a private `isBannerVisible` signal (boolean, default false).
+  2. Subscribe to `GameStateService.newTurn` (the same RxJS Subject used in
+     `game.page.ts` line 72). When a new turn fires, set `isBannerVisible` to
+     `true` for exactly `NEW_TURN_BANNER_DURATION_MS` milliseconds, then reset
+     it to `false`. Use `setTimeout` and clean up in `ngOnDestroy`.
+  3. In the `hint` computed signal (line 98), add a guard at the top:
+       if (this.isBannerVisible()) return null;
+     This suppresses all hints while the banner is on screen.
+  4. Import `NEW_TURN_BANNER_DURATION_MS` from `@mercury/shared`.
+
+
+────────────────────────────────────────────────────────────────────────────────
+FEATURE 4 — Highlight playable cards in yellow during the first tutorial step
+────────────────────────────────────────────────────────────────────────────────
+Context:
+  During the very first tutorial step ("Select a card from your hand"), selectable
+  marbles are already highlighted with a gold pulsing ring when the "select a
+  marble" step is active. However, cards are NOT highlighted during the "select
+  a card" step — only a tooltip pill is shown. The request is to also surround
+  each playable card with a yellow highlight ring, matching the style already
+  used for marbles.
+
+Steps to implement:
+  In `TutorialOverlayComponent` (tutorial-overlay.component.ts):
+
+  1. In `recompute()` (line 187), inside the `anchor === 'hand'` branch
+     (currently lines 188–201), replace `this.highlights.set([])` with:
+       const boxes = cards.map(card => this.orientedBox(card, 'card'));
+       this.highlights.set(boxes);
+     This reuses the existing `orientedBox()` method (line 235) which already
+     handles the fan rotation of each card.
+
+  2. In the template (`tutorial-overlay.component.html`), verify that the
+     existing `@for` loop that renders highlight boxes handles the 'card' shape.
+     The CSS class for card highlights already exists as `.highlight-hand` in
+     `tutorial-overlay.component.scss` (with `border-radius: 10px` and the
+     gold `box-shadow` + `highlightPulse` animation).
+
+  3. The highlight rings must disappear as soon as the player taps a card
+     (this already happens automatically because selecting a card changes the
+     hint from `id: 'card'` to `id: 'marble'`, which triggers a recompute).
+
+  No backend changes needed.
+
+
+────────────────────────────────────────────────────────────────────────────────
+FEATURE 5 — Add a vibration toggle button in the in-game settings menu
+────────────────────────────────────────────────────────────────────────────────
+Context:
+  Some players dislike vibration feedback on mobile. Currently, haptic feedback
+  (`Haptics.impact()`) is always triggered on native platforms with no way to
+  opt out. The sound mute toggle is in the action menu (3-dot button, top-right
+  of the game screen, in `table.component.html` lines 49–67). A vibration
+  toggle should be added directly below the mute button in the same menu.
+
+Steps to implement:
+
+  1. In `SoundService` (frontend/src/app/game/services/sound.service.ts):
+     - Add a `vibrationEnabled` signal (default: read from
+       `localStorage['mercury-vibration'] ?? 'true'`), similar to `muted`.
+     - Add a `toggleVibration()` method that flips the signal and persists it
+       to `localStorage['mercury-vibration']`.
+
+  2. In `table.component.ts` (frontend/src/app/game/components/table/):
+     - Inject `SoundService` (already injected, line 230).
+     - At line 303, guard the `Haptics.impact()` call with:
+         if (Capacitor.isNativePlatform() && this.soundService.vibrationEnabled())
+           Haptics.impact({ style: ImpactStyle.Light });
+
+  3. In `game.page.ts` (frontend/src/app/game/game.page.ts):
+     - Inject `SoundService` (already injected, line 58).
+     - At line 88, guard the `Haptics.impact()` call with:
+         if (Capacitor.isNativePlatform() && this.soundService.vibrationEnabled())
+           Haptics.impact({ style: ImpactStyle.Medium });
+
+  4. In `table.component.html`, inside the `.menu-dropdown` div, add a new
+     button immediately after the mute button (after line 67):
+
+       <button class="menu-item"
+               [class.menu-item--muted]="!soundService.vibrationEnabled()"
+               (click)="soundService.toggleVibration()">
+         <!-- vibration icon (phone with wave lines) -->
+         Vibration {{ soundService.vibrationEnabled() ? 'On' : 'Off' }}
+       </button>
+
+     Only show this button when on a native platform
+     (`Capacitor.isNativePlatform()`), since vibration is not available on web.
+
+
+────────────────────────────────────────────────────────────────────────────────
+TASK 6 — Draft a UX redesign brief for the "7" card interaction (no code)
+────────────────────────────────────────────────────────────────────────────────
+Context:
+  Playing the "7" card allows the active player to split 7 movement steps
+  across two marbles (e.g. 3 steps for marble A, 4 steps for marble B).
+  The current implementation uses a horizontal dots row (`.seven-split-bar`)
+  with 7 draggable dots and pointer-event drag/snap logic
+  (`table.component.ts` lines ~342–400, `table.component.html` lines ~124–150).
+  This UX has been redesigned many times and remains problematic on mobile:
+    - The dots row and surrounding buttons frequently overflow the screen.
+    - The text instructions and interactive elements compete for limited vertical
+      space in the `.table-wrapper` panel.
+    - Users often do not understand the drag interaction on first use.
+
+DO NOT implement any code for this task.
+
+Instead, produce a structured design brief (as a document or prompt) that:
+
+  1. Describes the complete current flow step by step:
+       a. User selects the "7" card.
+       b. User taps a marble → the split bar appears.
+       c. User drags/taps the dot bar to choose how many steps go to marble 1
+          (1–6); the remaining steps are automatically assigned to marble 2.
+       d. User taps the second marble to assign the remaining steps.
+       e. User confirms the move.
+     Include the "use all 7 on one marble" shortcut (skip the split).
+
+  2. Clearly states the constraints:
+       - Primary platform is mobile (small screen, touch only).
+       - The `.table-wrapper` panel has limited height.
+       - The confirm button (`.action-btn`) must remain accessible at all times.
+       - No horizontal overflow allowed.
+
+  3. Lists the known UX problems:
+       - The 7-dot bar is too narrow on small screens and hard to drag precisely.
+       - The hint text ("Drag the bar…" / "Tap a second marble…") is often
+         clipped or hidden behind other elements.
+       - The two-step marble selection (first marble → split bar → second marble)
+         is not obvious without the hint text.
+
+  4. Asks Claude to propose 2–3 alternative UX patterns for the split
+     interaction, each accompanied by:
+       - A rough ASCII mockup of the mobile screen layout.
+       - A description of the interaction model (tap, swipe, slider, stepper…).
+       - Pros and cons relative to the constraints above.
+
+  This brief will be reviewed together before any implementation begins.

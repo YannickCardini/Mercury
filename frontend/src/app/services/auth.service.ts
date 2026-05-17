@@ -27,6 +27,42 @@ export class AuthService {
     getIdToken(): string | null {
         return this.idToken;
     }
+
+    async getFreshIdToken(): Promise<string | null> {
+        const token = this.idToken;
+        if (!token) return null;
+        if (!this.isTokenExpiredOrExpiringSoon(token)) return token;
+
+        if (Capacitor.isNativePlatform()) {
+            try {
+                const result = await GoogleSignIn.signIn();
+                if (result.idToken) {
+                    this.idToken = result.idToken;
+                    localStorage.setItem(ID_TOKEN_KEY, result.idToken);
+                    return result.idToken;
+                }
+            } catch (err) {
+                console.warn('[Auth] Token refresh failed:', err);
+            }
+            void this.logout();
+        }
+
+        return null;
+    }
+
+    private isTokenExpiredOrExpiringSoon(token: string): boolean {
+        try {
+            const parts = token.split('.');
+            if (parts.length !== 3) return false;
+            const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+            const padded = b64 + '='.repeat((4 - b64.length % 4) % 4);
+            const payload = JSON.parse(atob(padded)) as { exp?: number };
+            if (!payload.exp) return false;
+            return Date.now() >= (payload.exp - 60) * 1000;
+        } catch {
+            return false;
+        }
+    }
     readonly loginError$ = new Subject<'google' | 'server'>();
     readonly updateError$ = new Subject<string>();
     readonly isLoading$ = new BehaviorSubject<boolean>(false);

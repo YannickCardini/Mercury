@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   HostListener,
+  OnDestroy,
   computed,
   effect,
   inject,
@@ -9,6 +10,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { pairwise } from 'rxjs';
+import { NEW_TURN_BANNER_DURATION_MS } from '@mercury/shared';
 import { GameStateService } from '../../services/game-state.service';
 
 /** Which game element a hint refers to. */
@@ -78,7 +80,7 @@ interface UnionRect {
   styleUrls: ['./tutorial-overlay.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class TutorialOverlayComponent {
+export class TutorialOverlayComponent implements OnDestroy {
   private gameState = inject(GameStateService);
 
   /** Set once the local player confirms a real move (never for a discard). */
@@ -88,6 +90,9 @@ export class TutorialOverlayComponent {
   /** True between playAction() and the server's actionPlayed echo, to avoid
    *  re-showing the 'card' hint while selections are being cleared. */
   private pendingAction = signal(false);
+  /** True while the new-turn banner is on screen; suppresses all hints. */
+  private isBannerVisible = signal(false);
+  private bannerTimeout: ReturnType<typeof setTimeout> | null = null;
 
   /** True when the server says the player has no legal move and must discard. */
   private isDiscardMode = computed(
@@ -97,6 +102,7 @@ export class TutorialOverlayComponent {
   /** Current hint to display, or null when the overlay should be hidden. */
   hint = computed<Hint | null>(() => {
     const gs = this.gameState;
+    if (this.isBannerVisible()) return null;
     if (!gs.isMyTurn()) return null;
 
     // No legal move this turn — guide the player to the discard button.
@@ -108,7 +114,7 @@ export class TutorialOverlayComponent {
     if (this.hasConfirmed() || this.pendingAction()) return null;
 
     if (!gs.selectedCard()) {
-      return { id: 'card', text: 'Select a card from your hand', anchor: 'hand' };
+      return { id: 'card', text: 'Play a King or Ace to start', anchor: 'hand' };
     }
     if (gs.selectedMarblePosition() === null) {
       return { id: 'marble', text: 'Select a marble to move', anchor: 'board' };
@@ -162,6 +168,16 @@ export class TutorialOverlayComponent {
     this.gameState.actionRejected$.pipe(takeUntilDestroyed())
       .subscribe(() => this.pendingAction.set(false));
 
+    this.gameState.newTurn.pipe(takeUntilDestroyed()).subscribe(val => {
+      if (!val) return;
+      if (this.bannerTimeout) clearTimeout(this.bannerTimeout);
+      this.isBannerVisible.set(true);
+      this.bannerTimeout = setTimeout(() => {
+        this.isBannerVisible.set(false);
+        this.bannerTimeout = null;
+      }, NEW_TURN_BANNER_DURATION_MS);
+    });
+
     effect(() => {
       const h = this.hint();
       if (!h) {
@@ -171,6 +187,10 @@ export class TutorialOverlayComponent {
       // Defer one frame so the target elements' layout is settled.
       requestAnimationFrame(() => this.recompute(h.anchor));
     });
+  }
+
+  ngOnDestroy(): void {
+    if (this.bannerTimeout) clearTimeout(this.bannerTimeout);
   }
 
   @HostListener('window:resize')
