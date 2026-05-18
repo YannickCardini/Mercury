@@ -1,30 +1,36 @@
 import { Router, type Request, type Response } from 'express';
 import { OAuth2Client } from 'google-auth-library';
 import { getUsersContainer } from '../db.js';
+import { signSessionToken, verifySessionToken } from './session-token.js';
 
 const router = Router();
 
 const googleClient = new OAuth2Client();
 
 /**
- * Verifies a Google id-token against the configured audiences and returns the
- * authenticated user's id (`sub`). Returns null if the token is missing or
- * invalid. Exposed for reuse by other routers (e.g. messages).
+ * Accepts either a long-lived session token (issued at login) or a Google ID
+ * token (legacy / first login race). Returns the authenticated user's id, or
+ * null if the token is missing or invalid. Used by all authenticated routers.
  */
-export async function verifyGoogleIdToken(idToken: string | undefined): Promise<string | null> {
-    if (!idToken) return null;
-    if (process.env['WORKER_SESSION_TOKEN'] && idToken === process.env['WORKER_SESSION_TOKEN']) {
+export async function verifyAuth(token: string | undefined): Promise<string | null> {
+    if (!token) return null;
+    if (process.env['WORKER_SESSION_TOKEN'] && token === process.env['WORKER_SESSION_TOKEN']) {
         return '1337';
     }
+    const fromSession = verifySessionToken(token);
+    if (fromSession) return fromSession;
     try {
         const audiences = [process.env['GOOGLE_AUDIENCE_WEB']!, process.env['GOOGLE_AUDIENCE_ANDROID']!];
-        const ticket = await googleClient.verifyIdToken({ idToken, audience: audiences });
+        const ticket = await googleClient.verifyIdToken({ idToken: token, audience: audiences });
         const payload = ticket.getPayload();
         return payload?.sub ?? null;
     } catch {
         return null;
     }
 }
+
+/** @deprecated use verifyAuth — kept as alias for any external import. */
+export const verifyGoogleIdToken = verifyAuth;
 
 interface UserDoc {
     id: string;
@@ -102,7 +108,7 @@ router.post('/google', async (req: Request, res: Response) => {
         return;
     }
 
-    // ── 3. Retourner les infos publiques de l'utilisateur ───────────────────
+    // ── 3. Retourner les infos publiques + un session token long-lived ──────
     res.json({
         id: user.id,
         email: user.email,
@@ -111,6 +117,7 @@ router.post('/google', async (req: Request, res: Response) => {
         points: user.points,
         ranking: user.ranking,
         createdAt: user.createdAt,
+        sessionToken: signSessionToken(user.id),
     });
 });
 

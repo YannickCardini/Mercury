@@ -21,16 +21,32 @@ export class PresenceService {
 
   private ws: WebSocket | null = null;
   private currentUserId: string | null = null;
+  private currentUrl: string | null = null;
+  private intentionalDisconnect = false;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private reconnectDelayMs = 1000;
+  private readonly maxReconnectDelayMs = 30_000;
 
   connect(url: string, userId: string): void {
     if (this.ws && this.currentUserId === userId) return;
     this.disconnect();
 
+    this.intentionalDisconnect = false;
     this.currentUserId = userId;
+    this.currentUrl = url;
+    this.openSocket();
+  }
+
+  private openSocket(): void {
+    const url = this.currentUrl;
+    const userId = this.currentUserId;
+    if (!url || !userId) return;
+
     const ws = new WebSocket(url);
     this.ws = ws;
 
     ws.onopen = () => {
+      this.reconnectDelayMs = 1000;
       try { ws.send(JSON.stringify({ type: 'registerPresence', userId })); } catch { /* ignore */ }
     };
     ws.onmessage = (event: MessageEvent) => {
@@ -45,11 +61,25 @@ export class PresenceService {
     };
     ws.onerror = () => { /* surface only via close */ };
     ws.onclose = () => {
-      if (this.ws === ws) {
-        this.ws = null;
+      if (this.ws !== ws) return;
+      this.ws = null;
+      if (this.intentionalDisconnect) {
         this.currentUserId = null;
+        this.currentUrl = null;
+        return;
       }
+      this.scheduleReconnect();
     };
+  }
+
+  private scheduleReconnect(): void {
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    const delay = this.reconnectDelayMs;
+    this.reconnectDelayMs = Math.min(this.reconnectDelayMs * 2, this.maxReconnectDelayMs);
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      this.openSocket();
+    }, delay);
   }
 
   /** Sends the user's response to an invite. accepted=true is mainly used for telemetry; the actual join happens through the custom-room flow. */
@@ -61,10 +91,21 @@ export class PresenceService {
   }
 
   disconnect(): void {
-    if (!this.ws) return;
+    this.intentionalDisconnect = true;
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    this.reconnectDelayMs = 1000;
+    if (!this.ws) {
+      this.currentUserId = null;
+      this.currentUrl = null;
+      return;
+    }
     const ws = this.ws;
     this.ws = null;
     this.currentUserId = null;
+    this.currentUrl = null;
     ws.onopen = null;
     ws.onmessage = null;
     ws.onerror = null;

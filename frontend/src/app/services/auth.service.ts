@@ -31,23 +31,11 @@ export class AuthService {
     async getFreshIdToken(): Promise<string | null> {
         const token = this.idToken;
         if (!token) return null;
-        if (!this.isTokenExpiredOrExpiringSoon(token)) return token;
-
-        if (Capacitor.isNativePlatform()) {
-            try {
-                const result = await GoogleSignIn.signIn();
-                if (result.idToken) {
-                    this.idToken = result.idToken;
-                    localStorage.setItem(ID_TOKEN_KEY, result.idToken);
-                    return result.idToken;
-                }
-            } catch (err) {
-                console.warn('[Auth] Token refresh failed:', err);
-            }
-            void this.logout();
-        }
-
-        return null;
+        // Le session token émis par le backend est long-lived (~27 ans) donc on
+        // ne tente pas de refresh. Si pour une raison quelconque il est expiré,
+        // l'UI demandera à l'utilisateur de se reconnecter (cas extrême).
+        if (this.isTokenExpiredOrExpiringSoon(token)) return null;
+        return token;
     }
 
     private isTokenExpiredOrExpiringSoon(token: string): boolean {
@@ -122,14 +110,17 @@ export class AuthService {
     private async verifyTokenWithServer(idToken: string): Promise<void> {
         console.log('[Auth] Verifying idToken with server at:', environment.apiUrl);
         try {
-            const user = await firstValueFrom(
-                this.http.post<AuthUser>(`${environment.apiUrl}/api/auth/google`, { idToken })
+            const response = await firstValueFrom(
+                this.http.post<AuthUser & { sessionToken?: string }>(`${environment.apiUrl}/api/auth/google`, { idToken })
             );
+            const { sessionToken, ...user } = response;
             console.log('[Auth] Server verification success, user:', user.email);
             this.user$.next(user);
-            this.idToken = idToken;
+            // Stocker le session token long-lived plutôt que le Google ID token (1h).
+            const tokenToStore = sessionToken ?? idToken;
+            this.idToken = tokenToStore;
             localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
-            localStorage.setItem(ID_TOKEN_KEY, idToken);
+            localStorage.setItem(ID_TOKEN_KEY, tokenToStore);
         } catch (err) {
             console.error('[Auth] Server verification error:', err);
             if (err instanceof HttpErrorResponse) {

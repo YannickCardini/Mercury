@@ -409,6 +409,16 @@ enum TURN_PHASE {
     this.updateTurnPhase();
   }
 
+  /** Ferme l'overlay du 7 en désélectionnant la carte et en remettant à zéro le split. */
+  closeSevenSplitOverlay(): void {
+    this.selectedCardIndex.set(null);
+    this.gameStateService.selectedCard.set(null);
+    this.gameStateService.selectedMarblePosition.set(null);
+    this.gameStateService.sevenFirstSteps.set(7);
+    this.gameStateService.selectedSplit7MarblePosition.set(null);
+    this.turnPhase.set(TURN_PHASE.CARD);
+  }
+
   // ── Interactions ───────────────────────────────────────────────
   onCardSelected(index: number): void {
     if (!this.gameStateService.isMyTurn()) {

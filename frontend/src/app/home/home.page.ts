@@ -178,6 +178,7 @@ export class HomePage implements OnInit, OnDestroy {
       if (user) {
         void this.refreshUnreadCount();
         this.connectPresenceIfIdle(user.id);
+        void this.fetchPendingInvitations();
       } else {
         this.unreadCount = 0;
         this.threads = [];
@@ -657,6 +658,35 @@ export class HomePage implements OnInit, OnDestroy {
   private async authHeaders(): Promise<{ Authorization: string } | null> {
     const idToken = await this.auth.getFreshIdToken();
     return idToken ? { Authorization: `Bearer ${idToken}` } : null;
+  }
+
+  // Fetch invitations persisted server-side while the user was offline. Covers
+  // the cold-start race before the presence WebSocket has connected (the WS
+  // flush via `setOnRegister` covers everything once the socket is up).
+  private async fetchPendingInvitations(): Promise<void> {
+    if (this.showCustomGame || this.appResume.hasActiveGame()) return;
+    const headers = await this.authHeaders();
+    if (!headers) return;
+    try {
+      const invites = await firstValueFrom(
+        this.http.get<Array<{
+          fromUserId: string;
+          fromUserName: string;
+          fromUserPicture?: string;
+          roomCode: string;
+        }>>(`${environment.apiUrl}/api/invitations/pending`, { headers })
+      );
+      const latest = invites[invites.length - 1];
+      if (latest && !this.pendingInvite) {
+        this.pendingInvite = {
+          type: 'gameInvite',
+          fromUserId: latest.fromUserId,
+          fromUserName: latest.fromUserName,
+          ...(latest.fromUserPicture ? { fromUserPicture: latest.fromUserPicture } : {}),
+          roomCode: latest.roomCode,
+        };
+      }
+    } catch { /* silent — presence WS will retry */ }
   }
 
   private async refreshUnreadCount(): Promise<void> {

@@ -16,6 +16,10 @@ import { GameRegistry } from './game-registry.js';
 import type { GameConfig, MarbleColor, ClientMessage, CustomRoomPlayerInfo } from '@mercury/shared';
 import type { MatchmakingManager } from './matchmaking-manager.js';
 import type { PresenceManager } from './presence-manager.js';
+import { getInvitationsContainer } from '../db.js';
+import type { InvitationDoc } from '../messages/invitations-router.js';
+
+const INVITATION_TTL_SECONDS = 5 * 60;
 
 const COLORS: MarbleColor[] = ['red', 'green', 'blue', 'orange'];
 const ROOM_INACTIVITY_MS = 30 * 60 * 1000; // 30 minutes
@@ -165,53 +169,86 @@ export class CustomGameManager {
     }
 
     /**
-     * Push a `gameInvite` to the recipient's online socket(s). Only the room
-     * creator can send invites, and only for their own room. If the recipient
-     * has no registered socket yet, the invite is queued for up to 5 seconds
-     * (covers the race where their presence WS is still connecting). A
-     * `gameInviteResponse { accepted: false }` is sent to the creator only
-     * after the TTL expires with no delivery.
+     * Push a `gameInvite` to the recipient. Only the room creator can send
+     * invites, and only for their own room.
+     *
+     * Strategy: persist in Cosmos first (TTL 5 min). If the recipient is online,
+     * deliver immediately and remove the DB row to avoid a duplicate on their
+     * next presence register. If offline, the row stays until they reconnect
+     * (PresenceManager.onRegister flushes the DB) or until Cosmos TTL evicts it.
      */
     private handleInviteUser(ws: WebSocket, toUserId: string, roomCode: string): void {
         const room = this.rooms.get(roomCode);
         if (!room || room.creatorWs !== ws) return;
         const creator = room.players.find(p => p.ws === ws);
         if (!creator || !creator.userId) return;
-        this.presence.sendOrQueue(
+
+        const invitePayload = {
+            type: 'gameInvite' as const,
+            fromUserId: creator.userId,
+            fromUserName: creator.name,
+            ...(creator.picture ? { fromUserPicture: creator.picture } : {}),
+            roomCode: room.code,
+        };
+
+        const now = new Date();
+        const doc: InvitationDoc = {
+            id: crypto.randomUUID(),
+            fromUserId: creator.userId,
+            fromUserName: creator.name,
+            ...(creator.picture ? { fromUserPicture: creator.picture } : {}),
             toUserId,
-            {
-                type: 'gameInvite',
-                fromUserId: creator.userId,
-                fromUserName: creator.name,
-                ...(creator.picture ? { fromUserPicture: creator.picture } : {}),
-                roomCode: room.code,
-            },
-            5_000,
-            () => {
-                // User did not connect within 5 s — notify the creator.
-                try {
-                    ws.send(JSON.stringify({
-                        type: 'gameInviteResponse',
-                        fromUserId: toUserId,
-                        accepted: false,
-                    }));
-                } catch { /* ignore */ }
-            },
-        );
+            roomCode: room.code,
+            createdAt: now.toISOString(),
+            expiresAt: new Date(now.getTime() + INVITATION_TTL_SECONDS * 1000).toISOString(),
+            ttl: INVITATION_TTL_SECONDS,
+        };
+        void this.persistThenDeliver(doc, toUserId, invitePayload);
+    }
+
+    private async persistThenDeliver(doc: InvitationDoc, toUserId: string, payload: object): Promise<void> {
+        try {
+            const container = await getInvitationsContainer();
+            await container.items.create(doc);
+            if (this.presence.send(toUserId, payload)) {
+                // Delivered live — drop the DB copy so the user doesn't get it
+                // again on their next presence register.
+                await container.item(doc.id, toUserId).delete().catch(() => undefined);
+            }
+        } catch (err) {
+            console.error('❌ Cosmos DB error (persist invitation):', err);
+            // Best effort: try live delivery anyway so an online user still sees it.
+            this.presence.send(toUserId, payload);
+        }
+    }
+
+    private async deleteInvitationsForRoom(roomCode: string): Promise<void> {
+        try {
+            const container = await getInvitationsContainer();
+            const { resources } = await container.items
+                .query<{ id: string; toUserId: string }>({
+                    query: 'SELECT c.id, c.toUserId FROM c WHERE c.roomCode = @code',
+                    parameters: [{ name: '@code', value: roomCode }],
+                })
+                .fetchAll();
+            await Promise.all(
+                resources.map(r => container.item(r.id, r.toUserId).delete().catch(() => undefined)),
+            );
+        } catch (err) {
+            console.error('❌ Cosmos DB error (delete invitations for room):', err);
+        }
     }
 
     private startRoomFromCreator(ws: WebSocket): void {
         for (const [code, room] of this.rooms) {
             if (room.creatorWs !== ws) continue;
+            this.cleanupListeners(room);
+            clearTimeout(room.expiryTimer);
+            this.rooms.delete(code);
+            void this.deleteInvitationsForRoom(code);
             if (room.players.length === 4) {
-                this.cleanupListeners(room);
-                clearTimeout(room.expiryTimer);
-                this.rooms.delete(code);
                 this.launch(room);
             } else {
-                this.cleanupListeners(room);
-                clearTimeout(room.expiryTimer);
-                this.rooms.delete(code);
                 this.fallbackToMatchmaking(room);
             }
             return;
@@ -308,6 +345,7 @@ export class CustomGameManager {
             }
             clearTimeout(room.expiryTimer);
             this.rooms.delete(code);
+            void this.deleteInvitationsForRoom(code);
             console.log(`❌ Custom room ${code} destroyed (creator left)`);
             return;
         }
@@ -362,6 +400,7 @@ export class CustomGameManager {
             p.ws.removeEventListener('message', p.roomMessageListener);
         }
         this.rooms.delete(code);
+        void this.deleteInvitationsForRoom(code);
         console.log(`⏰ Custom room ${code} expired`);
     }
 }

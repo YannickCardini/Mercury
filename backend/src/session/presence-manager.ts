@@ -18,6 +18,17 @@ export class PresenceManager {
     private byUserId = new Map<string, Set<WebSocket>>();
     private byWs = new Map<WebSocket, string>();
     private pending = new Map<string, PendingEntry[]>();
+    private onRegister: ((userId: string, ws: WebSocket) => void) | null = null;
+
+    /**
+     * Optional callback invoked after a user registers a socket. Used to flush
+     * persisted notifications (e.g. game invitations stored in Cosmos while
+     * the user was offline). Kept as a callback so this class stays free of
+     * direct DB dependencies.
+     */
+    setOnRegister(cb: (userId: string, ws: WebSocket) => void): void {
+        this.onRegister = cb;
+    }
 
     register(userId: string, ws: WebSocket): void {
         const existing = this.byWs.get(ws);
@@ -41,6 +52,8 @@ export class PresenceManager {
                 try { ws.send(JSON.stringify(entry.msg)); } catch { /* ignore */ }
             }
         }
+
+        this.onRegister?.(userId, ws);
     }
 
     unregister(ws: WebSocket): void {
