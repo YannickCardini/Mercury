@@ -41,22 +41,6 @@ export async function getMessagesContainer(): Promise<Container> {
     return container;
 }
 
-let invitationsContainer: Container | null = null;
-
-export async function getInvitationsContainer(): Promise<Container> {
-    if (invitationsContainer) return invitationsContainer;
-
-    const { database } = await getClient().databases.createIfNotExists({ id: 'mercury-db' });
-    // defaultTtl: 300 → Cosmos évince automatiquement les invitations >5 minutes.
-    const { container } = await database.containers.createIfNotExists({
-        id: 'invitations',
-        partitionKey: { paths: ['/toUserId'] },
-        defaultTtl: 300,
-    });
-    invitationsContainer = container;
-    return container;
-}
-
 export async function updateUserPoints(userId: string, delta: number): Promise<void> {
     const container = await getUsersContainer();
     const ops: PatchOperation[] = [{ op: 'incr', path: '/points', value: delta }];

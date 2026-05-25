@@ -6,8 +6,6 @@ import { CustomGameManager } from './custom-game-manager.js';
 import { PresenceManager } from './presence-manager.js';
 import { GameRegistry } from './game-registry.js';
 import type { ClientMessage, GameConfig, MarbleColor } from '@mercury/shared';
-import { getInvitationsContainer } from '../db.js';
-import type { InvitationDoc } from '../messages/invitations-router.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SessionManager — gestion des rooms multi-device
@@ -40,45 +38,9 @@ export class SessionManager {
 
     private customGames = new CustomGameManager(this.playerIdentities, this.matchmaking, this.presence);
 
-    constructor() {
-        // Flush persisted invitations whenever a user comes back online.
-        this.presence.setOnRegister((userId, ws) => { void this.flushPersistedInvitations(userId, ws); });
-    }
-
-    private async flushPersistedInvitations(userId: string, ws: WebSocket): Promise<void> {
-        try {
-            const container = await getInvitationsContainer();
-            const nowIso = new Date().toISOString();
-            const { resources } = await container.items
-                .query<InvitationDoc>({
-                    query: `SELECT c.id, c.fromUserId, c.fromUserName, c.fromUserPicture, c.toUserId, c.roomCode, c.createdAt, c.expiresAt
-                            FROM c WHERE c.toUserId = @uid AND c.expiresAt > @now`,
-                    parameters: [
-                        { name: '@uid', value: userId },
-                        { name: '@now', value: nowIso },
-                    ],
-                }, { partitionKey: userId })
-                .fetchAll();
-            for (const inv of resources) {
-                let delivered = false;
-                try {
-                    ws.send(JSON.stringify({
-                        type: 'gameInvite',
-                        fromUserId: inv.fromUserId,
-                        fromUserName: inv.fromUserName,
-                        ...(inv.fromUserPicture ? { fromUserPicture: inv.fromUserPicture } : {}),
-                        roomCode: inv.roomCode,
-                    }));
-                    delivered = true;
-                } catch { /* socket closed mid-flush */ }
-                if (delivered) {
-                    await container.item(inv.id, userId).delete().catch(() => undefined);
-                }
-            }
-        } catch (err) {
-            console.error('❌ Cosmos DB error (flush invitations):', err);
-        }
-    }
+    // Pas de constructeur : `PresenceManager.register` flushe nativement la
+    // file in-memory à chaque (ré-)enregistrement, ce qui couvre la livraison
+    // des `gameInvite` queued pour les utilisateurs offline.
 
     /**
      * Enregistre un WebSocket "présence" pour un utilisateur signed-in idle

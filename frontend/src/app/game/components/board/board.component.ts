@@ -126,11 +126,15 @@ export class BoardComponent implements OnInit, OnDestroy {
     const marblesByColor = Object.fromEntries(
       data.gameState.players.map(p => [p.color, p.marblePositions])
     ) as Record<MarbleColor, number[]>;
+    const invincibleMarblesByColor = Object.fromEntries(
+      data.gameState.players.map(p => [p.color, p.marblePositions.filter((_, i) => p.marbleInvincible[i])])
+    ) as Record<MarbleColor, number[]>;
     const ctx: LegalMoveContext = {
       ownMarbles: player.marblePositions,
       allMarbles: data.gameState.players.flatMap(p => p.marblePositions),
       playerColor: myColor,
       marblesByColor,
+      invincibleMarblesByColor,
     };
 
     let action: Action | null = null;

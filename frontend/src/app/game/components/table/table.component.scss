@@ -845,9 +845,10 @@
 }
 
 /* =========================================
-   7 SPLIT OVERLAY — bottom-sheet positioned above .control-dashboard
-   Backdrop dims the table area, sheet hosts the rule + dots bar.
-   pointer-events: none on backdrop so taps still reach the board behind.
+   7 SPLIT OVERLAY — remplit toute la zone du TableComponent (sauf le footer
+   .control-dashboard). Pas de backdrop : le contenu sous-jacent (main, timer,
+   menu, infos contextuelles) est masqué dans le template via @if. Layout en
+   colonne avec un header (back + titre) et un body centré (hint + dots bar).
    ========================================= */
 .seven-split-overlay {
     position: absolute;
@@ -856,81 +857,99 @@
     right: 0;
     bottom: calc(var(--dashboard-height) + env(safe-area-inset-bottom));
     z-index: 40;
-    background: rgba(0, 0, 0, 0.55);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
     display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 1rem;
     box-sizing: border-box;
-    pointer-events: none;
+    overflow: hidden;
     animation: overlayFadeIn 0.2s ease;
 }
 
 .seven-split-sheet {
     position: relative;
-    pointer-events: auto;
-    background: linear-gradient(145deg, #1e293b, #0f172a);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 16px;
-    padding: 1rem 1.25rem 1.25rem;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-    animation: dialogSlideIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    flex: 1;
     width: 100%;
-    max-width: 420px;
+    height: 100%;
+    box-sizing: border-box;
+    padding: clamp(0.4rem, 2cqh, 1rem) clamp(0.25rem, 1.5cqw, 1.25rem);
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 0.65rem;
-    box-sizing: border-box;
+    align-items: stretch;
+    gap: clamp(0.35rem, 1.5cqh, 0.85rem);
+    overflow: hidden;
+    animation: dialogSlideIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 
-    &__close {
-        position: absolute;
-        top: 0.4rem;
-        right: 0.5rem;
-        width: 1.75rem;
-        height: 1.75rem;
+    &__header {
+        position: relative;
         display: flex;
         align-items: center;
         justify-content: center;
-        background: transparent;
-        border: none;
+        min-height: 2.5rem;
+        flex-shrink: 0;
+    }
+
+    &__back {
+        position: absolute;
+        top: 50%;
+        left: 0;
+        transform: translateY(-50%);
+        width: 2.75rem;
+        height: 2.75rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.12);
         border-radius: 50%;
-        color: rgba(255, 255, 255, 0.7);
-        font-size: 1.4rem;
-        line-height: 1;
+        color: rgba(255, 255, 255, 0.85);
         padding: 0;
         cursor: pointer;
-        transition: background 0.15s ease, color 0.15s ease;
+        transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
 
         &:hover {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.12);
             color: white;
+        }
+
+        &:active {
+            transform: translateY(-50%) scale(0.94);
         }
     }
 
     &__title {
-        font-size: 1.05rem;
+        font-size: clamp(0.95rem, 2.4cqh, 1.15rem);
         font-weight: 700;
         color: white;
         margin: 0;
+        letter-spacing: 0.02em;
+    }
+
+    &__body {
+        flex: 1 1 auto;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: clamp(0.5rem, 2cqh, 1rem);
+        overflow: hidden;
+        text-align: center;
     }
 
     &__rule {
-        font-size: 0.8rem;
+        font-size: clamp(0.75rem, 1.8cqh, 0.9rem);
         color: var(--text-muted);
         margin: 0;
         text-align: center;
         line-height: 1.35;
+        max-width: 28rem;
     }
 
     &__hint {
-        font-size: 0.85rem;
+        font-size: clamp(0.8rem, 1.9cqh, 0.95rem);
         color: #fbbf24;
         margin: 0;
         text-align: center;
         font-weight: 500;
+        max-width: 28rem;
     }
 }
 

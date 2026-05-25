@@ -18,17 +18,6 @@ export class PresenceManager {
     private byUserId = new Map<string, Set<WebSocket>>();
     private byWs = new Map<WebSocket, string>();
     private pending = new Map<string, PendingEntry[]>();
-    private onRegister: ((userId: string, ws: WebSocket) => void) | null = null;
-
-    /**
-     * Optional callback invoked after a user registers a socket. Used to flush
-     * persisted notifications (e.g. game invitations stored in Cosmos while
-     * the user was offline). Kept as a callback so this class stays free of
-     * direct DB dependencies.
-     */
-    setOnRegister(cb: (userId: string, ws: WebSocket) => void): void {
-        this.onRegister = cb;
-    }
 
     register(userId: string, ws: WebSocket): void {
         const existing = this.byWs.get(ws);
@@ -52,8 +41,6 @@ export class PresenceManager {
                 try { ws.send(JSON.stringify(entry.msg)); } catch { /* ignore */ }
             }
         }
-
-        this.onRegister?.(userId, ws);
     }
 
     unregister(ws: WebSocket): void {
@@ -97,6 +84,25 @@ export class PresenceManager {
         }, ttlMs);
         queue.push(entry);
         return false;
+    }
+
+    /**
+     * Retire de la file in-memory toutes les entrées de `userId` matchant
+     * `filter`, et clear leurs timers. Utilisé pour révoquer une invitation
+     * queued quand la room source est détruite avant que l'invité revienne
+     * en ligne.
+     */
+    cancelQueued(userId: string, filter: (msg: object) => boolean): void {
+        const queue = this.pending.get(userId);
+        if (!queue) return;
+        for (let i = queue.length - 1; i >= 0; i--) {
+            const entry = queue[i]!;
+            if (filter(entry.msg)) {
+                clearTimeout(entry.timer);
+                queue.splice(i, 1);
+            }
+        }
+        if (queue.length === 0) this.pending.delete(userId);
     }
 
     /** Returns true if the message was delivered to at least one socket. */

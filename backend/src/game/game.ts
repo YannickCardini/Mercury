@@ -111,6 +111,7 @@ export class Game {
                 isHuman: p.isHuman,
                 isConnected: p.isConnected,
                 marblePositions: p.marblePositions,
+                marbleInvincible: p.marbleInvincible,
                 cardsLeft: p.cards.length,
                 picture: p.picture,
                 userId: p.userId,
@@ -180,6 +181,7 @@ export class Game {
                 isHuman: p.isHuman,
                 isConnected: p.isConnected,
                 marblePositions: p.marblePositions,
+                marbleInvincible: p.marbleInvincible,
                 cardsLeft: p.cards.length,
                 picture: p.picture,
                 userId: p.userId,
@@ -245,6 +247,7 @@ export class Game {
     private async playOneTurn() {
         const player = this.players[this.currentPlayerIndex]!;
         const marblesByColor = Object.fromEntries(this.players.map(p => [p.color, [...p.marblePositions]])) as Record<MarbleColor, number[]>;
+        const invincibleMarblesByColor = this.buildInvincibleMarblesByColor();
 
         console.log(`🔄 Tour ${this.turn} (Manche ${this.round}) — ${player.name} (${player.color})`);
 
@@ -266,7 +269,7 @@ export class Game {
             move = this.computeFallbackAction(player);
             isAutoPlay = true;
         } else {
-            move = await this.waitForActionOrTimeout(player, marblesByColor);
+            move = await this.waitForActionOrTimeout(player, marblesByColor, invincibleMarblesByColor);
             isTimeout = this.pendingTimeoutAction !== null;
         }
 
@@ -495,6 +498,7 @@ export class Game {
             allMarbles: Object.values(marblesByColor).flat(),
             playerColor: player.color,
             marblesByColor,
+            invincibleMarblesByColor: this.buildInvincibleMarblesByColor(),
         };
 
         if (action.type === 'pass') {
@@ -548,6 +552,7 @@ export class Game {
             allMarbles: Object.values(marblesByColor).flat(),
             playerColor: player.color,
             marblesByColor,
+            invincibleMarblesByColor: this.buildInvincibleMarblesByColor(),
         };
 
         for (const card of player.cards) {
@@ -562,7 +567,11 @@ export class Game {
         return { type: 'discard', from: 0, to: 0, cardPlayed: [...player.cards], playerColor: player.color };
     }
 
-    private waitForActionOrTimeout(player: Player, marblesByColor: Record<MarbleColor, number[]>): Promise<Action> {
+    private waitForActionOrTimeout(
+        player: Player,
+        marblesByColor: Record<MarbleColor, number[]>,
+        invincibleMarblesByColor: Record<MarbleColor, number[]>,
+    ): Promise<Action> {
         return new Promise<Action>((resolve) => {
             let settled = false;
 
@@ -578,7 +587,7 @@ export class Game {
                 resolve(fallback);
             }, TURN_DURATION_MS + TURN_TIMEOUT_OFFSET_MS);
 
-            player.getAction(marblesByColor).then((action) => {
+            player.getAction(marblesByColor, invincibleMarblesByColor).then((action) => {
                 if (settled) return;
                 settled = true;
                 clearTimeout(timer);
@@ -628,8 +637,22 @@ export class Game {
             allMarbles: Object.values(marblesByColor).flat(),
             playerColor: player.color,
             marblesByColor,
+            invincibleMarblesByColor: this.buildInvincibleMarblesByColor(),
         };
         return !player.cards.some(card => findLegalMoveForCard(card, ctx) !== null);
+    }
+
+    /**
+     * Construit la map des positions invincibles, par couleur. Un pion est
+     * invincible uniquement entre son entrée (A/K) et son premier mouvement.
+     */
+    private buildInvincibleMarblesByColor(): Record<MarbleColor, number[]> {
+        return Object.fromEntries(
+            this.players.map(p => [
+                p.color,
+                p.marblePositions.filter((_, i) => p.marbleInvincible[i]),
+            ])
+        ) as Record<MarbleColor, number[]>;
     }
 
     private broadcastState(currentPlayer: Player, message = 'New turn'): void {
@@ -640,6 +663,7 @@ export class Game {
                 isHuman: p.isHuman,
                 isConnected: p.isConnected,
                 marblePositions: p.marblePositions,
+                marbleInvincible: p.marbleInvincible,
                 cardsLeft: p.cards.length,
                 picture: p.picture,
                 userId: p.userId,
@@ -690,6 +714,9 @@ export class Game {
                 const index = player.marblePositions.indexOf(move.from);
                 if (index !== -1) {
                     player.marblePositions[index] = move.to;
+                    // Entry via A/K → marble becomes invincible. Any other
+                    // movement (including a re-landing on the start) clears it.
+                    player.marbleInvincible[index] = (move.type === 'enter');
                 }
 
                 // 2. Renvoyer le pion capturé à sa base
@@ -701,6 +728,7 @@ export class Game {
                         const emptyHome = homePositions.find(pos => !victim.marblePositions.includes(pos));
                         if (emptyHome !== undefined) {
                             victim.marblePositions[victimIndex] = emptyHome;
+                            victim.marbleInvincible[victimIndex] = false;
                             console.log(`💀 ${player.name} a capturé un pion de ${victim.name}! Retour à la base (${emptyHome}).`);
                         }
                     }
@@ -711,6 +739,7 @@ export class Game {
                     const splitIdx = player.marblePositions.indexOf(move.splitFrom);
                     if (splitIdx !== -1) {
                         player.marblePositions[splitIdx] = move.splitTo;
+                        player.marbleInvincible[splitIdx] = false;
                     }
                     for (const victim of this.players) {
                         if (victim === player) continue;
@@ -720,6 +749,7 @@ export class Game {
                             const emptyHome = homePositions.find(pos => !victim.marblePositions.includes(pos));
                             if (emptyHome !== undefined) {
                                 victim.marblePositions[victimIndex] = emptyHome;
+                                victim.marbleInvincible[victimIndex] = false;
                                 console.log(`💀 Split 7 — ${player.name} a capturé un pion de ${victim.name}! Retour à la base (${emptyHome}).`);
                             }
                         }
@@ -733,6 +763,7 @@ export class Game {
                 const ownIdx = player.marblePositions.indexOf(move.from);
                 if (ownIdx !== -1) {
                     player.marblePositions[ownIdx] = move.to;
+                    player.marbleInvincible[ownIdx] = false;
                 }
                 // Déplacer le pion adverse de `to` vers `from`
                 for (const other of this.players) {
@@ -740,6 +771,7 @@ export class Game {
                     const otherIdx = other.marblePositions.indexOf(move.to);
                     if (otherIdx !== -1) {
                         other.marblePositions[otherIdx] = move.from;
+                        other.marbleInvincible[otherIdx] = false;
                         console.log(`🔄 ${player.name} a échangé avec ${other.name} (${move.from} ↔ ${move.to})`);
                         break;
                     }

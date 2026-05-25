@@ -120,10 +120,12 @@ export class HomePage implements OnInit, OnDestroy {
   private customConnectionErrorSub: Subscription | null = null;
   private customRejectedSub: Subscription | null = null;
   private customInviteResponseSub: Subscription | null = null;
+  private customResumeSub: Subscription | null = null;
 
   // ── Invite notification (received as a guest) ──────────────────────────────
   pendingInvite: GameInviteMessage | null = null;
   private gameInviteSub: Subscription | null = null;
+  private gameInviteCancelledSub: Subscription | null = null;
   private presenceInviteResponseSub: Subscription | null = null;
 
   // ── Inbox state ────────────────────────────────────────────────────────────
@@ -178,7 +180,6 @@ export class HomePage implements OnInit, OnDestroy {
       if (user) {
         void this.refreshUnreadCount();
         this.connectPresenceIfIdle(user.id);
-        void this.fetchPendingInvitations();
       } else {
         this.unreadCount = 0;
         this.threads = [];
@@ -193,12 +194,25 @@ export class HomePage implements OnInit, OnDestroy {
       if (this.showCustomGame || this.appResume.hasActiveGame()) return;
       this.pendingInvite = invite;
     });
+
+    this.gameInviteCancelledSub = this.presenceService.gameInviteCancelled$.subscribe(cancel => {
+      // Clear the toast only if it matches the cancelled invite (same inviter
+      // and room code) — a different in-flight invite would still be valid.
+      if (
+        this.pendingInvite &&
+        this.pendingInvite.fromUserId === cancel.fromUserId &&
+        this.pendingInvite.roomCode === cancel.roomCode
+      ) {
+        this.pendingInvite = null;
+      }
+    });
   }
 
   ngOnDestroy(): void {
     this.cleanupMatchmaking();
     this.cleanupCustomGame();
     this.gameInviteSub?.unsubscribe();
+    this.gameInviteCancelledSub?.unsubscribe();
     this.disconnectPresence();
     this.loginErrorSub?.unsubscribe();
     this.updateErrorSub?.unsubscribe();
@@ -468,7 +482,19 @@ export class HomePage implements OnInit, OnDestroy {
       this.router.navigate(['/game']);
     });
 
-    this.customConnectionErrorSub = this.gameStateService.connectionError$.pipe(take(1)).subscribe(() => {
+    this.customConnectionErrorSub = this.gameStateService.connectionError$.subscribe(() => {
+      // If the close was caused by the OS backgrounding our tab (mobile) AND
+      // we already have an established room to reconnect to, keep the UI on
+      // screen and wait for resume to reconnect. The server holds the slot
+      // for 60 s. If no room code yet (pre-customRoomStatus), fall through
+      // to the normal error path.
+      if (
+        (this.appResume.isBackgrounded() || this.appResume.resumedRecently()) &&
+        this.customRoomCode
+      ) {
+        console.log('[home] custom-room socket closed during background — will reconnect on resume');
+        return;
+      }
       this.customCreating = false;
       this.cleanupCustomGame();
       this.gameStateService.disconnect();
@@ -476,6 +502,21 @@ export class HomePage implements OnInit, OnDestroy {
       this.showCustomGame = false;
       this.matchmakingError = true;
       setTimeout(() => this.matchmakingError = false, 4000);
+    });
+
+    this.customResumeSub = this.appResume.resumed$.subscribe(() => {
+      // On resume, if we still have an in-room context and the socket is
+      // gone, transparently re-issue `joinCustomRoom` with the same code.
+      // Backend matches us by userId/browserId and swaps us back into the
+      // same slot, preserving the room for everyone.
+      if (!this.showCustomGame || !this.customRoomCode || this.gameStateService.isConnected()) return;
+      const user = this.auth.user$.getValue();
+      const playerName = user?.name ?? '';
+      const code = this.customRoomCode;
+      console.log('[home] resuming — reconnecting to custom room', code);
+      this.gameStateService.connect(environment.wsUrl, () => {
+        this.gameStateService.sendJoinCustomRoom(code, playerName, user?.picture, user?.id);
+      });
     });
 
     this.customRejectedSub = this.gameStateService.actionRejected$.subscribe(reason => {
@@ -536,6 +577,11 @@ export class HomePage implements OnInit, OnDestroy {
   }
 
   cancelCustomGame(): void {
+    // Tell the server this is an intentional leave (skips the 60 s grace
+    // window so the room is destroyed/cleaned immediately instead of waiting).
+    if (this.gameStateService.isConnected()) {
+      this.gameStateService.sendLeaveCustomRoom();
+    }
     this.cleanupCustomGame();
     this.gameStateService.disconnect();
     this.tabLock.releaseSession();
@@ -550,11 +596,13 @@ export class HomePage implements OnInit, OnDestroy {
     this.customConnectionErrorSub?.unsubscribe();
     this.customRejectedSub?.unsubscribe();
     this.customInviteResponseSub?.unsubscribe();
+    this.customResumeSub?.unsubscribe();
     this.customRoomSub = null;
     this.customGameStartSub = null;
     this.customConnectionErrorSub = null;
     this.customRejectedSub = null;
     this.customInviteResponseSub = null;
+    this.customResumeSub = null;
   }
 
   copyRoomCode(): void {
@@ -658,35 +706,6 @@ export class HomePage implements OnInit, OnDestroy {
   private async authHeaders(): Promise<{ Authorization: string } | null> {
     const idToken = await this.auth.getFreshIdToken();
     return idToken ? { Authorization: `Bearer ${idToken}` } : null;
-  }
-
-  // Fetch invitations persisted server-side while the user was offline. Covers
-  // the cold-start race before the presence WebSocket has connected (the WS
-  // flush via `setOnRegister` covers everything once the socket is up).
-  private async fetchPendingInvitations(): Promise<void> {
-    if (this.showCustomGame || this.appResume.hasActiveGame()) return;
-    const headers = await this.authHeaders();
-    if (!headers) return;
-    try {
-      const invites = await firstValueFrom(
-        this.http.get<Array<{
-          fromUserId: string;
-          fromUserName: string;
-          fromUserPicture?: string;
-          roomCode: string;
-        }>>(`${environment.apiUrl}/api/invitations/pending`, { headers })
-      );
-      const latest = invites[invites.length - 1];
-      if (latest && !this.pendingInvite) {
-        this.pendingInvite = {
-          type: 'gameInvite',
-          fromUserId: latest.fromUserId,
-          fromUserName: latest.fromUserName,
-          ...(latest.fromUserPicture ? { fromUserPicture: latest.fromUserPicture } : {}),
-          roomCode: latest.roomCode,
-        };
-      }
-    } catch { /* silent — presence WS will retry */ }
   }
 
   private async refreshUnreadCount(): Promise<void> {

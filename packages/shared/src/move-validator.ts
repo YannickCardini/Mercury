@@ -38,6 +38,30 @@ export interface LegalMoveContext {
     allMarbles: number[];
     playerColor: MarbleColor;
     marblesByColor: Record<MarbleColor, number[]>;
+    /**
+     * Positions des pions invincibles, par couleur. Un pion invincible vient
+     * d'entrer en jeu via A/K sur sa case de départ et n'a pas encore bougé.
+     * Il bloque le chemin, ne peut être reculé par un 4, ni échangé par un J.
+     */
+    invincibleMarblesByColor: Record<MarbleColor, number[]>;
+}
+
+function isInvincible(
+    pos: number,
+    color: MarbleColor,
+    invincibleMarblesByColor: Record<MarbleColor, number[]>,
+): boolean {
+    return invincibleMarblesByColor[color]?.includes(pos) ?? false;
+}
+
+function colorAtPosition(
+    pos: number,
+    marblesByColor: Record<MarbleColor, number[]>,
+): MarbleColor | null {
+    for (const color of Object.keys(marblesByColor) as MarbleColor[]) {
+        if (marblesByColor[color].includes(pos)) return color;
+    }
+    return null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -64,10 +88,6 @@ function getPositionAfterBackwardMove(fromPosition: number, steps: number): numb
 
 export function isOnMainPath(position: number): boolean {
     return MAIN_PATH.includes(position);
-}
-
-function isAnyStartPosition(position: number): boolean {
-    return Object.values(START_POSITIONS).includes(position);
 }
 
 function isOnAnyArrivalPosition(position: number): boolean {
@@ -121,14 +141,16 @@ export function getLegalAction(
 
     if (card.value === 'J') {
         if (!isOnMainPath(marblePosition)) return null;
-        if (marblePosition === startPos) return null;
+        // Mon pion source ne peut pas être invincible (un pion fraîchement entré
+        // via A/K reste protégé tant qu'il n'a pas bougé).
+        if (isInvincible(marblePosition, playerColor, ctx.invincibleMarblesByColor)) return null;
 
         const opponentMarbles = allMarbles.filter(pos => !ownMarbles.includes(pos));
         const swappableTargets = opponentMarbles.filter(pos => {
-            const marbleColor = (Object.entries(ctx.marblesByColor) as [MarbleColor, number[]][])
-                .find(([, positions]) => positions.includes(pos))?.[0];
-            const isOnOwnStart = marbleColor !== undefined && getStartPosition(marbleColor) === pos;
-            return !isOnOwnStart && !isOnAnyArrivalPosition(pos) && !isOnAnyHomePosition(pos);
+            const marbleColor = colorAtPosition(pos, ctx.marblesByColor);
+            const isOpponentInvincible = marbleColor !== null
+                && isInvincible(pos, marbleColor, ctx.invincibleMarblesByColor);
+            return !isOpponentInvincible && !isOnAnyArrivalPosition(pos) && !isOnAnyHomePosition(pos);
         });
 
         if (targetPosition !== undefined) {
@@ -143,7 +165,10 @@ export function getLegalAction(
 
     if (card.value === '4') {
         if (!isOnMainPath(marblePosition)) return null;
-        if (START_POSITIONS[playerColor] === marblePosition) return null;
+        // Un pion invincible (= fraîchement entré, n'a jamais bougé) ne peut
+        // pas être déplacé en arrière. Un pion non-invincible peut reculer
+        // même s'il se trouve sur sa propre case de départ.
+        if (isInvincible(marblePosition, playerColor, ctx.invincibleMarblesByColor)) return null;
         return buildBackwardMoveAction(card, marblePosition, 4, ctx);
     }
 
@@ -189,7 +214,7 @@ function buildMoveAction(
     }
 
     if (ownMarbles.includes(to)) return null;
-    if (!pathIsClear(from, steps, playerColor, allMarbles, ctx.marblesByColor)) return null;
+    if (!pathIsClear(from, steps, playerColor, allMarbles, ctx.marblesByColor, ctx.invincibleMarblesByColor)) return null;
 
     if (allMarbles.includes(to)) {
         return {
@@ -223,12 +248,14 @@ function buildBackwardMoveAction(
 
     if (ownMarbles.includes(to)) return null;
 
-    // Check intermediate squares and destination for invincible marbles (on their own start)
+    // Check intermediate squares and destination for invincible marbles.
+    // A marble is invincible only while it has just entered (via A/K) and has
+    // not yet moved — its position on its own start is not enough on its own.
     for (let i = 1; i <= steps; i++) {
         const pos = getPositionAfterBackwardMove(from, i);
         if (pos === null) return null;
-        const owner = getStartPositionOwner(pos);
-        if (owner !== null && ctx.marblesByColor[owner].includes(pos)) return null;
+        const owner = colorAtPosition(pos, ctx.marblesByColor);
+        if (owner !== null && isInvincible(pos, owner, ctx.invincibleMarblesByColor)) return null;
     }
 
     if (allMarbles.includes(to)) {
@@ -263,19 +290,13 @@ function startPositionBtwFromAndTo(from: number, to: number, playerColor: Marble
     return false;
 }
 
-function getStartPositionOwner(pos: number): MarbleColor | null {
-    for (const [color, startPos] of Object.entries(START_POSITIONS)) {
-        if (startPos === pos) return color as MarbleColor;
-    }
-    return null;
-}
-
 function pathIsClear(
     from: number,
     steps: number,
     playerColor: MarbleColor,
     allMarbles: number[],
-    marblesByColor: Record<MarbleColor, number[]>
+    marblesByColor: Record<MarbleColor, number[]>,
+    invincibleMarblesByColor: Record<MarbleColor, number[]>,
 ): boolean {
     const fromIndex = MAIN_PATH.indexOf(from);
     if (fromIndex === -1) return false;
@@ -291,10 +312,14 @@ function pathIsClear(
         }
 
         if (pos === undefined) return false;
+        // On ne peut pas traverser sa propre case de départ (la logique de
+        // promotion s'en occupe en amont) — sauf pour la case de destination,
+        // qui peut éventuellement BOUCLER sur le start sans le "traverser".
         if (pos === ownStartPos) return false;
-        if (isAnyStartPosition(pos) && pos !== ownStartPos && allMarbles.includes(pos)) {
-            const owner = getStartPositionOwner(pos);
-            if (owner && marblesByColor[owner].includes(pos)) {
+        // Tout pion invincible (toujours sur sa propre case de départ) bloque.
+        if (allMarbles.includes(pos)) {
+            const owner = colorAtPosition(pos, marblesByColor);
+            if (owner !== null && isInvincible(pos, owner, invincibleMarblesByColor)) {
                 return false;
             }
         }
@@ -370,7 +395,9 @@ export function getLegalSplit7Action(
 
     if (!isOnMainPath(from2)) return null;
 
-    // Contexte mis à jour : le premier pion a déjà bougé
+    // Contexte mis à jour : le premier pion a déjà bougé.
+    // Note : un pion qui vient de bouger n'est plus invincible — on retire
+    // donc from1 de invincibleMarblesByColor (sans le remplacer par to1).
     const ctx2: LegalMoveContext = {
         ...ctx,
         allMarbles: ctx.allMarbles.map(p => p === from1 ? to1 : p),
@@ -379,6 +406,12 @@ export function getLegalSplit7Action(
             Object.entries(ctx.marblesByColor).map(([color, positions]) => [
                 color,
                 positions.map(p => p === from1 ? to1 : p),
+            ])
+        ) as Record<MarbleColor, number[]>,
+        invincibleMarblesByColor: Object.fromEntries(
+            Object.entries(ctx.invincibleMarblesByColor).map(([color, positions]) => [
+                color,
+                positions.filter(p => p !== from1),
             ])
         ) as Record<MarbleColor, number[]>,
     };
@@ -398,6 +431,29 @@ export function getLegalSplit7Action(
     };
 }
 
+/**
+ * Pour la carte 7 : cherche un split légal en parcourant toutes les paires
+ * ordonnées (m1, m2) de pions du joueur et toutes les répartitions
+ * (steps1 ∈ 1..6). Le validateur de `getLegalSplit7Action` rejette déjà les
+ * marbles hors main path (`from2`) et les promotions colissantes (le second
+ * pion ne peut pas viser la case occupée par le premier après son mouvement).
+ * Retourne la première Action composite légale trouvée, ou null.
+ */
+function findLegalSplit7Action(card: Card, ctx: LegalMoveContext): Action | null {
+    const own = ctx.ownMarbles;
+    if (own.length < 2) return null;
+    for (const m1 of own) {
+        for (const m2 of own) {
+            if (m1 === m2) continue;
+            for (let s = 1; s <= 6; s++) {
+                const action = getLegalSplit7Action(card, m1, s, m2, ctx);
+                if (action !== null) return action;
+            }
+        }
+    }
+    return null;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Façade
 // ─────────────────────────────────────────────────────────────────────────────
@@ -409,6 +465,14 @@ export function findLegalMoveForCard(
     for (const marblePos of ctx.ownMarbles) {
         const action = getLegalAction(card, marblePos, ctx);
         if (action !== null) return action;
+    }
+    // Cas spécial du 7 : un split (m1 + m2 = 7) reste légal même si aucun
+    // pion seul ne peut avancer de 7. Sans cette branche, `canDiscard`
+    // proposerait à tort la défausse alors qu'un split est jouable, et
+    // inversement empêcherait la défausse uniquement parce qu'un full-7
+    // existe — sans considérer si les splits sont eux aussi tous bloqués.
+    if (card.value === '7') {
+        return findLegalSplit7Action(card, ctx);
     }
     return null;
 }

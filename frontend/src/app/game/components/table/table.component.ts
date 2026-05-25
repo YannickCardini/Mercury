@@ -119,11 +119,15 @@ enum TURN_PHASE {
     const player = data.gameState.players.find(p => p.color === myColor);
     if (!player) return [];
     const marblesByColor = Object.fromEntries(data.gameState.players.map(p => [p.color, p.marblePositions])) as Record<MarbleColor, number[]>;
+    const invincibleMarblesByColor = Object.fromEntries(
+      data.gameState.players.map(p => [p.color, p.marblePositions.filter((_, i) => p.marbleInvincible[i])])
+    ) as Record<MarbleColor, number[]>;
     const ctx: LegalMoveContext = {
       ownMarbles: player.marblePositions,
       allMarbles: data.gameState.players.flatMap(p => p.marblePositions),
       playerColor: myColor,
       marblesByColor,
+      invincibleMarblesByColor,
     };
     return getValidSevenStepsForMarble(marble1, ctx);
   });
@@ -143,11 +147,15 @@ enum TURN_PHASE {
     const player = data.gameState.players.find(p => p.color === myColor);
     if (!player) return [];
     const marblesByColor = Object.fromEntries(data.gameState.players.map(p => [p.color, p.marblePositions])) as Record<MarbleColor, number[]>;
+    const invincibleMarblesByColor = Object.fromEntries(
+      data.gameState.players.map(p => [p.color, p.marblePositions.filter((_, i) => p.marbleInvincible[i])])
+    ) as Record<MarbleColor, number[]>;
     const ctx: LegalMoveContext = {
       ownMarbles: player.marblePositions,
       allMarbles: data.gameState.players.flatMap(p => p.marblePositions),
       playerColor: myColor,
       marblesByColor,
+      invincibleMarblesByColor,
     };
     const allValid = getValidSevenStepsForMarble(marble1, ctx);
     return allValid.filter(steps => {

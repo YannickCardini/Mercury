@@ -7,6 +7,11 @@
 //   - 4 joueurs présents → partie immédiate
 //   - moins de 4         → tous les joueurs sont reversés dans le matchmaking
 //                          public (file d'attente avec bots).
+//
+// Une déconnexion WebSocket dans une room non encore lancée n'éjecte plus
+// immédiatement le joueur : une fenêtre de grace de 60 s permet une
+// reconnexion (typiquement quand l'utilisateur a backgroundé l'app mobile).
+// Un message `leaveCustomRoom` explicite court-circuite la grace.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import crypto from 'node:crypto';
@@ -16,10 +21,9 @@ import { GameRegistry } from './game-registry.js';
 import type { GameConfig, MarbleColor, ClientMessage, CustomRoomPlayerInfo } from '@mercury/shared';
 import type { MatchmakingManager } from './matchmaking-manager.js';
 import type { PresenceManager } from './presence-manager.js';
-import { getInvitationsContainer } from '../db.js';
-import type { InvitationDoc } from '../messages/invitations-router.js';
 
-const INVITATION_TTL_SECONDS = 5 * 60;
+const INVITATION_TTL_MS = 5 * 60 * 1000;
+const GRACE_PERIOD_MS = 60 * 1000;
 
 const COLORS: MarbleColor[] = ['red', 'green', 'blue', 'orange'];
 const ROOM_INACTIVITY_MS = 30 * 60 * 1000; // 30 minutes
@@ -34,20 +38,35 @@ interface CustomPlayer {
     browserId?: string;
     /** Listener installed on this ws to handle in-room messages (start/leave). */
     roomMessageListener: (raw: MessageEvent) => void;
+    /** Listener installed on this ws to handle close — kept for explicit removal on swap. */
+    closeListener: () => void;
+    isConnected: boolean;
+    /** Active when isConnected === false; cleared on reconnect or expiry. */
+    graceTimer: NodeJS.Timeout | null;
 }
 
 interface CustomRoom {
     code: string;
-    creatorWs: WebSocket;
+    creatorColor: MarbleColor;
+    creatorUserId?: string;
     messenger: MultiWsMessenger;
     players: CustomPlayer[];
     expiryTimer: NodeJS.Timeout;
+    /** Set of userIds invited via handleInviteUser — used to broadcast cancel on teardown. */
+    invitees: Set<string>;
     /** Shared map injected from SessionManager so reconnect lookups work. */
     playerIdentities: Map<string, { gameId: string; color: MarbleColor }>;
 }
 
 function generateRoomCode(): string {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
+}
+
+/** Type-narrowing helper : un message queued par `PresenceManager` est un
+ *  gameInvite portant le `roomCode` cherché. */
+function isInvitePayloadForRoom(msg: object, roomCode: string): boolean {
+    const m = msg as { type?: string; roomCode?: string };
+    return m.type === 'gameInvite' && m.roomCode === roomCode;
 }
 
 export class CustomGameManager {
@@ -70,21 +89,23 @@ export class CustomGameManager {
         const messenger = new MultiWsMessenger();
         const guestPlayerId = crypto.randomUUID();
 
-        const player = this.makePlayer(ws, 'red', info, guestPlayerId);
         const room: CustomRoom = {
             code,
-            creatorWs: ws,
+            creatorColor: 'red',
+            ...(info.userId ? { creatorUserId: info.userId } : {}),
             messenger,
-            players: [player],
+            players: [],
             expiryTimer: setTimeout(() => this.expireRoom(code), ROOM_INACTIVITY_MS),
+            invitees: new Set(),
             playerIdentities: this.playerIdentities,
         };
+        this.rooms.set(code, room);
+
+        const player = this.makePlayer(ws, 'red', info, guestPlayerId, code);
+        room.players.push(player);
 
         messenger.addConnection('red', ws);
-        this.rooms.set(code, room);
         if (info.userId) this.presence.register(info.userId, ws);
-        ws.addEventListener('message', player.roomMessageListener);
-        ws.addEventListener('close', () => this.handleDisconnect(code, 'red'));
 
         this.broadcastStatus(code);
         console.log(`🏠 Custom room ${code} created by ${info.playerName}`);
@@ -100,10 +121,22 @@ export class CustomGameManager {
             ws.send(JSON.stringify({ type: 'actionRejected', reason: `Room ${code} not found` }));
             return;
         }
-        if (info.browserId && room.players.some(p => p.browserId === info.browserId)) {
-            ws.send(JSON.stringify({ type: 'actionRejected', reason: 'Already in this room from another tab' }));
+
+        // ── Reconnect path ──────────────────────────────────────────────────
+        // If a player with the same userId (or browserId) is in their grace
+        // window (disconnected, awaiting reconnect), swap them onto this new
+        // ws. If they're still actively connected, this is a multi-tab attempt
+        // — reject as before.
+        const existing = this.findExistingPlayer(room, info.userId, info.browserId);
+        if (existing) {
+            if (existing.isConnected) {
+                ws.send(JSON.stringify({ type: 'actionRejected', reason: 'Already in this room from another tab' }));
+                return;
+            }
+            this.rebindPlayer(room, existing, ws, info);
             return;
         }
+
         const taken = new Set(room.players.map(p => p.color));
         const color = COLORS.find(c => !taken.has(c));
         if (!color) {
@@ -118,16 +151,75 @@ export class CustomGameManager {
                 ? info.playerName
                 : `Guest #${COLORS.indexOf(color) + 1}`,
         };
-        const player = this.makePlayer(ws, color, resolvedInfo, guestPlayerId);
+        const player = this.makePlayer(ws, color, resolvedInfo, guestPlayerId, code);
         room.players.push(player);
         room.messenger.addConnection(color, ws);
         if (info.userId) this.presence.register(info.userId, ws);
-        ws.addEventListener('message', player.roomMessageListener);
-        ws.addEventListener('close', () => this.handleDisconnect(code, color));
 
         this.bumpExpiry(room);
         this.broadcastStatus(code);
         console.log(`➕ ${resolvedInfo.playerName} (${color}) joined custom room ${code}`);
+    }
+
+    private findExistingPlayer(
+        room: CustomRoom,
+        userId?: string,
+        browserId?: string,
+    ): CustomPlayer | undefined {
+        if (userId) {
+            const byUser = room.players.find(p => p.userId === userId);
+            if (byUser) return byUser;
+        }
+        if (browserId) {
+            const byBrowser = room.players.find(p => p.browserId === browserId);
+            if (byBrowser) return byBrowser;
+        }
+        return undefined;
+    }
+
+    /**
+     * Reconnect or replace the WebSocket of an existing player slot. Used both
+     * for "user came back from background within 60 s" and for "user opened
+     * a second tab" (in which case the older tab is implicitly displaced).
+     */
+    private rebindPlayer(
+        room: CustomRoom,
+        existing: CustomPlayer,
+        ws: WebSocket,
+        info: { playerName: string; browserId?: string; picture?: string; userId?: string },
+    ): void {
+        // Cancel any pending grace removal.
+        if (existing.graceTimer) {
+            clearTimeout(existing.graceTimer);
+            existing.graceTimer = null;
+        }
+
+        // Detach listeners from the previous ws (might still be open if this
+        // is a multi-tab swap rather than a reconnect after close).
+        const previousWs = existing.ws;
+        try { previousWs.removeEventListener('message', existing.roomMessageListener); } catch { /* ignore */ }
+        try { previousWs.removeEventListener('close', existing.closeListener); } catch { /* ignore */ }
+        this.presence.unregister(previousWs);
+
+        // Wire the new ws into the slot.
+        existing.ws = ws;
+        existing.isConnected = true;
+        if (info.picture) existing.picture = info.picture;
+        if (info.browserId) existing.browserId = info.browserId;
+
+        const newListener: (raw: MessageEvent) => void = (raw) => this.handleRoomMessage(ws, raw, existing);
+        existing.roomMessageListener = newListener;
+        const newCloseListener = () => this.handleDisconnect(room.code, existing.color);
+        existing.closeListener = newCloseListener;
+        ws.addEventListener('message', newListener);
+        ws.addEventListener('close', newCloseListener);
+
+        room.messenger.addConnection(existing.color, ws);
+        if (info.userId) this.presence.register(info.userId, ws);
+
+        this.bumpExpiry(room);
+        this.broadcastStatus(room.code);
+        console.log(`🔄 ${existing.name} (${existing.color}) reconnected to room ${room.code}`);
     }
 
     private makePlayer(
@@ -135,6 +227,7 @@ export class CustomGameManager {
         color: MarbleColor,
         info: { playerName: string; browserId?: string; picture?: string; userId?: string },
         guestPlayerId: string,
+        code: string,
     ): CustomPlayer {
         const player: CustomPlayer = {
             ws,
@@ -145,43 +238,57 @@ export class CustomGameManager {
             ...(info.userId ? { userId: info.userId } : {}),
             ...(info.browserId ? { browserId: info.browserId } : {}),
             roomMessageListener: () => { /* replaced below */ },
+            closeListener: () => { /* replaced below */ },
+            isConnected: true,
+            graceTimer: null,
         };
-        // Listener handles only pre-launch messages (start/leave). Once the room
-        // is destroyed or upgraded to a Game, it becomes a no-op since the ws is
-        // no longer in any room.
-        player.roomMessageListener = (raw: MessageEvent) => {
-            try {
-                const msg = JSON.parse(raw.data as string) as ClientMessage;
-                if (msg.type === 'startCustomRoom') {
-                    this.startRoomFromCreator(ws);
-                } else if (msg.type === 'inviteUser') {
-                    this.handleInviteUser(ws, msg.toUserId, msg.roomCode);
-                } else if (msg.type === 'inviteResponse') {
-                    this.presence.send(msg.fromUserId, {
-                        type: 'gameInviteResponse',
-                        fromUserId: player.userId ?? '',
-                        accepted: msg.accepted,
-                    });
-                }
-            } catch { /* ignore */ }
-        };
+        player.roomMessageListener = (raw) => this.handleRoomMessage(ws, raw, player);
+        player.closeListener = () => this.handleDisconnect(code, color);
+        ws.addEventListener('message', player.roomMessageListener);
+        ws.addEventListener('close', player.closeListener);
         return player;
+    }
+
+    private handleRoomMessage(ws: WebSocket, raw: MessageEvent, player: CustomPlayer): void {
+        try {
+            const msg = JSON.parse(raw.data as string) as ClientMessage;
+            if (msg.type === 'startCustomRoom') {
+                this.startRoomFromCreator(ws);
+            } else if (msg.type === 'leaveCustomRoom') {
+                this.handleLeave(ws, player.color);
+            } else if (msg.type === 'inviteUser') {
+                this.handleInviteUser(ws, msg.toUserId, msg.roomCode);
+            } else if (msg.type === 'cancelInvite') {
+                this.handleCancelInvite(ws, msg.toUserId, msg.roomCode);
+            } else if (msg.type === 'inviteResponse') {
+                this.presence.send(msg.fromUserId, {
+                    type: 'gameInviteResponse',
+                    fromUserId: player.userId ?? '',
+                    accepted: msg.accepted,
+                });
+            }
+        } catch { /* ignore */ }
     }
 
     /**
      * Push a `gameInvite` to the recipient. Only the room creator can send
      * invites, and only for their own room.
      *
-     * Strategy: persist in Cosmos first (TTL 5 min). If the recipient is online,
-     * deliver immediately and remove the DB row to avoid a duplicate on their
-     * next presence register. If offline, the row stays until they reconnect
-     * (PresenceManager.onRegister flushes the DB) or until Cosmos TTL evicts it.
+     * Persistance offline : on s'appuie sur `PresenceManager.sendOrQueue`.
+     * Si l'invité a au moins une socket de présence ouverte, le message est
+     * délivré tout de suite. Sinon il reste en file in-memory pour 5 min
+     * (TTL identique à l'ancien `defaultTtl` Cosmos) et sera flushé
+     * automatiquement quand l'invité ré-enregistrera sa présence. Si la TTL
+     * expire avant retour, l'entrée est silencieusement abandonnée et on
+     * retire l'invité de `room.invitees` pour cohérence du cancel broadcast.
      */
     private handleInviteUser(ws: WebSocket, toUserId: string, roomCode: string): void {
         const room = this.rooms.get(roomCode);
-        if (!room || room.creatorWs !== ws) return;
-        const creator = room.players.find(p => p.ws === ws);
-        if (!creator || !creator.userId) return;
+        if (!room) return;
+        const creator = room.players.find(p => p.color === room.creatorColor);
+        if (!creator || creator.ws !== ws || !creator.userId) return;
+
+        room.invitees.add(toUserId);
 
         const invitePayload = {
             type: 'gameInvite' as const,
@@ -191,61 +298,61 @@ export class CustomGameManager {
             roomCode: room.code,
         };
 
-        const now = new Date();
-        const doc: InvitationDoc = {
-            id: crypto.randomUUID(),
+        this.presence.sendOrQueue(toUserId, invitePayload, INVITATION_TTL_MS, () => {
+            // TTL expirée sans reconnexion : on ne peut plus livrer.
+            // Retire l'invité du registre pour éviter un cancel broadcast inutile.
+            const currentRoom = this.rooms.get(roomCode);
+            currentRoom?.invitees.delete(toUserId);
+        });
+    }
+
+    /**
+     * Manual cancellation of a single invitation by the creator. Removes any
+     * queued copy in `PresenceManager` and pushes a `gameInviteCancelled` to
+     * the recipient if currently online.
+     */
+    private handleCancelInvite(ws: WebSocket, toUserId: string, roomCode: string): void {
+        const room = this.rooms.get(roomCode);
+        if (!room) return;
+        const creator = room.players.find(p => p.color === room.creatorColor);
+        if (!creator || creator.ws !== ws || !creator.userId) return;
+
+        room.invitees.delete(toUserId);
+        this.presence.cancelQueued(toUserId, m => isInvitePayloadForRoom(m, roomCode));
+        this.presence.send(toUserId, {
+            type: 'gameInviteCancelled',
             fromUserId: creator.userId,
-            fromUserName: creator.name,
-            ...(creator.picture ? { fromUserPicture: creator.picture } : {}),
-            toUserId,
             roomCode: room.code,
-            createdAt: now.toISOString(),
-            expiresAt: new Date(now.getTime() + INVITATION_TTL_SECONDS * 1000).toISOString(),
-            ttl: INVITATION_TTL_SECONDS,
-        };
-        void this.persistThenDeliver(doc, toUserId, invitePayload);
+        });
     }
 
-    private async persistThenDeliver(doc: InvitationDoc, toUserId: string, payload: object): Promise<void> {
-        try {
-            const container = await getInvitationsContainer();
-            await container.items.create(doc);
-            if (this.presence.send(toUserId, payload)) {
-                // Delivered live — drop the DB copy so the user doesn't get it
-                // again on their next presence register.
-                await container.item(doc.id, toUserId).delete().catch(() => undefined);
-            }
-        } catch (err) {
-            console.error('❌ Cosmos DB error (persist invitation):', err);
-            // Best effort: try live delivery anyway so an online user still sees it.
-            this.presence.send(toUserId, payload);
+    /**
+     * Quand une room est détruite, on prévient les invités en ligne via
+     * `gameInviteCancelled` ET on retire les invitations encore en file pour
+     * les invités offline — sinon ils verraient une invitation périmée à
+     * leur prochaine reconnexion.
+     */
+    private broadcastCancelToInvitees(room: CustomRoom, fromUserId: string): void {
+        for (const toUserId of room.invitees) {
+            this.presence.cancelQueued(toUserId, m => isInvitePayloadForRoom(m, room.code));
+            this.presence.send(toUserId, {
+                type: 'gameInviteCancelled',
+                fromUserId,
+                roomCode: room.code,
+            });
         }
-    }
-
-    private async deleteInvitationsForRoom(roomCode: string): Promise<void> {
-        try {
-            const container = await getInvitationsContainer();
-            const { resources } = await container.items
-                .query<{ id: string; toUserId: string }>({
-                    query: 'SELECT c.id, c.toUserId FROM c WHERE c.roomCode = @code',
-                    parameters: [{ name: '@code', value: roomCode }],
-                })
-                .fetchAll();
-            await Promise.all(
-                resources.map(r => container.item(r.id, r.toUserId).delete().catch(() => undefined)),
-            );
-        } catch (err) {
-            console.error('❌ Cosmos DB error (delete invitations for room):', err);
-        }
+        room.invitees.clear();
     }
 
     private startRoomFromCreator(ws: WebSocket): void {
         for (const [code, room] of this.rooms) {
-            if (room.creatorWs !== ws) continue;
+            const creator = room.players.find(p => p.color === room.creatorColor);
+            if (!creator || creator.ws !== ws) continue;
             this.cleanupListeners(room);
+            this.clearAllGraceTimers(room);
             clearTimeout(room.expiryTimer);
             this.rooms.delete(code);
-            void this.deleteInvitationsForRoom(code);
+            if (creator.userId) this.broadcastCancelToInvitees(room, creator.userId);
             if (room.players.length === 4) {
                 this.launch(room);
             } else {
@@ -258,7 +365,17 @@ export class CustomGameManager {
 
     private cleanupListeners(room: CustomRoom): void {
         for (const p of room.players) {
-            p.ws.removeEventListener('message', p.roomMessageListener);
+            try { p.ws.removeEventListener('message', p.roomMessageListener); } catch { /* ignore */ }
+            try { p.ws.removeEventListener('close', p.closeListener); } catch { /* ignore */ }
+        }
+    }
+
+    private clearAllGraceTimers(room: CustomRoom): void {
+        for (const p of room.players) {
+            if (p.graceTimer) {
+                clearTimeout(p.graceTimer);
+                p.graceTimer = null;
+            }
         }
     }
 
@@ -323,29 +440,72 @@ export class CustomGameManager {
         }
     }
 
+    /**
+     * Called when the player's ws closes (background, network drop, tab close,
+     * …). Starts a 60 s grace window during which the slot is held; a
+     * subsequent `joinCustomRoom` from the same userId/browserId rebinds the
+     * slot. If the window expires, the slot is removed and the room may be
+     * destroyed (creator slot) or marked empty.
+     */
     private handleDisconnect(code: string, color: MarbleColor): void {
         const room = this.rooms.get(code);
         if (!room) return;
-
-        const wasCreator = room.players.find(p => p.color === color)?.ws === room.creatorWs;
         const leaving = room.players.find(p => p.color === color);
-        room.players = room.players.filter(p => p.color !== color);
-        if (leaving) {
-            leaving.ws.removeEventListener('message', leaving.roomMessageListener);
-            this.presence.unregister(leaving.ws);
+        if (!leaving || !leaving.isConnected) return; // already in grace or removed
+
+        leaving.isConnected = false;
+        this.presence.unregister(leaving.ws);
+
+        leaving.graceTimer = setTimeout(() => {
+            leaving.graceTimer = null;
+            this.finalizeRemoval(code, color);
+        }, GRACE_PERIOD_MS);
+
+        console.log(`⏳ ${leaving.name} (${color}) disconnected from room ${code} — 60s grace`);
+    }
+
+    /**
+     * Immediate, non-graceful removal: handles `leaveCustomRoom` messages and
+     * also runs after the grace timer fires.
+     */
+    private handleLeave(ws: WebSocket, color: MarbleColor): void {
+        // Find the room this ws belongs to.
+        for (const [code, room] of this.rooms) {
+            const leaving = room.players.find(p => p.color === color && p.ws === ws);
+            if (!leaving) continue;
+            if (leaving.graceTimer) {
+                clearTimeout(leaving.graceTimer);
+                leaving.graceTimer = null;
+            }
+            this.finalizeRemoval(code, color);
+            return;
         }
+    }
+
+    private finalizeRemoval(code: string, color: MarbleColor): void {
+        const room = this.rooms.get(code);
+        if (!room) return;
+        const leaving = room.players.find(p => p.color === color);
+        if (!leaving) return;
+
+        const wasCreator = color === room.creatorColor;
+        room.players = room.players.filter(p => p.color !== color);
+        try { leaving.ws.removeEventListener('message', leaving.roomMessageListener); } catch { /* ignore */ }
+        try { leaving.ws.removeEventListener('close', leaving.closeListener); } catch { /* ignore */ }
+        this.presence.unregister(leaving.ws);
 
         if (wasCreator) {
-            // Notify and destroy.
             for (const p of room.players) {
                 try {
                     p.ws.send(JSON.stringify({ type: 'actionRejected', reason: 'The room creator left — room destroyed.' }));
                 } catch { /* ignore */ }
-                p.ws.removeEventListener('message', p.roomMessageListener);
+                try { p.ws.removeEventListener('message', p.roomMessageListener); } catch { /* ignore */ }
+                try { p.ws.removeEventListener('close', p.closeListener); } catch { /* ignore */ }
+                if (p.graceTimer) { clearTimeout(p.graceTimer); p.graceTimer = null; }
             }
             clearTimeout(room.expiryTimer);
             this.rooms.delete(code);
-            void this.deleteInvitationsForRoom(code);
+            if (leaving.userId) this.broadcastCancelToInvitees(room, leaving.userId);
             console.log(`❌ Custom room ${code} destroyed (creator left)`);
             return;
         }
@@ -367,18 +527,19 @@ export class CustomGameManager {
         const playersInfo: CustomRoomPlayerInfo[] = room.players.map(p => ({
             color: p.color,
             name: p.name,
-            isCreator: p.ws === room.creatorWs,
+            isCreator: p.color === room.creatorColor,
             ...(p.picture ? { picture: p.picture } : {}),
             ...(p.userId ? { userId: p.userId } : {}),
         }));
         for (const p of room.players) {
+            if (!p.isConnected) continue;
             try {
                 p.ws.send(JSON.stringify({
                     type: 'customRoomStatus',
                     code,
                     myColor: p.color,
                     guestPlayerId: p.guestPlayerId,
-                    isCreator: p.ws === room.creatorWs,
+                    isCreator: p.color === room.creatorColor,
                     players: playersInfo,
                 }));
             } catch { /* ignore */ }
@@ -393,14 +554,17 @@ export class CustomGameManager {
     private expireRoom(code: string): void {
         const room = this.rooms.get(code);
         if (!room) return;
+        const creator = room.players.find(p => p.color === room.creatorColor);
         for (const p of room.players) {
             try {
                 p.ws.send(JSON.stringify({ type: 'actionRejected', reason: 'Room expired due to inactivity.' }));
             } catch { /* ignore */ }
-            p.ws.removeEventListener('message', p.roomMessageListener);
+            try { p.ws.removeEventListener('message', p.roomMessageListener); } catch { /* ignore */ }
+            try { p.ws.removeEventListener('close', p.closeListener); } catch { /* ignore */ }
+            if (p.graceTimer) { clearTimeout(p.graceTimer); p.graceTimer = null; }
         }
         this.rooms.delete(code);
-        void this.deleteInvitationsForRoom(code);
+        if (creator?.userId) this.broadcastCancelToInvitees(room, creator.userId);
         console.log(`⏰ Custom room ${code} expired`);
     }
 }

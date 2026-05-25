@@ -1,116 +1,367 @@
 ================================================================================
-TODO LIST
+TODO — Mercury / Tock
 ================================================================================
 
---------------------------------------------------------------------------------
-TASK 1 — BUG: Profile hover panel flickers (open/close loop) in game board
---------------------------------------------------------------------------------
+Légende :
+- "Start case" = case de départ d'un joueur (START_POSITIONS[color] dans
+  packages/shared/src/board-config.ts).
+- "Invincibilité" actuelle = un pion posé sur SA propre case de départ ne peut
+  pas être : reculé par un 4, traversé par un autre pion, échangé par un J.
+  Cette logique est implémentée dans packages/shared/src/move-validator.ts.
 
-Files involved:
-  - frontend/src/app/game/components/board/board.component.ts
-      (hover handlers at lines ~853-867, openProfilePanel at line ~890,
-       afterRender clamp logic at line ~226)
-  - frontend/src/app/game/components/board/board.component.html
-      (avatar-ring at lines 16-19, profile panel + backdrop at lines 132-182)
-  - frontend/src/app/game/components/board/board.component.scss
-      (.profile-backdrop and .profile-panel styles — check z-index and
-       pointer-events)
 
-Reproduction:
-  1. Start or join a game (route /game/...).
-  2. On a desktop browser (hover-capable device), hover the mouse over any
-     player's avatar (.avatar-ring) on the board.
-  3. The profile panel (`.profile-panel`) opens, but immediately closes and
-     reopens in a loop. The loop only stops if the cursor is moved onto the
-     panel itself, which cancels the close timer via onPanelMouseEnter().
+================================================================================
+1) BUG — Invincibilité incorrecte d'un pion qui revient sur sa case de départ
+================================================================================
 
-Likely root cause to investigate:
-  - The panel opens at `rect.right + 8` px to the right of the avatar
-    (see openProfilePanel, board.component.ts:890-905). There is an 8px gap
-    between the avatar and the panel.
-  - A full-viewport `.profile-backdrop` (board.component.html:133) is rendered
-    behind/around the panel. When the cursor leaves `.avatar-ring`, it lands
-    on the backdrop, which is neither the avatar nor the panel, so
-    `onAvatarMouseLeave()` fires and starts a 150 ms close timer.
-  - Additionally, the `afterRender` block (board.component.ts:226-247)
-    re-clamps and re-sets `profilePanel()` after each render, which may cause
-    layout thrashing and re-trigger mouseenter/mouseleave cycles.
+Problème observé
+----------------
+Un adversaire a utilisé un J pour échanger son pion avec le mien, ce qui m'a
+posé sur MA propre case de départ. Ensuite je n'ai pas pu jouer un 4 pour
+reculer ce pion alors que j'aurais dû en avoir le droit.
 
-Required fix (implement ONE coherent solution):
-  a) Eliminate the dead zone between the avatar and the panel so the cursor
-     can travel from avatar → panel without entering a non-tracked area.
-     Options:
-       - Make `.profile-backdrop` ignore pointer events while the cursor is
-         intended to reach the panel (e.g. `pointer-events: none` on the
-         backdrop, keeping the click-to-close handled elsewhere, OR add an
-         invisible bridging hit-area between the avatar and the panel).
-       - Render the panel without the full-viewport backdrop on hover-capable
-         devices (keep the backdrop only when the panel was opened via click /
-         touch).
-  b) Ensure the `afterRender` re-positioning in board.component.ts:226-247
-     does not trigger an open/close cycle (e.g. only re-clamp once on open,
-     or compare position before calling `profilePanel.set(...)` to avoid
-     unnecessary re-renders — already done, verify it actually short-circuits).
-  c) Keep the existing 150 ms close grace timer (panelCloseTimer) but verify
-     it is sufficient and that onPanelMouseEnter reliably cancels it.
+Règle correcte
+--------------
+Un pion n'est "invincible" QUE pendant la fenêtre suivante :
+  - Il vient d'entrer en jeu via un As ou un Roi sur sa case de départ.
+  - Il n'a jamais bougé depuis cette entrée.
 
-Acceptance criteria:
-  - Hovering the avatar opens the panel exactly once; it stays open while the
-    cursor is over the avatar OR the panel (or in any bridging area between
-    them).
-  - Moving the cursor away from both the avatar and the panel closes the
-    panel after the existing grace delay, without re-opening.
-  - No visual flicker / repeated open-close cycle in any case.
-  - Click-to-open behavior on touch / non-hover devices is unchanged.
-  - Esc key and clicking outside still close the panel.
+Dès qu'il bouge une fois, il n'est plus jamais invincible — sauf s'il meurt
+(retour à la maison) puis ré-entre via un As ou un Roi. Le simple fait de
+re-passer ou ré-atterrir sur sa case de départ (via un 4, un J, ou tout autre
+moyen) ne redonne PAS l'invincibilité.
 
---------------------------------------------------------------------------------
-TASK 2 — FEATURE: Hover tooltip on disabled "Send private message" button
---------------------------------------------------------------------------------
+Conséquences sur les règles :
+  - Un pion qui n'est plus invincible mais qui se trouve sur sa case de départ
+    PEUT être reculé avec un 4.
+  - Un pion qui n'est plus invincible mais qui se trouve sur sa case de départ
+    PEUT être échangé avec un J.
+  - Un pion qui n'est plus invincible mais qui se trouve sur sa case de départ
+    NE BLOQUE PAS le chemin des autres pions (n'importe quelle couleur).
 
-File involved:
-  - frontend/src/app/profile/profile.page.html (button at lines 53-65)
-  - frontend/src/app/profile/profile.page.ts (canSendMessage() at line 83)
-  - frontend/src/app/profile/profile.page.scss (.pf-send-btn at line 197)
+Travail à faire
+---------------
+a) Modèle de données — ajouter un état "invincible" par pion :
+   - Étendre le modèle de pion (probablement dans backend/src/game/player.ts
+     et/ou packages/shared/src/types.ts) avec un flag par pion, p. ex.
+     `marbleInvincible: boolean[]` indexé comme `marblePositions`.
+   - Initialisation : `false` pour les pions en maison.
+   - Mise à jour :
+       * Entrée en jeu via As ou Roi (Action de type 'enter')  → flag passe à `true`.
+       * Le pion bouge (Action 'move', 'capture', 'swap', 'promote', recul par 4,
+         déplacement issu d'un split de 7, etc.) → flag passe à `false`.
+       * Le pion est capturé / retourne en maison → flag remis à `false`.
 
-Context:
-  - On another user's profile page (/profile/:id), a "Send private message"
-    button is shown when viewing someone else's profile.
-  - The button is disabled when the current viewer is NOT signed in
-    (canSendMessage() returns false → currentUser() is null).
-  - A native `title` attribute is already set
-    ("Sign in to send a message"), but native browser tooltips do not show
-    reliably on disabled `<button>` elements (especially with
-    `cursor: not-allowed` and `opacity: 0.5`), so guest users get no visible
-    explanation of why the button is greyed out.
+b) Validateur (packages/shared/src/move-validator.ts) — remplacer toutes les
+   conditions "pion sur sa case de départ" par "pion invincible" :
+     * `buildBackwardMoveAction` (carte 4) :
+         - Aujourd'hui, l'interdiction de reculer depuis la propre case de
+           départ est ligne 146 (`if (START_POSITIONS[playerColor] === marblePosition) return null;`).
+           À supprimer ou remplacer par une vérification du flag d'invincibilité
+           du pion qui recule (un pion non-invincible peut reculer même
+           s'il se trouve sur sa case de départ).
+         - La boucle ligne 227-232 qui rejette les pions adverses sur leur propre
+           start doit utiliser le flag d'invincibilité, pas la position seule.
+     * `pathIsClear` (lignes 273-304) : un pion adverse sur SA propre case de
+       départ bloque le chemin SEULEMENT s'il est invincible. À adapter ligne
+       295-300.
+     * Cas du J (lignes 122-142) : `swappableTargets` exclut aujourd'hui les
+       pions assis sur leur propre start (lignes 130-131). Remplacer par
+       "exclut les pions invincibles".
+     * Toute autre référence à `getStartPositionOwner` / `isAnyStartPosition`
+       qui sert à détecter de l'invincibilité doit consulter le flag.
 
-Required implementation:
-  1. Add a visible tooltip (custom Angular/CSS tooltip, NOT only the native
-     `title` attribute) that appears when a guest user hovers over the
-     disabled "Send private message" button.
-  2. Tooltip text (English, matching the rest of the profile page copy):
-     "Sign in to send a message".
-  3. The tooltip must trigger ONLY when the button is disabled
-     (canSendMessage() === false). When the user is signed in and the button
-     is enabled, no tooltip should be shown (or show a normal hover lift,
-     unchanged from current behavior).
-  4. The tooltip must be reachable by hover on a disabled element — wrap the
-     button in a hover-capable container (e.g. a `<span>` with `display:
-     inline-block`) so the parent receives the mouseenter events even though
-     the disabled button itself may not.
-  5. Style the tooltip to match the existing dark theme of the profile page
-     (see .modal-card / .pf-meta styling in profile.page.scss for reference
-     colors). Keep it small, with a subtle background, rounded corners, and a
-     short fade-in transition (~150 ms).
-  6. Accessibility: keep the existing `[title]` attribute as a fallback for
-     assistive tech, and add `aria-describedby` pointing to the tooltip
-     element when shown.
+c) Propager le flag dans le `LegalMoveContext` :
+   - Ajouter par exemple `invincibleMarblesByColor: Record<MarbleColor, number[]>`
+     ou `invincibleMarbles: number[]` (positions courantes des pions invincibles).
+   - Mettre à jour tous les appelants (backend/src/game/game.ts,
+     frontend/src/app/game/components/table/table.component.ts, etc.).
 
-Acceptance criteria:
-  - As a non-signed-in user visiting another user's profile, hovering the
-    greyed-out "Send private message" button shows a styled tooltip with the
-    text "Sign in to send a message".
-  - As a signed-in user, no tooltip is shown over the enabled button.
-  - On touch devices (no hover), the existing disabled state is unchanged —
-    no regression.
-  - No visual regression on the rest of the profile page.
+d) Sérialisation réseau :
+   - Vérifier que le flag est bien transmis du backend vers le frontend (via
+     `Player.marbleInvincible[]` ajouté dans `Player` du shared types) et
+     consommé par le frontend pour les calculs d'aperçu des coups.
+
+e) Tests à écrire / faire passer :
+   - Pion adverse vient d'entrer (A ou K) sur son start → mes 4, mes J et le
+     blocage de chemin doivent traiter ce pion comme invincible.
+   - Mon pion sort de mon start puis y revient (par 4 / J / déplacement) →
+     mon 4 peut le reculer, un J adverse peut l'échanger, il ne bloque pas le
+     chemin.
+   - Mon pion est capturé puis ré-entre via As/K → il redevient invincible.
+
+f) Documentation — mettre à jour les règles affichées dans l'app :
+   - La règle est déjà correctement décrite dans
+     frontend/src/app/shared/game-rules-modal.component.html (ligne 94,
+     section "Freshly entered marble"). Vérifier que le texte correspond
+     exactement au comportement corrigé : "Once it moves forward, all
+     protections are lifted, even if it later returns to the start square."
+   - Si le texte doit être ajusté suite à l'implémentation, le corriger dans
+     ce même fichier.
+   - Mettre également à jour rules.pdf (fichier à la racine du projet) pour
+     refléter la règle corrigée — cette mise à jour est manuelle.
+
+
+
+
+================================================================================
+2) BUG — Validation incomplète du 7 (split) avec promotion
+================================================================================
+
+Problème observé
+----------------
+Un joueur vert a tenté de jouer un 7 réparti ainsi :
+  - 6 pas pour pion A → entrée sur la première case d'arrivée verte.
+  - 1 pas pour pion B → bloqué par la case de départ du joueur bleu occupée
+    par un pion bleu.
+Le validateur a refusé le 7 ET en plus le joueur N'A PAS pu défausser le 7
+(le bouton "Discard" n'apparaissait pas). Il s'est retrouvé bloqué.
+
+Règle correcte
+--------------
+Pour un split de 7 :
+  - Le premier mouvement modifie l'état du plateau (allMarbles, marblesByColor,
+    et la liste des cases d'arrivée encore libres pour le joueur).
+  - Le second mouvement doit être validé contre cet état mis à jour.
+  - Si le second pion est de la même couleur que le premier ET vise la même
+    case d'arrivée que celle prédite pour le premier, c'est ILLÉGAL
+    (deux pions de la même couleur sur la même case).
+  - Si AUCUN split (1+6, 2+5, ... 6+1) ni AUCUN mouvement plein (7 d'un seul
+    pion) n'est légal, le joueur doit pouvoir défausser le 7 (`canDiscard`
+    doit être true).
+
+Travail à faire
+---------------
+a) Audit de `getLegalSplit7Action` (move-validator.ts:357) :
+   - Vérifier que ctx2 reflète bien le résultat du premier mouvement quand
+     celui-ci est une promotion (action1.type === 'promote'). Aujourd'hui
+     `to1 = action1.to` est utilisé comme remplacement de `from1` dans
+     allMarbles / ownMarbles / marblesByColor. Confirmer que cela injecte
+     correctement la nouvelle position d'arrivée et que `getArrivelCaseIfCanPromote`
+     appelé pour le 2e pion la voit comme occupée (et l'exclut donc des cases
+     d'arrivée libres).
+   - Cas particulier : si le 2e pion vise aussi une case d'arrivée (promote +
+     promote), s'assurer que la case calculée pour lui n'est pas celle déjà
+     occupée par le 1er.
+
+b) Audit de la détection "aucun coup légal" (calcul de `canDiscard`) :
+   - Trouver où le serveur calcule `canDiscard` (probablement dans
+     backend/src/game/game.ts ou human-strategy.ts ; chercher les références à
+     `canDiscard` et `findLegalMoveForCard`).
+   - Pour la carte 7, il faut considérer comme légal :
+       * tout 7-entier valide sur un pion (steps = 7), ET
+       * tout split (steps1 in 1..6) tel qu'il existe au moins un second pion
+         (différent du premier) pouvant avancer de (7 - steps1).
+   - Si AUCUNE de ces options ne renvoie une Action non-nulle pour AUCUNE
+     paire de pions, alors le 7 est défaussable.
+
+c) Audit du frontend (table.component.ts:139 et suivants) :
+   - `validSplitSevenSteps()` calcule les steps1 légaux pour le pion
+     sélectionné. Vérifier que pour chaque steps1, on cherche au moins un
+     autre pion pouvant absorber (7 - steps1). C'est déjà fait (ligne 152-159)
+     mais ré-éprouver le cas où le seul second pion candidat finit sur la
+     même case d'arrivée que le premier.
+   - Vérifier le bouton "Discard" : il doit s'activer dès que `canDiscard` est
+     true côté serveur, même si la carte 7 est sélectionnée.
+
+d) Tests à écrire :
+   - Split 6+1 où le 1+ est bloqué par une case de départ adverse occupée par
+     un pion invincible → split refusé.
+   - Split 6+1 où le 2e pion vise la même case d'arrivée que le 1er → split
+     refusé.
+   - Aucun split possible + aucun 7-entier possible → `canDiscard === true`
+     ET bouton Discard activé côté frontend.
+   - Cas du joueur vert (reproduire la partie observée) : le serveur doit
+     proposer la défausse.
+
+
+================================================================================
+3) UX — Persistance des notifications d'invitation à une partie custom
+================================================================================
+
+Problème observé
+----------------
+Les notifications d'invitation (`gameInvite`) s'évaporent dans plusieurs cas :
+  - L'utilisateur ne réagit pas assez vite (auto-dismiss au bout de 15 s dans
+    frontend/src/app/shared/invite-toast.component.ts:5).
+  - L'utilisateur n'est pas connecté à la WebSocket de présence au moment de
+    l'invitation et la perd entièrement.
+  - L'utilisateur n'est pas sur la page d'accueil au moment où la notification
+    arrive — elle est droppée (home.page.ts:191-195 : la souscription
+    `gameInvite$` n'existe que dans `ngOnInit` de la HomePage).
+  - L'utilisateur quitte l'app (background / switch d'app sur mobile) → la
+    WebSocket de présence se ferme, l'invitation reçue avant est perdue,
+    et la dialog de custom game se referme (perte du flux pour TOUS les
+    joueurs déjà dans la room).
+
+Comportement attendu
+--------------------
+Une invitation reste affichée tant que :
+  - L'utilisateur invité n'a pas explicitement cliqué Join OU Decline, ET
+  - L'invitant n'a pas annulé l'invitation OU fermé la custom room.
+
+Le passage en arrière-plan, le switch d'application ou la perte du socket NE
+doit PAS faire disparaître la notification, ni faire quitter la custom room
+au créateur ni aux autres participants.
+
+Travail à faire
+---------------
+a) Côté toast invité (frontend/src/app/shared/invite-toast.component.ts) :
+   - Supprimer le timer d'auto-dismiss de 15 s (lignes 5 + 26-35) OU le
+     remplacer par "aucun auto-dismiss".
+   - L'invitation ne disparaît que sur clic Join, clic Decline, ou réception
+     d'un signal d'annulation envoyé par le serveur (voir point d).
+
+b) Côté souscription frontend (frontend/src/app/home/home.page.ts) :
+   - L'invitation reçue alors que `showCustomGame === true` ou
+     `appResume.hasActiveGame()` est aujourd'hui silencieusement droppée
+     (ligne 193). Conserver le drop mais la stocker côté serveur (déjà fait via
+     Cosmos `invitations` container, voir backend/src/messages/invitations-router.ts)
+     pour ré-afficher la dernière en attente quand l'utilisateur revient sur
+     home et est idle.
+   - Note historique : `fetchPendingInvitations` (HTTP GET /api/invitations/pending)
+     a été retirée — redondante avec le flush in-memory natif que
+     `PresenceManager.register` effectue dès que la socket de présence s'ouvre.
+     Toute invitation queued est livrée à ce moment-là.
+
+c) Côté backend (backend/src/session/presence-manager.ts +
+   backend/src/session/custom-game-manager.ts) :
+   - Persistance offline 100 % in-memory via `PresenceManager.sendOrQueue`
+     (TTL 5 min). PAS de Cosmos : le free-tier 1000 RU/s ne supporte pas
+     un 4ᵉ container. Trade-off accepté : un redémarrage backend perd les
+     invitations en file (cas rare hobby).
+   - Ajouter un endpoint (ou un message WS) pour ANNULER une invitation
+     côté serveur (à appeler quand le créateur ferme la custom room ou retire
+     manuellement l'invité). Le serveur retire l'entrée queued via
+     `PresenceManager.cancelQueued(...)` ET pousse un message
+     `gameInviteCancelled` à l'invité s'il est connecté.
+   - Définir un nouveau type WS `GameInviteCancelledMessage` dans
+     packages/shared/src/types.ts (champs : `type: 'gameInviteCancelled'`,
+     `fromUserId: string`, `roomCode: string`).
+
+d) Persistance UI au switch d'application :
+   - Dialog "custom game" actuellement détruite quand le composant Home est
+     démonté ou que la WS se ferme. Identifier dans home.page.ts les
+     handlers qui ferment la dialog (`cleanupCustomGame`, `cancelCustomGame`,
+     `customConnectionErrorSub` à la ligne 471) et faire la distinction entre
+     "fermeture volontaire de l'utilisateur" et "perte de socket par mise en
+     arrière-plan".
+   - À la perte de socket due à un background (détectable via
+     AppResumeService.wasBackgrounded), conserver l'état UI de la room et
+     tenter une reconnexion automatique au retour de l'app (resume) plutôt
+     que d'afficher l'erreur de matchmaking.
+   - Côté serveur, la session de custom room doit survivre à une déconnexion
+     courte (grace period de reconnexion comparable aux 180 s déjà en place
+     pour les parties actives, à confirmer dans
+     backend/src/session/custom-game-manager.ts).
+
+
+================================================================================
+4) UI — Refonte de l'overlay du 7
+================================================================================
+
+Problème observé
+----------------
+Quand la carte 7 est sélectionnée, l'overlay actuel (table.component.html,
+lignes 180-237, `.seven-split-overlay` / `.seven-split-sheet`) déborde
+visuellement et s'agence mal sur les petits écrans.
+
+Comportement attendu
+--------------------
+Quand le 7 est sélectionné :
+  - Tout l'espace du `TableComponent` (sauf le footer "control-dashboard"
+    contenant l'avatar + bouton Confirmer/Discard) est REMPLACÉ par
+    l'interface du 7.
+  - Pendant ce remplacement, on ne voit PLUS :
+      * la main de cartes (`.hand-zone` / `.cards-fan`, lignes 121-136),
+      * le menu trois-points (`.action-menu`, lignes 33-104),
+      * le timer (`.timer-zone`, lignes 106-119 ; ainsi que le `.table-timer`
+        mobile lignes 4-11),
+      * la zone d'info contextuelle (`.context-info`, lignes 138-144).
+  - L'interface du 7 occupe 100 % de la largeur ET 100 % de la hauteur de
+    cette zone — strictement, AUCUN débordement même sur les plus petits
+    écrans (mobile portrait étroit).
+  - Le footer (`.control-dashboard`) reste affiché et fonctionnel.
+  - Ajout d'un bouton "Retour" (flèche ou X, au choix designer) en haut à
+    gauche ou en haut à droite de l'overlay, qui rend la main et restaure
+    la vue normale (équivalent à `closeSevenSplitOverlay()` déjà appelé
+    ligne 184, à conserver).
+  - À conserver TEL QUEL : la flèche jaune (`.confirm-arrow`, lignes 161-169)
+    qui pointe vers le bouton Confirmer lorsque le split est prêt
+    (`isSevenSplitReady()`). Ne pas y toucher.
+
+Travail à faire
+---------------
+a) Restructurer le template `table.component.html` pour que, lorsque
+   `showSevenSplitOverlay()` est vrai, les blocs cités ci-dessus soient
+   masqués (via `@if (!showSevenSplitOverlay()) { ... }` ou
+   équivalent CSS `display: none`) au lieu d'être recouverts.
+b) Remplacer le bloc `.seven-split-overlay` actuel par un conteneur plein
+   écran (sauf footer) qui :
+     - prend `width: 100%` et `height: 100%` de la zone non-footer,
+     - n'a aucun overflow visible,
+     - reste responsive sur écrans ≤ 360 px de large et ≤ 600 px de haut,
+     - intègre un bouton "Retour" visible et atteignable au pouce.
+c) Vérifier visuellement sur :
+     - mobile portrait étroit (≤ 360 px),
+     - mobile paysage,
+     - tablette,
+     - desktop.
+d) Conserver intégralement la logique de `seven-split-bar`, des dots, du drag
+   pointer et de la flèche de confirmation.
+
+
+================================================================================
+5) FEATURE — Chat / emojis animés pendant une partie
+================================================================================
+
+Objectif
+--------
+Permettre aux joueurs d'interagir de façon conviviale pendant la partie
+(messages courts ou emojis animés type "réactions") sans encombrer l'interface
+de jeu déjà dense sur mobile.
+
+Contraintes
+-----------
+- La majorité des joueurs sont sur mobile, écran réduit, interface déjà bien
+  remplie (plateau + main + timer + footer).
+- Aucune régression sur le gameplay existant.
+- Ergonomie pouce-friendly.
+
+Piste à explorer (à valider)
+----------------------------
+Ajouter un système de tabs (ou de switch) AU-DESSUS du `TableComponent`
+permettant de basculer entre :
+  - Vue "cartes" (actuelle, par défaut),
+  - Vue "chat" (nouvelle).
+Le switch ne doit pas dégrader la lisibilité du plateau.
+
+Travail préliminaire à faire (pas d'implémentation tant que le design n'est
+pas validé)
+--------------------------------------------------------------------------
+a) Lister les options de design possibles :
+     1. Tabs au-dessus du TableComponent (cartes ↔ chat), comme suggéré.
+     2. Bulle "réactions" flottante en coin (emojis animés uniquement, pas de
+        texte libre).
+     3. Tiroir latéral / bottom-sheet ouvert via une icône (icône à intégrer
+        dans `.action-menu`).
+     4. Combinaison (emojis flottants tap-rapide + chat texte caché dans un
+        tiroir).
+   Pour chaque option, lister avantages / inconvénients UX et impact sur le
+   layout actuel.
+
+b) Décider ensemble (utilisateur + IA) :
+     - Texte libre OU emojis prédéfinis OU les deux ?
+     - Modération / signalement nécessaire ?
+     - Historique persistant ou éphémère à la fin de la partie ?
+
+c) Définir le contrat WebSocket :
+     - Nouveau message client→serveur (p. ex.
+       `ChatMessage` : `{ type: 'chat', content: string }` ou
+       `EmojiReaction` : `{ type: 'reaction', emoji: string }`).
+     - Nouveau message serveur→clients (broadcast à la room) avec horodatage
+       et auteur (couleur + nom).
+     - À placer dans packages/shared/src/types.ts.
+
+d) NE PAS coder l'implémentation tant que les points (a), (b), (c) ne sont
+   pas tranchés avec l'utilisateur.

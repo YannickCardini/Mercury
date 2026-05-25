@@ -8,6 +8,12 @@ export class Player {
     public cards: Card[] = [];
     public isConnected: boolean = true;
     public marblePositions: number[];
+    /**
+     * Aligné 1:1 avec `marblePositions`. true uniquement entre l'entrée en
+     * jeu (A/K) et le premier déplacement du pion. Voir le commentaire dans
+     * shared/types.ts pour la règle complète.
+     */
+    public marbleInvincible: boolean[];
     public picture?: string;
     public userId?: string;
 
@@ -18,6 +24,7 @@ export class Player {
         private readonly strategy: PlayerStrategy,
     ) {
         this.marblePositions = [...getHomePositions(color)];
+        this.marbleInvincible = this.marblePositions.map(() => false);
     }
 
     // ── Interface principale ─────────────────────────────────────────────────
@@ -27,7 +34,10 @@ export class Player {
      * `allMarbles` = toutes les positions de pions sur le plateau (toutes couleurs),
      * fourni par Game au moment du tour — plus besoin de propriété mutable.
      */
-    getAction(marblesByColor: Record<MarbleColor, number[]>): Promise<Action> {
+    getAction(
+        marblesByColor: Record<MarbleColor, number[]>,
+        invincibleMarblesByColor: Record<MarbleColor, number[]>,
+    ): Promise<Action> {
         console.log(`${this.name} (${this.isHuman ? 'humain' : 'IA'}) calcule son coup...`);
 
         const ctx: LegalMoveContext = {
@@ -35,6 +45,7 @@ export class Player {
             allMarbles: Object.values(marblesByColor).flat(),
             playerColor: this.color,
             marblesByColor,
+            invincibleMarblesByColor,
         };
         return this.strategy.getAction(ctx, this.cards);
     }

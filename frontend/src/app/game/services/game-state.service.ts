@@ -87,11 +87,15 @@ export class GameStateService {
     if (!player) return false;
 
     const marblesByColor = Object.fromEntries(data.gameState.players.map(p => [p.color, p.marblePositions])) as Record<MarbleColor, number[]>;
+    const invincibleMarblesByColor = Object.fromEntries(
+      data.gameState.players.map(p => [p.color, p.marblePositions.filter((_, i) => p.marbleInvincible[i])])
+    ) as Record<MarbleColor, number[]>;
     const ctx: LegalMoveContext = {
       ownMarbles: player.marblePositions,
       allMarbles: data.gameState.players.flatMap(p => p.marblePositions),
       playerColor: myColor,
       marblesByColor,
+      invincibleMarblesByColor,
     };
 
     if (card.value === 'J') {
@@ -132,11 +136,15 @@ export class GameStateService {
 
     const allMarbles = data.gameState.players.flatMap(p => p.marblePositions);
     const marblesByColor = Object.fromEntries(data.gameState.players.map(p => [p.color, p.marblePositions])) as Record<MarbleColor, number[]>;
+    const invincibleMarblesByColor = Object.fromEntries(
+      data.gameState.players.map(p => [p.color, p.marblePositions.filter((_, i) => p.marbleInvincible[i])])
+    ) as Record<MarbleColor, number[]>;
     const ctx: LegalMoveContext = {
       ownMarbles: player.marblePositions,
       allMarbles,
       playerColor: myColor,
       marblesByColor,
+      invincibleMarblesByColor,
     };
 
     if (card.value === 'J') {
@@ -208,11 +216,15 @@ export class GameStateService {
     if (!player) return null;
 
     const marblesByColor = Object.fromEntries(data.gameState.players.map(p => [p.color, p.marblePositions])) as Record<MarbleColor, number[]>;
+    const invincibleMarblesByColor = Object.fromEntries(
+      data.gameState.players.map(p => [p.color, p.marblePositions.filter((_, i) => p.marbleInvincible[i])])
+    ) as Record<MarbleColor, number[]>;
     const ctx: LegalMoveContext = {
       ownMarbles: player.marblePositions,
       allMarbles: data.gameState.players.flatMap(p => p.marblePositions),
       playerColor: myColor,
       marblesByColor,
+      invincibleMarblesByColor,
     };
 
     const playable = new Set<number>();
@@ -239,11 +251,15 @@ export class GameStateService {
     const marblesByColor = Object.fromEntries(
       data.gameState.players.map(p => [p.color, p.marblePositions])
     ) as Record<MarbleColor, number[]>;
+    const invincibleMarblesByColor = Object.fromEntries(
+      data.gameState.players.map(p => [p.color, p.marblePositions.filter((_, i) => p.marbleInvincible[i])])
+    ) as Record<MarbleColor, number[]>;
     const ctx: LegalMoveContext = {
       ownMarbles: player.marblePositions,
       allMarbles: data.gameState.players.flatMap(p => p.marblePositions),
       playerColor: myColor,
       marblesByColor,
+      invincibleMarblesByColor,
     };
     for (const m1 of player.marblePositions) {
       const steps = getValidSevenStepsForMarble(m1, ctx).filter(s => s !== 7);
@@ -522,8 +538,16 @@ export class GameStateService {
     this.send(JSON.stringify({ type: 'startCustomRoom' }));
   }
 
+  sendLeaveCustomRoom(): void {
+    this.send(JSON.stringify({ type: 'leaveCustomRoom' }));
+  }
+
   sendInviteUser(toUserId: string, roomCode: string): void {
     this.send(JSON.stringify({ type: 'inviteUser', toUserId, roomCode }));
+  }
+
+  sendCancelInvite(toUserId: string, roomCode: string): void {
+    this.send(JSON.stringify({ type: 'cancelInvite', toUserId, roomCode }));
   }
 
   sendAbandonGame(): void {

@@ -35,6 +35,15 @@ export interface Player {
   isHuman: boolean;
   isConnected: boolean;
   marblePositions: number[];
+  /**
+   * Aligné 1:1 avec `marblePositions`. Un pion est invincible UNIQUEMENT entre
+   * son entrée en jeu (via A ou K) et son premier déplacement. Après s'être
+   * déplacé une fois, il n'est plus jamais invincible — même s'il ré-atterrit
+   * sur sa case de départ. Re-mis à `false` lorsque le pion retourne en maison
+   * (capture). Un pion invincible : bloque le chemin, ne peut être reculé par
+   * un 4, ni échangé par un J.
+   */
+  marbleInvincible: boolean[];
   cardsLeft: number;
   picture?: string;
   userId?: string;
@@ -240,6 +249,18 @@ export interface GameInviteResponseMessage {
   accepted: boolean;
 }
 
+/**
+ * Envoyé à un invité quand l'invitation n'est plus valable côté serveur
+ * (créateur a quitté la room, room expirée, partie déjà démarrée, ou
+ * annulation manuelle par le créateur). Le client doit retirer la toast
+ * d'invitation correspondante.
+ */
+export interface GameInviteCancelledMessage {
+  type: 'gameInviteCancelled';
+  fromUserId: string;
+  roomCode: string;
+}
+
 export type ServerMessage =
   | WelcomeMessage
   | GameStateMessage
@@ -253,7 +274,8 @@ export type ServerMessage =
   | MatchmakingStatusMessage
   | CustomRoomStatusMessage
   | GameInviteMessage
-  | GameInviteResponseMessage;
+  | GameInviteResponseMessage
+  | GameInviteCancelledMessage;
 
 // ── Messages WebSocket — Client → Serveur ─────────────────────────────────────
 
@@ -378,6 +400,16 @@ export interface StartCustomRoomMessage {
 }
 
 /**
+ * Quitte volontairement la custom room. À la différence d'une simple fermeture
+ * de WebSocket (qui ouvre une fenêtre de reconnexion de 60 s), ce message
+ * informe le serveur que le départ est définitif : le joueur est retiré
+ * immédiatement, et si c'est le créateur, la room est détruite tout de suite.
+ */
+export interface LeaveCustomRoomMessage {
+  type: 'leaveCustomRoom';
+}
+
+/**
  * Ouvre une connexion "présence" pour un utilisateur signed-in sur la home page.
  * Permet au serveur de pousser des `gameInvite` en temps réel.
  */
@@ -406,6 +438,17 @@ export interface InviteResponseMessage {
   accepted: boolean;
 }
 
+/**
+ * Envoyé par le créateur d'une custom room pour annuler une invitation
+ * encore en attente. Le serveur supprime l'entrée Cosmos et pousse un
+ * `gameInviteCancelled` à l'invité s'il est connecté.
+ */
+export interface CancelInviteMessage {
+  type: 'cancelInvite';
+  toUserId: string;
+  roomCode: string;
+}
+
 export type ClientMessage =
   | StartMessage
   | CreateRoomMessage
@@ -419,6 +462,8 @@ export type ClientMessage =
   | CreateCustomRoomMessage
   | JoinCustomRoomMessage
   | StartCustomRoomMessage
+  | LeaveCustomRoomMessage
   | RegisterPresenceMessage
   | InviteUserMessage
-  | InviteResponseMessage;
+  | InviteResponseMessage
+  | CancelInviteMessage;

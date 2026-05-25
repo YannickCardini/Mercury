@@ -1,6 +1,11 @@
 import { Injectable } from '@angular/core';
 import { Subject } from 'rxjs';
-import type { GameInviteMessage, GameInviteResponseMessage, ServerMessage } from '@mercury/shared';
+import type {
+  GameInviteMessage,
+  GameInviteResponseMessage,
+  GameInviteCancelledMessage,
+  ServerMessage,
+} from '@mercury/shared';
 
 /**
  * Maintains a "presence" WebSocket for a signed-in user idle on the home page.
@@ -18,6 +23,8 @@ export class PresenceService {
   gameInvite$ = new Subject<GameInviteMessage>();
   /** Pushed when the server forwards a decline from a previously invited user. */
   gameInviteResponse$ = new Subject<GameInviteResponseMessage>();
+  /** Pushed when the server cancels a previously-sent invite (room closed, expired, …). */
+  gameInviteCancelled$ = new Subject<GameInviteCancelledMessage>();
 
   private ws: WebSocket | null = null;
   private currentUserId: string | null = null;
@@ -56,6 +63,8 @@ export class PresenceService {
           this.gameInvite$.next(parsed);
         } else if (parsed.type === 'gameInviteResponse') {
           this.gameInviteResponse$.next(parsed);
+        } else if (parsed.type === 'gameInviteCancelled') {
+          this.gameInviteCancelled$.next(parsed);
         }
       } catch { /* ignore */ }
     };

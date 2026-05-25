@@ -41,6 +41,24 @@ export class AppResumeService {
   private wasBackgrounded = false;
   private lastResumeAt = 0;
 
+  /**
+   * True while the app is in the background. Other features can use this to
+   * decide whether a WebSocket close was the result of the OS suspending the
+   * tab (don't show an error UI; reconnect on resume) vs a real network drop.
+   */
+  isBackgrounded(): boolean {
+    return this.wasBackgrounded;
+  }
+
+  /**
+   * True if the app came back from background within the last `withinMs`.
+   * Useful right after a `connectionError$` fires to attribute the close to
+   * the background period that just ended.
+   */
+  resumedRecently(withinMs = 4000): boolean {
+    return this.lastResumeAt > 0 && (Date.now() - this.lastResumeAt) < withinMs;
+  }
+
   constructor() {
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
