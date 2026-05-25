@@ -14,6 +14,7 @@ import {
   ElementRef
 } from '@angular/core';
 import { TockCardComponent } from 'src/app/shared/tock-card.component';
+import { EmojiReactionsComponent } from '../emoji-reactions/emoji-reactions.component';
 import type { Card, MarbleColor } from '@mercury/shared';
 import { getValidSevenStepsForMarble, getPositionAfterMove, getLegalSplit7Action, type LegalMoveContext } from '@mercury/shared';
 import { Subscription } from 'rxjs';
@@ -39,7 +40,7 @@ enum TURN_PHASE {
   styleUrl: 'table.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, TockCardComponent]
+  imports: [CommonModule, TockCardComponent, EmojiReactionsComponent]
 }) export class TableComponent implements OnInit, OnDestroy {
 
 

@@ -118,7 +118,8 @@
 .table-timer__count {
     position: absolute;
     top: 12px;
-    left: 15px;
+    left: 50%;
+    transform: translateX(-50%);
     font-family: 'DM Sans', sans-serif;
     font-size: 0.98rem;
     font-weight: 700;

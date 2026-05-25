@@ -21,6 +21,10 @@ export type ActionType =
 export type CardSuit = '♥' | '♦' | '♣' | '♠';
 export type CardValue = 'A' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K';
 
+/** Palette fermée de réactions emoji envoyables pendant une partie. */
+export const REACTION_EMOJIS = ['👏', '😂', '😮', '😥', '🔥', '🤔'] as const;
+export type ReactionEmoji = typeof REACTION_EMOJIS[number];
+
 // ── Entités ───────────────────────────────────────────────────────────────────
 
 export interface Card {
@@ -261,6 +265,18 @@ export interface GameInviteCancelledMessage {
   roomCode: string;
 }
 
+/**
+ * Broadcast à tous les joueurs d'une partie quand un joueur envoie une
+ * réaction emoji. L'auteur est attribué par le serveur depuis
+ * `senderColor`, jamais depuis le client.
+ */
+export interface ReactionBroadcastMessage {
+  type: 'reactionBroadcast';
+  author: MarbleColor;
+  emoji: ReactionEmoji;
+  timestamp: number;
+}
+
 export type ServerMessage =
   | WelcomeMessage
   | GameStateMessage
@@ -275,7 +291,8 @@ export type ServerMessage =
   | CustomRoomStatusMessage
   | GameInviteMessage
   | GameInviteResponseMessage
-  | GameInviteCancelledMessage;
+  | GameInviteCancelledMessage
+  | ReactionBroadcastMessage;
 
 // ── Messages WebSocket — Client → Serveur ─────────────────────────────────────
 
@@ -449,6 +466,22 @@ export interface CancelInviteMessage {
   roomCode: string;
 }
 
+/**
+ * Envoyé par un joueur humain pendant une partie pour broadcaster une
+ * réaction emoji aux autres joueurs de la même partie.
+ *
+ * En multi-device, l'auteur est attribué par le serveur depuis `senderColor`
+ * (toujours autoritatif). `fromColor` n'est honoré qu'en single-device
+ * (un seul WebSocket pour plusieurs joueurs sur le même écran) où le
+ * serveur ne peut pas savoir qui a cliqué — et il valide alors que la
+ * couleur revendiquée appartient bien à un joueur humain de la partie.
+ */
+export interface EmojiReactionMessage {
+  type: 'reaction';
+  emoji: ReactionEmoji;
+  fromColor?: MarbleColor;
+}
+
 export type ClientMessage =
   | StartMessage
   | CreateRoomMessage
@@ -466,4 +499,5 @@ export type ClientMessage =
   | RegisterPresenceMessage
   | InviteUserMessage
   | InviteResponseMessage
-  | CancelInviteMessage;
+  | CancelInviteMessage
+  | EmojiReactionMessage;

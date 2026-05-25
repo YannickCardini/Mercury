@@ -12,7 +12,7 @@
         @let player = getPlayer(pColor);
         <div class="player-card" [class.active-turn]="isCurrentTurn(pColor)"
           [class.disconnected]="player && !player.isConnected" [class.no-cards]="player && player.cardsLeft === 0"
-          [ngClass]="'theme-' + pColor">
+          [ngClass]="'theme-' + pColor" [attr.data-player-color]="pColor">
           <div class="avatar-ring"
             (click)="onAvatarClick(pColor, $event)"
             (mouseenter)="onAvatarMouseEnter(pColor, $event)"

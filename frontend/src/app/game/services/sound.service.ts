@@ -1,4 +1,14 @@
 import { Injectable, signal } from '@angular/core';
+import type { ReactionEmoji } from '@mercury/shared';
+
+const REACTION_SOUND_KEY: Record<ReactionEmoji, string> = {
+  '👏': 'emoji_clap',
+  '😂': 'emoji_laugh',
+  '😮': 'emoji_shocked',
+  '😥': 'emoji_sad',
+  '🔥': 'emoji_fire',
+  '🤔': 'emoji_thinking',
+};
 
 @Injectable({ providedIn: 'root' })
 export class SoundService {
@@ -31,6 +41,12 @@ export class SoundService {
       { key: 'teleport',  url: 'assets/sounds/teleport.wav'  },
       { key: 'victory',   url: 'assets/sounds/victory.wav'   },
       { key: 'defeat',    url: 'assets/sounds/defeat.wav'    },
+      { key: 'emoji_clap',     url: 'assets/sounds/emojis/clap.mp3'      },
+      { key: 'emoji_laugh',    url: 'assets/sounds/emojis/laugh.mp3'     },
+      { key: 'emoji_shocked',  url: 'assets/sounds/emojis/shocked.mp3'   },
+      { key: 'emoji_sad',      url: 'assets/sounds/emojis/sad.wav'       },
+      { key: 'emoji_fire',     url: 'assets/sounds/emojis/fire.wav'      },
+      { key: 'emoji_thinking', url: 'assets/sounds/emojis/thinking.mp3'  },
     ];
 
     for (const { key, url } of assets) {
@@ -394,6 +410,13 @@ export class SoundService {
       osc.start(start);
       osc.stop(start + 0.12);
     });
+  }
+
+  /** Emoji reactions — one preloaded sample per emoji of the palette. */
+  playReaction(emoji: ReactionEmoji): void {
+    if (this.muted()) return;
+    const key = REACTION_SOUND_KEY[emoji];
+    if (key) this.playBuffer(key);
   }
 
   /** Low descending tone — human player loses. */

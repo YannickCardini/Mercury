@@ -31,6 +31,12 @@
   </div>
   }
 
+  <!-- ===== EMOJI REACTIONS (top-left corner) — masqué pendant l'overlay du 7.
+       Joueurs uniquement : pas de réaction en mode spectateur (single-device IA). ===== -->
+  @if (!showSevenSplitOverlay() && gameStateService.myPlayerColor()) {
+  <app-emoji-reactions></app-emoji-reactions>
+  }
+
   <!-- ===== ACTION MENU (top-right corner) — masqué pendant l'overlay du 7 ===== -->
   @if (!showSevenSplitOverlay()) {
   @if (showMenu()) {

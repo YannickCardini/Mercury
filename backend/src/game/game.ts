@@ -17,7 +17,10 @@ import {
     CARDS_PER_HAND,
     computeMinAnimationDuration,
 } from '@mercury/shared';
-import type { Action, Card, ClientMessage, GameConfig, MarbleColor } from "@mercury/shared";
+import { REACTION_EMOJIS } from "@mercury/shared";
+import type { Action, Card, ClientMessage, GameConfig, MarbleColor, ReactionEmoji } from "@mercury/shared";
+
+const REACTION_COOLDOWN_MS = 2000;
 
 export class Game {
 
@@ -58,6 +61,9 @@ export class Game {
 
     /** Callback appelé quand un joueur abandonne (pour nettoyer playerIdentities). */
     private onPlayerAbandoned: ((gameId: string, color: MarbleColor) => void) | null = null;
+
+    /** Timestamp de la dernière réaction emoji envoyée par chaque joueur (anti-spam). */
+    private lastReactionAt = new Map<MarbleColor, number>();
 
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -317,9 +323,41 @@ export class Game {
             case 'abandonGame':
                 this.handleAbandonGame(senderColor);
                 break;
+            case 'reaction':
+                this.handleReaction(msg.emoji, senderColor, msg.fromColor);
+                break;
             // start / createRoom / joinRoom sont gérés par SessionManager avant
             // que la Game soit créée — on les ignore silencieusement ici.
         }
+    }
+
+    private handleReaction(emoji: ReactionEmoji, senderColor: MarbleColor | null, fromColor?: MarbleColor): void {
+        // Validation stricte de la palette (le client peut être falsifié).
+        if (!(REACTION_EMOJIS as readonly string[]).includes(emoji)) return;
+
+        // En multi-device, l'identité vient du messenger (autoritatif).
+        // En single-device (senderColor null) on accepte fromColor envoyé par le
+        // client à condition qu'il corresponde à un joueur humain de la partie.
+        let author: MarbleColor;
+        if (senderColor !== null) {
+            author = senderColor;
+        } else if (fromColor && this.players.some(p => p.color === fromColor && p.isHuman)) {
+            author = fromColor;
+        } else {
+            return;
+        }
+
+        const now = Date.now();
+        const last = this.lastReactionAt.get(author) ?? 0;
+        if (now - last < REACTION_COOLDOWN_MS) return;
+        this.lastReactionAt.set(author, now);
+
+        this.messenger.send({
+            type: 'reactionBroadcast',
+            author,
+            emoji,
+            timestamp: now,
+        });
     }
 
     // ─── Gestion des actions humaines ────────────────────────────────────────

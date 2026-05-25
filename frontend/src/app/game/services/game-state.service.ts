@@ -20,6 +20,9 @@ import {
   JoinGameMessage,
   ServerMessage,
   MarbleColor,
+  EmojiReactionMessage,
+  ReactionBroadcastMessage,
+  ReactionEmoji,
   getLegalAction,
   getLegalSplit7Action,
   getValidSevenStepsForMarble,
@@ -305,6 +308,8 @@ export class GameStateService {
   gameAbandoned$ = new Subject<void>();
   /** Émet quand le WebSocket échoue à se connecter ou se ferme avant que la partie commence. */
   connectionError$ = new Subject<void>();
+  /** Émet à chaque réaction emoji reçue (locale ou distante). */
+  reaction$ = new Subject<ReactionBroadcastMessage>();
 
   private tabLock = inject(TabLockService);
   private ws: WebSocket | null = null;
@@ -441,6 +446,11 @@ export class GameStateService {
           this.gameStats.set(parsed as GameStatsMessage);
           break;
         }
+
+        case 'reactionBroadcast': {
+          this.reaction$.next(parsed as ReactionBroadcastMessage);
+          break;
+        }
       }
     };
 
@@ -548,6 +558,17 @@ export class GameStateService {
 
   sendCancelInvite(toUserId: string, roomCode: string): void {
     this.send(JSON.stringify({ type: 'cancelInvite', toUserId, roomCode }));
+  }
+
+  sendReaction(emoji: ReactionEmoji): void {
+    // `fromColor` is only honored by the server in single-device mode (single
+    // shared WebSocket) — in multi-device it is overridden by the authoritative
+    // senderColor. We always include it so single-device works out of the box.
+    const fromColor = this.myPlayerColor() ?? undefined;
+    const msg: EmojiReactionMessage = fromColor
+      ? { type: 'reaction', emoji, fromColor }
+      : { type: 'reaction', emoji };
+    this.send(JSON.stringify(msg));
   }
 
   sendAbandonGame(): void {

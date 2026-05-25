@@ -1,0 +1,42 @@
+@if (showPalette()) {
+<div class="emoji-backdrop" (click)="closePalette()"></div>
+}
+
+<div class="emoji-reactions">
+  <button
+    type="button"
+    class="emoji-trigger"
+    [class.is-open]="showPalette()"
+    [class.is-cooldown]="cooldownActive()"
+    [disabled]="cooldownActive()"
+    (click)="togglePalette()"
+    aria-label="Send a reaction">
+    <span class="emoji-trigger__icon">😀</span>
+  </button>
+
+  @if (showPalette()) {
+  <div class="emoji-palette" role="menu">
+    @for (e of emojis; track e) {
+    <button
+      type="button"
+      class="emoji-option"
+      role="menuitem"
+      [attr.aria-label]="'Send ' + e"
+      (click)="pickEmoji(e)">
+      {{ e }}
+    </button>
+    }
+  </div>
+  }
+</div>
+
+<div class="emoji-floats" aria-hidden="true">
+  @for (f of floating(); track f.id) {
+  <span
+    class="emoji-float"
+    [style.left.px]="f.x"
+    [style.top.px]="f.y">
+    {{ f.emoji }}
+  </span>
+  }
+</div>
