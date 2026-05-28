@@ -8,6 +8,12 @@ const REACTION_SOUND_KEY: Record<ReactionEmoji, string> = {
   '😥': 'emoji_sad',
   '🔥': 'emoji_fire',
   '🤔': 'emoji_thinking',
+  '😡': 'emoji_angry',
+  '😎': 'emoji_cool',
+  '😴': 'emoji_sleep',
+  '⏰': 'emoji_alarm',
+  '🥱': 'emoji_yawn',
+  '🦧': 'emoji_confused',
 };
 
 @Injectable({ providedIn: 'root' })
@@ -35,18 +41,24 @@ export class SoundService {
 
   private async preloadAssets(): Promise<void> {
     const assets: Array<{ key: string; url: string }> = [
-      { key: 'new_turn',  url: 'assets/sounds/new_turn.wav' },
-      { key: 'card',      url: 'assets/sounds/card.wav'      },
-      { key: 'capture',   url: 'assets/sounds/capture.wav'   },
-      { key: 'teleport',  url: 'assets/sounds/teleport.wav'  },
-      { key: 'victory',   url: 'assets/sounds/victory.wav'   },
-      { key: 'defeat',    url: 'assets/sounds/defeat.wav'    },
-      { key: 'emoji_clap',     url: 'assets/sounds/emojis/clap.mp3'      },
-      { key: 'emoji_laugh',    url: 'assets/sounds/emojis/laugh.mp3'     },
-      { key: 'emoji_shocked',  url: 'assets/sounds/emojis/shocked.mp3'   },
-      { key: 'emoji_sad',      url: 'assets/sounds/emojis/sad.wav'       },
-      { key: 'emoji_fire',     url: 'assets/sounds/emojis/fire.wav'      },
-      { key: 'emoji_thinking', url: 'assets/sounds/emojis/thinking.mp3'  },
+      { key: 'new_turn', url: 'assets/sounds/new_turn.wav' },
+      { key: 'card', url: 'assets/sounds/card.wav' },
+      { key: 'capture', url: 'assets/sounds/capture.wav' },
+      { key: 'teleport', url: 'assets/sounds/teleport.wav' },
+      { key: 'victory', url: 'assets/sounds/victory.wav' },
+      { key: 'defeat', url: 'assets/sounds/defeat.wav' },
+      { key: 'emoji_clap', url: 'assets/sounds/emojis/clap.mp3' },
+      { key: 'emoji_laugh', url: 'assets/sounds/emojis/laugh.mp3' },
+      { key: 'emoji_shocked', url: 'assets/sounds/emojis/shocked.mp3' },
+      { key: 'emoji_sad', url: 'assets/sounds/emojis/sad.wav' },
+      { key: 'emoji_fire', url: 'assets/sounds/emojis/fire.wav' },
+      { key: 'emoji_thinking', url: 'assets/sounds/emojis/thinking.mp3' },
+      { key: 'emoji_angry', url: 'assets/sounds/emojis/angry.mp3' },
+      { key: 'emoji_cool', url: 'assets/sounds/emojis/cool.mp3' },
+      { key: 'emoji_sleep', url: 'assets/sounds/emojis/sleep.wav' },
+      { key: 'emoji_alarm', url: 'assets/sounds/emojis/alarm.mp3' },
+      { key: 'emoji_yawn', url: 'assets/sounds/emojis/yawn.wav' },
+      { key: 'emoji_confused', url: 'assets/sounds/emojis/confused.mp3' },
     ];
 
     for (const { key, url } of assets) {

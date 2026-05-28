@@ -1,4 +1,5 @@
 import { Injectable, inject, signal } from '@angular/core';
+import { Router } from '@angular/router';
 import { Subject, take } from 'rxjs';
 import { App } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
@@ -27,6 +28,7 @@ export class AppResumeService {
 
   private gameStateService = inject(GameStateService);
   private tabLock = inject(TabLockService);
+  private router = inject(Router);
 
   /** Emits whenever the app transitions from background → foreground. */
   readonly resumed$ = new Subject<void>();
@@ -135,6 +137,7 @@ export class AppResumeService {
       console.log('[AppResume] server confirmed active game — state refreshed');
       this.hasActiveGame.set(true);
       this.validating.set(false);
+      void this.router.navigate(['/game']);
     });
 
     const rejectedSub = this.gameStateService.actionRejected$.pipe(take(1)).subscribe((reason) => {

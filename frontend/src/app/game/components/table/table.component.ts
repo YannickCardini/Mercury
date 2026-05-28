@@ -9,9 +9,7 @@ import {
   OnInit,
   OnDestroy,
   Output,
-  EventEmitter,
-  ViewChild,
-  ElementRef
+  EventEmitter
 } from '@angular/core';
 import { TockCardComponent } from 'src/app/shared/tock-card.component';
 import { EmojiReactionsComponent } from '../emoji-reactions/emoji-reactions.component';
@@ -104,8 +102,6 @@ enum TURN_PHASE {
     this.validSevenSteps().includes(7)
   );
 
-  /** Référence à la rangée de pas du 7 (pour le drag tactile/souris). */
-  @ViewChild('dotsRowEl') dotsRowEl?: ElementRef<HTMLElement>;
   /** Vrai pendant que l'utilisateur fait glisser la barre de split. */
   isDraggingSplit = signal(false);
   private splitPointerId: number | null = null;
@@ -366,13 +362,13 @@ enum TURN_PHASE {
     this.splitPointerId = event.pointerId;
     row.setPointerCapture(event.pointerId);
     this.isDraggingSplit.set(true);
-    this.selectNearestDot(event.clientX);
+    this.selectNearestDot(row, event.clientX);
   }
 
   onDotsRowPointerMove(event: PointerEvent): void {
     if (!this.isDraggingSplit() || event.pointerId !== this.splitPointerId) return;
     event.preventDefault();
-    this.selectNearestDot(event.clientX);
+    this.selectNearestDot(event.currentTarget as HTMLElement, event.clientX);
   }
 
   onDotsRowPointerUp(event: PointerEvent): void {
@@ -386,8 +382,7 @@ enum TURN_PHASE {
   }
 
   /** Sélectionne le pas activable dont le centre est le plus proche du pointeur. */
-  private selectNearestDot(clientX: number): void {
-    const row = this.dotsRowEl?.nativeElement;
+  private selectNearestDot(row: HTMLElement, clientX: number): void {
     if (!row) return;
     let bestStep: number | null = null;
     let bestDist = Infinity;

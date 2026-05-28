@@ -22,7 +22,7 @@ export type CardSuit = '♥' | '♦' | '♣' | '♠';
 export type CardValue = 'A' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K';
 
 /** Palette fermée de réactions emoji envoyables pendant une partie. */
-export const REACTION_EMOJIS = ['👏', '😂', '😮', '😥', '🔥', '🤔'] as const;
+export const REACTION_EMOJIS = ['👏', '😂', '😮', '😥', '🔥', '🤔', '😡', '😎', '😴', '⏰', '🥱', '🦧'] as const;
 export type ReactionEmoji = typeof REACTION_EMOJIS[number];
 
 // ── Entités ───────────────────────────────────────────────────────────────────

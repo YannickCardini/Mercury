@@ -158,14 +158,17 @@ export class HomePage implements OnInit, OnDestroy {
     readonly appResume: AppResumeService,
   ) { }
 
-  private hasActiveGame(): boolean {
-    return !!(localStorage.getItem('active_game_id') && localStorage.getItem('guest_player_id'));
-  }
-
   ngOnInit(): void {
     // Re-sync the "Resume" banner from storage; AppResumeService keeps it
     // updated afterwards (incl. clearing it when a stale game is detected).
     this.appResume.refreshFromStorage();
+    if (this.appResume.hasActiveGame()) {
+      // Don't let a user with an ongoing game linger on /home — bring them
+      // straight back into the match. The Resume banner remains as a fallback
+      // in case this navigation is cancelled by a guard.
+      void this.router.navigate(['/game']);
+      return;
+    }
     this.loginErrorSub = this.auth.loginError$.subscribe(type => {
       this.loginErrorMessage = type === 'server'
         ? 'Server error. Please try again later.'
@@ -347,7 +350,7 @@ export class HomePage implements OnInit, OnDestroy {
   // ── Matchmaking ────────────────────────────────────────────────────────────
 
   async openMatchmaking(): Promise<void> {
-    if (this.hasActiveGame()) {
+    if (this.appResume.hasActiveGame() || this.appResume.validating()) {
       this.router.navigate(['/game']);
       return;
     }
@@ -423,7 +426,7 @@ export class HomePage implements OnInit, OnDestroy {
   // ── Custom Game ────────────────────────────────────────────────────────────
 
   async openCustomGame(): Promise<void> {
-    if (this.hasActiveGame()) {
+    if (this.appResume.hasActiveGame() || this.appResume.validating()) {
       this.router.navigate(['/game']);
       return;
     }
@@ -636,7 +639,7 @@ export class HomePage implements OnInit, OnDestroy {
 
   async onInviteJoin(invite: GameInviteMessage): Promise<void> {
     this.pendingInvite = null;
-    if (this.hasActiveGame()) {
+    if (this.appResume.hasActiveGame() || this.appResume.validating()) {
       this.router.navigate(['/game']);
       return;
     }

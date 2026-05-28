@@ -1,54 +1,152 @@
-================================================================================
-FEATURE — Chat / emojis animés pendant une partie
-================================================================================
+# ════════════════════════════════════════════════════════════════════
+# MERCURY — TODO
+# ════════════════════════════════════════════════════════════════════
 
-Objectif
---------
-Permettre aux joueurs d'interagir de façon conviviale pendant la partie
-(messages courts ou emojis animés type "réactions") sans encombrer l'interface
-de jeu déjà dense sur mobile.
 
-Contraintes
------------
-- La majorité des joueurs sont sur mobile, écran réduit, interface déjà bien
-  remplie (plateau + main + timer + footer).
-- Aucune régression sur le gameplay existant.
-- Ergonomie pouce-friendly.
+# ────────────────────────────────────────────────────────────────────
+# TASK 1 — Android: prevent text-selection / context menu on the
+#          in-game "Confirm" / "Discard" button
+# ────────────────────────────────────────────────────────────────────
+#
+# CONTEXT
+#   On Android, when the user taps slightly imprecisely (e.g. a long
+#   press or a tap-drag) on the main action button of the game board,
+#   the OS triggers its native text-selection popup ("Copy / Paste /
+#   Select all…") and visually selects the button label
+#   ("Confirm" or "Discard"). This breaks the gameplay flow.
+#
+# WHERE
+#   - Button markup:
+#       frontend/src/app/game/components/table/table.component.html
+#         lines 175–190  (.action-btn-wrap / .action-btn)
+#   - Button styles:
+#       frontend/src/app/game/components/table/table.component.scss
+#         lines 683–722  (.action-btn — currently NO user-select rule)
+#
+# WHAT TO DO
+#   1. In table.component.scss, on `.action-btn` (and on
+#      `.action-btn-wrap` to be safe), add:
+#         user-select: none;
+#         -webkit-user-select: none;
+#         -webkit-touch-callout: none;          /* disables the long-press menu on iOS/Android WebView */
+#         touch-action: manipulation;           /* removes the 300ms double-tap delay and the long-press */
+#   2. Verify the same fix is applied to the in-game "Resign" confirm
+#      button (`.resign-dialog__confirm` in the same SCSS file, ~line 1294
+#      and ~1316) and to any other gameplay button that could trigger
+#      the same issue (e.g. seven-split overlay buttons).
+#   3. Build the Android app (Capacitor) and confirm the long-press /
+#      imprecise tap no longer triggers the system selection popup.
 
-Piste à explorer (à valider)
-----------------------------
-Ajouter un système de tabs (ou de switch) AU-DESSUS du `TableComponent`
-permettant de basculer entre :
-  - Vue "cartes" (actuelle, par défaut),
-  - Vue "chat" (nouvelle).
-Le switch ne doit pas dégrader la lisibilité du plateau.
 
-Travail préliminaire à faire (pas d'implémentation tant que le design n'est
-pas validé)
---------------------------------------------------------------------------
-a) Lister les options de design possibles :
-     1. Tabs au-dessus du TableComponent (cartes ↔ chat), comme suggéré.
-     2. Bulle "réactions" flottante en coin (emojis animés uniquement, pas de
-        texte libre).
-     3. Tiroir latéral / bottom-sheet ouvert via une icône (icône à intégrer
-        dans `.action-menu`).
-     4. Combinaison (emojis flottants tap-rapide + chat texte caché dans un
-        tiroir).
-   Pour chaque option, lister avantages / inconvénients UX et impact sur le
-   layout actuel.
-
-b) Décider ensemble (utilisateur + IA) :
-     - Texte libre OU emojis prédéfinis OU les deux ?
-     - Modération / signalement nécessaire ?
-     - Historique persistant ou éphémère à la fin de la partie ?
-
-c) Définir le contrat WebSocket :
-     - Nouveau message client→serveur (p. ex.
-       `ChatMessage` : `{ type: 'chat', content: string }` ou
-       `EmojiReaction` : `{ type: 'reaction', emoji: string }`).
-     - Nouveau message serveur→clients (broadcast à la room) avec horodatage
-       et auteur (couleur + nom).
-     - À placer dans packages/shared/src/types.ts.
-
-d) NE PAS coder l'implémentation tant que les points (a), (b), (c) ne sont
-   pas tranchés avec l'utilisateur.
+# ────────────────────────────────────────────────────────────────────
+# TASK 2 — Reconnection: a player with an ongoing game must always
+#          be sent back to that game when reopening the app
+# ────────────────────────────────────────────────────────────────────
+#
+# CONTEXT / OBSERVED BUG
+#   A friend played a game on Android. He got disconnected several
+#   times during the match (network drop, app backgrounded, etc.).
+#   When he reopened the app, instead of being put back into his
+#   ongoing game, he was left stuck on the home screen — and pressing
+#   "Play Now" started a NEW matchmaking session, abandoning the
+#   game he was still part of.
+#
+# GOAL (desired final behaviour)
+#   A) A user disconnect (WebSocket close, app backgrounded, browser
+#      tab closed, network drop, …) must NEVER, on its own, be
+#      interpreted by the backend as an abandon/forfeit. The server
+#      already has a 180 s reconnection window (RECONNECT_WINDOW_MS in
+#      backend/src/game/game-messenger.ts) and an indefinite window for
+#      signed-in players — make sure both code paths are still hit and
+#      that no other path penalises the player (-2 pts, win-by-default,
+#      etc.) before the window has expired.
+#   B) Whenever a connected user reopens the app/website AND has an
+#      active game stored locally (`localStorage.active_game_id` +
+#      `localStorage.guest_player_id`), they must be AUTOMATICALLY
+#      redirected to /game and reconnected to that game, no matter
+#      which route they would otherwise land on.
+#   C) The user must NOT be able to reach the home menu or start a
+#      new matchmaking / custom game as long as the server still
+#      considers them part of an ongoing game.
+#   D) The only ways to leave an ongoing game must be:
+#         - explicitly resigning (existing "Resign" button in the
+#           game UI — `resign()` / `confirmResign()` in
+#           frontend/src/app/game/components/table/table.component.ts),
+#         - finishing the game normally (victory / loss).
+#
+# WHERE (current implementation that must be reviewed/changed)
+#   Frontend:
+#     - frontend/src/app/app.component.ts (lines 23–62)
+#         Already reconnects on app boot if localStorage has an active
+#         game AND navigates to /game on `gameStarted$`. Verify this is
+#         actually triggered for a returning Android user and is not
+#         short-circuited by `tabLock.isOtherTabActive()`.
+#     - frontend/src/app/services/app-resume.service.ts
+#         Already re-validates the active game against the server on
+#         resume but DOES NOT redirect to /game on success. After
+#         `gameStarted$` fires inside `validateActiveGame()` (line ~130),
+#         add a `router.navigate(['/game'])` so the user is forcibly
+#         brought back into the match.
+#     - frontend/src/app/home/home.page.ts
+#         * `openMatchmaking()` (line 349) and `openCustomGame()`
+#           (line 425) currently only check `hasActiveGame()` which
+#           reads localStorage. Reinforce: if `appResume.hasActiveGame()`
+#           is true OR `appResume.validating()` is true, do nothing
+#           except navigate to /game.
+#         * The "Resume" banner (home.page.html line 81) is the only
+#           currently advertised way back into the game — consider
+#           making the redirect automatic (no click needed) when a
+#           live game is detected on landing on /home.
+#     - frontend/src/app/game/game.guard.ts
+#         Already allows /game if localStorage has the two keys. OK.
+#   Backend:
+#     - backend/src/game/game-messenger.ts
+#         `MultiWsMessenger.registerCloseHandler` (line 143) — confirm
+#         that a socket close triggers `onTempDisconnect` (UI shows
+#         "offline") but only triggers `onPermanentDisconnect`
+#         (which calls `markDisconnected` → -2 pts → checkAbort) AFTER
+#         the 180 s window.
+#     - backend/src/game/game.ts
+#         `markDisconnected` (line 160) is the only place that applies
+#         the -2 pts penalty and `checkAbort()`. Make sure no other
+#         message handler (e.g. a "leave" message accidentally sent on
+#         tab-hide) bypasses the grace window.
+#     - backend/src/session/matchmaking-manager.ts
+#         `handleDisconnect` (line 137) — purely matchmaking-queue
+#         logic. This is fine: leaving the queue is OK; it only kicks
+#         the player from the pre-game lobby, not from a running game.
+#
+# WHAT TO DO (concrete sub-tasks)
+#   2.1  Audit the backend disconnect path end-to-end and write a list
+#        of every code path that can reduce a player's points or end
+#        the game when they go offline. Confirm every one of them runs
+#        ONLY after the 180 s window (or, for signed-in players,
+#        ONLY on explicit resign).
+#   2.2  In frontend/src/app/services/app-resume.service.ts, after the
+#        successful `gameStarted$` branch in `validateActiveGame()`
+#        (the block that sets `this.hasActiveGame.set(true)` ~line 136),
+#        inject `Router` and call `router.navigate(['/game'])` so the
+#        user is automatically returned to the match.
+#   2.3  In frontend/src/app/home/home.page.ts, on `ngOnInit()`,
+#        after `appResume.refreshFromStorage()`, if
+#        `appResume.hasActiveGame()` is true, immediately call
+#        `router.navigate(['/game'])` instead of waiting for the user
+#        to click the "Resume" banner. (Keep the banner as a fallback
+#        in case the auto-navigate is cancelled.)
+#   2.4  In `openMatchmaking()` and `openCustomGame()` of home.page.ts,
+#        replace the `this.hasActiveGame()` localStorage check by
+#        `this.appResume.hasActiveGame() || this.appResume.validating()`
+#        so a still-pending validation also blocks starting a new game.
+#   2.5  Manually reproduce the bug on Android:
+#          a. Join a game.
+#          b. Background the app several times / kill the network for
+#             10 s at a time during multiple turns.
+#          c. Reopen the app.
+#          → The app MUST land directly on /game with the live state.
+#          → Pressing "Play Now" from the home screen MUST be impossible
+#             (button no-ops or directly navigates to /game) as long as
+#             the server has not declared the game finished.
+#   2.6  Verify the "explicit resign" path still works end-to-end:
+#        Resign → server marks game as abandoned → frontend cleans
+#        localStorage (`active_game_id` removed in game-state.service.ts
+#        line 577) → user can start a new matchmaking from home.

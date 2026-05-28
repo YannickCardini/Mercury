@@ -13,6 +13,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
     findLegalMoveForCard,
+    getLegalSplit7Action,
+    getValidSevenStepsForMarble,
     type LegalMoveContext,
 } from '@mercury/shared';
 import type { Card, MarbleColor } from '@mercury/shared';
@@ -86,4 +88,22 @@ test('findLegalMoveForCard(7) — full-7 impossible, mais split par promote vers
     const action = findLegalMoveForCard(SEVEN, ctx);
     assert.notEqual(action, null);
     assert.ok(action!.splitFrom !== undefined, 'doit être une Action split');
+});
+
+test('getLegalSplit7Action(7) — split 6+1 : pion en 88 promote→117 (115/116 occupées), pion en 105 avance→120', () => {
+    // Scénario du screenshot. Zone d'arrivée verte [118,117,116,115] ;
+    // 115 et 116 occupées ⇒ case libre la plus profonde = 117, à 6 pas du pion 88.
+    const marbles = { ...emptyByColor(), green: [88, 105, 115, 116] };
+    const ctx = buildCtx('green', marbles);
+
+    // Le pas 6 doit être valide pour le pion 88 (cohérent avec dot 6 non grisé).
+    assert.ok(getValidSevenStepsForMarble(88, ctx).includes(6), 'le pas 6 doit être valide pour le pion 88');
+
+    const action = getLegalSplit7Action(SEVEN, 88, 6, 105, ctx);
+    assert.notEqual(action, null, 'le split 6+1 doit être légal');
+    assert.equal(action!.type, 'promote');
+    assert.equal(action!.to, 117);
+    assert.equal(action!.splitFrom, 105);
+    assert.equal(action!.splitTo, 120);
+    assert.equal(action!.splitType, 'move');
 });
