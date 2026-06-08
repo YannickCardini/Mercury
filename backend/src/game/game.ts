@@ -8,6 +8,8 @@ import { MultiWsMessenger, type GameMessenger } from './game-messenger.js';
 import { GameRegistry } from '../session/game-registry.js';
 import { updateUserPoints, recomputeRankings, getUserPointsAndRanking } from '../db.js';
 import { computeEndGamePointsDeltas } from './points.js';
+import { isTrainMode } from '../train-mode.js';
+import { logGameStats } from './game-stats.js';
 import {
     getHomePositions,
     hasWon,
@@ -29,6 +31,7 @@ export class Game {
     private players: Player[];
     private turn: number = 0;
     private round: number = 0;
+    private readonly startTime: number = Date.now();
     private firstPlayerOfRound: number = 0;
     private currentPlayerIndex: number = 0;
     private deck: Deck;
@@ -236,6 +239,7 @@ export class Game {
             this.gameFinished = true;
             const winner = this.players.find(p => hasWon(p.marblePositions, p.color))!;
             this.messenger.send({ type: 'gameEnded', winner: winner.color, reason: 'win' });
+            this.logStats(winner.color, 'win');
             GameRegistry.delete(this.id);
             this.applyEndGamePoints(winner.color).catch(err =>
                 console.error('❌ Failed to update points after game end:', err)
@@ -446,6 +450,7 @@ export class Game {
         console.log(`🏆 ${winner.name} (${winner.color}) wins — last connected player`);
 
         this.messenger.send({ type: 'gameEnded', winner: winner.color, reason: 'win_by_default' });
+        this.logStats(winner.color, 'win_by_default');
 
         if (this.pendingHumanActionResolve) {
             const currentPlayer = this.players[this.currentPlayerIndex]!;
@@ -467,7 +472,7 @@ export class Game {
 
     /** Stop the game immediately and clean up. Idempotent. */
     private abortGame(): void {
-        if (this.aborted) return;
+        if (this.aborted || this.gameFinished) return;
         this.aborted = true;
         this.gameFinished = true;
 
@@ -475,6 +480,7 @@ export class Game {
 
         // Notify any still-connected clients (unlikely but possible with bots-only race)
         this.messenger.send({ type: 'gameEnded', winner: null, reason: 'abandoned' });
+        this.logStats(null, 'abandoned');
 
         // Unblock any pending promises so the game loop can exit
         if (this.pendingHumanActionResolve) {
@@ -635,7 +641,9 @@ export class Game {
     }
 
     private waitForAnimationsOrTimeout(action: Action): Promise<void> {
-        const minDelay = computeMinAnimationDuration(action);
+        // En self-play (TRAIN_MODE), aucun rendu visuel : on n'attend pas
+        // la durée d'animation, les coups s'enchaînent immédiatement.
+        const minDelay = isTrainMode() ? 0 : computeMinAnimationDuration(action);
 
         return new Promise<void>((resolve) => {
             let settled = false;
@@ -691,6 +699,18 @@ export class Game {
                 p.marblePositions.filter((_, i) => p.marbleInvincible[i]),
             ])
         ) as Record<MarbleColor, number[]>;
+    }
+
+    /** Écrit une ligne de stats CSV pour cette partie (no-op hors TRAIN_MODE). */
+    private logStats(winner: MarbleColor | null, reason: string): void {
+        logGameStats({
+            gameId: this.id,
+            durationMs: Date.now() - this.startTime,
+            winner,
+            reason,
+            rounds: this.round,
+            turns: this.turn,
+        });
     }
 
     private broadcastState(currentPlayer: Player, message = 'New turn'): void {

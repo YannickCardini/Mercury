@@ -1,5 +1,6 @@
 import type { Action, Card } from '@mercury/shared';
 import { findLegalMoveForCard, getLegalAction, sleep, type LegalMoveContext } from '../utils/utils.js';
+import { isTrainMode } from '../train-mode.js';
 import type { PlayerStrategy } from './player-strategy.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -27,7 +28,7 @@ export class AiStrategy implements PlayerStrategy {
             return { type: 'pass', from: 0, to: 0, cardPlayed: [], playerColor: ctx.playerColor };
         }
 
-        if (process.env['DEBUG'] !== 'true') await sleep(500);
+        if (process.env['DEBUG'] !== 'true' && !isTrainMode()) await sleep(500);
 
         // 🔥 Pass 1 : priorité aux captures et promotions
         for (const targetValue of AI_CARD_PRIORITY) {

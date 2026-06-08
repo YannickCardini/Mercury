@@ -12,6 +12,7 @@ import crypto from 'node:crypto';
 import { Game } from '../game/game.js';
 import { MultiWsMessenger } from '../game/game-messenger.js';
 import { GameRegistry } from './game-registry.js';
+import { isTrainMode } from '../train-mode.js';
 import type { GameConfig, MarbleColor } from '@mercury/shared';
 
 const COLORS: MarbleColor[] = ['red', 'green', 'blue', 'orange'];
@@ -81,7 +82,9 @@ export class MatchmakingManager {
         this.broadcastStatus();
         console.log(`🔍 Matchmaking — ${finalName} (${color}) rejoint (${this.session.players.length}/4)`);
 
-        if (!this.session.botDispatchTimer) {
+        // En self-play (TRAIN_MODE), les 4 bots se connectent eux-mêmes :
+        // pas de dispatch d'agents externes, sinon connexions surnuméraires.
+        if (!isTrainMode() && !this.session.botDispatchTimer) {
             this.session.botDispatchTimer = setInterval(
                 () => this.tickBotDispatch(),
                 BOT_DISPATCH_TICK_MS,
