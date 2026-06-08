@@ -26,6 +26,7 @@ import {
   getLegalAction,
   getLegalSplit7Action,
   getValidSevenStepsForMarble,
+  canMarbleStartSeven,
   getPositionAfterMove,
   type LegalMoveContext,
 } from '@mercury/shared';
@@ -173,10 +174,11 @@ export class GameStateService {
     if (card.value === '7') {
       const marble1 = this.selectedMarblePosition();
       if (marble1 === null) {
-        // Phase 1 : billes propres qui ont au moins 1 pas valide
+        // Phase 1 : billes propres pouvant initier un coup légal complet
+        // (déplacement simple de 7, ou première moitié d'un split jouable).
         const playable = new Set<number>();
         for (const pos of player.marblePositions) {
-          if (getValidSevenStepsForMarble(pos, ctx).length > 0) playable.add(pos);
+          if (canMarbleStartSeven(pos, ctx)) playable.add(pos);
         }
         return playable;
       }
@@ -233,7 +235,7 @@ export class GameStateService {
     const playable = new Set<number>();
     for (const pos of player.marblePositions) {
       if (card.value === '7') {
-        if (getValidSevenStepsForMarble(pos, ctx).length > 0) playable.add(pos);
+        if (canMarbleStartSeven(pos, ctx)) playable.add(pos);
       } else if (getLegalAction(card, pos, ctx) !== null) {
         playable.add(pos);
       }

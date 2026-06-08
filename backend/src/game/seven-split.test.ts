@@ -15,6 +15,7 @@ import {
     findLegalMoveForCard,
     getLegalSplit7Action,
     getValidSevenStepsForMarble,
+    canMarbleStartSeven,
     type LegalMoveContext,
 } from '@mercury/shared';
 import type { Card, MarbleColor } from '@mercury/shared';
@@ -88,6 +89,50 @@ test('findLegalMoveForCard(7) — full-7 impossible, mais split par promote vers
     const action = findLegalMoveForCard(SEVEN, ctx);
     assert.notEqual(action, null);
     assert.ok(action!.splitFrom !== undefined, 'doit être une Action split');
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tests pour `canMarbleStartSeven` : condition de surbrillance/sélection d'un
+// pion en phase 1 du 7. Bug du TODO point 2 : avant, un pion était mis en avant
+// dès qu'il avait ≥ 1 pas valide, même si aucun coup complet (full-7 ni split)
+// ne pouvait en découler → pions non grisés alors que la carte est injouable.
+// ─────────────────────────────────────────────────────────────────────────────
+
+test('canMarbleStartSeven — full-7 jouable sur un pion → true', () => {
+    // Green pion à 10 ; +7 → 87, chemin libre.
+    const marbles = { ...emptyByColor(), green: [10] };
+    const ctx = buildCtx('green', marbles);
+    assert.equal(canMarbleStartSeven(10, ctx), true);
+});
+
+test('canMarbleStartSeven — pion seul, full-7 bloqué et aucun split possible → false (doit être grisé)', () => {
+    // Reprend le scénario « défausse autorisée » : green [86], full-7 bloqué
+    // sur own start sans promote, et un seul pion donc aucun split.
+    const marbles = { ...emptyByColor(), green: [86] };
+    const ctx = buildCtx('green', marbles);
+    assert.equal(canMarbleStartSeven(86, ctx), false);
+});
+
+test('canMarbleStartSeven — full-7 impossible mais le pion peut initier un split → true', () => {
+    // Green [86, 90, 105] : le full-7 est bloqué pour 86, mais le split
+    // 1+6 (86→87, 90 promote→115) est légal ⇒ 86 peut démarrer le 7.
+    const marbles = { ...emptyByColor(), green: [86, 90, 105] };
+    const ctx = buildCtx('green', marbles);
+    assert.ok(!getValidSevenStepsForMarble(86, ctx).includes(7), 'le full-7 doit être bloqué pour 86');
+    assert.equal(canMarbleStartSeven(86, ctx), true);
+});
+
+test('canMarbleStartSeven — invariant : 7 jouable ⟺ au moins un pion peut le démarrer', () => {
+    // Cas jouable (split) et cas injouable doivent rester cohérents avec
+    // l'autorité `findLegalMoveForCard`.
+    const playable = buildCtx('green', { ...emptyByColor(), green: [86, 90, 105] });
+    const blocked = buildCtx('green', { ...emptyByColor(), green: [86] });
+
+    for (const ctx of [playable, blocked]) {
+        const anyCanStart = ctx.ownMarbles.some(m => canMarbleStartSeven(m, ctx));
+        const cardPlayable = findLegalMoveForCard(SEVEN, ctx) !== null;
+        assert.equal(anyCanStart, cardPlayable);
+    }
 });
 
 test('getLegalSplit7Action(7) — split 6+1 : pion en 88 promote→117 (115/116 occupées), pion en 105 avance→120', () => {

@@ -432,6 +432,43 @@ export function getLegalSplit7Action(
 }
 
 /**
+ * Pour la carte 7 : vrai si ce pion peut être le PREMIER pion d'un coup légal
+ * complet. C'est la condition de sélection/surbrillance d'un pion en phase 1
+ * (avant tout choix de répartition), à utiliser à la place du simple test
+ * « le pion a au moins un pas valide » — lequel met à tort en avant des pions
+ * incapables de mener à un coup jouable.
+ *
+ * Un pion peut « démarrer » le 7 si :
+ *   - il peut avancer seul de 7 cases (déplacement simple), OU
+ *   - il peut avancer de s ∈ 1..6 ET un AUTRE pion peut terminer les 7-s pas
+ *     restants (split légal complet).
+ *
+ * Si aucun pion ne satisfait cette condition, la carte 7 n'est jouable dans
+ * aucune combinaison : tous les pions doivent alors être grisés, comme pour
+ * n'importe quelle autre carte injouable.
+ */
+export function canMarbleStartSeven(
+    marblePos: number,
+    ctx: LegalMoveContext
+): boolean {
+    const card: Card = { id: '__7_start__', value: '7', suit: '♠' };
+    const validSteps = getValidSevenStepsForMarble(marblePos, ctx);
+
+    // Déplacement simple de 7 cases.
+    if (validSteps.includes(7)) return true;
+
+    // Split : ce pion avance de s, un autre pion termine les 7-s pas restants.
+    for (const s of validSteps) {
+        if (s === 7) continue;
+        for (const m2 of ctx.ownMarbles) {
+            if (m2 === marblePos) continue;
+            if (getLegalSplit7Action(card, marblePos, s, m2, ctx) !== null) return true;
+        }
+    }
+    return false;
+}
+
+/**
  * Pour la carte 7 : cherche un split légal en parcourant toutes les paires
  * ordonnées (m1, m2) de pions du joueur et toutes les répartitions
  * (steps1 ∈ 1..6). Le validateur de `getLegalSplit7Action` rejette déjà les

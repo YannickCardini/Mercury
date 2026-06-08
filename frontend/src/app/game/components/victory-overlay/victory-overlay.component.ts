@@ -25,7 +25,7 @@ export class VictoryOverlayComponent {
   backToMenu = output<void>();
 
   readonly particles: ConfettiPiece[] = Array.from({ length: 40 }, (_, i) => {
-    const colors = ['#ef4444', '#22c55e', '#3b82f6', '#f97316', '#f0c040', '#a855f7', '#ffffff', '#fb7185'];
+    const colors = ['#dc2626', '#22c55e', '#3b82f6', '#fb923c', '#f0c040', '#a855f7', '#ffffff', '#fb7185'];
     const isCircle = i % 3 === 0;
     return {
       id: i,

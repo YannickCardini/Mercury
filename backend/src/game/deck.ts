@@ -112,7 +112,7 @@ export class Deck {
 
         console.log(`🃏 Cartes piochées: ${drawnCards.length} (reste: ${this.cards.length})`);
         if (process.env['DEBUG'] === 'true') {
-            return [this.BASE_DECK[0]!, this.BASE_DECK[13]!, this.BASE_DECK[26]!, this.BASE_DECK[6]!, this.BASE_DECK[19]!];
+            return [this.BASE_DECK[11]!, this.BASE_DECK[13]!, this.BASE_DECK[24]!, this.BASE_DECK[6]!, this.BASE_DECK[19]!];
         }
         return drawnCards;
     }
