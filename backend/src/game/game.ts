@@ -226,11 +226,15 @@ export class Game {
                 continue;
             }
 
-            await this.playOneTurn();
+            const replay = await this.playOneTurn();
 
             if (this.aborted) break;
 
-            this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
+            // Un Joker joué (entrée ou +18) offre un tour supplémentaire :
+            // on NE passe PAS au joueur suivant, le même joueur rejoue.
+            if (!replay) {
+                this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
+            }
             this.turn++;
         }
 
@@ -254,7 +258,12 @@ export class Game {
         this.dealCards();
     }
 
-    private async playOneTurn() {
+    /**
+     * Joue un tour. Retourne `true` si le coup déclenche un rejeu (Joker joué
+     * comme entrée/déplacement) ET que le joueur a encore des cartes — auquel
+     * cas la boucle principale ne passe pas au joueur suivant.
+     */
+    private async playOneTurn(): Promise<boolean> {
         const player = this.players[this.currentPlayerIndex]!;
         const marblesByColor = Object.fromEntries(this.players.map(p => [p.color, [...p.marblePositions]])) as Record<MarbleColor, number[]>;
         const invincibleMarblesByColor = this.buildInvincibleMarblesByColor();
@@ -305,6 +314,20 @@ export class Game {
 
         // 5️⃣ Attendre la durée minimale d'animation (autorité serveur)
         await this.waitForAnimationsOrTimeout(enrichedMove);
+
+        // 6️⃣ Rejeu : un Joker effectivement joué (pas défaussé/passé) offre un
+        // tour de plus, tant que le joueur a encore au moins une carte.
+        return this.actionTriggersReplay(enrichedMove) && !player.handEmpty() && !this.aborted;
+    }
+
+    /**
+     * Vrai quand l'action est un Joker effectivement joué (entrée ou +18),
+     * ce qui déclenche un rejeu. Une défausse ou un pass (même si la main
+     * défaussée contenait un Joker) ne donne PAS de tour supplémentaire.
+     */
+    private actionTriggersReplay(move: Action): boolean {
+        if (move.type === 'discard' || move.type === 'pass') return false;
+        return move.cardPlayed?.length === 1 && move.cardPlayed[0]!.value === 'Joker';
     }
 
     // ─── Handler centralisé des messages WS ──────────────────────────────────
@@ -895,13 +918,22 @@ export class Game {
 
     private dealCards(): void {
         this.round++;
-        if (this.deck.isEmpty()) this.deck.resetDeck();
+        // Deck de 54 cartes (52 + 2 Jokers), 4 joueurs, cycle de 3 manches :
+        // manche 1 = 5 cartes, manches 2 et 3 = 4 cartes ⇒ 5·4·4 = 13 cartes/joueur
+        // (52 distribuées) et 2 cartes restent EN RÉSERVE (jamais distribuées) ce cycle.
+        // On ne réinitialise le deck que lorsqu'il ne reste plus assez de cartes
+        // pour une manche complète de 4 cartes — sinon on ferait les 2 réserves
+        // entrer dans une distribution incomplète.
+        const minCardsForRound = (CARDS_PER_HAND - 1) * this.players.length;
+        if (this.deck.remainingCards() < minCardsForRound) {
+            this.deck.resetDeck();
+        }
         this.deck.shuffle();
         const cardsPerHand = this.deck.isFull() ? CARDS_PER_HAND : CARDS_PER_HAND - 1;
         for (const player of this.players) {
             player.cards = this.deck.drawCards(cardsPerHand);
         }
-        console.log(`🃏 Distribution - Manche ${this.round}`);
+        console.log(`🃏 Distribution - Manche ${this.round} (${cardsPerHand} cartes/joueur, réserve: ${this.deck.remainingCards()})`);
     }
 
     private gameIsOver(): boolean {

@@ -1,10 +1,11 @@
 import type { Card } from "@mercury/shared";
+import { JOKER_SUIT, JOKER_VALUE } from "@mercury/shared";
 
 export class Deck {
     // Le paquet de cartes (sera modifié pendant la partie)
     private cards: Card[] = [];
 
-    // Jeu de base de 52 cartes (constante pour réinitialisation)
+    // Jeu de base de 54 cartes (52 standard + 2 Jokers) — constante pour réinitialisation
     private readonly BASE_DECK: Card[] = [
         // ♥ Cœur (Hearts)
         { id: '1', suit: '♥', value: 'A' },
@@ -65,11 +66,15 @@ export class Deck {
         { id: '50', suit: '♠', value: 'J' },
         { id: '51', suit: '♠', value: 'Q' },
         { id: '52', suit: '♠', value: 'K' },
+
+        // 🃏 Jokers (sans couleur — entrer un pion OU avancer de 18, puis rejouer)
+        { id: '53', suit: JOKER_SUIT, value: JOKER_VALUE },
+        { id: '54', suit: JOKER_SUIT, value: JOKER_VALUE },
     ];
 
     constructor() {
         this.resetDeck();
-        console.log("🃏 Nouveau deck créé avec 52 cartes");
+        console.log("🃏 Nouveau deck créé avec 54 cartes");
     }
 
     /**
@@ -112,7 +117,7 @@ export class Deck {
 
         console.log(`🃏 Cartes piochées: ${drawnCards.length} (reste: ${this.cards.length})`);
         if (process.env['DEBUG'] === 'true') {
-            return [this.BASE_DECK[11]!, this.BASE_DECK[13]!, this.BASE_DECK[24]!, this.BASE_DECK[6]!, this.BASE_DECK[19]!];
+            return [this.BASE_DECK[52]!, this.BASE_DECK[13]!, this.BASE_DECK[53]!, this.BASE_DECK[6]!, this.BASE_DECK[19]!];
         }
         return drawnCards;
     }
@@ -125,7 +130,7 @@ export class Deck {
     }
 
     isFull(): boolean {
-        return this.cards.length === 52;
+        return this.cards.length === this.BASE_DECK.length;
     }
 
     /**

@@ -66,7 +66,7 @@ export const MAX_VISIBLE_DISCARD_CARDS = 5;
 export const CARDS_PER_HAND = 5;
 
 /** Cartes qui permettent d'entrer un pion en jeu. */
-export const ENTER_CARDS: string[] = ['A', 'K'];
+export const ENTER_CARDS: string[] = ['A', 'K', 'Joker'];
 
 // ── Durées d'animation enter+capture (ms) ────────────────────────────────────
 
@@ -87,6 +87,10 @@ export const DISCARD_CARD_STAGGER_MS = 220;
 // passer au tour suivant. Empêche un client malveillant de spammer
 // `animationDone` instantanément pour couper les animations des autres.
 
+// Plafond de pas animés. Le Joker avance de 18 (> 12, l'ancien max avec la Q),
+// donc la durée d'animation doit pouvoir couvrir jusqu'à 18 cases.
+const MAX_ANIMATED_STEPS = 18;
+
 function mainPathStepCount(from: number, to: number): number {
   if (!isOnMainPath(from) || !isOnMainPath(to)) return 12;
   const indexOfTo = MAIN_PATH.indexOf(to);
@@ -94,7 +98,7 @@ function mainPathStepCount(from: number, to: number): number {
   const raw = indexOfTo > indexOfFrom
     ? indexOfTo - indexOfFrom
     : (MAIN_PATH.length - indexOfFrom) + indexOfTo;
-  return Math.min(raw, 12);
+  return Math.min(raw, MAX_ANIMATED_STEPS);
 }
 
 function singleMarbleDuration(

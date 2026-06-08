@@ -11,6 +11,7 @@ import {
     START_POSITIONS,
     ARRIVAL_POSITIONS,
 } from './board-config.js';
+import { JOKER_MOVE_DISTANCE } from './types.js';
 import type { Action, Card, MarbleColor } from './types.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -27,6 +28,8 @@ const CARD_MOVE_DISTANCE: Partial<Record<string, number>> = {
     '9': 9,
     '10': 10,
     'Q': 12,
+    // Joker : avance de 18 (> 12, le max précédent) lorsqu'il est joué comme déplacement.
+    'Joker': JOKER_MOVE_DISTANCE,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -135,6 +138,18 @@ export function getLegalAction(
             return enterMarbleInGame();
         } else if (isOnMainPath(marblePosition)) {
             return buildMoveAction(card, marblePosition, 1, ctx);
+        }
+        return null;
+    }
+
+    // Joker : comme un A/K, fait ENTRER un pion depuis la maison, OU avance un
+    // pion déjà en jeu de 18 cases. Le joueur choisit l'option en sélectionnant
+    // le pion concerné (un pion en maison ⇒ entrée ; un pion sur le chemin ⇒ +18).
+    if (card.value === 'Joker') {
+        if (homePositions.includes(marblePosition)) {
+            return enterMarbleInGame();
+        } else if (isOnMainPath(marblePosition)) {
+            return buildMoveAction(card, marblePosition, JOKER_MOVE_DISTANCE, ctx);
         }
         return null;
     }

@@ -18,8 +18,16 @@ export type ActionType =
   | 'discard'  // défausse de la main
   | 'pass';    // le joueur ne peut pas jouer, il passe
 
-export type CardSuit = '♥' | '♦' | '♣' | '♠';
-export type CardValue = 'A' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K';
+// '🃏' est la « couleur » sentinelle du Joker : le Joker n'a pas de vraie suit.
+export type CardSuit = '♥' | '♦' | '♣' | '♠' | '🃏';
+export type CardValue = 'A' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K' | 'Joker';
+
+/** Valeur de la carte Joker — carte spéciale : entrer un pion OU avancer de 18, puis rejouer. */
+export const JOKER_VALUE = 'Joker' as const;
+/** « Suit » sentinelle d'un Joker (sans couleur réelle). */
+export const JOKER_SUIT = '🃏' as const;
+/** Distance parcourue par un Joker joué comme déplacement avant. */
+export const JOKER_MOVE_DISTANCE = 18;
 
 /** Palette fermée de réactions emoji envoyables pendant une partie. */
 export const REACTION_EMOJIS = ['👏', '😂', '😮', '😥', '🔥', '🤔', '😡', '😎', '😴', '⏰', '🥱', '🦧'] as const;

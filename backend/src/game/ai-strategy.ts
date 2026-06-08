@@ -6,9 +6,14 @@ import type { PlayerStrategy } from './player-strategy.js';
 // ─────────────────────────────────────────────────────────────────────────────
 // Priorité des cartes pour l'IA
 //
-//  1. K/A  → entrer un pion en jeu est toujours prioritaire
-//  2. Q    → avance de 12, très efficace
-//  3. 10 … → grands déplacements en premier
+//  1. Joker → entrer OU avancer de 18, ET rejouer : la carte la plus forte
+//  2. K/A  → entrer un pion en jeu est toujours prioritaire
+//  3. Q    → avance de 12, très efficace
+//  4. 10 … → grands déplacements en premier
+//
+// Le Joker est géré par getLegalAction (entrée depuis la maison ou +18 sur le
+// chemin), donc findLegalMoveForCard le reconnaît comme coup légal. Le rejeu est
+// géré côté Game : l'IA rejoue simplement au tour suivant (même joueur courant).
 //
 // Cartes non gérées pour l'instant (7 : split, 4 : recul) →
 // getLegalAction retourne null pour leurs comportements spéciaux, donc l'IA
@@ -16,6 +21,7 @@ import type { PlayerStrategy } from './player-strategy.js';
 // ─────────────────────────────────────────────────────────────────────────────
 
 const AI_CARD_PRIORITY: Card['value'][] = [
+    'Joker',
     'K', 'A',
     'Q',
     '10', '9', '8', '7', '6', '5', '4', '3', '2',

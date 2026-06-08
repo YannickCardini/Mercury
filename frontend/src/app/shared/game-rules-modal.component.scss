@@ -273,6 +273,7 @@ $c-purple: #8b5cf6;
   &.ca-purple { background: rgba($c-purple, 0.07); border-color: rgba($c-purple, 0.22); .ca-val { color: #a78bfa; } }
   &.ca-red    { background: rgba($c-red,    0.07); border-color: rgba($c-red,    0.22); .ca-val { color: $c-red; } }
   &.ca-muted  { background: rgba(255, 255, 255, 0.03); border-color: rgba(255, 255, 255, 0.08); .ca-val { color: rgba(255,255,255,0.45); } }
+  &.ca-joker  { background: rgba(124, 58, 237, 0.10); border-color: rgba(124, 58, 237, 0.35); .ca-action strong { color: #a78bfa; } }
 }
 
 .ca-val {

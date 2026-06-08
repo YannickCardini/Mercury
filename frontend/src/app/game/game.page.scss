@@ -278,3 +278,43 @@ $turn-colors: (
     color: white;
 }
 
+/* ── Variante « Tour Bonus · Joker » (rejeu après un Joker) ──────────────
+   Accent Joker neutre (violet/or) qui prime sur la teinte couleur-joueur.
+   Placé APRÈS le bloc [data-color] pour gagner à spécificité égale. */
+.new-turn-overlay.replay {
+    background: radial-gradient(ellipse at center,
+            rgba(124, 58, 237, 0.22) 0%,
+            rgba(251, 191, 36, 0.10) 45%,
+            transparent 70%);
+
+    .new-turn-banner {
+        border-color: rgba(167, 139, 250, 0.7);
+        box-shadow:
+            0 0 40px rgba(124, 58, 237, 0.40),
+            0 0 80px rgba(251, 191, 36, 0.18),
+            inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    }
+
+    .new-turn-label {
+        color: #fbbf24; // or
+    }
+
+    .new-turn-name {
+        color: #c4b5fd; // violet clair
+        text-shadow: 0 0 14px rgba(124, 58, 237, 0.7);
+    }
+}
+
+/* Emoji Joker dans le banner (remplace l'avatar/bille pour un rejeu) */
+.new-turn-joker {
+    width: 112px;
+    height: 112px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 84px;
+    line-height: 1;
+    flex-shrink: 0;
+    animation: bannerMarbleSpin 2.5s ease-in-out forwards;
+}
+

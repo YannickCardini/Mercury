@@ -157,7 +157,7 @@ CRITÈRES D'ACCEPTATION
 OBJECTIF
   Introduire 2 cartes Joker dans le jeu. Effet du Joker :
       - soit FAIRE ENTRER un pion en jeu (comme A/K),
-      - soit AVANCER un pion de 13 cases,
+      - soit AVANCER un pion de 18 cases,
     et DANS LES DEUX CAS, le joueur REJOUE (tour supplémentaire).
 
 CONTEXTE / IMPACT
@@ -177,11 +177,11 @@ CONTEXTE / IMPACT
 
   4.2 — Règles de validation (packages/shared/src/move-validator.ts + constants.ts)
        - getLegalAction() : gérer la valeur Joker = (enterMarbleInGame() depuis
-         la maison, comme A/K) OU (déplacement avant de 13 via buildMoveAction).
+         la maison, comme A/K) OU (déplacement avant de 18 via buildMoveAction).
          Le joueur choisit l'une des deux options jouables.
-       - CARD_MOVE_DISTANCE : ajouter Joker → 13. ⚠️ 13 > 12 (max actuel = Q) :
+       - CARD_MOVE_DISTANCE : ajouter Joker → 18. ⚠️ 18 > 12 (max actuel = Q) :
          vérifier la géométrie (board-config) et le franchissement de la case
-         de départ / entrée en home pour une distance de 13.
+         de départ / entrée en home pour une distance de 18.
        - constants.ts ENTER_CARDS (actuellement ['A','K']) : décider si le
          Joker y figure (il permet d'entrer).
        - findLegalMoveForCard() : intégrer le Joker au calcul « carte jouable ? ».
@@ -199,9 +199,7 @@ CONTEXTE / IMPACT
   4.4 — Distribution des cartes (backend/src/game/game.ts dealCards ~896)
        - Deck = 54 cartes, 4 joueurs. Aujourd'hui : 13 cartes/joueur sur 3
          manches (5·4·4 = 52). Redéfinir la distribution avec 2 cartes en plus
-         (où vont-elles ? manche supplémentaire, main plus grande, ou cartes en
-         réserve ?). Mettre à jour CARDS_PER_HAND si nécessaire et le texte des
-         règles « 13 cards across 3 rounds » (game-rules-modal).
+         (où vont-elles ? -> cartes en réserve !). 
 
   4.5 — Rendu frontend (frontend/src/app/shared/tock-card.component.ts)
        - Afficher le Joker (pas de suit) : symbole/visuel dédié, getter isRed à
@@ -210,19 +208,19 @@ CONTEXTE / IMPACT
 
   4.6 — IA & stratégies (backend/src/game/ai-strategy.ts, human-strategy.ts)
        - S'assurer que l'IA reconnaît le Joker comme coup légal, choisit
-         entre entrer / avancer de 13, et exploite le rejeu.
+         entre entrer / avancer de 18, et exploite le rejeu.
 
   4.7 — Animations (packages/shared/src/constants.ts)
        - computeMinAnimationDuration() : mainPathStepCount plafonne à 12.
-         Gérer une distance de 13 pour l'animation de déplacement du Joker.
+         Gérer une distance de 18 pour l'animation de déplacement du Joker.
 
   4.8 — Règles affichées (frontend/src/app/shared/game-rules-modal.component.html)
        - Ajouter une tuile « Joker » dans la grille ca-grid (~56-83) décrivant
-         l'effet (entrer OU +13, puis rejouer).
+         l'effet (entrer OU +18, puis rejouer).
 
 CRITÈRES D'ACCEPTATION
   - Le deck contient 54 cartes ; les 2 Jokers peuvent être piochés et joués.
-  - Jouer un Joker permet d'entrer un pion OU d'avancer de 13, puis de rejouer.
+  - Jouer un Joker permet d'entrer un pion OU d'avancer de 18, puis de rejouer.
   - La distribution sur 3 manches est cohérente et documentée.
   - Front (main + plateau), IA, animations et règles gèrent le Joker sans bug.
   - Aucune régression sur les cartes existantes (tests seven-split toujours OK).

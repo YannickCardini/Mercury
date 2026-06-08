@@ -35,6 +35,42 @@
   &:not(.is-red) {
     color: #0f172a;
   }
+
+  /* Le Joker conserve le MÊME fond nacré blanc que les autres cartes
+     (pas d'override de ::before) pour éviter un rendu terne/grisé.
+     Le mot « JOKER » est bicolore (rouge / noir), pas monochrome. */
+}
+
+/* ── Face Joker ──────────────────────────────────────────────── */
+.joker-face {
+  grid-row: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6cqi;
+  height: 100%;
+  width: 100%;
+  container-type: inline-size;
+}
+
+/* Symbole texte (★) qui hérite de la couleur violette — contrairement à
+   l'emoji 🃏 qui dessinait une carte (avec ses propres contours) dans la carte. */
+.joker-mark {
+  font-size: 46cqi;
+  line-height: 1;
+}
+
+.joker-label {
+  font-size: 15cqi;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  font-family: 'Playfair Display', serif;
+  line-height: 1;
+
+  /* Bicolore : une moitié rouge, l'autre noire (couleurs des autres cartes). */
+  .jl-red { color: #dc2626; }
+  .jl-black { color: #0f172a; }
 }
 
 /* ── Layout interne ─────────────────────────────────────────── */

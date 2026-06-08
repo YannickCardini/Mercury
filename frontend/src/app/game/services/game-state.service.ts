@@ -56,6 +56,16 @@ export class GameStateService {
   /** Active game ID for reconnection. */
   activeGameId = signal<string | null>(null);
 
+  /**
+   * Vrai quand le tour courant est un REJEU déclenché par un Joker (le même
+   * joueur rejoue immédiatement). Calculé à la réception du `'New turn'` en
+   * inférant depuis la dernière action diffusée (un Joker joué par la couleur
+   * dont c'est de nouveau le tour). Sert à différencier la bannière de tour.
+   */
+  isReplayTurn = signal(false);
+  /** Dernière action diffusée par le serveur (pour détecter un rejeu Joker). */
+  private lastActionPlayed: Action | null = null;
+
   /** Vrai quand c'est le tour du joueur local. */
   isMyTurn = computed(() => {
     const color = this.myPlayerColor();
@@ -356,6 +366,7 @@ export class GameStateService {
 
         case 'actionPlayed': {
           const msg = parsed as ActionPlayedMessage;
+          this.lastActionPlayed = msg.action;
           if (msg.isTimeout) this.turnTimedOut$.next(msg.action.playerColor);
           if (msg.isAutoPlay) this.autoPlayed$.next(msg.action.playerColor);
           this.actionPlayed$.next(msg.action);
@@ -387,6 +398,15 @@ export class GameStateService {
           }
           this.gameStarted$.next();
           if (msg.message === 'New turn') {
+            // Détecte un tour bonus Joker : la dernière action diffusée était un
+            // Joker effectivement joué, et c'est de nouveau le tour de la même
+            // couleur (seul le Joker accorde deux tours consécutifs).
+            const a = this.lastActionPlayed;
+            this.isReplayTurn.set(
+              !!a && a.type !== 'discard' && a.type !== 'pass'
+                && a.cardPlayed?.length === 1 && a.cardPlayed[0]?.value === 'Joker'
+                && a.playerColor === msg.gameState.currentTurn,
+            );
             this.newTurn.next(new Date());
           }
           break;
@@ -598,6 +618,8 @@ export class GameStateService {
     this.playingCardStart.set(null);
     this.boardContainerSize.set(0);
     this.isConnected.set(false);
+    this.isReplayTurn.set(false);
+    this.lastActionPlayed = null;
     this.ws?.close();
     this.ws = null;
   }

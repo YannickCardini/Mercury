@@ -114,7 +114,7 @@ export class TutorialOverlayComponent implements OnDestroy {
     if (this.hasConfirmed() || this.pendingAction()) return null;
 
     if (!gs.selectedCard()) {
-      return { id: 'card', text: 'Play a King or Ace to start', anchor: 'hand' };
+      return { id: 'card', text: 'Play a King, Ace or Joker to start', anchor: 'hand' };
     }
     if (gs.selectedMarblePosition() === null) {
       return { id: 'marble', text: 'Select a marble to move', anchor: 'board' };

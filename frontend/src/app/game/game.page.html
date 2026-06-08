@@ -15,18 +15,20 @@
 
     <!-- OVERLAY NOUVEAU TOUR -->
     @if (showNewTurnBanner()) {
-    <div class="new-turn-overlay" [attr.data-color]="newTurnColor()">
+    <div class="new-turn-overlay" [class.replay]="isReplayBanner()" [attr.data-color]="newTurnColor()">
       <div class="new-turn-banner">
         <div class="new-turn-avatar-wrapper">
-          @if (newTurnPicture(); as pic) {
+          @if (isReplayBanner()) {
+            <div class="new-turn-joker">🤡</div>
+          } @else if (newTurnPicture(); as pic) {
             <img class="new-turn-avatar" [src]="pic" alt="" referrerpolicy="no-referrer" />
           } @else {
             <div class="new-turn-marble" [class]="'ntm-' + newTurnColor()"></div>
           }
         </div>
         <div class="new-turn-text">
-          <span class="new-turn-label">Nouveau Tour</span>
-          <span class="new-turn-name">{{ newTurnName() }}</span>
+          <span class="new-turn-label">{{ isReplayBanner() ? 'Tour Bonus · Joker' : 'Nouveau Tour' }}</span>
+          <span class="new-turn-name">{{ isReplayBanner() && gameStateService.isMyTurn() ? 'Rejouez !' : newTurnName() }}</span>
         </div>
       </div>
     </div>
