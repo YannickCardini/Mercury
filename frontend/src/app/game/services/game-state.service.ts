@@ -66,6 +66,14 @@ export class GameStateService {
   /** Dernière action diffusée par le serveur (pour détecter un rejeu Joker). */
   private lastActionPlayed: Action | null = null;
 
+  /**
+   * Identifiant du hint du tutoriel actuellement affiché (ex. 'card', 'marble',
+   * 'confirm', 'discard'), ou null si aucun. Publié par TutorialOverlayComponent
+   * pour que d'autres composants (ex. l'aide sur les cartes) évitent de se
+   * superposer au tutoriel.
+   */
+  tutorialHintId = signal<string | null>(null);
+
   /** Vrai quand c'est le tour du joueur local. */
   isMyTurn = computed(() => {
     const color = this.myPlayerColor();
@@ -620,6 +628,7 @@ export class GameStateService {
     this.isConnected.set(false);
     this.isReplayTurn.set(false);
     this.lastActionPlayed = null;
+    this.tutorialHintId.set(null);
     this.ws?.close();
     this.ws = null;
   }

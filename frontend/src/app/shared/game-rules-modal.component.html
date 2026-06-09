@@ -50,38 +50,12 @@
           <span class="rules-heading-icon">🃏</span>Card Actions
         </h3>
         <div class="ca-grid">
-          <div class="ca-tile ca-green">
-            <span class="ca-val">A</span>
-            <span class="ca-action">Enter or move +1</span>
+          @for (tile of cardTiles; track tile.val) {
+          <div class="ca-tile {{ tile.tileClass }}">
+            <span class="ca-val" [class.ca-val-sm]="tile.smallVal">{{ tile.val }}</span>
+            <span class="ca-action" [innerHTML]="tile.html"></span>
           </div>
-          <div class="ca-tile ca-green">
-            <span class="ca-val">K</span>
-            <span class="ca-action">Enter a marble</span>
-          </div>
-          <div class="ca-tile ca-blue">
-            <span class="ca-val">Q</span>
-            <span class="ca-action">Move forward +12</span>
-          </div>
-          <div class="ca-tile ca-orange">
-            <span class="ca-val">J</span>
-            <span class="ca-action">Swap with any opponent</span>
-          </div>
-          <div class="ca-tile ca-purple">
-            <span class="ca-val">7</span>
-            <span class="ca-action">7 steps — split across 2 marbles</span>
-          </div>
-          <div class="ca-tile ca-red">
-            <span class="ca-val">4</span>
-            <span class="ca-action">Move backward −4</span>
-          </div>
-          <div class="ca-tile ca-muted ca-wide">
-            <span class="ca-val ca-val-sm">2–10</span>
-            <span class="ca-action">Move one marble forward by face value</span>
-          </div>
-          <div class="ca-tile ca-joker ca-wide">
-            <span class="ca-val">🃏</span>
-            <span class="ca-action">Enter a marble <em>or</em> move forward +18 — then <strong>play again</strong></span>
-          </div>
+          }
         </div>
       </div>
 

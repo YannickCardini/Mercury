@@ -12,6 +12,7 @@ import {
   EventEmitter
 } from '@angular/core';
 import { TockCardComponent } from 'src/app/shared/tock-card.component';
+import { getCardEffect } from 'src/app/shared/card-effects';
 import { EmojiReactionsComponent } from '../emoji-reactions/emoji-reactions.component';
 import type { Card, MarbleColor } from '@mercury/shared';
 import { getValidSevenStepsForMarble, getPositionAfterMove, getLegalSplit7Action, type LegalMoveContext } from '@mercury/shared';
@@ -254,6 +255,7 @@ enum TURN_PHASE {
     this.newTurnSub = this.gameStateService.newTurn.subscribe(() => {
       this.startTimer();
       this.updateTurnPhase();
+      this.closeCardHelp();
     });
 
     this.timeoutSub = this.gameStateService.turnTimedOut$.subscribe((color) => {
@@ -270,6 +272,8 @@ enum TURN_PHASE {
     this.newTurnSub?.unsubscribe();
     this.timeoutSub?.unsubscribe();
     this.autoPlaySub?.unsubscribe();
+    clearTimeout(this.longPressTimer);
+    clearTimeout(this.helpAutoCloseTimer);
     if (this.timeoutBannerTimeout) clearTimeout(this.timeoutBannerTimeout);
     if (this.autoPlayBannerTimeout) clearTimeout(this.autoPlayBannerTimeout);
   }
@@ -425,6 +429,14 @@ enum TURN_PHASE {
 
   // ── Interactions ───────────────────────────────────────────────
   onCardSelected(index: number): void {
+    // Un appui long vient d'ouvrir l'aide contextuelle → ne pas sélectionner.
+    if (this.suppressClickIndex === index) {
+      this.suppressClickIndex = null;
+      return;
+    }
+    // Toute sélection ferme un popover d'aide encore ouvert (cas hover desktop).
+    this.closeCardHelp();
+
     if (!this.gameStateService.isMyTurn()) {
       this.turnPhase.set(TURN_PHASE.WAIT);
       return;
@@ -452,6 +464,130 @@ enum TURN_PHASE {
       this.gameStateService.selectedSplit7MarblePosition.set(null);
       this.turnPhase.set(TURN_PHASE.MARBLE);
     }
+  }
+
+  // ── Aide contextuelle sur les cartes (long-press mobile / hover desktop) ──
+  //
+  // Objectif : expliquer l'effet d'une carte SANS la jouer par erreur.
+  // - Tactile : appui long (LONG_PRESS_MS) sur une carte → popover ; le clic
+  //   de sélection qui suit est supprimé via `suppressClickIndex`.
+  // - Souris (appareils hover) : survol → popover, fermé au mouseleave.
+  // Texte = source unique `getCardEffect()` (partagée avec le modal des règles).
+
+  private static readonly LONG_PRESS_MS = 420;
+  private static readonly MOVE_CANCEL_PX = 12;
+
+  /** Popover d'aide courant, ou null. Coordonnées = point d'ancrage (haut-centre de la carte). */
+  cardHelp = signal<{ title: string; text: string; x: number; y: number; fromTouch: boolean } | null>(null);
+  /** Hint de découverte affiché une seule fois (jusqu'au premier usage). */
+  showHelpHint = signal<boolean>(typeof localStorage !== 'undefined' && !localStorage.getItem('card_help_hint_seen'));
+
+  /**
+   * Affiche le hint « Hold a card… » : seulement s'il n'a jamais été vu, qu'il y
+   * a des cartes en main, et que le tutoriel n'affiche pas déjà son indication de
+   * départ (« Play a King, Ace or Joker to start ») — pour ne pas se superposer.
+   */
+  showCardHelpHint = computed(() =>
+    this.showHelpHint()
+    && this.getPlayerHand().length > 0
+    && this.gameStateService.tutorialHintId() !== 'card'
+  );
+
+  /** Appareil capable de survol réel (desktop) → active l'aide au hover. */
+  private readonly canHover =
+    typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia('(hover: hover)').matches;
+
+  private longPressTimer?: ReturnType<typeof setTimeout>;
+  private helpAutoCloseTimer?: ReturnType<typeof setTimeout>;
+  private pressStartX = 0;
+  private pressStartY = 0;
+  /** Index de carte dont le prochain clic doit être ignoré (après un appui long). */
+  private suppressClickIndex: number | null = null;
+
+  onCardPressStart(index: number, event: PointerEvent): void {
+    if (event.pointerType !== 'touch') return; // souris → géré par le hover
+    const el = event.currentTarget as HTMLElement;
+    this.pressStartX = event.clientX;
+    this.pressStartY = event.clientY;
+    clearTimeout(this.longPressTimer);
+    this.longPressTimer = setTimeout(() => {
+      this.openCardHelp(index, el, true);
+      this.suppressClickIndex = index;
+    }, TableComponent.LONG_PRESS_MS);
+  }
+
+  onCardPressMove(event: PointerEvent): void {
+    if (this.longPressTimer === undefined) return;
+    const dx = event.clientX - this.pressStartX;
+    const dy = event.clientY - this.pressStartY;
+    if (Math.hypot(dx, dy) > TableComponent.MOVE_CANCEL_PX) {
+      clearTimeout(this.longPressTimer);
+      this.longPressTimer = undefined;
+    }
+  }
+
+  onCardPressEnd(): void {
+    clearTimeout(this.longPressTimer);
+    this.longPressTimer = undefined;
+  }
+
+  onCardHover(index: number, event: MouseEvent): void {
+    if (!this.canHover) return;
+    this.openCardHelp(index, event.currentTarget as HTMLElement, false);
+  }
+
+  onCardHoverLeave(): void {
+    if (!this.canHover) return;
+    if (this.cardHelp() && !this.cardHelp()!.fromTouch) this.closeCardHelp();
+  }
+
+  private openCardHelp(index: number, el: HTMLElement, fromTouch: boolean): void {
+    // Aide désactivée pendant l'indication de départ du tutoriel
+    // (« Play a King, Ace or Joker to start ») — vaut pour l'appui long (Android)
+    // ET le survol (web), les deux passant par ici.
+    if (this.gameStateService.tutorialHintId() === 'card') return;
+
+    const card = this.getPlayerHand()[index];
+    if (!card) return;
+
+    const effect = getCardEffect(card.value);
+    const rect = el.getBoundingClientRect();
+    // Ancrage horizontal clampé pour ne pas déborder de l'écran (≈ demi-largeur max).
+    const HALF = 150;
+    const margin = 10;
+    const vw = window.innerWidth;
+    const rawX = rect.left + rect.width / 2;
+    const x = vw > 2 * (HALF + margin)
+      ? Math.min(Math.max(rawX, HALF + margin), vw - HALF - margin)
+      : vw / 2;
+
+    this.cardHelp.set({ title: effect.title, text: effect.text, x, y: rect.top, fromTouch });
+
+    if (this.showHelpHint()) this.dismissHelpHint();
+
+    if (fromTouch) {
+      if (Capacitor.isNativePlatform() && this.soundService.vibrationEnabled()) {
+        Haptics.impact({ style: ImpactStyle.Light });
+      }
+      // Sécurité : auto-fermeture après quelques secondes même sans tap extérieur.
+      clearTimeout(this.helpAutoCloseTimer);
+      this.helpAutoCloseTimer = setTimeout(() => this.closeCardHelp(), 4500);
+    }
+  }
+
+  closeCardHelp(): void {
+    clearTimeout(this.helpAutoCloseTimer);
+    this.helpAutoCloseTimer = undefined;
+    // Fermer le popover libère aussi la suppression de clic : sinon un appui
+    // long dont le relâchement n'a pas produit de clic la laisserait traîner et
+    // avalerait un futur vrai tap sur la même carte.
+    this.suppressClickIndex = null;
+    if (this.cardHelp() !== null) this.cardHelp.set(null);
+  }
+
+  private dismissHelpHint(): void {
+    this.showHelpHint.set(false);
+    try { localStorage.setItem('card_help_hint_seen', '1'); } catch { /* ignore */ }
   }
 
   /** Action du bouton principal : défausse ou confirmation selon le contexte. */

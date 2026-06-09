@@ -1,268 +1,112 @@
-═══════════════════════════════════════════════════════════════════════════════
- MERCURY — TODO
-═══════════════════════════════════════════════════════════════════════════════
- Jeu Tock/Keezen multijoueur. Monorepo : packages/shared (types, board, règles
- partagées), backend (Node + WS), frontend (Angular 17 + Ionic).
- Chaque tâche précise : Objectif, Contexte, Fichiers concernés, Étapes,
- Critères d'acceptation. Ne pas casser le contrat partagé @mercury/shared
- (utilisé par le front ET le back).
-═══════════════════════════════════════════════════════════════════════════════
+================================================================================
+MERCURY — TODO
+================================================================================
 
+--------------------------------------------------------------------------------
+TASK 1 — "Update available" prompt for the Android app
+--------------------------------------------------------------------------------
 
-───────────────────────────────────────────────────────────────────────────────
- TÂCHE 1 — Améliorer la distinction des couleurs rouge / orange (accessibilité)
-───────────────────────────────────────────────────────────────────────────────
+GOAL
+  When a new version of the app has been published, an Android user must see a
+  popup as soon as they open (or resume) the mobile app, telling them a newer
+  version exists and inviting them to update. The popup must offer a button that
+  opens the app's Google Play Store page.
 
-OBJECTIF
-  Rendre les marbles rouges et orange plus faciles à distinguer pour les
-  utilisateurs âgés, daltoniens, ou avec filtre lumière bleue / réglages
-  couleur particuliers, TOUT EN gardant des teintes proches de l'actuel
-  (toujours reconnaissables comme « rouge » et « orange »).
+CONTEXT (current state of the codebase)
+  - Frontend: Ionic + Angular (standalone components), wrapped with Capacitor 8
+    for Android. appId = "online.mercury.game" (published on Google Play).
+  - Installed-version source of truth on device:
+      frontend/android/app/build.gradle -> versionCode 6, versionName "1.5".
+    These can be read at runtime via @capacitor/app App.getInfo()
+    (returns { version, build, ... }), which is already a dependency.
+  - There is currently NO source of truth for "latest available version" and NO
+    version-check logic anywhere.
+  - App open / resume is already centralised:
+      frontend/src/app/services/app-resume.service.ts listens to
+      App.addListener('appStateChange') and visibilitychange. Cold start is
+      handled in frontend/src/app/app.component.ts ngOnInit.
+  - Modal convention (do NOT use Ionic ModalController): a standalone component
+    with `@Input() show` and `@Output() closeModal`, rendered conditionally in a
+    parent template. Reference: frontend/src/app/shared/game-rules-modal.component.ts
+    (used from game.page.html / home.page.html).
+  - HTTP is available: provideHttpClient() is set in frontend/src/main.ts;
+    HttpClient is injected in services such as auth.service.ts.
+  - Backend: Express, mounts REST routers at /api/auth and /api/messages
+    (see backend/src/index.ts). Adding a new public GET endpoint is trivial.
+  - apiUrl is defined per-environment in
+    frontend/src/environments/environment(.prod).ts.
 
-CONTEXTE
-  Couleurs actuelles : rouge = #ef4444, orange = #f97316. Trop proches en
-  teinte/luminosité pour certains profils visuels.
+DECISION 
+  "Latest available version" will be served by the OUR OWN BACKEND, not scraped
+  from the Play Store. This keeps the check simple, offline-fail-safe, and lets
+  us flag a version as a *forced* update later if needed.
 
-FICHIERS CONCERNÉS
-  - frontend/src/app/game/components/board/board.component.scss
-      $c-red: #ef4444  (~ligne 14), $c-orange: #f97316 (~ligne 17),
-      et la map $colors (~lignes 22-27).
-  - ⚠️ Les hex #ef4444 / #f97316 sont DUPLIQUÉS dans plusieurs SCSS :
-      loading-screen.component.scss, table.component.scss,
-      victory-overlay.component.scss, game-rules-modal.component.scss,
-      home.page.scss, etc.
-      Vérifier via : grep -rn "#ef4444\|#f97316" frontend/src
+SUB-TASKS
 
-ÉTAPES
-  1. Recenser TOUTES les occurrences des deux hex (grep ci-dessus) pour les
-     mettre à jour de façon cohérente partout.
-  2. Choisir de nouvelles valeurs RGB qui augmentent le contraste teinte +
-     luminosité entre les deux couleurs, sans changer leur identité :
-        - p. ex. décaler l'orange vers un ambre/jaune plus chaud et clair,
-        - et/ou foncer le rouge vers un cramoisi plus profond.
-  3. Vérifier le rendu sous simulation daltonisme (protanopie/deutéranopie)
-     et avec un filtre lumière bleue.
-  4. Idéalement : factoriser ces couleurs en une source unique (ex. CSS custom
-     properties globales) pour éviter de futures divergences — optionnel.
+  Backend
+    [ ] Add a public endpoint `GET /api/version` (no auth) in
+        backend/src/index.ts (or a small dedicated router file
+        backend/src/version/version-router.ts mounted like the others).
+    [ ] Response shape (JSON):
+            {
+              "latestVersionCode": 6,      // integer, matches build.gradle versionCode
+              "latestVersionName": "1.5",  // human-readable, matches versionName
+              "minVersionCode": 1,         // below this => force update (optional, future)
+              "storeUrl": "https://play.google.com/store/apps/details?id=online.mercury.game"
+            }
+    [ ] Source the values from an env var / config constant so a new release can
+        bump the number without a code change. Document where to update it on
+        each release (this value must be raised whenever build.gradle versionCode
+        is raised).
 
-CRITÈRES D'ACCEPTATION
-  - Rouge et orange restent perçus comme rouge et orange.
-  - Distinction nette même en simulation daltonisme et filtre bleu.
-  - Aucune occurrence orpheline de l'ancien hex restée dans le code.
+  Frontend — version check service
+    [ ] Create a new service, e.g.
+        frontend/src/app/services/app-update.service.ts (providedIn: 'root').
+    [ ] On check, do nothing unless Capacitor.isNativePlatform() is true AND the
+        platform is Android (Capacitor.getPlatform() === 'android'). Web users
+        must never see the popup.
+    [ ] Read the installed build number via App.getInfo() (use `build`, which
+        maps to Android versionCode).
+    [ ] Fetch GET {environment.apiUrl}/api/version via HttpClient.
+    [ ] Compare installed `build` vs `latestVersionCode`. If installed is lower,
+        flag "update available" (expose a signal, e.g. updateAvailable()).
+    [ ] Fail silently on any network/error (never block app usage, never throw).
+    [ ] Optional: debounce so the network check runs at most once per app
+        foregrounding, not on every visibilitychange burst.
 
+  Frontend — wiring the check to app open/resume
+    [ ] Run the check on cold start (app.component.ts ngOnInit) and on resume
+        (subscribe to AppResumeService.resumed$ in app-resume.service.ts, or
+        trigger from the same place appStateChange is handled). Avoid wiring a
+        listener per page.
 
-───────────────────────────────────────────────────────────────────────────────
- TÂCHE 2 — Carte 7 : griser correctement les marbles quand elle est injouable
-───────────────────────────────────────────────────────────────────────────────
+  Frontend — the popup UI
+    [ ] Create a standalone modal component following the game-rules-modal
+        convention, e.g.
+        frontend/src/app/shared/update-available-modal.component.{ts,html,scss}
+        with `@Input() show` and `@Output() closeModal`.
+    [ ] Content: short title + message ("A new version is available, please
+        update the app"), a primary button "Update" that opens `storeUrl`, and
+        (for a non-forced update) a secondary "Later" / dismiss action.
+    [ ] Open the store link with @capacitor/app App or window.open(storeUrl,
+        '_system') so it leaves the WebView and lands on the Play Store app/page.
+    [ ] Render the modal once at app level (app.component.html) bound to
+        AppUpdateService.updateAvailable(), so it can appear over any page on
+        open/resume.
+    [ ] Match existing modal styling (reuse the look & feel / overlay of
+        game-rules-modal.component.scss).
 
-OBJECTIF
-  Aligner le comportement visuel de la carte 7 sur celui des autres cartes :
-  si un marble ne peut participer à AUCUN coup légal complet avec le 7, il doit
-  être grisé (dimmed), exactement comme pour un 10 injouable.
+  Texts / i18n
+    [ ] Wording: provide French text to match the existing UI language (the app's
+        copy and code comments are predominantly French).
 
-CONTEXTE
-  Pour une carte simple (ex. 10), la sélection met en surbrillance les marbles
-  jouables et grise les autres — comportement correct.
-  Pour le 7, certains marbles restent sélectionnables / non grisés même quand
-  la carte n'est jouable dans AUCUNE combinaison.
-  Cause : le 7 peut être splitté (m1 + m2 = 7). Le code marque un marble comme
-  jouable dès qu'il a ≥ 1 « pas » valide (getValidSevenStepsForMarble().length > 0),
-  or avoir un pas partiel valide ne garantit PAS qu'un coup complet existe
-  (ni le 7 plein, ni un split 1+6 … 6+1 dont les deux moitiés sont légales).
+  The update should be mandatory
 
-FICHIERS CONCERNÉS
-  - frontend/src/app/game/services/game-state.service.ts
-      playableMarblePositions()  (~ligne 128 ; bloc carte 7 ~173-192)
-      playableOwnMarbles()       (~ligne 209 ; test 7 ~235-236)
-      canSplit7Anywhere()        (~ligne 245-277)  ← fait DÉJÀ le test complet
-  - packages/shared/src/move-validator.ts
-      getValidSevenStepsForMarble() (~361), getLegalSplit7Action() (~382),
-      findLegalMoveForCard() (~461 ; cas spécial 7 ~474)
-  - frontend/src/app/game/components/board/board.component.ts
-      isDimmedMarble() (~808), isSelectableMarble() (~780), isPlayableMarble() (~801)
-
-ÉTAPES
-  1. Définir un marble « jouable au 7 » = il existe au moins UN coup complet
-     légal l'impliquant :
-        - soit un déplacement simple de 7 (getLegalAction du 7),
-        - soit un split où ce marble est l'une des deux moitiés ET l'autre
-          moitié est légale sur un autre marble (logique de canSplit7Anywhere,
-          à factoriser/réutiliser).
-  2. Dans playableMarblePositions() et playableOwnMarbles(), remplacer le test
-     « length > 0 » par cette condition de coup complet.
-  3. Cas « 7 totalement injouable » (aucune combinaison) : la fonction doit
-     retourner un Set vide ⇒ tous les marbles grisés (comme les autres cartes).
-  4. Vérifier que la sélection en 2 temps (1er marble puis 2e marble du split)
-     continue de fonctionner et que isDimmedMarble reste cohérent.
-
-CRITÈRES D'ACCEPTATION
-  - 7 injouable ⇒ tous les marbles grisés, aucun sélectionnable.
-  - 7 jouable ⇒ seuls les marbles pouvant réellement faire partie d'un coup
-    complet (simple ou split) sont en surbrillance.
-  - Le flux de split en deux clics reste fonctionnel.
-
-
-───────────────────────────────────────────────────────────────────────────────
- TÂCHE 3 — Débloquer l'écran « Connecting to the server… »
-───────────────────────────────────────────────────────────────────────────────
-
-OBJECTIF
-  Ne plus rester bloqué indéfiniment sur l'écran de chargement quand la reprise
-  de partie échoue.
-
-CONTEXTE / REPRO
-  En partie avec un compte invité (guest), rafraîchir la page. Au reconnect,
-  connect() envoie sendJoinGame(guestPlayerId, activeGameId). Le serveur répond :
-      { type: "actionRejected", reason: "Session expired or not found" }
-  L'écran de chargement reste affiché à vie.
-  Cause : game.page.html affiche le loading tant que gameStateService.data()
-  est null. Le handler 'actionRejected' (game-state.service.ts ~414-422) ne fait
-  que réinitialiser la sélection et émettre actionRejected$ ; or game.page.ts
-  ne s'abonne PAS à actionRejected$. Donc data() reste null → loading infini.
-
-FICHIERS CONCERNÉS
-  - frontend/src/app/game/game.page.ts
-      loadingStatus (~34-38), connect() (~121-131), constructor (~58)
-  - frontend/src/app/game/game.page.html  (loading screen ~lignes 5-7)
-  - frontend/src/app/game/services/game-state.service.ts
-      handler 'actionRejected' (~414-422), sujet actionRejected$ (~292)
-  - clés localStorage concernées : 'active_game_id', 'guest_player_id'
-
-ÉTAPES
-  1. Dans game.page.ts, s'abonner à gameStateService.actionRejected$.
-  2. Si la reprise échoue alors qu'on est encore sur le loading (data() === null),
-     gérer le cas — choisir/combiner :
-        (a) Afficher sur l'écran de chargement le message d'erreur reçu
-            (la `reason` du WS, ex. « Session expired or not found »).
-        (b) Nettoyer le localStorage périmé (active_game_id, guest_player_id)
-            puis rediriger vers /home.
-        (c) Tenter de retrouver / rejoindre la partie et y replacer le joueur.
-     Recommandation : (a) message d'erreur explicite, puis (b) redirection
-     /home après un court délai (le plus simple et robuste). (c) seulement si
-     le serveur expose un moyen fiable de reprise.
-  3. Penser aux autres cas de blocage du loading : WS qui se ferme avant
-     gameStarted (connectionError$, onclose) — vérifier qu'ils sont aussi
-     traités (sinon, même problème).
-
-CRITÈRES D'ACCEPTATION
-  - Refresh en partie guest avec session expirée ⇒ plus de blocage : message
-    affiché et/ou redirection automatique vers /home.
-  - localStorage périmé nettoyé pour éviter une boucle d'échec au prochain load.
-
-
-───────────────────────────────────────────────────────────────────────────────
- TÂCHE 4 — Ajouter 2 Jokers au deck (carte spéciale + rejouer)
-───────────────────────────────────────────────────────────────────────────────
-
-OBJECTIF
-  Introduire 2 cartes Joker dans le jeu. Effet du Joker :
-      - soit FAIRE ENTRER un pion en jeu (comme A/K),
-      - soit AVANCER un pion de 18 cases,
-    et DANS LES DEUX CAS, le joueur REJOUE (tour supplémentaire).
-
-CONTEXTE / IMPACT
-  Aucun mécanisme de « rejouer » (tour supplémentaire) n'existe aujourd'hui : la
-  boucle de jeu avance systématiquement au joueur suivant. Le Joker n'est pas un
-  type connu (pas de suit, valeur absente de CardValue). Le deck fait 54 cartes
-  au lieu de 52 ⇒ la distribution doit être revue. C'est une tâche transverse
-  (shared + back + front), à découper :
-
-  4.1 — Types & deck (packages/shared/src/types.ts, backend/src/game/deck.ts)
-       - Ajouter le Joker au modèle de carte : étendre CardValue (ex. 'Joker')
-         et décider comment représenter l'absence de suit (suit optionnel, ou
-         valeur sentinelle). Adapter l'interface Card en conséquence.
-       - deck.ts : ajouter 2 Jokers au BASE_DECK (ids uniques '53','54').
-       - Corriger isFull() (actuellement length === 52 → 54) et le log
-         « Nouveau deck créé avec 52 cartes ».
-
-  4.2 — Règles de validation (packages/shared/src/move-validator.ts + constants.ts)
-       - getLegalAction() : gérer la valeur Joker = (enterMarbleInGame() depuis
-         la maison, comme A/K) OU (déplacement avant de 18 via buildMoveAction).
-         Le joueur choisit l'une des deux options jouables.
-       - CARD_MOVE_DISTANCE : ajouter Joker → 18. ⚠️ 18 > 12 (max actuel = Q) :
-         vérifier la géométrie (board-config) et le franchissement de la case
-         de départ / entrée en home pour une distance de 18.
-       - constants.ts ENTER_CARDS (actuellement ['A','K']) : décider si le
-         Joker y figure (il permet d'entrer).
-       - findLegalMoveForCard() : intégrer le Joker au calcul « carte jouable ? ».
-
-  4.3 — Mécanisme « rejouer » (backend/src/game/game.ts)
-       - Boucle startGame() (~223-235) : aujourd'hui currentPlayerIndex avance
-         après chaque playOneTurn(). Quand l'action jouée provient d'un Joker,
-         NE PAS passer au joueur suivant (le même joueur rejoue), tant qu'il a
-         encore des cartes.
-       - Définir le signal « le coup déclenche un rejeu » (basé sur la carte
-         jouée dans l'Action) et le propager depuis playOneTurn()/handlePlayAction().
-       - Gérer les cas limites : main vide après le Joker, timeout, joueur
-         déconnecté, fin de manche.
-
-  4.4 — Distribution des cartes (backend/src/game/game.ts dealCards ~896)
-       - Deck = 54 cartes, 4 joueurs. Aujourd'hui : 13 cartes/joueur sur 3
-         manches (5·4·4 = 52). Redéfinir la distribution avec 2 cartes en plus
-         (où vont-elles ? -> cartes en réserve !). 
-
-  4.5 — Rendu frontend (frontend/src/app/shared/tock-card.component.ts)
-       - Afficher le Joker (pas de suit) : symbole/visuel dédié, getter isRed à
-         adapter. Vérifier le rendu dans la main (table.component.html ~137-142)
-         et sur le plateau (board.component.html ~95, cartes volantes).
-
-  4.6 — IA & stratégies (backend/src/game/ai-strategy.ts, human-strategy.ts)
-       - S'assurer que l'IA reconnaît le Joker comme coup légal, choisit
-         entre entrer / avancer de 18, et exploite le rejeu.
-
-  4.7 — Animations (packages/shared/src/constants.ts)
-       - computeMinAnimationDuration() : mainPathStepCount plafonne à 12.
-         Gérer une distance de 18 pour l'animation de déplacement du Joker.
-
-  4.8 — Règles affichées (frontend/src/app/shared/game-rules-modal.component.html)
-       - Ajouter une tuile « Joker » dans la grille ca-grid (~56-83) décrivant
-         l'effet (entrer OU +18, puis rejouer).
-
-CRITÈRES D'ACCEPTATION
-  - Le deck contient 54 cartes ; les 2 Jokers peuvent être piochés et joués.
-  - Jouer un Joker permet d'entrer un pion OU d'avancer de 18, puis de rejouer.
-  - La distribution sur 3 manches est cohérente et documentée.
-  - Front (main + plateau), IA, animations et règles gèrent le Joker sans bug.
-  - Aucune régression sur les cartes existantes (tests seven-split toujours OK).
-
-
-───────────────────────────────────────────────────────────────────────────────
- TÂCHE 5 — Aide contextuelle sur les cartes (expliquer l'effet d'une carte)
-───────────────────────────────────────────────────────────────────────────────
-
-OBJECTIF
-  Permettre à un joueur, EN PLEINE PARTIE, d'obtenir un texte expliquant ce que
-  fait une carte, via une interaction ergonomique sur la carte elle-même.
-
-CONTEXTE / DÉFIS
-  - Ergonomie : le joueur doit comprendre intuitivement qu'il peut obtenir
-    l'info, SANS que cela gêne l'usage normal de la carte (taper = sélectionner
-    / jouer la carte).
-  - Mobile : ~80 % des utilisateurs sont sur mobile → l'interaction et l'affichage
-    doivent être impeccables sur petit écran.
-
-FICHIERS CONCERNÉS
-  - frontend/src/app/shared/tock-card.component.ts  (face de carte)
-  - frontend/src/app/game/components/table/table.component.html  (~137-142 :
-      cartes de la main, boutons cliquables pour sélectionner)
-  - frontend/src/app/shared/game-rules-modal.component.html  (~56-83 : grille
-      ca-grid contenant DÉJÀ le texte d'effet de chaque carte — à réutiliser
-      comme source de vérité des descriptions)
-
-ÉTAPES
-  1. Définir le texte d'effet par valeur de carte (réutiliser/extraire les
-     descriptions de la grille ca-grid du modal de règles pour éviter la
-     duplication).
-  2. Choisir une interaction qui ne rentre PAS en conflit avec « taper pour
-     sélectionner/jouer » :
-        - mobile : appui long (long-press) sur la carte, ou petite pastille
-          « ? » / « i » dédiée sur la carte ;
-        - desktop : survol (hover) ou clic sur la même pastille.
-  3. Afficher l'explication via un tooltip / popover positionné lisiblement,
-     responsive (ne pas déborder sur petit écran, fermeture au tap extérieur).
-  4. Rendre l'affordance découvrable (icône discrète, ou hint au 1er lancement).
-
-CRITÈRES D'ACCEPTATION
-  - Depuis une partie, on obtient l'effet d'une carte sans la jouer par erreur.
-  - Interaction fluide et lisible sur mobile comme sur desktop.
-  - Les descriptions ne sont pas dupliquées (une seule source de vérité).
+ACCEPTANCE CRITERIA
+  - On an Android device whose installed versionCode < latestVersionCode, opening
+    or resuming the app shows the update popup; tapping "Update" opens the Play
+    Store page for online.mercury.game.
+  - When installed versionCode >= latestVersionCode, no popup appears.
+  - On web (and iOS, if ever built), the popup never appears.
+  - If /api/version is unreachable, the app behaves exactly as before (no popup,
+    no error surfaced to the user).

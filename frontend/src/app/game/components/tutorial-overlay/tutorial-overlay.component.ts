@@ -180,6 +180,9 @@ export class TutorialOverlayComponent implements OnDestroy {
 
     effect(() => {
       const h = this.hint();
+      // Publish the active hint id so other components (e.g. the card-effect
+      // hint) can avoid overlapping with the tutorial.
+      this.gameState.tutorialHintId.set(h?.id ?? null);
       if (!h) {
         this.clear();
         return;
