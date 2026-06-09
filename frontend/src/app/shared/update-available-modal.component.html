@@ -1,0 +1,25 @@
+<!-- Mise à jour obligatoire : aucun moyen de fermer (pas de close, pas d'overlay cliquable). -->
+<div class="update-overlay" [class.active]="show">
+  <div class="update-card">
+
+    <div class="update-header">
+      <div class="update-marbles">
+        <span class="mm mm-red"></span>
+        <span class="mm mm-green"></span>
+        <span class="mm mm-blue"></span>
+        <span class="mm mm-orange"></span>
+      </div>
+      <h2 class="update-title">Mise à jour requise</h2>
+      <p class="update-subtitle">Mercury — Old Dutch Board Game</p>
+    </div>
+
+    <div class="update-body">
+      <p class="update-message">
+        Une nouvelle version de Mercury est disponible. Vous devez mettre à jour
+        l'application pour continuer à jouer.
+      </p>
+      <button class="update-btn" (click)="openStore()">Mettre à jour</button>
+    </div>
+
+  </div>
+</div>

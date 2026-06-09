@@ -4,13 +4,15 @@ import { take } from 'rxjs';
 import { GameStateService } from './game/services/game-state.service';
 import { TabLockService } from './game/services/tab-lock.service';
 import { AppResumeService } from './services/app-resume.service';
+import { AppUpdateService } from './services/app-update.service';
+import { UpdateAvailableModalComponent } from './shared/update-available-modal.component';
 import { environment } from '../environments/environment';
 import { StatusBar } from '@capacitor/status-bar';
 
 @Component({
   selector: 'app-root',
   templateUrl: 'app.component.html',
-  imports: [RouterOutlet],
+  imports: [RouterOutlet, UpdateAvailableModalComponent],
 })
 export class AppComponent implements OnInit {
 
@@ -19,9 +21,15 @@ export class AppComponent implements OnInit {
   private router = inject(Router);
   /** Eagerly created so its resume listeners are wired for the whole app. */
   protected appResume = inject(AppResumeService);
+  protected appUpdate = inject(AppUpdateService);
 
   async ngOnInit(): Promise<void> {
     StatusBar.setOverlaysWebView({ overlay: false }).catch(() => {});
+
+    // Vérifie la disponibilité d'une mise à jour au démarrage à froid, puis à
+    // chaque reprise de l'app (resumed$ est déjà débouncé côté AppResumeService).
+    void this.appUpdate.check();
+    this.appResume.resumed$.subscribe(() => void this.appUpdate.check());
 
     // Handle session replaced by another tab (close code 4001)
     this.gameStateService.sessionReplaced$.subscribe(() => {
