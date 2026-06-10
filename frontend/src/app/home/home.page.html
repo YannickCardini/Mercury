@@ -122,7 +122,7 @@
           <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42
                    M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
         </svg>
-        <span>v{{ appVersion }}</span>
+        <span>v{{ appVersion() }}</span>
       </button>
     </footer>
 
@@ -269,7 +269,7 @@
         <div class="settings-info">
           <div class="info-row">
             <span class="info-key">Version</span>
-            <span class="info-val" (click)="onVersionTap()" style="cursor:default;user-select:none">{{ appVersion }}</span>
+            <span class="info-val" (click)="onVersionTap()" style="cursor:default;user-select:none">{{ appVersion() }}</span>
           </div>
           <div class="info-row">
             <span class="info-key">Contact</span>

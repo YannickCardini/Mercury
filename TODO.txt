@@ -1,112 +1,68 @@
-================================================================================
-MERCURY — TODO
-================================================================================
+# TODO
 
---------------------------------------------------------------------------------
-TASK 1 — "Update available" prompt for the Android app
---------------------------------------------------------------------------------
+## 1. Android build: show the native versionName instead of the package.json version
 
-GOAL
-  When a new version of the app has been published, an Android user must see a
-  popup as soon as they open (or resume) the mobile app, telling them a newer
-  version exists and inviting them to update. The popup must offer a button that
-  opens the app's Google Play Store page.
+Context:
+- `frontend/src/app/home/home.page.ts` (line 9) imports `version` from the root
+  `package.json` and exposes it as `appVersion` (line 63).
+- `appVersion` is displayed in two places in `frontend/src/app/home/home.page.html`:
+  - the home footer button: `v{{ appVersion }}` (line ~125)
+  - the "Version" row of the settings modal (line ~272), which also carries the
+    hidden worker-login easter egg (`onVersionTap()`, 5 taps).
+- The Android app defines its own version in
+  `frontend/android/app/build.gradle`: `versionCode 7`, `versionName "1.7"`.
+  This is the version users actually see in the Play Store, so showing the
+  package.json version (`0.12.0`) on Android is misleading.
+- `@capacitor/app` (v8) is already installed in `frontend/package.json`. Its
+  `App.getInfo()` returns `version` (= Android `versionName`) and `build`
+  (= Android `versionCode`).
 
-CONTEXT (current state of the codebase)
-  - Frontend: Ionic + Angular (standalone components), wrapped with Capacitor 8
-    for Android. appId = "online.mercury.game" (published on Google Play).
-  - Installed-version source of truth on device:
-      frontend/android/app/build.gradle -> versionCode 6, versionName "1.5".
-    These can be read at runtime via @capacitor/app App.getInfo()
-    (returns { version, build, ... }), which is already a dependency.
-  - There is currently NO source of truth for "latest available version" and NO
-    version-check logic anywhere.
-  - App open / resume is already centralised:
-      frontend/src/app/services/app-resume.service.ts listens to
-      App.addListener('appStateChange') and visibilitychange. Cold start is
-      handled in frontend/src/app/app.component.ts ngOnInit.
-  - Modal convention (do NOT use Ionic ModalController): a standalone component
-    with `@Input() show` and `@Output() closeModal`, rendered conditionally in a
-    parent template. Reference: frontend/src/app/shared/game-rules-modal.component.ts
-    (used from game.page.html / home.page.html).
-  - HTTP is available: provideHttpClient() is set in frontend/src/main.ts;
-    HttpClient is injected in services such as auth.service.ts.
-  - Backend: Express, mounts REST routers at /api/auth and /api/messages
-    (see backend/src/index.ts). Adding a new public GET endpoint is trivial.
-  - apiUrl is defined per-environment in
-    frontend/src/environments/environment(.prod).ts.
+Task:
+- When running as the native Android app (`Capacitor.getPlatform() === 'android'`,
+  see existing usage in `frontend/src/app/services/app-update.service.ts:44`),
+  display the Android `versionName` from `App.getInfo()` instead of the
+  package.json version. Fall back to `versionCode` only if retrieving the
+  `versionName` proves too complicated.
+- On web (non-native), keep displaying the package.json version as today.
+- Update both display locations (home footer and settings modal) consistently.
+- Do not break the 5-tap easter egg bound to the settings "Version" row.
+- Since `App.getInfo()` is async, make `appVersion` reactive (e.g. a signal
+  initialized with the package.json version, then overwritten on Android once
+  the native info resolves).
 
-DECISION 
-  "Latest available version" will be served by the OUR OWN BACKEND, not scraped
-  from the Play Store. This keeps the check simple, offline-fail-safe, and lets
-  us flag a version as a *forced* update later if needed.
+## 2. Mobile UX: replace long-press as the trigger for the card-help popover
 
-SUB-TASKS
+Context:
+- In-game, each card in the player's hand has a contextual help popover
+  (title + effect description). The text comes from the single source of truth
+  `getCardEffect()` in `frontend/src/app/shared/card-effects.ts` (also used by
+  the rules modal — never duplicate these texts).
+- Implementation lives in
+  `frontend/src/app/game/components/table/table.component.ts`
+  (section "Aide contextuelle sur les cartes", lines ~469-590):
+  - Desktop (devices matching `(hover: hover)`): popover opens on mouse hover,
+    closes on mouseleave. This works well — DO NOT change desktop behavior.
+  - Mobile (touch): popover opens after a 420 ms long-press
+    (`LONG_PRESS_MS`, `onCardPressStart/Move/End`), and the subsequent
+    selection click is swallowed via `suppressClickIndex`.
+- Problem: the long-press gesture on mobile is neither discoverable nor
+  ergonomic. Users don't know it exists, and holding a card conflicts mentally
+  with tapping to select it.
 
-  Backend
-    [ ] Add a public endpoint `GET /api/version` (no auth) in
-        backend/src/index.ts (or a small dedicated router file
-        backend/src/version/version-router.ts mounted like the others).
-    [ ] Response shape (JSON):
-            {
-              "latestVersionCode": 6,      // integer, matches build.gradle versionCode
-              "latestVersionName": "1.5",  // human-readable, matches versionName
-              "minVersionCode": 1,         // below this => force update (optional, future)
-              "storeUrl": "https://play.google.com/store/apps/details?id=online.mercury.game"
-            }
-    [ ] Source the values from an env var / config constant so a new release can
-        bump the number without a code change. Document where to update it on
-        each release (this value must be raised whenever build.gradle versionCode
-        is raised).
-
-  Frontend — version check service
-    [ ] Create a new service, e.g.
-        frontend/src/app/services/app-update.service.ts (providedIn: 'root').
-    [ ] On check, do nothing unless Capacitor.isNativePlatform() is true AND the
-        platform is Android (Capacitor.getPlatform() === 'android'). Web users
-        must never see the popup.
-    [ ] Read the installed build number via App.getInfo() (use `build`, which
-        maps to Android versionCode).
-    [ ] Fetch GET {environment.apiUrl}/api/version via HttpClient.
-    [ ] Compare installed `build` vs `latestVersionCode`. If installed is lower,
-        flag "update available" (expose a signal, e.g. updateAvailable()).
-    [ ] Fail silently on any network/error (never block app usage, never throw).
-    [ ] Optional: debounce so the network check runs at most once per app
-        foregrounding, not on every visibilitychange burst.
-
-  Frontend — wiring the check to app open/resume
-    [ ] Run the check on cold start (app.component.ts ngOnInit) and on resume
-        (subscribe to AppResumeService.resumed$ in app-resume.service.ts, or
-        trigger from the same place appStateChange is handled). Avoid wiring a
-        listener per page.
-
-  Frontend — the popup UI
-    [ ] Create a standalone modal component following the game-rules-modal
-        convention, e.g.
-        frontend/src/app/shared/update-available-modal.component.{ts,html,scss}
-        with `@Input() show` and `@Output() closeModal`.
-    [ ] Content: short title + message ("A new version is available, please
-        update the app"), a primary button "Update" that opens `storeUrl`, and
-        (for a non-forced update) a secondary "Later" / dismiss action.
-    [ ] Open the store link with @capacitor/app App or window.open(storeUrl,
-        '_system') so it leaves the WebView and lands on the Play Store app/page.
-    [ ] Render the modal once at app level (app.component.html) bound to
-        AppUpdateService.updateAvailable(), so it can appear over any page on
-        open/resume.
-    [ ] Match existing modal styling (reuse the look & feel / overlay of
-        game-rules-modal.component.scss).
-
-  Texts / i18n
-    [ ] Wording: provide French text to match the existing UI language (the app's
-        copy and code comments are predominantly French).
-
-  The update should be mandatory
-
-ACCEPTANCE CRITERIA
-  - On an Android device whose installed versionCode < latestVersionCode, opening
-    or resuming the app shows the update popup; tapping "Update" opens the Play
-    Store page for online.mercury.game.
-  - When installed versionCode >= latestVersionCode, no popup appears.
-  - On web (and iOS, if ever built), the popup never appears.
-  - If /api/version is unreachable, the app behaves exactly as before (no popup,
-    no error surfaced to the user).
+Task:
+- Design and implement a more intuitive, discoverable way to show the card help
+  on touch devices (devices NOT matching `(hover: hover)`). Candidate
+  approaches (pick the most sensible, or propose better):
+  - A small visible info affordance (e.g. a "?" / ⓘ icon) on each card or on
+    the currently selected card that opens the popover on tap.
+  - A persistent help toggle near the hand: when enabled, tapping a card shows
+    its description instead of (or in addition to) selecting it.
+  - Showing the help text of the selected card in a dedicated area when a card
+    is selected.
+- Constraints:
+  - Tapping a card to select/play it must remain the primary, unimpeded action.
+  - Keep using `getCardEffect()` as the only source of the help texts.
+  - Keep the desktop hover behavior unchanged.
+  - Once the new mobile mechanism is in place, remove the now-dead long-press
+    machinery (`LONG_PRESS_MS`, `longPressTimer`, `pressStartX/Y`,
+    `suppressClickIndex`, `onCardPressStart/Move/End`) if nothing else uses it.

@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, ViewChild, ElementRef, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -7,6 +7,8 @@ import { GameRulesModalComponent } from '../shared/game-rules-modal.component';
 import { InviteToastComponent } from '../shared/invite-toast.component';
 import { Subscription, firstValueFrom, take } from 'rxjs';
 import { version } from '../../../../package.json';
+import { App } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 import { GameStateService } from '../game/services/game-state.service';
 import { TabLockService } from '../game/services/tab-lock.service';
 import { AppResumeService } from '../services/app-resume.service';
@@ -60,7 +62,7 @@ interface InviteCandidate {
 })
 export class HomePage implements OnInit, OnDestroy {
   readonly titleLetters = ['M', 'E', 'R', 'C', 'U', 'R', 'Y'];
-  readonly appVersion = version;
+  readonly appVersion = signal(version);
 
   showLogin = false;
   loginPromptReason: 'custom-game' | null = null;
@@ -159,6 +161,10 @@ export class HomePage implements OnInit, OnDestroy {
   ) { }
 
   ngOnInit(): void {
+    if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android') {
+      void App.getInfo().then(info => this.appVersion.set(info.version)).catch(() => { /* keep package.json version */ });
+    }
+
     // Re-sync the "Resume" banner from storage; AppResumeService keeps it
     // updated afterwards (incl. clearing it when a stale game is detected).
     this.appResume.refreshFromStorage();

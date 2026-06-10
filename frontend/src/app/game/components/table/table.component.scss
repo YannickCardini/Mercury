@@ -1377,39 +1377,12 @@
 
 /* =========================================
    AIDE CONTEXTUELLE SUR LES CARTES
-   (long-press mobile / hover desktop)
-   ========================================= */
-.card-help-hint {
-    position: absolute;
-    top: 0;
-    left: 50%;
-    transform: translate(-50%, -100%);
-    z-index: 16;
-    padding: 5px 12px;
-    border-radius: 999px;
-    background: rgba(10, 18, 40, 0.9);
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    color: rgba(255, 255, 255, 0.82);
-    font-size: 0.72rem;
-    font-weight: 600;
-    white-space: nowrap;
-    pointer-events: none;
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-    animation: cardHelpHintFade 0.3s ease both;
-}
+   (auto-show mobile / hover desktop)
+   =========================================  */
 
 @keyframes cardHelpHintFade {
     from { opacity: 0; }
     to   { opacity: 1; }
-}
-
-/* Capte le tap extérieur pour fermer (uniquement en mode tactile). */
-.card-help-backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 140;
-    background: transparent;
 }
 
 .card-help-popover {
@@ -1446,7 +1419,7 @@
     .chp-arrow {
         position: absolute;
         bottom: -7px;
-        left: 50%;
+        left: calc(50% + var(--arrow-offset, 0px));
         transform: translateX(-50%) rotate(45deg);
         width: 14px;
         height: 14px;

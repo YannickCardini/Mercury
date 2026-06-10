@@ -1,4 +1,4 @@
-<!-- Mise à jour obligatoire : aucun moyen de fermer (pas de close, pas d'overlay cliquable). -->
+<!-- Mandatory update: no way to close (no close button, overlay not clickable). -->
 <div class="update-overlay" [class.active]="show">
   <div class="update-card">
 
@@ -9,16 +9,16 @@
         <span class="mm mm-blue"></span>
         <span class="mm mm-orange"></span>
       </div>
-      <h2 class="update-title">Mise à jour requise</h2>
-      <p class="update-subtitle">Mercury — Old Dutch Board Game</p>
+      <h2 class="update-title">Update Required</h2>
+      <p class="update-subtitle">Mercury — Tock Board Game</p>
     </div>
 
     <div class="update-body">
       <p class="update-message">
-        Une nouvelle version de Mercury est disponible. Vous devez mettre à jour
-        l'application pour continuer à jouer.
+        A new version of Mercury is available. You must update the app to continue
+        playing.
       </p>
-      <button class="update-btn" (click)="openStore()">Mettre à jour</button>
+      <button class="update-btn" (click)="openStore()">Update</button>
     </div>
 
   </div>

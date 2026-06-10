@@ -87,6 +87,16 @@
         Vibration {{ soundService.vibrationEnabled() ? 'On' : 'Off' }}
       </button>
       }
+      <!-- Card Help toggle -->
+      <button class="menu-item" [class.menu-item--muted]="!cardHelpEnabled()" (click)="toggleCardHelp()">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="16" x2="12" y2="12" />
+          <line x1="12" y1="8" x2="12.01" y2="8" />
+        </svg>
+        Card Help {{ cardHelpEnabled() ? 'On' : 'Off' }}
+      </button>
       <!-- Game Rules -->
       <button class="menu-item" (click)="rulesRequested.emit(); showMenu.set(false)">
         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"
@@ -132,21 +142,13 @@
   <!-- ===== MAIN DU JOUEUR — masquée pendant l'overlay du 7 ===== -->
   @if (!showSevenSplitOverlay()) {
   <div class="hand-zone" [class.turn-inactive]="!gameStateService.isMyTurn()">
-    <!-- Hint de découverte (une seule fois) : comment voir l'effet d'une carte.
-         Masqué tant que le tutoriel affiche son indication de départ. -->
-    @if (showCardHelpHint()) {
-    <div class="card-help-hint">💡 Hold a card to see its effect</div>
-    }
     <div class="cards-fan">
       @for (card of getPlayerHand(); track card.id; let i = $index) {
       <button class="tock-card-btn playable-card" [class.selected]="selectedCardIndex() === i"
         [class.card-flying-away]="flyingCardIndex() === i" [class.is-red]="card.suit === '♥' || card.suit === '♦'"
         [style]="getCardStyle(i, getPlayerHand().length)" (click)="onCardSelected(i)"
-        (pointerdown)="onCardPressStart(i, $event)" (pointermove)="onCardPressMove($event)"
-        (pointerup)="onCardPressEnd()" (pointercancel)="onCardPressEnd()"
         (mouseenter)="onCardHover(i, $event)" (mouseleave)="onCardHoverLeave()"
         (contextmenu)="$event.preventDefault()">
-        <!-- Design de carte factorisé -->
         <app-tock-card [value]="card.value" [suit]="card.suit">
         </app-tock-card>
       </button>
@@ -159,10 +161,7 @@
 
   <!-- ===== AIDE CONTEXTUELLE — popover « effet de la carte » ===== -->
   @if (cardHelp(); as help) {
-  @if (help.fromTouch) {
-  <div class="card-help-backdrop" (click)="closeCardHelp()"></div>
-  }
-  <div class="card-help-popover" [style.left.px]="help.x" [style.top.px]="help.y">
+  <div class="card-help-popover" [style.left.px]="help.x" [style.top.px]="help.y" [style.--arrow-offset.px]="help.arrowOffset">
     <span class="chp-title">{{ help.title }}</span>
     <span class="chp-text">{{ help.text }}</span>
     <span class="chp-arrow"></span>

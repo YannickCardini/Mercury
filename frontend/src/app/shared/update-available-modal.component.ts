@@ -18,8 +18,8 @@ import { Component, Input } from '@angular/core';
 export class UpdateAvailableModalComponent {
   /** Affiche le popup quand true. */
   @Input() show = false;
-  /** Lien Play Store ouvert par le bouton « Mettre à jour ». */
-  @Input() storeUrl = '';
+  /** Lien Play Store ouvert par le bouton « Update ». */
+  @Input() storeUrl = 'https://play.google.com/store/apps/details?id=online.mercury.game';
 
   openStore(): void {
     // `_system` fait quitter la WebView et ouvre le Play Store (app ou navigateur).

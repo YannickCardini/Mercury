@@ -12,8 +12,8 @@ import { Router, type Request, type Response } from 'express';
  * (LATEST_VERSION_CODE / LATEST_VERSION_NAME / MIN_VERSION_CODE / STORE_URL)
  * pour pouvoir annoncer une nouvelle version sans redéployer le code.
  */
-const LATEST_VERSION_CODE = Number(process.env['LATEST_VERSION_CODE'] ?? 7);
-const LATEST_VERSION_NAME = process.env['LATEST_VERSION_NAME'] ?? '1.7';
+const LATEST_VERSION_CODE = Number(process.env['LATEST_VERSION_CODE'] ?? 8);
+const LATEST_VERSION_NAME = process.env['LATEST_VERSION_NAME'] ?? '1.8';
 /** En dessous de ce code → mise à jour forcée (réservé pour un usage futur). */
 const MIN_VERSION_CODE = Number(process.env['MIN_VERSION_CODE'] ?? 1);
 const STORE_URL =
