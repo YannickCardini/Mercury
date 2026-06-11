@@ -1,68 +1,79 @@
 # TODO
 
-## 1. Android build: show the native versionName instead of the package.json version
+## 1. Fix card-help popover behavior on Android (Capacitor app)
 
-Context:
-- `frontend/src/app/home/home.page.ts` (line 9) imports `version` from the root
-  `package.json` and exposes it as `appVersion` (line 63).
-- `appVersion` is displayed in two places in `frontend/src/app/home/home.page.html`:
-  - the home footer button: `v{{ appVersion }}` (line ~125)
-  - the "Version" row of the settings modal (line ~272), which also carries the
-    hidden worker-login easter egg (`onVersionTap()`, 5 taps).
-- The Android app defines its own version in
-  `frontend/android/app/build.gradle`: `versionCode 7`, `versionName "1.7"`.
-  This is the version users actually see in the Play Store, so showing the
-  package.json version (`0.12.0`) on Android is misleading.
-- `@capacitor/app` (v8) is already installed in `frontend/package.json`. Its
-  `App.getInfo()` returns `version` (= Android `versionName`) and `build`
-  (= Android `versionCode`).
+Context: the "card effect" help popover is implemented in
+`frontend/src/app/game/components/table/table.component.ts` (signal `cardHelp`,
+methods `onCardSelected()`, `onCardHover()`, `openCardHelp()`). The intended
+behavior is: on touch devices the popover auto-shows when a card is selected
+(tap), and on hover-capable devices (desktop) it shows on mouse hover. Touch
+vs. desktop is currently detected via
+`window.matchMedia('(hover: hover)').matches` (private field `canHover`).
 
-Task:
-- When running as the native Android app (`Capacitor.getPlatform() === 'android'`,
-  see existing usage in `frontend/src/app/services/app-update.service.ts:44`),
-  display the Android `versionName` from `App.getInfo()` instead of the
-  package.json version. Fall back to `versionCode` only if retrieving the
-  `versionName` proves too complicated.
-- On web (non-native), keep displaying the package.json version as today.
-- Update both display locations (home footer and settings modal) consistently.
-- Do not break the 5-tap easter egg bound to the settings "Version" row.
-- Since `App.getInfo()` is async, make `appVersion` reactive (e.g. a signal
-  initialized with the package.json version, then overwritten on Android once
-  the native info resolves).
+### 1.1. Show the help popover on simple tap (not long-press) on Android
 
-## 2. Mobile UX: replace long-press as the trigger for the card-help popover
+- Observed bug: on the Android build, the popover only appears after a
+  long-press on a card, instead of appearing immediately when the card is
+  selected by a tap.
+- Likely cause: the Android WebView reports `(hover: hover)` as true, so
+  `canHover` is true, the auto-show-on-selection branch in `onCardSelected()`
+  (the `if (!this.canHover && this.cardHelpEnabled())` block) is skipped, and
+  the popover is only triggered by the synthetic `mouseenter` that Android
+  fires on long-press.
+- Fix: replace or complement the `(hover: hover)` detection with a reliable
+  touch/native check (e.g. `(pointer: coarse)`, presence of touch events, or
+  `Capacitor.isNativePlatform()`), so that on Android the popover opens as
+  soon as a card is selected, exactly like on mobile web.
 
-Context:
-- In-game, each card in the player's hand has a contextual help popover
-  (title + effect description). The text comes from the single source of truth
-  `getCardEffect()` in `frontend/src/app/shared/card-effects.ts` (also used by
-  the rules modal — never duplicate these texts).
-- Implementation lives in
-  `frontend/src/app/game/components/table/table.component.ts`
-  (section "Aide contextuelle sur les cartes", lines ~469-590):
-  - Desktop (devices matching `(hover: hover)`): popover opens on mouse hover,
-    closes on mouseleave. This works well — DO NOT change desktop behavior.
-  - Mobile (touch): popover opens after a 420 ms long-press
-    (`LONG_PRESS_MS`, `onCardPressStart/Move/End`), and the subsequent
-    selection click is swallowed via `suppressClickIndex`.
-- Problem: the long-press gesture on mobile is neither discoverable nor
-  ergonomic. Users don't know it exists, and holding a card conflicts mentally
-  with tapping to select it.
+### 1.2. Prevent the Android text-selection menu on long-press of a card
 
-Task:
-- Design and implement a more intuitive, discoverable way to show the card help
-  on touch devices (devices NOT matching `(hover: hover)`). Candidate
-  approaches (pick the most sensible, or propose better):
-  - A small visible info affordance (e.g. a "?" / ⓘ icon) on each card or on
-    the currently selected card that opens the popover on tap.
-  - A persistent help toggle near the hand: when enabled, tapping a card shows
-    its description instead of (or in addition to) selecting it.
-  - Showing the help text of the selected card in a dedicated area when a card
-    is selected.
-- Constraints:
-  - Tapping a card to select/play it must remain the primary, unimpeded action.
-  - Keep using `getCardEffect()` as the only source of the help texts.
-  - Keep the desktop hover behavior unchanged.
-  - Once the new mobile mechanism is in place, remove the now-dead long-press
-    machinery (`LONG_PRESS_MS`, `longPressTimer`, `pressStartX/Y`,
-    `suppressClickIndex`, `onCardPressStart/Move/End`) if nothing else uses it.
+- Observed bug: long-pressing a card in hand triggers the native blue
+  text-selection handles and the copy / paste / select-all context menu. This
+  must never happen inside the game UI.
+- The card buttons already have `(contextmenu)="$event.preventDefault()"` in
+  `table.component.html`, but the `.tock-card-btn` rule in
+  `frontend/src/app/game/components/table/table.component.scss` has no
+  text-selection suppression (other elements in that file already do this —
+  see the existing `user-select: none; -webkit-user-select: none;
+  -webkit-touch-callout: none;` declarations used elsewhere in the same file).
+- Fix: apply `user-select: none`, `-webkit-user-select: none` and
+  `-webkit-touch-callout: none` globally to the game
+  screen, so no text inside the game can be selected on long-press.
+
+### 1.3. Make card help available when it is NOT the player's turn
+
+- Observed limitation: while waiting for their turn, a player cannot read what
+  their cards do. In `onCardSelected()` there is an early return when
+  `!this.gameStateService.isMyTurn()` (it only sets the turn phase to WAIT),
+  which happens before the help-popover logic is reached.
+- Desired behavior: tapping (touch) or hovering (desktop) a card in hand when
+  it is not the player's turn should still display the help popover with the
+  card's effect (text from `getCardEffect()` in
+  `frontend/src/app/shared/card-effects.ts`), WITHOUT selecting the card for
+  play and without changing any game/selection state.
+- Keep the existing rules: respect the `cardHelpEnabled` user setting, keep
+  the 3.5 s auto-close on touch, and keep the popover suppressed during the
+  tutorial start hint (`tutorialHintId() === 'card'`).
+
+## 2. Document the Android release procedure in README.md
+
+Add a new section to `README.md` (in French, like the rest of the file — e.g.
+"## Release Android") describing the full procedure to publish a new Android
+release:
+
+1. Bump the version in `frontend/android/app/build.gradle`: increment
+   `versionCode` (integer, currently 8) and `versionName` (string, currently
+   "1.8") in the `defaultConfig` block.
+2. Update the matching defaults in `backend/src/version/version-router.ts`:
+   `LATEST_VERSION_CODE` and `LATEST_VERSION_NAME` must equal the new
+   `versionCode` / `versionName` from build.gradle (this endpoint,
+   `GET /api/version`, is what tells the mobile app an update is available).
+   Mention that these values can also be overridden at runtime via the
+   `LATEST_VERSION_CODE` / `LATEST_VERSION_NAME` environment variables.
+3. Build the release bundle from the repo root:
+   `cd frontend && rm -rf www && npm run build && npx cap sync android && cd android && ./gradlew bundleRelease`
+   (`www` is the Angular output dir consumed by Capacitor — see `webDir` in
+   `frontend/capacitor.config.ts`).
+4. State where the resulting .aab is produced
+   (`frontend/android/app/build/outputs/bundle/release/`) and that it is the
+   artifact to upload to the Google Play Console.

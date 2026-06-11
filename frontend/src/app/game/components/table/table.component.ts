@@ -433,6 +433,15 @@ enum TURN_PHASE {
 
     if (!this.gameStateService.isMyTurn()) {
       this.turnPhase.set(TURN_PHASE.WAIT);
+      // Aide contextuelle disponible hors de son tour : sur tactile, taper une
+      // carte affiche son effet sans la sélectionner ni changer l'état du jeu.
+      // (Sur desktop, le survol passe par onCardHover, déjà indépendant du tour.)
+      // La carte ne bougeant pas (pas de sélection), on lit sa position directement.
+      if (!this.canHover && this.cardHelpEnabled()) {
+        const cardEls = document.querySelectorAll<HTMLElement>('.playable-card');
+        const cardEl = cardEls[index];
+        if (cardEl) this.openCardHelp(index, cardEl, 3500);
+      }
       return;
     }
 
@@ -499,9 +508,17 @@ enum TURN_PHASE {
     if (!next) this.closeCardHelp();
   }
 
-  /** Appareil capable de survol réel (desktop) → active l'aide au hover. */
+  /** Appareil capable de survol réel (souris desktop) → active l'aide au survol.
+   *  Exclut explicitement les apps natives : la WebView Android rapporte
+   *  `(hover: hover)` à tort, ce qui empêchait l'auto-affichage au simple tap
+   *  (le popover n'apparaissait qu'au long-press via un mouseenter synthétique).
+   *  On exige en plus un pointeur fin pour écarter les navigateurs mobiles qui
+   *  signalent `hover` de façon incorrecte. */
   private readonly canHover =
-    typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia('(hover: hover)').matches;
+    !Capacitor.isNativePlatform() &&
+    typeof window !== 'undefined' && !!window.matchMedia &&
+    window.matchMedia('(hover: hover)').matches &&
+    window.matchMedia('(pointer: fine)').matches;
 
   private helpAutoCloseTimer?: ReturnType<typeof setTimeout>;
 

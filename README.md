@@ -172,3 +172,59 @@ npm run build:all
 ```
 
 ---
+
+## Release Android
+
+### 1. Incrémenter la version dans `build.gradle`
+
+Ouvrir [`frontend/android/app/build.gradle`](frontend/android/app/build.gradle) et modifier le bloc `defaultConfig` :
+
+```groovy
+defaultConfig {
+    versionCode 9          // entier — incrémenter de 1 à chaque release
+    versionName "1.9"      // chaîne affichée dans le Play Store
+    …
+}
+```
+
+> `versionCode` doit être **strictement supérieur** à celui de la version précédente sur le Play Store.
+
+### 2. Mettre à jour les valeurs dans le backend
+
+Ouvrir [`backend/src/version/version-router.ts`](backend/src/version/version-router.ts) et mettre à jour les constantes `LATEST_VERSION_CODE` et `LATEST_VERSION_NAME` pour qu'elles correspondent exactement aux valeurs du `build.gradle`.
+
+L'endpoint `GET /api/version` expose ces valeurs à l'app mobile, qui les compare à sa version embarquée pour détecter qu'une mise à jour est disponible.
+
+Ces constantes peuvent également être surchargées sans redéploiement via les **variables d'environnement** du backend :
+
+```bash
+LATEST_VERSION_CODE=9
+LATEST_VERSION_NAME=1.9
+```
+
+### 3. Construire le bundle de release
+
+Depuis la racine du dépôt :
+
+```bash
+cd frontend
+rm -rf www                          # purge l'ancien build Angular
+npm run build                       # build Angular → www/
+npx cap sync android                # synchronise www/ + plugins dans le projet Android
+cd android
+./gradlew bundleRelease             # produit le .aab signé
+```
+
+> `www/` est le répertoire de sortie Angular consommé par Capacitor (défini par `webDir` dans [`frontend/capacitor.config.ts`](frontend/capacitor.config.ts)).
+
+### 4. Récupérer l'artefact et publier
+
+Le bundle généré se trouve dans :
+
+```
+frontend/android/app/build/outputs/bundle/release/app-release.aab
+```
+
+C'est ce fichier `.aab` qu'il faut uploader dans la **Google Play Console** (onglet *Production* → *Créer une version*).
+
+---

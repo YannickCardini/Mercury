@@ -42,6 +42,11 @@
     border-radius: 20px;
     box-sizing: border-box;
     position: relative;
+    /* Aucune sélection de texte dans tout l'écran de jeu : évite la poignée bleue
+       et le menu copier / coller / tout sélectionner natif au long-press (Android). */
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -329,10 +334,11 @@
     padding: 0 1rem 1.5rem;
     transition: opacity 0.25s ease, filter 0.25s ease;
 
+    /* Hors de son tour : main grisée mais toujours interactive, pour pouvoir
+       consulter l'aide d'une carte (le tap n'en sélectionne aucune — cf. onCardSelected). */
     &.turn-inactive {
         opacity: 0.45;
         filter: grayscale(0.5);
-        pointer-events: none;
     }
 }
 
