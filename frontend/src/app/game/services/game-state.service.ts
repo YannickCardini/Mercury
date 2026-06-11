@@ -22,6 +22,7 @@ import {
   MarbleColor,
   EmojiReactionMessage,
   ReactionBroadcastMessage,
+  AlreadyInActiveGameMessage,
   ReactionEmoji,
   getLegalAction,
   getLegalSplit7Action,
@@ -328,6 +329,13 @@ export class GameStateService {
   gameAbandoned$ = new Subject<void>();
   /** Émet quand le WebSocket échoue à se connecter ou se ferme avant que la partie commence. */
   connectionError$ = new Subject<void>();
+  /**
+   * Émet quand le serveur rejette une tentative de join/create parce que le
+   * compte signed-in est déjà joueur d'une partie en cours. Les clés de
+   * reconnexion sont restaurées dans localStorage avant l'émission, de sorte
+   * que l'abonné n'a plus qu'à rediriger vers `/game`.
+   */
+  alreadyInActiveGame$ = new Subject<AlreadyInActiveGameMessage>();
   /** Émet à chaque réaction emoji reçue (locale ou distante). */
   reaction$ = new Subject<ReactionBroadcastMessage>();
 
@@ -479,6 +487,19 @@ export class GameStateService {
 
         case 'reactionBroadcast': {
           this.reaction$.next(parsed as ReactionBroadcastMessage);
+          break;
+        }
+
+        case 'alreadyInActiveGame': {
+          const msg = parsed as AlreadyInActiveGameMessage;
+          // The account is already a player in a running game. Restore the
+          // reconnection keys so the game page can re-join, then notify the
+          // caller (home page) to redirect into it.
+          this.guestPlayerId.set(msg.guestPlayerId);
+          this.activeGameId.set(msg.gameId);
+          localStorage.setItem('guest_player_id', msg.guestPlayerId);
+          localStorage.setItem('active_game_id', msg.gameId);
+          this.alreadyInActiveGame$.next(msg);
           break;
         }
       }

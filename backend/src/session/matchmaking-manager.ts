@@ -13,6 +13,7 @@ import { Game } from '../game/game.js';
 import { MultiWsMessenger } from '../game/game-messenger.js';
 import { GameRegistry } from './game-registry.js';
 import { isTrainMode } from '../train-mode.js';
+import type { ReconnectRegistry } from './reconnect-registry.js';
 import type { GameConfig, MarbleColor } from '@mercury/shared';
 
 const COLORS: MarbleColor[] = ['red', 'green', 'blue', 'orange'];
@@ -35,25 +36,25 @@ interface PendingMatchmaking {
     players: MatchPlayer[];
     botDispatchTimer: NodeJS.Timeout | null;
     botDispatchChance: number;
-    playerIdentities: Map<string, { gameId: string; color: MarbleColor }> | null;
+    reconnect: ReconnectRegistry | null;
 }
 
 export class MatchmakingManager {
 
     private session: PendingMatchmaking | null = null;
 
-    joinQueue(ws: WebSocket, playerName?: string, playerIdentities?: Map<string, { gameId: string; color: MarbleColor }>, browserId?: string, picture?: string, userId?: string): void {
+    joinQueue(ws: WebSocket, playerName?: string, reconnect?: ReconnectRegistry, browserId?: string, picture?: string, userId?: string): void {
         if (!this.session) {
             this.session = {
                 messenger: new MultiWsMessenger(),
                 players: [],
                 botDispatchTimer: null,
                 botDispatchChance: 0,
-                playerIdentities: playerIdentities ?? null,
+                reconnect: reconnect ?? null,
             };
         }
         // Update reference if provided (in case session already existed)
-        if (playerIdentities) this.session.playerIdentities = playerIdentities;
+        if (reconnect) this.session.reconnect = reconnect;
 
         // Reject duplicate joins from the same browser
         if (browserId && this.session.players.some(p => p.browserId === browserId)) {
@@ -173,7 +174,7 @@ export class MatchmakingManager {
 
         const messenger = this.session.messenger;
         const humanPlayers = [...this.session.players];
-        const playerIdentities = this.session.playerIdentities;
+        const reconnect = this.session.reconnect;
         this.session = null;
 
         console.log(`🚀 Matchmaking — lancement avec 4 joueurs`);
@@ -184,20 +185,13 @@ export class MatchmakingManager {
         messenger.setOnTempDisconnect((color) => game.markTempDisconnected(color));
         messenger.setOnPermanentDisconnect((color) => game.markDisconnected(color));
 
-        // Wire up abandon callback to clean up playerIdentities
-        game.setOnPlayerAbandoned((gameId, color) => {
-            if (!playerIdentities) return;
-            for (const [guestId, identity] of playerIdentities) {
-                if (identity.gameId === gameId && identity.color === color) {
-                    playerIdentities.delete(guestId);
-                    break;
-                }
-            }
-        });
+        // Wire up reconnection-slot cleanup (single resign + whole game end)
+        game.setOnPlayerAbandoned((gameId, color) => reconnect?.releaseSlot(gameId, color));
+        game.setOnGameEnded((gameId) => reconnect?.releaseGame(gameId));
 
         // Register guest player identities and send welcome messages
         for (const p of humanPlayers) {
-            playerIdentities?.set(p.guestPlayerId, { gameId: game.id, color: p.color });
+            reconnect?.register(p.guestPlayerId, game.id, p.color, p.userId);
             messenger.sendTo(p.color, {
                 type: 'welcome',
                 message: 'Game started',

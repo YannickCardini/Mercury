@@ -285,6 +285,19 @@ export interface ReactionBroadcastMessage {
   timestamp: number;
 }
 
+/**
+ * Envoyé quand un joueur signed-in tente de rejoindre/créer une partie
+ * (matchmaking, custom room, room multi-device) alors qu'il est déjà joueur
+ * d'une partie en cours. Porte de quoi rejoindre cette partie pour que le
+ * client redirige vers `/game` au lieu d'afficher une simple erreur.
+ */
+export interface AlreadyInActiveGameMessage {
+  type: 'alreadyInActiveGame';
+  gameId: string;
+  guestPlayerId: string;
+  color: MarbleColor;
+}
+
 export type ServerMessage =
   | WelcomeMessage
   | GameStateMessage
@@ -300,7 +313,8 @@ export type ServerMessage =
   | GameInviteMessage
   | GameInviteResponseMessage
   | GameInviteCancelledMessage
-  | ReactionBroadcastMessage;
+  | ReactionBroadcastMessage
+  | AlreadyInActiveGameMessage;
 
 // ── Messages WebSocket — Client → Serveur ─────────────────────────────────────
 

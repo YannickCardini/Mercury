@@ -62,8 +62,11 @@ export class Game {
     /** UserIds des joueurs déjà pénalisés pour abandon (-2), pour ne pas aussi leur infliger -1. */
     private penalizedUserIds = new Set<string>();
 
-    /** Callback appelé quand un joueur abandonne (pour nettoyer playerIdentities). */
+    /** Callback appelé quand un joueur abandonne (libère son slot de reconnexion). */
     private onPlayerAbandoned: ((gameId: string, color: MarbleColor) => void) | null = null;
+
+    /** Callback appelé quand la partie se termine/annule (libère tous les slots). */
+    private onGameEnded: ((gameId: string) => void) | null = null;
 
     /** Timestamp de la dernière réaction emoji envoyée par chaque joueur (anti-spam). */
     private lastReactionAt = new Map<MarbleColor, number>();
@@ -101,6 +104,10 @@ export class Game {
 
     setOnPlayerAbandoned(cb: (gameId: string, color: MarbleColor) => void): void {
         this.onPlayerAbandoned = cb;
+    }
+
+    setOnGameEnded(cb: (gameId: string) => void): void {
+        this.onGameEnded = cb;
     }
 
     resendStateToPlayer(color: MarbleColor): void {
@@ -245,6 +252,7 @@ export class Game {
             this.messenger.send({ type: 'gameEnded', winner: winner.color, reason: 'win' });
             this.logStats(winner.color, 'win');
             GameRegistry.delete(this.id);
+            this.onGameEnded?.(this.id);
             this.applyEndGamePoints(winner.color).catch(err =>
                 console.error('❌ Failed to update points after game end:', err)
             );
@@ -421,8 +429,7 @@ export class Game {
         const player = this.players.find(p => p.color === senderColor);
         if (!player || !player.isHuman) return;
 
-        const isSignedIn = !!player.userId;
-        console.log(`🏳️ ${player.name} (${senderColor}) a abandonné la partie${isSignedIn ? ' (signed-in — reconnect allowed)' : ''}`);
+        console.log(`🏳️ ${player.name} (${senderColor}) a abandonné la partie`);
 
         player.isConnected = false;
 
@@ -433,17 +440,14 @@ export class Game {
                 .catch(err => console.error('❌ Failed to update points on abandon:', err));
         }
 
+        // Resigning is final for everyone now: close the WS and free the slot.
+        // For signed-in players this releases their account (per spec, resign =
+        // released) so they're no longer redirected into / blocked by this game;
+        // the bot keeps playing their color until the game ends.
         if (this.messenger instanceof MultiWsMessenger) {
-            if (isSignedIn) {
-                // Signed-in player: keep the slot reservable so they can rejoin any time.
-                // Their guestPlayerId in playerIdentities is preserved.
-                this.messenger.softDisconnect(senderColor);
-            } else {
-                // Guest player: abandoning is final — close the WS and clean up identity.
-                this.messenger.forceDisconnect(senderColor);
-                this.onPlayerAbandoned?.(this.id, senderColor);
-            }
+            this.messenger.forceDisconnect(senderColor);
         }
+        this.onPlayerAbandoned?.(this.id, senderColor);
 
         // Tell remaining players about the connection change
         this.broadcastConnectionUpdate();
@@ -487,6 +491,7 @@ export class Game {
         this.pendingAnimationResolve = null;
 
         GameRegistry.delete(this.id);
+        this.onGameEnded?.(this.id);
 
         this.applyEndGamePoints(winner.color).catch(err =>
             console.error('❌ Failed to update points after game end:', err)
@@ -518,6 +523,7 @@ export class Game {
         this.pendingAnimationResolve = null;
 
         GameRegistry.delete(this.id);
+        this.onGameEnded?.(this.id);
     }
 
     // ─── Gestion des actions humaines ────────────────────────────────────────

@@ -67,8 +67,6 @@ export class MultiWsMessenger implements GameMessenger {
     private onPermanentDisconnect: ((color: MarbleColor) => void) | null = null;
     private onTempDisconnect: ((color: MarbleColor) => void) | null = null;
     private onReconnect: ((color: MarbleColor) => void) | null = null;
-    /** Colors whose reconnection window is unbounded (e.g. signed-in players who abandoned). */
-    private indefiniteReconnect = new Set<MarbleColor>();
 
     /** Register a callback invoked when the 180s reconnection window expires. */
     setOnPermanentDisconnect(cb: (color: MarbleColor) => void): void {
@@ -100,10 +98,9 @@ export class MultiWsMessenger implements GameMessenger {
 
     /**
      * Rebind a new WebSocket to an existing player slot.
-     * Handles three cases:
+     * Handles two cases:
      *  1. Player disconnected and reconnects within the 180s window (timer pending).
      *  2. Another tab connects while the first is still active (force-replace).
-     *  3. Signed-in player previously abandoned the game and is rejoining (indefinite window).
      * Returns true on success, false if no slot is available for reconnection.
      */
     reconnect(color: MarbleColor, ws: WebSocket): boolean {
@@ -117,9 +114,6 @@ export class MultiWsMessenger implements GameMessenger {
         } else if (existing) {
             // Case 2: another tab still connected — close old connection
             existing.close(4001, 'Session opened in another tab');
-        } else if (this.indefiniteReconnect.has(color)) {
-            // Case 3: signed-in player abandoned and is rejoining — no time limit
-            this.indefiniteReconnect.delete(color);
         } else {
             // No slot to reconnect to
             return false;
@@ -164,7 +158,7 @@ export class MultiWsMessenger implements GameMessenger {
     /**
      * Force-disconnect a player: closes their WebSocket and removes them
      * from the connections map without starting the 180s reconnection timer.
-     * Used when a guest player explicitly abandons the game.
+     * Used when a player explicitly resigns (abandons) the game.
      */
     forceDisconnect(color: MarbleColor): void {
         const timer = this.disconnectTimers.get(color);
@@ -176,27 +170,7 @@ export class MultiWsMessenger implements GameMessenger {
         const ws = this.connections.get(color);
         // Remove from map first so the close handler won't fire any callbacks
         this.connections.delete(color);
-        this.indefiniteReconnect.delete(color);
         ws?.close(4002, 'Player abandoned the game');
-    }
-
-    /**
-     * Soft-disconnect a player: closes their WebSocket but keeps the slot open
-     * for indefinite reconnection. Used when a signed-in player abandons —
-     * they can come back at any time using their guestPlayerId.
-     */
-    softDisconnect(color: MarbleColor): void {
-        const timer = this.disconnectTimers.get(color);
-        if (timer) {
-            clearTimeout(timer);
-            this.disconnectTimers.delete(color);
-        }
-
-        const ws = this.connections.get(color);
-        // Remove from map first so the close handler won't start the 180s timer
-        this.connections.delete(color);
-        this.indefiniteReconnect.add(color);
-        ws?.close(4003, 'Player left the game (reconnect allowed)');
     }
 
     /** Envoie à tous les clients connectés (broadcast). */

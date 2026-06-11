@@ -21,6 +21,7 @@ import { GameRegistry } from './game-registry.js';
 import type { GameConfig, MarbleColor, ClientMessage, CustomRoomPlayerInfo } from '@mercury/shared';
 import type { MatchmakingManager } from './matchmaking-manager.js';
 import type { PresenceManager } from './presence-manager.js';
+import type { ReconnectRegistry } from './reconnect-registry.js';
 
 const INVITATION_TTL_MS = 5 * 60 * 1000;
 const GRACE_PERIOD_MS = 60 * 1000;
@@ -54,8 +55,8 @@ interface CustomRoom {
     expiryTimer: NodeJS.Timeout;
     /** Set of userIds invited via handleInviteUser — used to broadcast cancel on teardown. */
     invitees: Set<string>;
-    /** Shared map injected from SessionManager so reconnect lookups work. */
-    playerIdentities: Map<string, { gameId: string; color: MarbleColor }>;
+    /** Shared registry injected from SessionManager so reconnect lookups work. */
+    reconnect: ReconnectRegistry;
 }
 
 function generateRoomCode(): string {
@@ -74,7 +75,7 @@ export class CustomGameManager {
     private rooms = new Map<string, CustomRoom>();
 
     constructor(
-        private playerIdentities: Map<string, { gameId: string; color: MarbleColor }>,
+        private reconnect: ReconnectRegistry,
         private matchmaking: MatchmakingManager,
         private presence: PresenceManager,
     ) { }
@@ -97,7 +98,7 @@ export class CustomGameManager {
             players: [],
             expiryTimer: setTimeout(() => this.expireRoom(code), ROOM_INACTIVITY_MS),
             invitees: new Set(),
-            playerIdentities: this.playerIdentities,
+            reconnect: this.reconnect,
         };
         this.rooms.set(code, room);
 
@@ -396,23 +397,17 @@ export class CustomGameManager {
 
         const messenger = room.messenger;
         const players = [...room.players];
-        const playerIdentities = room.playerIdentities;
+        const reconnect = room.reconnect;
 
         console.log(`🚀 Custom room ${room.code} — launching with 4 players`);
         const game = new Game(config, messenger);
         GameRegistry.register(game.id, game);
         messenger.setOnTempDisconnect((color) => game.markTempDisconnected(color));
         messenger.setOnPermanentDisconnect((color) => game.markDisconnected(color));
-        game.setOnPlayerAbandoned((gameId, color) => {
-            for (const [guestId, identity] of playerIdentities) {
-                if (identity.gameId === gameId && identity.color === color) {
-                    playerIdentities.delete(guestId);
-                    break;
-                }
-            }
-        });
+        game.setOnPlayerAbandoned((gameId, color) => reconnect.releaseSlot(gameId, color));
+        game.setOnGameEnded((gameId) => reconnect.releaseGame(gameId));
         for (const p of players) {
-            playerIdentities.set(p.guestPlayerId, { gameId: game.id, color: p.color });
+            reconnect.register(p.guestPlayerId, game.id, p.color, p.userId);
             messenger.sendTo(p.color, {
                 type: 'welcome',
                 message: 'Game started',
@@ -432,7 +427,7 @@ export class CustomGameManager {
             this.matchmaking.joinQueue(
                 p.ws,
                 p.name,
-                room.playerIdentities,
+                room.reconnect,
                 p.browserId,
                 p.picture,
                 p.userId,

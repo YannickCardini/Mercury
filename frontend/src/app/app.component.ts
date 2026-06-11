@@ -5,6 +5,8 @@ import { GameStateService } from './game/services/game-state.service';
 import { TabLockService } from './game/services/tab-lock.service';
 import { AppResumeService } from './services/app-resume.service';
 import { AppUpdateService } from './services/app-update.service';
+import { AuthService } from './services/auth.service';
+import { ActiveGameService } from './services/active-game.service';
 import { UpdateAvailableModalComponent } from './shared/update-available-modal.component';
 import { environment } from '../environments/environment';
 import { StatusBar } from '@capacitor/status-bar';
@@ -19,6 +21,8 @@ export class AppComponent implements OnInit {
   private gameStateService = inject(GameStateService);
   private tabLock = inject(TabLockService);
   private router = inject(Router);
+  private auth = inject(AuthService);
+  private activeGame = inject(ActiveGameService);
   /** Eagerly created so its resume listeners are wired for the whole app. */
   protected appResume = inject(AppResumeService);
   protected appUpdate = inject(AppUpdateService);
@@ -42,6 +46,11 @@ export class AppComponent implements OnInit {
       this.router.navigate(['/home']);
     });
 
+    // For signed-in users the server is the source of truth: recover (or
+    // invalidate) the local session against it, even if localStorage is empty
+    // or stale. Guests keep the pure localStorage-based behaviour unchanged.
+    await this.syncSignedInActiveGame();
+
     const guestPlayerId = localStorage.getItem('guest_player_id');
     const activeGameId = localStorage.getItem('active_game_id');
 
@@ -61,11 +70,37 @@ export class AppComponent implements OnInit {
         this.router.navigate(['/game']);
       });
 
-      this.gameStateService.actionRejected$.pipe(take(1)).subscribe(() => {
-        localStorage.removeItem('active_game_id');
-        this.tabLock.releaseSession();
-        this.gameStateService.disconnect();
+      this.gameStateService.actionRejected$.pipe(take(1)).subscribe((reason) => {
+        // Only drop the session when the server explicitly says it's gone —
+        // a transient rejection must not strand the player on the home page.
+        if (reason === 'Session expired or not found') {
+          localStorage.removeItem('active_game_id');
+          this.tabLock.releaseSession();
+          this.gameStateService.disconnect();
+        }
       });
+    }
+  }
+
+  /**
+   * Reconcile the locally stored game session with the server for signed-in
+   * users. On success the reconnection keys are written to (or cleared from)
+   * localStorage so the reconnect path below sees the authoritative state.
+   * If the server is unreachable, localStorage is left untouched as a fallback.
+   */
+  private async syncSignedInActiveGame(): Promise<void> {
+    if (!this.auth.user$.getValue()) return;
+    try {
+      const info = await this.activeGame.fetch();
+      if (info) {
+        localStorage.setItem('guest_player_id', info.guestPlayerId);
+        localStorage.setItem('active_game_id', info.gameId);
+      } else {
+        localStorage.removeItem('guest_player_id');
+        localStorage.removeItem('active_game_id');
+      }
+    } catch {
+      // Server unreachable — keep whatever localStorage already had.
     }
   }
 }

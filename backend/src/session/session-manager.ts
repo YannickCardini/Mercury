@@ -5,6 +5,7 @@ import { MatchmakingManager } from './matchmaking-manager.js';
 import { CustomGameManager } from './custom-game-manager.js';
 import { PresenceManager } from './presence-manager.js';
 import { GameRegistry } from './game-registry.js';
+import { ReconnectRegistry } from './reconnect-registry.js';
 import type { ClientMessage, GameConfig, MarbleColor } from '@mercury/shared';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -31,12 +32,12 @@ export class SessionManager {
     private rooms = new Map<string, PendingRoom>();
     private matchmaking = new MatchmakingManager();
 
-    /** Maps guest_player_id → { gameId, color } for reconnection lookups. */
-    readonly playerIdentities = new Map<string, { gameId: string; color: MarbleColor }>();
+    /** Reconnection slots, indexed by guestPlayerId and (for signed-in) userId. */
+    readonly reconnect = new ReconnectRegistry();
 
     readonly presence = new PresenceManager();
 
-    private customGames = new CustomGameManager(this.playerIdentities, this.matchmaking, this.presence);
+    private customGames = new CustomGameManager(this.reconnect, this.matchmaking, this.presence);
 
     // Pas de constructeur : `PresenceManager.register` flushe nativement la
     // file in-memory à chaque (ré-)enregistrement, ce qui couvre la livraison
@@ -105,11 +106,12 @@ export class SessionManager {
         const messenger = new SingleWsMessenger(ws);
         const game = new Game(config, messenger);
         GameRegistry.register(game.id, game);
+        game.setOnGameEnded((gameId) => this.reconnect.releaseGame(gameId));
 
         // Generate guest IDs for human players (single-device: only one human expected)
         for (const p of config.players.filter(p => p.isHuman)) {
             const guestId = crypto.randomUUID();
-            this.playerIdentities.set(guestId, { gameId: game.id, color: p.color });
+            this.reconnect.register(guestId, game.id, p.color, p.userId);
             // Send welcome with guest identity
             ws.send(JSON.stringify({
                 type: 'welcome',
@@ -121,6 +123,11 @@ export class SessionManager {
             }));
         }
 
+        // Single-device shares one socket for the whole game; if it closes there
+        // is no per-player reconnection, so free the slots to avoid locking a
+        // signed-in player out of starting a new game.
+        ws.addEventListener('close', () => this.reconnect.releaseGame(game.id), { once: true });
+
         console.log(`🎮 Partie single-device lancée (game ${game.id})`);
     }
 
@@ -131,6 +138,11 @@ export class SessionManager {
      * Sinon, crée une room et envoie le code au créateur.
      */
     createRoom(ws: WebSocket, config: GameConfig): void {
+        // Block any signed-in player already engaged in a running game.
+        for (const p of config.players) {
+            if (p.isHuman && p.userId && this.rejectIfInActiveGame(ws, p.userId)) return;
+        }
+
         const humanColors = config.players
             .filter(p => p.isHuman)
             .map(p => p.color);
@@ -202,20 +214,15 @@ export class SessionManager {
             room.messenger.setOnTempDisconnect((color) => game.markTempDisconnected(color));
             room.messenger.setOnPermanentDisconnect((color) => game.markDisconnected(color));
 
-            // Wire up abandon callback to clean up playerIdentities
-            game.setOnPlayerAbandoned((gameId, color) => {
-                for (const [guestId, identity] of this.playerIdentities) {
-                    if (identity.gameId === gameId && identity.color === color) {
-                        this.playerIdentities.delete(guestId);
-                        break;
-                    }
-                }
-            });
+            // Wire up reconnection-slot cleanup (single resign + whole game end)
+            game.setOnPlayerAbandoned((gameId, color) => this.reconnect.releaseSlot(gameId, color));
+            game.setOnGameEnded((gameId) => this.reconnect.releaseGame(gameId));
 
             // Generate guest IDs for each human player and send welcome
             for (const hc of room.humanColors) {
                 const guestId = crypto.randomUUID();
-                this.playerIdentities.set(guestId, { gameId: game.id, color: hc });
+                const userId = room.config.players.find(p => p.color === hc)?.userId;
+                this.reconnect.register(guestId, game.id, hc, userId);
                 room.messenger.sendTo(hc, {
                     type: 'welcome',
                     message: 'Game started',
@@ -234,7 +241,8 @@ export class SessionManager {
      * (ou remplit avec des bots après 60 s).
      */
     joinMatchmaking(ws: WebSocket, playerName?: string, browserId?: string, picture?: string, userId?: string): void {
-        this.matchmaking.joinQueue(ws, playerName, this.playerIdentities, browserId, picture, userId);
+        if (userId && this.rejectIfInActiveGame(ws, userId)) return;
+        this.matchmaking.joinQueue(ws, playerName, this.reconnect, browserId, picture, userId);
     }
 
     /** Crée une custom room et inscrit le créateur (red). */
@@ -242,6 +250,7 @@ export class SessionManager {
         ws: WebSocket,
         info: { playerName: string; browserId?: string; picture?: string; userId?: string },
     ): void {
+        if (info.userId && this.rejectIfInActiveGame(ws, info.userId)) return;
         this.customGames.createRoom(ws, info);
     }
 
@@ -251,7 +260,30 @@ export class SessionManager {
         code: string,
         info: { playerName: string; browserId?: string; picture?: string; userId?: string },
     ): void {
+        if (info.userId && this.rejectIfInActiveGame(ws, info.userId)) return;
         this.customGames.joinRoom(ws, code, info);
+    }
+
+    /**
+     * If `userId` is already a player in a running game, push an
+     * `alreadyInActiveGame` message (carrying the reconnect info) and return
+     * true so the caller aborts the join. Stale entries (game already gone)
+     * are self-healed and treated as "not in a game".
+     */
+    private rejectIfInActiveGame(ws: WebSocket, userId: string): boolean {
+        const active = this.reconnect.getActiveGameForUser(userId);
+        if (!active) return false;
+        if (!GameRegistry.get(active.gameId)) {
+            this.reconnect.releaseGame(active.gameId);
+            return false;
+        }
+        ws.send(JSON.stringify({
+            type: 'alreadyInActiveGame',
+            gameId: active.gameId,
+            guestPlayerId: active.guestPlayerId,
+            color: active.color,
+        }));
+        return true;
     }
 
     private broadcastRoomStatus(roomCode: string): void {

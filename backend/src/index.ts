@@ -11,7 +11,7 @@ import { SessionManager } from './session/session-manager.js';
 import { GameRegistry } from './session/game-registry.js';
 import type { ClientMessage } from '@mercury/shared';
 import { MultiWsMessenger } from './game/game-messenger.js';
-import authRouter from './auth/auth-router.js';
+import authRouter, { verifyAuth } from './auth/auth-router.js';
 import messagesRouter from './messages/messages-router.js';
 import versionRouter from './version/version-router.js';
 
@@ -37,6 +37,27 @@ app.get('/', (_req: Request, res: Response) => {
 // Nécessaire pour que joinRoom() retrouve la room créée par une autre connexion.
 
 const sessionManager = new SessionManager();
+
+// GET /api/active-game — server-authoritative reconnection lookup for signed-in
+// users. Lets a client whose localStorage was wiped (e.g. WebView data loss
+// after a hard shutdown) recover its guestPlayerId from its account and reuse
+// the existing `joinGame` WS reconnect path. Returns null when not in a game.
+app.get('/api/active-game', async (req: Request, res: Response) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
+    const userId = await verifyAuth(token);
+    if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+    }
+
+    const active = sessionManager.reconnect.getActiveGameForUser(userId);
+    if (!active || !GameRegistry.get(active.gameId)) {
+        res.json(null);
+        return;
+    }
+    res.json({ gameId: active.gameId, guestPlayerId: active.guestPlayerId, color: active.color });
+});
 
 wss.on('connection', (ws: WebSocket) => {
     console.log('✅ Client connecté');
@@ -91,7 +112,7 @@ wss.on('connection', (ws: WebSocket) => {
                     break;
 
                 case 'joinGame': {
-                    const identity = sessionManager.playerIdentities.get(msg.guestPlayerId);
+                    const identity = sessionManager.reconnect.getByGuest(msg.guestPlayerId);
                     if (!identity) {
                         ws.send(JSON.stringify({ type: 'actionRejected', reason: 'Session expired or not found' }));
                         break;

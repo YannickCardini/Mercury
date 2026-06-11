@@ -13,6 +13,7 @@ import { GameStateService } from '../game/services/game-state.service';
 import { TabLockService } from '../game/services/tab-lock.service';
 import { AppResumeService } from '../services/app-resume.service';
 import { AuthService, type AuthUser } from '../services/auth.service';
+import { ActiveGameService } from '../services/active-game.service';
 import { PresenceService } from '../services/presence.service';
 import type { GameInviteMessage, MarbleColor, CustomRoomPlayerInfo } from '@mercury/shared';
 import { environment } from 'src/environments/environment';
@@ -151,11 +152,14 @@ export class HomePage implements OnInit, OnDestroy {
   private http = inject(HttpClient);
   private userSub: Subscription | null = null;
 
+  private alreadyInGameSub: Subscription | null = null;
+
   constructor(
     private router: Router,
     private gameStateService: GameStateService,
     private tabLock: TabLockService,
     private presenceService: PresenceService,
+    private activeGame: ActiveGameService,
     readonly auth: AuthService,
     readonly appResume: AppResumeService,
   ) { }
@@ -215,6 +219,47 @@ export class HomePage implements OnInit, OnDestroy {
         this.pendingInvite = null;
       }
     });
+
+    // The server rejected a join/create because this account is already in a
+    // running game — abandon the attempt and drop into that game instead of
+    // showing an error. localStorage keys were already restored by the service.
+    this.alreadyInGameSub = this.gameStateService.alreadyInActiveGame$.subscribe(info => {
+      this.cleanupMatchmaking();
+      this.cleanupCustomGame();
+      this.showMatchmaking = false;
+      this.showCustomGame = false;
+      this.tabLock.claimSession();
+      // connect() cleanly silences and replaces the rejected join socket, then
+      // re-joins the running game.
+      this.gameStateService.connect(environment.wsUrl, () => {
+        this.gameStateService.sendJoinGame(info.guestPlayerId, info.gameId);
+      });
+      this.appResume.refreshFromStorage();
+      void this.router.navigate(['/game']);
+    });
+
+    // Signed-in users are server-authoritative: even with no local session,
+    // an account that is a player in a running game must be pulled into it.
+    void this.redirectIfServerHasActiveGame();
+  }
+
+  /**
+   * For a signed-in user, ask the server whether the account is currently in a
+   * running game; if so, restore the reconnection keys and redirect to /game.
+   * Best-effort: if the server is unreachable, the user simply stays on home.
+   */
+  private async redirectIfServerHasActiveGame(): Promise<void> {
+    if (!this.auth.user$.getValue()) return;
+    try {
+      const info = await this.activeGame.fetch();
+      if (!info) return;
+      localStorage.setItem('guest_player_id', info.guestPlayerId);
+      localStorage.setItem('active_game_id', info.gameId);
+      this.appResume.refreshFromStorage();
+      void this.router.navigate(['/game']);
+    } catch {
+      // Server unreachable — stay on home.
+    }
   }
 
   ngOnDestroy(): void {
@@ -222,6 +267,7 @@ export class HomePage implements OnInit, OnDestroy {
     this.cleanupCustomGame();
     this.gameInviteSub?.unsubscribe();
     this.gameInviteCancelledSub?.unsubscribe();
+    this.alreadyInGameSub?.unsubscribe();
     this.disconnectPresence();
     this.loginErrorSub?.unsubscribe();
     this.updateErrorSub?.unsubscribe();

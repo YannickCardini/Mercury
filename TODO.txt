@@ -1,79 +1,96 @@
 # TODO
 
-## 1. Fix card-help popover behavior on Android (Capacitor app)
+## 1. Server-authoritative game reconnection for signed-in users
 
-Context: the "card effect" help popover is implemented in
-`frontend/src/app/game/components/table/table.component.ts` (signal `cardHelp`,
-methods `onCardSelected()`, `onCardHover()`, `openCardHelp()`). The intended
-behavior is: on touch devices the popover auto-shows when a card is selected
-(tap), and on hover-capable devices (desktop) it shows on mouse hover. Touch
-vs. desktop is currently detected via
-`window.matchMedia('(hover: hover)').matches` (private field `canHover`).
+### Bug report (original incident)
+An Android player's phone shut down (dead battery) mid-game. The bot correctly
+took over his turns (expected: 180 s reconnect window, then bot plays). After
+restarting his phone, the player — still signed in with his Google account —
+landed on the home page with no way to rejoin the ongoing game, even though the
+game was still running with the bot playing his color.
 
-### 1.1. Show the help popover on simple tap (not long-press) on Android
+### Root cause (confirmed in the code)
+Reconnection depends **exclusively** on two client-side localStorage keys,
+`guest_player_id` and `active_game_id`:
+- `frontend/src/app/app.component.ts` (ngOnInit, ~line 45): reconnects only if
+  both keys are present, via the `joinGame` WS message.
+- `frontend/src/app/game/game.guard.ts`: allows `/game` only if both keys exist,
+  otherwise redirects to `/home`.
+- Backend: `SessionManager.playerIdentities` (`backend/src/session/session-manager.ts`,
+  ~line 35) maps a random `guestPlayerId` → `{ gameId, color }`. There is **no
+  mapping from the authenticated `userId` to an active game** anywhere in the
+  backend, and no endpoint to query it.
 
-- Observed bug: on the Android build, the popover only appears after a
-  long-press on a card, instead of appearing immediately when the card is
-  selected by a tap.
-- Likely cause: the Android WebView reports `(hover: hover)` as true, so
-  `canHover` is true, the auto-show-on-selection branch in `onCardSelected()`
-  (the `if (!this.canHover && this.cardHelpEnabled())` block) is skipped, and
-  the popover is only triggered by the synthetic `mouseenter` that Android
-  fires on long-press.
-- Fix: replace or complement the `(hover: hover)` detection with a reliable
-  touch/native check (e.g. `(pointer: coarse)`, presence of touch events, or
-  `Capacitor.isNativePlatform()`), so that on Android the popover opens as
-  soon as a card is selected, exactly like on mobile web.
+If localStorage is lost or cleared (WebView data loss after a hard shutdown, or
+the `actionRejected` handler in `app.component.ts` ~line 64 deleting
+`active_game_id` after a single transient rejection), a signed-in player has no
+path back into their game.
 
-### 1.2. Prevent the Android text-selection menu on long-press of a card
+### Required behavior
+While a signed-in user is a player in an active (unfinished) game:
+1. Any client authenticated with that account must be **redirected into the
+   game** — it must be impossible to stay on the home page.
+2. That account must be **blocked from joining or creating any other game**
+   (public matchmaking queue, custom room create/join, multi-device room).
+3. The only ways to be released from the game are: the game ending, or the
+   player resigning via the in-game **resign** button (`abandonGame` message →
+   `handleAbandonGame` in `backend/src/game/game.ts`, ~line 418).
 
-- Observed bug: long-pressing a card in hand triggers the native blue
-  text-selection handles and the copy / paste / select-all context menu. This
-  must never happen inside the game UI.
-- The card buttons already have `(contextmenu)="$event.preventDefault()"` in
-  `table.component.html`, but the `.tock-card-btn` rule in
-  `frontend/src/app/game/components/table/table.component.scss` has no
-  text-selection suppression (other elements in that file already do this —
-  see the existing `user-select: none; -webkit-user-select: none;
-  -webkit-touch-callout: none;` declarations used elsewhere in the same file).
-- Fix: apply `user-select: none`, `-webkit-user-select: none` and
-  `-webkit-touch-callout: none` globally to the game
-  screen, so no text inside the game can be selected on long-press.
+### Implementation steps
 
-### 1.3. Make card help available when it is NOT the player's turn
+**Backend**
+- [x] Add a server-side map `userId → { gameId, color, guestPlayerId }` for
+      signed-in players, populated everywhere guest identities are created:
+      `SessionManager.startSingleDevice`, `SessionManager.joinRoom` (welcome
+      block), `MatchmakingManager` (game start, where `guestPlayerId` is
+      issued), `CustomGameManager` (game start).
+      → `backend/src/session/reconnect-registry.ts` (new `ReconnectRegistry`
+      with `byGuest` + `byUser` indexes); replaces the old `playerIdentities`
+      Map across SessionManager / Matchmaking / CustomGame managers.
+- [x] Clear the entry when the player is released: game end / abort (all the
+      `GameRegistry.delete` paths in `game.ts`) and resign.
+      → New `Game.setOnGameEnded` fires at every `GameRegistry.delete` site
+      (`releaseGame`); `handleAbandonGame` now `forceDisconnect`s everyone and
+      calls `onPlayerAbandoned` → `releaseSlot`, so resign RELEASES the account
+      (rejoin no longer possible — the bot plays the color out). Dead
+      `softDisconnect` / `indefiniteReconnect` removed from the messenger.
+- [x] Add an authenticated lookup `GET /api/active-game` (Bearer session token),
+      returning `{ gameId, guestPlayerId, color }` or `null`.
+      → `backend/src/index.ts` (uses `verifyAuth`, validates the game still
+      exists in `GameRegistry`).
+- [x] Enforce the join block server-side: in `joinMatchmaking`,
+      `createCustomRoom`, `joinCustomRoom`, `createRoom`, if the caller's
+      `userId` already maps to an active game, reject with `alreadyInActiveGame`
+      (carries gameId/guestPlayerId/color so the client can redirect in).
+      → `SessionManager.rejectIfInActiveGame` (also self-heals stale entries).
+      `joinRoom` carries no userId in its message, so it can't be blocked there.
 
-- Observed limitation: while waiting for their turn, a player cannot read what
-  their cards do. In `onCardSelected()` there is an early return when
-  `!this.gameStateService.isMyTurn()` (it only sets the turn phase to WAIT),
-  which happens before the help-popover logic is reached.
-- Desired behavior: tapping (touch) or hovering (desktop) a card in hand when
-  it is not the player's turn should still display the help popover with the
-  card's effect (text from `getCardEffect()` in
-  `frontend/src/app/shared/card-effects.ts`), WITHOUT selecting the card for
-  play and without changing any game/selection state.
-- Keep the existing rules: respect the `cardHelpEnabled` user setting, keep
-  the 3.5 s auto-close on touch, and keep the popover suppressed during the
-  tutorial start hint (`tutorialHintId() === 'card'`).
+**Frontend**
+- [x] On app startup (`app.component.ts` ngOnInit) and on home page entry, when
+      signed in, call `GET /api/active-game` and reconcile localStorage against
+      it (server is the source of truth — recovers wiped keys, clears stale
+      ones), then reconnect / redirect to `/game`.
+      → New `services/active-game.service.ts`; `app.component.syncSignedInActiveGame`
+      + `home.page.redirectIfServerHasActiveGame`.
+- [x] Signed-in user with a server-reported active game cannot remain on
+      `/home` — `home.page` redirects to `/game`.
+- [x] Handle the `alreadyInActiveGame` rejection on matchmaking / custom-room
+      joins by reconnecting and redirecting into the game.
+      → `game-state.service` restores localStorage + emits `alreadyInActiveGame$`;
+      `home.page` subscribes and reconnects via `joinGame`.
+- [x] Make session-drop less aggressive: the cold-start `actionRejected`
+      handler now only drops `active_game_id` on the explicit
+      "Session expired or not found" reason, not on transient errors.
 
-## 2. Document the Android release procedure in README.md
-
-Add a new section to `README.md` (in French, like the rest of the file — e.g.
-"## Release Android") describing the full procedure to publish a new Android
-release:
-
-1. Bump the version in `frontend/android/app/build.gradle`: increment
-   `versionCode` (integer, currently 8) and `versionName` (string, currently
-   "1.8") in the `defaultConfig` block.
-2. Update the matching defaults in `backend/src/version/version-router.ts`:
-   `LATEST_VERSION_CODE` and `LATEST_VERSION_NAME` must equal the new
-   `versionCode` / `versionName` from build.gradle (this endpoint,
-   `GET /api/version`, is what tells the mobile app an update is available).
-   Mention that these values can also be overridden at runtime via the
-   `LATEST_VERSION_CODE` / `LATEST_VERSION_NAME` environment variables.
-3. Build the release bundle from the repo root:
-   `cd frontend && rm -rf www && npm run build && npx cap sync android && cd android && ./gradlew bundleRelease`
-   (`www` is the Angular output dir consumed by Capacitor — see `webDir` in
-   `frontend/capacitor.config.ts`).
-4. State where the resulting .aab is produced
-   (`frontend/android/app/build/outputs/bundle/release/`) and that it is the
-   artifact to upload to the Google Play Console.
+### Acceptance criteria
+- Signed in, in a matchmaking game: kill the app and wipe app data (simulates
+  the dead-battery localStorage loss) → reopen the app, sign in → automatically
+  redirected into the still-running game with full state restored.
+- While that game is active: navigating to `/home` (any device, same account)
+  redirects to `/game`; joining matcrth flagging
+joinRoom (local multi-devhmaking or a custom room is rejected and
+  redirects to `/game`.
+- Pressing the in-game resign button releases the account: home page is
+  accessible and new games can be joined.
+- Guest (not signed-in) players keep the current localStorage-based
+  reconnection behavior unchanged.
