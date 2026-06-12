@@ -438,6 +438,10 @@ enum TURN_PHASE {
       // (Sur desktop, le survol passe par onCardHover, déjà indépendant du tour.)
       // La carte ne bougeant pas (pas de sélection), on lit sa position directement.
       if (!this.canHover && this.cardHelpEnabled()) {
+        if (this.cardHelp()?.index === index) {
+          this.closeCardHelp();
+          return;
+        }
         const cardEls = document.querySelectorAll<HTMLElement>('.playable-card');
         const cardEl = cardEls[index];
         if (cardEl) this.openCardHelp(index, cardEl, 3500);
@@ -494,7 +498,7 @@ enum TURN_PHASE {
    *  arrowOffset = décalage horizontal de la flèche par rapport au centre du popover,
    *                pour qu'elle pointe vers le vrai centre de la carte même quand le
    *                popover a été clampé près d'un bord. */
-  cardHelp = signal<{ title: string; text: string; x: number; y: number; arrowOffset: number } | null>(null);
+  cardHelp = signal<{ index: number; title: string; text: string; x: number; y: number; arrowOffset: number } | null>(null);
 
   /** Active/désactive l'aide contextuelle (mobile + desktop). Persisté en localStorage. */
   readonly cardHelpEnabled = signal<boolean>(
@@ -554,7 +558,7 @@ enum TURN_PHASE {
     // pas sortir des bords (marge de 7px = demi-largeur de la flèche).
     const arrowOffset = Math.min(Math.max(rawX - x, -(HALF - 7)), HALF - 7);
 
-    this.cardHelp.set({ title: effect.title, text: effect.text, x, y: rect.top, arrowOffset });
+    this.cardHelp.set({ index, title: effect.title, text: effect.text, x, y: rect.top, arrowOffset });
 
     if (autoCloseMs !== undefined) {
       clearTimeout(this.helpAutoCloseTimer);
@@ -571,6 +575,7 @@ enum TURN_PHASE {
   /** Action du bouton principal : défausse ou confirmation selon le contexte. */
   onConfirmOrDiscard(): void {
     if (!this.confirmOrDiscardEnabled()) return;
+    this.closeCardHelp();
 
     const myColor = this.gameStateService.myPlayerColor()!;
 

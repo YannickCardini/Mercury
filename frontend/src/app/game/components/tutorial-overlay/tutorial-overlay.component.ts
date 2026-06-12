@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { pairwise } from 'rxjs';
-import { NEW_TURN_BANNER_DURATION_MS } from '@mercury/shared';
+import { NEW_TURN_BANNER_DURATION_MS, getHomePositions } from '@mercury/shared';
 import { GameStateService } from '../../services/game-state.service';
 
 /** Which game element a hint refers to. */
@@ -151,6 +151,23 @@ export class TutorialOverlayComponent implements OnDestroy {
       if (action.playerColor !== this.gameState.myPlayerColor()) return;
       if (action.type === 'discard') this.hasDiscarded.set(true);
       else this.hasConfirmed.set(true);
+    });
+
+    // On reconnection to an already-started game the component re-creates with
+    // hasConfirmed = false, but the player may already have marbles on the board.
+    // Detect this by checking whether any marble sits outside the home zone and,
+    // if so, permanently suppress the first-move hint flow.
+    effect(() => {
+      if (this.hasConfirmed()) return;
+      const data = this.gameState.data();
+      const myColor = this.gameState.myPlayerColor();
+      if (!data || !myColor) return;
+      const player = data.gameState.players.find(p => p.color === myColor);
+      if (!player) return;
+      const homePositions = getHomePositions(myColor);
+      if (player.marblePositions.some(pos => !homePositions.includes(pos))) {
+        this.hasConfirmed.set(true);
+      }
     });
 
     // Suppress the 'card' hint during the server round-trip after the player

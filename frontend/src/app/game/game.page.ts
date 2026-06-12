@@ -10,7 +10,7 @@ import { GameStateService } from './services/game-state.service';
 import { SoundService } from './services/sound.service';
 import { environment } from '../../environments/environment';
 import { Subscription } from 'rxjs';
-import { NEW_TURN_BANNER_DURATION_MS, GameConfig } from '@mercury/shared';
+import { NEW_TURN_BANNER_DURATION_MS } from '@mercury/shared';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { Capacitor } from '@capacitor/core';
 
@@ -128,6 +128,7 @@ export class GamePage implements OnDestroy, AfterViewInit {
 
   backToMenu(): void {
     localStorage.removeItem('guest_player_id');
+    localStorage.removeItem('active_game_id');
     this.gameStateService.reset();
     void this.router.navigate(['/home']);
   }
@@ -155,7 +156,7 @@ export class GamePage implements OnDestroy, AfterViewInit {
       if (activeGameId && guestPlayerId) {
         this.gameStateService.sendJoinGame(guestPlayerId, activeGameId);
       } else {
-        this.sendStart();
+        this.handleLoadFailure('No active game session.');
       }
     });
   }
@@ -186,19 +187,4 @@ export class GamePage implements OnDestroy, AfterViewInit {
     }, LOAD_ERROR_REDIRECT_MS);
   }
 
-  private sendStart(): void {
-    // ── Config de la partie ──────────────────────────────────────────────────
-    // Changer isHuman à true pour jouer en tant que joueur rouge.
-    // Tous les autres joueurs restent IA.
-    const config: GameConfig = {
-      players: [
-        { name: 'Moi', color: 'red', isHuman: true },
-        { name: 'IA Vert', color: 'green', isHuman: false },
-        { name: 'IA Bleu', color: 'blue', isHuman: false },
-        { name: 'IA Orange', color: 'orange', isHuman: false },
-      ],
-    };
-    this.gameStateService.setConfig(config);
-    this.gameStateService.send(JSON.stringify({ type: 'start', config }));
-  }
 }

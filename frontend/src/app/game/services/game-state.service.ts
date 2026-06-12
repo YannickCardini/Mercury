@@ -470,6 +470,7 @@ export class GameStateService {
         case 'gameEnded': {
           const msg = parsed as GameEndedMessage;
           localStorage.removeItem('active_game_id');
+          localStorage.removeItem('guest_player_id');
           this.tabLock.releaseSession();
           if (msg.reason === 'abandoned') {
             this.gameAbandoned$.next();

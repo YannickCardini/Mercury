@@ -75,6 +75,7 @@ export class AppComponent implements OnInit {
         // a transient rejection must not strand the player on the home page.
         if (reason === 'Session expired or not found') {
           localStorage.removeItem('active_game_id');
+          localStorage.removeItem('guest_player_id');
           this.tabLock.releaseSession();
           this.gameStateService.disconnect();
         }
