@@ -98,12 +98,15 @@ export class MultiWsMessenger implements GameMessenger {
 
     /**
      * Rebind a new WebSocket to an existing player slot.
-     * Handles two cases:
+     * Handles three cases:
      *  1. Player disconnected and reconnects within the 180s window (timer pending).
      *  2. Another tab connects while the first is still active (force-replace).
+     *  3. The 180s window already expired but `allowExpired` is true — used for
+     *     signed-in players, who may rejoin their game at any time while it runs
+     *     (the bot has been playing their color in the meantime).
      * Returns true on success, false if no slot is available for reconnection.
      */
-    reconnect(color: MarbleColor, ws: WebSocket): boolean {
+    reconnect(color: MarbleColor, ws: WebSocket, allowExpired = false): boolean {
         const timer = this.disconnectTimers.get(color);
         const existing = this.connections.get(color);
 
@@ -114,8 +117,8 @@ export class MultiWsMessenger implements GameMessenger {
         } else if (existing) {
             // Case 2: another tab still connected — close old connection
             existing.close(4001, 'Session opened in another tab');
-        } else {
-            // No slot to reconnect to
+        } else if (!allowExpired) {
+            // Window expired and the caller is not entitled to rejoin (guest)
             return false;
         }
 

@@ -124,7 +124,9 @@ wss.on('connection', (ws: WebSocket) => {
                     }
                     const messenger = game.getMessenger();
                     if (messenger instanceof MultiWsMessenger) {
-                        const ok = messenger.reconnect(identity.color, ws);
+                        // Signed-in players may rejoin even after the 180s window
+                        // expired — the server-side registry vouches for them.
+                        const ok = messenger.reconnect(identity.color, ws, !!identity.userId);
                         if (ok) {
                             game.resendStateToPlayer(identity.color);
                             console.log(`🔄 Reconnection réussie pour ${identity.color} (game ${identity.gameId})`);

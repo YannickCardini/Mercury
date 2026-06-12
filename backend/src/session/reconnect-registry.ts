@@ -18,6 +18,9 @@ import type { MarbleColor } from '@mercury/shared';
 interface GuestIdentity {
     gameId: string;
     color: MarbleColor;
+    /** Présent uniquement pour un joueur signed-in — autorise la reconnexion
+     *  même après expiration de la fenêtre de 180 s du messenger. */
+    userId?: string;
 }
 
 /** Entrée d'un joueur signed-in : ajoute le guestPlayerId pour qu'un client à
@@ -33,7 +36,7 @@ export class ReconnectRegistry {
 
     /** Enregistre un slot joueur. `userId` n'est fourni que pour un signed-in. */
     register(guestPlayerId: string, gameId: string, color: MarbleColor, userId?: string): void {
-        this.byGuest.set(guestPlayerId, { gameId, color });
+        this.byGuest.set(guestPlayerId, { gameId, color, ...(userId ? { userId } : {}) });
         if (userId) this.byUser.set(userId, { gameId, color, guestPlayerId });
     }
 
