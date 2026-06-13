@@ -1,5 +1,20 @@
 # TODO — Mercury bug fixes
 # Scope: frontend only unless stated otherwise. File paths are relative to repo root.
+#
+# ── STATUT (audit 2026-06-12) ───────────────────────────────────────────
+# 1. RÉSOLU avant l'audit — tutorial-overlay.component.ts contient déjà un
+#    effect() qui supprime les hints quand des billes sont déjà sorties
+#    (lignes ~160-171). À confirmer une fois en conditions réelles.
+# 2. RÉSOLU — le fallback sendStart() avait déjà été retiré de game.page.ts ;
+#    l'audit a complété : nettoyage localStorage centralisé dans
+#    GameStateService.clearActiveGameSession() (plus aucun removeItem épars),
+#    et côté backend 'start'/'createRoom'/'joinRoom' sont réservés à
+#    DEBUG=true (un vieux client ne peut plus créer de partie debug en prod).
+# 3a/3b. RÉSOLUS avant l'audit — closeCardHelp() est appelé en tête de
+#    onConfirmOrDiscard(), et le toggle hors-tour existe (cardHelp()?.index).
+#    L'audit a ajouté la fermeture sur l'écho serveur actionPlayed$
+#    (cas du coup auto-joué sur timeout).
+# ────────────────────────────────────────────────────────────────────────
 
 ────────────────────────────────────────────────────────────────────────
 1. Tutorial hints wrongly re-shown after reconnecting into a game in progress

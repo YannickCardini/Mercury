@@ -28,33 +28,35 @@ export class PresenceService {
 
   private ws: WebSocket | null = null;
   private currentUserId: string | null = null;
+  private currentAuthToken: string | null = null;
   private currentUrl: string | null = null;
   private intentionalDisconnect = false;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectDelayMs = 1000;
   private readonly maxReconnectDelayMs = 30_000;
 
-  connect(url: string, userId: string): void {
+  connect(url: string, userId: string, authToken: string): void {
     if (this.ws && this.currentUserId === userId) return;
     this.disconnect();
 
     this.intentionalDisconnect = false;
     this.currentUserId = userId;
+    this.currentAuthToken = authToken;
     this.currentUrl = url;
     this.openSocket();
   }
 
   private openSocket(): void {
     const url = this.currentUrl;
-    const userId = this.currentUserId;
-    if (!url || !userId) return;
+    const authToken = this.currentAuthToken;
+    if (!url || !authToken) return;
 
     const ws = new WebSocket(url);
     this.ws = ws;
 
     ws.onopen = () => {
       this.reconnectDelayMs = 1000;
-      try { ws.send(JSON.stringify({ type: 'registerPresence', userId })); } catch { /* ignore */ }
+      try { ws.send(JSON.stringify({ type: 'registerPresence', authToken })); } catch { /* ignore */ }
     };
     ws.onmessage = (event: MessageEvent) => {
       try {
@@ -74,6 +76,7 @@ export class PresenceService {
       this.ws = null;
       if (this.intentionalDisconnect) {
         this.currentUserId = null;
+        this.currentAuthToken = null;
         this.currentUrl = null;
         return;
       }
@@ -108,12 +111,14 @@ export class PresenceService {
     this.reconnectDelayMs = 1000;
     if (!this.ws) {
       this.currentUserId = null;
+      this.currentAuthToken = null;
       this.currentUrl = null;
       return;
     }
     const ws = this.ws;
     this.ws = null;
     this.currentUserId = null;
+    this.currentAuthToken = null;
     this.currentUrl = null;
     ws.onopen = null;
     ws.onmessage = null;

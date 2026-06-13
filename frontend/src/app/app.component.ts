@@ -7,6 +7,7 @@ import { AppResumeService } from './services/app-resume.service';
 import { AppUpdateService } from './services/app-update.service';
 import { AuthService } from './services/auth.service';
 import { ActiveGameService } from './services/active-game.service';
+import { ToastService } from './shared/toast.service';
 import { UpdateAvailableModalComponent } from './shared/update-available-modal.component';
 import { environment } from '../environments/environment';
 import { StatusBar } from '@capacitor/status-bar';
@@ -26,6 +27,7 @@ export class AppComponent implements OnInit {
   /** Eagerly created so its resume listeners are wired for the whole app. */
   protected appResume = inject(AppResumeService);
   protected appUpdate = inject(AppUpdateService);
+  protected toast = inject(ToastService);
 
   async ngOnInit(): Promise<void> {
     StatusBar.setOverlaysWebView({ overlay: false }).catch(() => {});
@@ -37,11 +39,13 @@ export class AppComponent implements OnInit {
 
     // Handle session replaced by another tab (close code 4001)
     this.gameStateService.sessionReplaced$.subscribe(() => {
+      this.toast.show('Partie reprise dans un autre onglet.');
       this.router.navigate(['/home']);
     });
 
     // Handle game abandoned (all human players left)
     this.gameStateService.gameAbandoned$.subscribe(() => {
+      this.toast.show('La partie a été annulée : plus aucun joueur connecté.', 'error', 4000);
       this.gameStateService.reset();
       this.router.navigate(['/home']);
     });
@@ -74,8 +78,7 @@ export class AppComponent implements OnInit {
         // Only drop the session when the server explicitly says it's gone —
         // a transient rejection must not strand the player on the home page.
         if (reason === 'Session expired or not found') {
-          localStorage.removeItem('active_game_id');
-          localStorage.removeItem('guest_player_id');
+          this.gameStateService.clearActiveGameSession();
           this.tabLock.releaseSession();
           this.gameStateService.disconnect();
         }
@@ -97,8 +100,7 @@ export class AppComponent implements OnInit {
         localStorage.setItem('guest_player_id', info.guestPlayerId);
         localStorage.setItem('active_game_id', info.gameId);
       } else {
-        localStorage.removeItem('guest_player_id');
-        localStorage.removeItem('active_game_id');
+        this.gameStateService.clearActiveGameSession();
       }
     } catch {
       // Server unreachable — keep whatever localStorage already had.

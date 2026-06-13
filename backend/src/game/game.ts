@@ -20,7 +20,7 @@ import {
     computeMinAnimationDuration,
 } from '@mercury/shared';
 import { REACTION_EMOJIS } from "@mercury/shared";
-import type { Action, Card, ClientMessage, GameConfig, MarbleColor, ReactionEmoji } from "@mercury/shared";
+import type { Action, Card, ClientMessage, GameConfig, GameState, MarbleColor, ReactionEmoji } from "@mercury/shared";
 
 const REACTION_COOLDOWN_MS = 2000;
 
@@ -95,7 +95,29 @@ export class Game {
         // Handler centralisé : toute la logique WS passe par ici
         messenger.onMessage((msg, senderColor) => this.handleClientMessage(msg, senderColor));
 
-        this.startGame();
+        // Filet de sécurité : une exception dans la boucle de jeu ne doit ni
+        // devenir une unhandledRejection, ni laisser la partie orpheline dans
+        // le GameRegistry (fuite mémoire + slots de reconnexion bloqués).
+        this.startGame()
+            .catch(err => {
+                console.error(`💥 Partie ${this.id} interrompue par une exception:`, err);
+                this.gameFinished = true;
+                try {
+                    this.messenger.send({ type: 'gameEnded', winner: null, reason: 'abandoned' });
+                } catch { /* sockets déjà fermées */ }
+            })
+            .finally(() => {
+                GameRegistry.delete(this.id);
+                this.onGameEnded?.(this.id);
+            });
+    }
+
+    /**
+     * Vrai si la partie peut être purgée du registre : terminée, annulée, ou
+     * plus vieille que `maxAgeMs` (garde-fou contre les boucles bloquées).
+     */
+    isStale(maxAgeMs: number): boolean {
+        return this.gameFinished || this.aborted || (Date.now() - this.startTime) > maxAgeMs;
     }
 
     getMessenger(): GameMessenger {
@@ -110,6 +132,30 @@ export class Game {
         this.onGameEnded = cb;
     }
 
+    /**
+     * Snapshot de l'état de jeu partagé par tous les joueurs (sans `hand`,
+     * propre à chaque destinataire). Source unique pour tous les broadcasts.
+     */
+    private buildGameStateSnapshot(currentPlayer: Player): Omit<GameState, 'hand'> {
+        return {
+            players: this.players.map(p => ({
+                name: p.name,
+                color: p.color,
+                isHuman: p.isHuman,
+                isConnected: p.isConnected,
+                marblePositions: p.marblePositions,
+                marbleInvincible: p.marbleInvincible,
+                cardsLeft: p.cards.length,
+                ...(p.picture !== undefined ? { picture: p.picture } : {}),
+                ...(p.userId !== undefined ? { userId: p.userId } : {}),
+            })),
+            currentTurn: currentPlayer.color,
+            timer: TURN_DURATION_SECONDS,
+            discardedCards: this.discardedCards,
+            canDiscard: this.computeCanDiscard(currentPlayer),
+        };
+    }
+
     resendStateToPlayer(color: MarbleColor): void {
         const currentPlayer = this.players[this.currentPlayerIndex]!;
         const player = this.players.find(p => p.color === color);
@@ -120,23 +166,7 @@ export class Game {
         const wasDisconnected = !player.isConnected;
         player.isConnected = true;
 
-        const commonGameState = {
-            players: this.players.map(p => ({
-                name: p.name,
-                color: p.color,
-                isHuman: p.isHuman,
-                isConnected: p.isConnected,
-                marblePositions: p.marblePositions,
-                marbleInvincible: p.marbleInvincible,
-                cardsLeft: p.cards.length,
-                picture: p.picture,
-                userId: p.userId,
-            })),
-            currentTurn: currentPlayer.color,
-            timer: TURN_DURATION_SECONDS,
-            discardedCards: this.discardedCards,
-            canDiscard: this.computeCanDiscard(currentPlayer),
-        };
+        const commonGameState = this.buildGameStateSnapshot(currentPlayer);
 
         this.messenger.sendTo(color, {
             type: 'gameState',
@@ -190,23 +220,7 @@ export class Game {
      */
     private broadcastConnectionUpdate(): void {
         const currentPlayer = this.players[this.currentPlayerIndex]!;
-        const commonGameState = {
-            players: this.players.map(p => ({
-                name: p.name,
-                color: p.color,
-                isHuman: p.isHuman,
-                isConnected: p.isConnected,
-                marblePositions: p.marblePositions,
-                marbleInvincible: p.marbleInvincible,
-                cardsLeft: p.cards.length,
-                picture: p.picture,
-                userId: p.userId,
-            })),
-            currentTurn: currentPlayer.color,
-            timer: TURN_DURATION_SECONDS,
-            discardedCards: this.discardedCards,
-            canDiscard: this.computeCanDiscard(currentPlayer),
-        };
+        const commonGameState = this.buildGameStateSnapshot(currentPlayer);
 
         for (const player of this.players.filter(p => p.isHuman)) {
             this.messenger.sendTo(player.color, {
@@ -363,6 +377,8 @@ export class Game {
                 break;
             // start / createRoom / joinRoom sont gérés par SessionManager avant
             // que la Game soit créée — on les ignore silencieusement ici.
+            default:
+                console.warn(`⚠️ Game ${this.id} — message inattendu de ${senderColor ?? '?'}: ${(msg as ClientMessage).type}`);
         }
     }
 
@@ -743,23 +759,7 @@ export class Game {
     }
 
     private broadcastState(currentPlayer: Player, message = 'New turn'): void {
-        const commonGameState = {
-            players: this.players.map(p => ({
-                name: p.name,
-                color: p.color,
-                isHuman: p.isHuman,
-                isConnected: p.isConnected,
-                marblePositions: p.marblePositions,
-                marbleInvincible: p.marbleInvincible,
-                cardsLeft: p.cards.length,
-                picture: p.picture,
-                userId: p.userId,
-            })),
-            currentTurn: currentPlayer.color,
-            timer: TURN_DURATION_SECONDS,
-            discardedCards: this.discardedCards,
-            canDiscard: this.computeCanDiscard(currentPlayer),
-        };
+        const commonGameState = this.buildGameStateSnapshot(currentPlayer);
 
         const humanPlayers = this.players.filter(p => p.isHuman);
 

@@ -10,7 +10,7 @@
 
 import crypto from 'node:crypto';
 import { Game } from '../game/game.js';
-import { MultiWsMessenger } from '../game/game-messenger.js';
+import { MultiWsMessenger, wsSend } from '../game/game-messenger.js';
 import { GameRegistry } from './game-registry.js';
 import { isTrainMode } from '../train-mode.js';
 import type { ReconnectRegistry } from './reconnect-registry.js';
@@ -58,7 +58,7 @@ export class MatchmakingManager {
 
         // Reject duplicate joins from the same browser
         if (browserId && this.session.players.some(p => p.browserId === browserId)) {
-            ws.send(JSON.stringify({ type: 'actionRejected', reason: 'Already in matchmaking from another tab' }));
+            wsSend(ws, { type: 'actionRejected', reason: 'Already in matchmaking from another tab' });
             return;
         }
 
@@ -66,7 +66,7 @@ export class MatchmakingManager {
         const color = COLORS.find(c => !takenColors.has(c));
 
         if (!color) {
-            ws.send(JSON.stringify({ type: 'actionRejected', reason: 'Matchmaking session is full' }));
+            wsSend(ws, { type: 'actionRejected', reason: 'Matchmaking session is full' });
             return;
         }
 
@@ -155,9 +155,20 @@ export class MatchmakingManager {
 
     private launch(): void {
         if (!this.session) return;
-        if (this.session.botDispatchTimer) clearInterval(this.session.botDispatchTimer);
 
         const playersByColor = new Map(this.session.players.map(p => [p.color, p]));
+
+        // Un slot peut s'être vidé entre le check de remplissage et le lancement
+        // (close d'un joueur traité entre-temps) : on reste en file d'attente
+        // plutôt que de crasher sur une couleur manquante.
+        const missing = COLORS.filter(c => !playersByColor.has(c));
+        if (missing.length > 0) {
+            console.warn(`⚠️ Matchmaking — lancement annulé, couleur(s) manquante(s): ${missing.join(', ')}`);
+            this.broadcastStatus();
+            return;
+        }
+
+        if (this.session.botDispatchTimer) clearInterval(this.session.botDispatchTimer);
 
         const config: GameConfig = {
             players: COLORS.map(color => {
@@ -207,13 +218,13 @@ export class MatchmakingManager {
         if (!this.session) return;
         const connectedCount = this.session.players.length;
         for (const player of this.session.players) {
-            player.ws.send(JSON.stringify({
+            wsSend(player.ws, {
                 type: 'matchmakingStatus',
                 connectedCount,
                 totalNeeded: 4,
                 myColor: player.color,
                 guestPlayerId: player.guestPlayerId,
-            }));
+            });
         }
     }
 }

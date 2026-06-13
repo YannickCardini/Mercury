@@ -146,8 +146,7 @@ export class AppResumeService {
       clearTimeout(timeoutId);
       startedSub.unsubscribe();
       console.log('[AppResume] server rejected join — game no longer active:', reason);
-      localStorage.removeItem('active_game_id');
-      localStorage.removeItem('guest_player_id');
+      this.gameStateService.clearActiveGameSession();
       this.tabLock.releaseSession();
       this.gameStateService.reset();
       this.hasActiveGame.set(false);

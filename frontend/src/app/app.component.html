@@ -1,5 +1,12 @@
 <router-outlet></router-outlet>
 
+<!-- Toast global : feedback transitoire (action rejetée, reconnexion, partie annulée…) -->
+@if (toast.message(); as toastMsg) {
+<div class="app-toast" [class.error]="toast.kind() === 'error'" role="status" aria-live="polite">
+  {{ toastMsg }}
+</div>
+}
+
 <!-- Popup de mise à jour obligatoire, rendu au niveau app pour couvrir toute page. -->
 <app-update-available-modal
   [show]="appUpdate.updateAvailable()"

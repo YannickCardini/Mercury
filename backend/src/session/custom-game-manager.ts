@@ -16,12 +16,13 @@
 
 import crypto from 'node:crypto';
 import { Game } from '../game/game.js';
-import { MultiWsMessenger } from '../game/game-messenger.js';
+import { MultiWsMessenger, wsSend } from '../game/game-messenger.js';
 import { GameRegistry } from './game-registry.js';
 import type { GameConfig, MarbleColor, ClientMessage, CustomRoomPlayerInfo } from '@mercury/shared';
 import type { MatchmakingManager } from './matchmaking-manager.js';
 import type { PresenceManager } from './presence-manager.js';
 import type { ReconnectRegistry } from './reconnect-registry.js';
+import { generateRoomCode } from '../utils/utils.js';
 
 const INVITATION_TTL_MS = 5 * 60 * 1000;
 const GRACE_PERIOD_MS = 60 * 1000;
@@ -57,10 +58,6 @@ interface CustomRoom {
     invitees: Set<string>;
     /** Shared registry injected from SessionManager so reconnect lookups work. */
     reconnect: ReconnectRegistry;
-}
-
-function generateRoomCode(): string {
-    return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
 /** Type-narrowing helper : un message queued par `PresenceManager` est un
@@ -119,7 +116,7 @@ export class CustomGameManager {
     ): void {
         const room = this.rooms.get(code);
         if (!room) {
-            ws.send(JSON.stringify({ type: 'actionRejected', reason: `Room ${code} not found` }));
+            wsSend(ws, { type: 'actionRejected', reason: `Room ${code} not found` });
             return;
         }
 
@@ -131,7 +128,7 @@ export class CustomGameManager {
         const existing = this.findExistingPlayer(room, info.userId, info.browserId);
         if (existing) {
             if (existing.isConnected) {
-                ws.send(JSON.stringify({ type: 'actionRejected', reason: 'Already in this room from another tab' }));
+                wsSend(ws, { type: 'actionRejected', reason: 'Already in this room from another tab' });
                 return;
             }
             this.rebindPlayer(room, existing, ws, info);
@@ -141,7 +138,7 @@ export class CustomGameManager {
         const taken = new Set(room.players.map(p => p.color));
         const color = COLORS.find(c => !taken.has(c));
         if (!color) {
-            ws.send(JSON.stringify({ type: 'actionRejected', reason: 'Room is full' }));
+            wsSend(ws, { type: 'actionRejected', reason: 'Room is full' });
             return;
         }
 
@@ -361,7 +358,7 @@ export class CustomGameManager {
             }
             return;
         }
-        ws.send(JSON.stringify({ type: 'actionRejected', reason: 'Only the room creator can start the game' }));
+        wsSend(ws, { type: 'actionRejected', reason: 'Only the room creator can start the game' });
     }
 
     private cleanupListeners(room: CustomRoom): void {
@@ -492,7 +489,7 @@ export class CustomGameManager {
         if (wasCreator) {
             for (const p of room.players) {
                 try {
-                    p.ws.send(JSON.stringify({ type: 'actionRejected', reason: 'The room creator left — room destroyed.' }));
+                    wsSend(p.ws, { type: 'actionRejected', reason: 'The room creator left — room destroyed.' });
                 } catch { /* ignore */ }
                 try { p.ws.removeEventListener('message', p.roomMessageListener); } catch { /* ignore */ }
                 try { p.ws.removeEventListener('close', p.closeListener); } catch { /* ignore */ }
@@ -529,14 +526,14 @@ export class CustomGameManager {
         for (const p of room.players) {
             if (!p.isConnected) continue;
             try {
-                p.ws.send(JSON.stringify({
+                wsSend(p.ws, {
                     type: 'customRoomStatus',
                     code,
                     myColor: p.color,
                     guestPlayerId: p.guestPlayerId,
                     isCreator: p.color === room.creatorColor,
                     players: playersInfo,
-                }));
+                });
             } catch { /* ignore */ }
         }
     }
@@ -552,7 +549,7 @@ export class CustomGameManager {
         const creator = room.players.find(p => p.color === room.creatorColor);
         for (const p of room.players) {
             try {
-                p.ws.send(JSON.stringify({ type: 'actionRejected', reason: 'Room expired due to inactivity.' }));
+                wsSend(p.ws, { type: 'actionRejected', reason: 'Room expired due to inactivity.' });
             } catch { /* ignore */ }
             try { p.ws.removeEventListener('message', p.roomMessageListener); } catch { /* ignore */ }
             try { p.ws.removeEventListener('close', p.closeListener); } catch { /* ignore */ }

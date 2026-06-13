@@ -8,6 +8,7 @@ import { GameRulesModalComponent } from '../shared/game-rules-modal.component';
 import { LoadingScreenComponent } from '../shared/loading-screen.component';
 import { GameStateService } from './services/game-state.service';
 import { SoundService } from './services/sound.service';
+import { ToastService } from '../shared/toast.service';
 import { environment } from '../../environments/environment';
 import { Subscription } from 'rxjs';
 import { NEW_TURN_BANNER_DURATION_MS } from '@mercury/shared';
@@ -72,10 +73,12 @@ export class GamePage implements OnDestroy, AfterViewInit {
 
   /** Subscriptions that detect a failed reconnection / game start while loading. */
   private loadFailSubs: Subscription[] = [];
+  /** Subscriptions du feedback en jeu (rejets serveur, reconnexion). */
+  private uiSubs: Subscription[] = [];
   /** Pending redirect-to-home timer shown after a load-failure message. */
   private loadFailRedirect: ReturnType<typeof setTimeout> | null = null;
 
-  constructor(public gameStateService: GameStateService, private soundService: SoundService, private router: Router) {
+  constructor(public gameStateService: GameStateService, private soundService: SoundService, private router: Router, private toast: ToastService) {
     effect(() => {
       const winner = this.gameStateService.winner();
       if (!winner) return;
@@ -124,11 +127,42 @@ export class GamePage implements OnDestroy, AfterViewInit {
       this.gameStateService.actionRejected$.subscribe(reason => this.handleLoadFailure(reason)),
       this.gameStateService.connectionError$.subscribe(() => this.handleLoadFailure('Could not connect to the game.')),
     );
+
+    // Feedback en jeu : rejets serveur (coup invalide, session expirée…) et
+    // reconnexion automatique après une coupure réseau.
+    this.uiSubs.push(
+      this.gameStateService.actionRejected$.subscribe(reason => this.handleInGameRejection(reason)),
+      this.gameStateService.reconnecting$.subscribe(() =>
+        this.toast.show('Connexion perdue — reconnexion en cours…', 'error')),
+    );
+  }
+
+  /**
+   * Pendant la partie (data() non null), un rejet serveur doit être visible :
+   * sans feedback le joueur voit juste sa carte se désélectionner. Le cas
+   * « Session expired » (partie morte côté serveur après une reconnexion
+   * automatique) est fatal : on purge la session et on rentre au menu.
+   */
+  private handleInGameRejection(reason: string): void {
+    if (this.gameStateService.data() === null) return; // phase de chargement → handleLoadFailure
+    if (reason === 'Session expired or not found') {
+      this.toast.show('La partie est terminée ou n\'existe plus.', 'error', 4000);
+      this.backToMenu();
+      return;
+    }
+    this.toast.show(this.rejectionLabel(reason), 'error');
+  }
+
+  private rejectionLabel(reason: string): string {
+    switch (reason) {
+      case 'Not your turn': return 'Ce n\'est pas votre tour.';
+      case 'Invalid action': return 'Coup non autorisé.';
+      default: return reason || 'Action refusée par le serveur.';
+    }
   }
 
   backToMenu(): void {
-    localStorage.removeItem('guest_player_id');
-    localStorage.removeItem('active_game_id');
+    this.gameStateService.clearActiveGameSession();
     this.gameStateService.reset();
     void this.router.navigate(['/home']);
   }
@@ -137,6 +171,7 @@ export class GamePage implements OnDestroy, AfterViewInit {
     // Évite les memory leaks — toujours se désabonner manuellement
     this.newTurnSub?.unsubscribe();
     this.loadFailSubs.forEach(sub => sub.unsubscribe());
+    this.uiSubs.forEach(sub => sub.unsubscribe());
     if (this.newTurnTimeout) clearTimeout(this.newTurnTimeout);
     if (this.loadFailRedirect) clearTimeout(this.loadFailRedirect);
   }
@@ -178,8 +213,7 @@ export class GamePage implements OnDestroy, AfterViewInit {
     if (this.gameStateService.data() !== null) return; // game already loaded → not a load failure
     if (this.loadError()) return;                       // already handling a failure
     this.loadError.set(reason || 'Unable to join the game');
-    localStorage.removeItem('active_game_id');
-    localStorage.removeItem('guest_player_id');
+    this.gameStateService.clearActiveGameSession();
     this.loadFailRedirect = setTimeout(() => {
       if (this.gameStateService.data() !== null) { this.loadError.set(null); return; }
       this.gameStateService.reset();

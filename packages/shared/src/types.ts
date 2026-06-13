@@ -128,7 +128,11 @@ export interface WelcomeMessage {
   type: 'welcome';
   message: string;
   timestamp: string;
-  gameState: GameState;
+  /**
+   * Null au lancement d'une partie : l'état initial arrive juste après via le
+   * premier GameStateMessage. Présent lors d'une reconnexion en cours de partie.
+   */
+  gameState: GameState | null;
   guestPlayerId: string;
   gameId: string;
 }
@@ -338,7 +342,12 @@ export interface JoinMatchmakingMessage {
   /** Persistent browser identity used to prevent duplicate matchmaking entries from the same browser. */
   browserId?: string;
   picture?: string;
-  userId?: string;
+  /**
+   * Session token (ou Google ID token) du joueur signed-in. Le serveur en
+   * dérive le userId après vérification — un userId envoyé par le client
+   * n'est jamais accepté tel quel.
+   */
+  authToken?: string;
   /** En mode debug, demande au serveur de lancer immédiatement une partie contre 3 bots IA. Honoré uniquement si le backend est lui-même en DEBUG. */
   debug?: boolean;
 }
@@ -416,7 +425,8 @@ export interface CreateCustomRoomMessage {
   playerName: string;
   browserId?: string;
   picture?: string;
-  userId?: string;
+  /** Token vérifié côté serveur — voir JoinMatchmakingMessage.authToken. */
+  authToken?: string;
 }
 
 /** Rejoint une custom room existante via son code. */
@@ -426,7 +436,8 @@ export interface JoinCustomRoomMessage {
   playerName: string;
   browserId?: string;
   picture?: string;
-  userId?: string;
+  /** Token vérifié côté serveur — voir JoinMatchmakingMessage.authToken. */
+  authToken?: string;
 }
 
 /**
@@ -454,7 +465,8 @@ export interface LeaveCustomRoomMessage {
  */
 export interface RegisterPresenceMessage {
   type: 'registerPresence';
-  userId: string;
+  /** Token vérifié côté serveur — la présence est réservée aux comptes authentifiés. */
+  authToken: string;
 }
 
 /**

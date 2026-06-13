@@ -137,8 +137,11 @@ export class AuthService {
         const user = this.user$.getValue();
         if (!user) return;
         try {
+            const token = this.getIdToken();
             const updatedUser = await firstValueFrom(
-                this.http.patch<AuthUser>(`${environment.apiUrl}/api/auth/user/${user.id}`, { name, picture })
+                this.http.patch<AuthUser>(`${environment.apiUrl}/api/auth/user/${user.id}`, { name, picture }, {
+                    headers: { Authorization: `Bearer ${token}` }
+                })
             );
             this.user$.next(updatedUser);
             localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedUser));

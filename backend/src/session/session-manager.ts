@@ -1,11 +1,12 @@
 import crypto from 'node:crypto';
 import { Game } from '../game/game.js';
-import { SingleWsMessenger, MultiWsMessenger } from '../game/game-messenger.js';
+import { SingleWsMessenger, MultiWsMessenger, wsSend } from '../game/game-messenger.js';
 import { MatchmakingManager } from './matchmaking-manager.js';
 import { CustomGameManager } from './custom-game-manager.js';
 import { PresenceManager } from './presence-manager.js';
 import { GameRegistry } from './game-registry.js';
 import { ReconnectRegistry } from './reconnect-registry.js';
+import { generateRoomCode } from '../utils/utils.js';
 import type { ClientMessage, GameConfig, MarbleColor } from '@mercury/shared';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -21,10 +22,6 @@ interface PendingRoom {
     messenger: MultiWsMessenger;
     humanColors: MarbleColor[];
     connected: Set<MarbleColor>;
-}
-
-function generateRoomCode(): string {
-    return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
 export class SessionManager {
@@ -87,13 +84,13 @@ export class SessionManager {
         };
         // Annonce la couleur au frontend via le canal matchmakingStatus existant,
         // pour que home.page mette à jour myMatchmakingColor avant la navigation.
-        ws.send(JSON.stringify({
+        wsSend(ws, {
             type: 'matchmakingStatus',
             connectedCount: 1,
             totalNeeded: 4,
             myColor: 'red',
             guestPlayerId: crypto.randomUUID(),
-        }));
+        });
         this.startSingleDevice(ws, config);
         console.log(`🐛 DEBUG — partie instantanée vs 3 bots lancée pour ${humanName}`);
     }
@@ -113,14 +110,14 @@ export class SessionManager {
             const guestId = crypto.randomUUID();
             this.reconnect.register(guestId, game.id, p.color, p.userId);
             // Send welcome with guest identity
-            ws.send(JSON.stringify({
+            wsSend(ws, {
                 type: 'welcome',
                 message: 'Game started',
                 timestamp: new Date().toISOString(),
                 gameState: null,
                 guestPlayerId: guestId,
                 gameId: game.id,
-            }));
+            });
         }
 
         // Single-device shares one socket for the whole game; if it closes there
@@ -169,7 +166,7 @@ export class SessionManager {
 
         this.rooms.set(code, room);
 
-        ws.send(JSON.stringify({ type: 'roomCreated', roomCode: code }));
+        wsSend(ws, { type: 'roomCreated', roomCode: code });
         this.broadcastRoomStatus(code);
 
         console.log(`🏠 Room ${code} créée (${hostColor} connecté, en attente de ${humanColors.slice(1).join(', ')})`);
@@ -183,17 +180,17 @@ export class SessionManager {
         const room = this.rooms.get(roomCode);
 
         if (!room) {
-            ws.send(JSON.stringify({ type: 'actionRejected', reason: `Room ${roomCode} introuvable` }));
+            wsSend(ws, { type: 'actionRejected', reason: `Room ${roomCode} introuvable` });
             return;
         }
 
         if (!room.humanColors.includes(playerColor)) {
-            ws.send(JSON.stringify({ type: 'actionRejected', reason: `La couleur ${playerColor} n'est pas un joueur humain dans cette room` }));
+            wsSend(ws, { type: 'actionRejected', reason: `La couleur ${playerColor} n'est pas un joueur humain dans cette room` });
             return;
         }
 
         if (room.connected.has(playerColor)) {
-            ws.send(JSON.stringify({ type: 'actionRejected', reason: `${playerColor} est déjà connecté` }));
+            wsSend(ws, { type: 'actionRejected', reason: `${playerColor} est déjà connecté` });
             return;
         }
 
@@ -277,12 +274,12 @@ export class SessionManager {
             this.reconnect.releaseGame(active.gameId);
             return false;
         }
-        ws.send(JSON.stringify({
+        wsSend(ws, {
             type: 'alreadyInActiveGame',
             gameId: active.gameId,
             guestPlayerId: active.guestPlayerId,
             color: active.color,
-        }));
+        });
         return true;
     }
 

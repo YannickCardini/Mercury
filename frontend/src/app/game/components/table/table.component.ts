@@ -204,6 +204,7 @@ enum TURN_PHASE {
   private timeoutBannerTimeout?: ReturnType<typeof setTimeout>;
   private autoPlayBannerTimeout?: ReturnType<typeof setTimeout>;
   private newTurnSub?: Subscription;
+  private actionEchoSub?: Subscription;
   private timeoutSub?: Subscription;
   private autoPlaySub?: Subscription;
 
@@ -258,6 +259,12 @@ enum TURN_PHASE {
       this.closeCardHelp();
     });
 
+    // Ferme l'aide carte dès qu'une action est effectivement jouée, quel que
+    // soit le chemin (confirmation, timeout auto-joué, coup d'un adversaire).
+    this.actionEchoSub = this.gameStateService.actionPlayed$.subscribe(() => {
+      this.closeCardHelp();
+    });
+
     this.timeoutSub = this.gameStateService.turnTimedOut$.subscribe((color) => {
       this.showTimeoutBanner(color);
     });
@@ -270,6 +277,7 @@ enum TURN_PHASE {
   ngOnDestroy(): void {
     this.clearTimer();
     this.newTurnSub?.unsubscribe();
+    this.actionEchoSub?.unsubscribe();
     this.timeoutSub?.unsubscribe();
     this.autoPlaySub?.unsubscribe();
     clearTimeout(this.helpAutoCloseTimer);

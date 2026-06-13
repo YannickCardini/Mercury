@@ -2,7 +2,7 @@
 
 Implémentation multijoueur en temps réel du jeu de société **Tock / Keezen**, en TypeScript de bout en bout.
 
-- **Backend** : Node.js + WebSocket (Express), authoritative server, persistance Postgres
+- **Backend** : Node.js + WebSocket (Express), authoritative server, persistance Azure Cosmos DB
 - **Frontend** : Angular 17 + Ionic (web + Android via Capacitor)
 - **Code partagé** : monorepo npm workspaces avec un package `@mercury/shared` (types, géométrie du plateau, constantes)
 - **Matchmaking** : file d'attente publique avec **complétion automatique par des bots IA** — voir [Agent IA externe](#agent-ia-externe--complétion-automatique-du-matchmaking)
@@ -24,7 +24,7 @@ mercury/
 ├── backend/                          ← Serveur Express + WebSocket (Node.js, ESM)
 │   └── src/
 │       ├── index.ts                  ← Point d'entrée HTTP + WS
-│       ├── db.ts                     ← Accès Postgres
+│       ├── db.ts                     ← Accès Azure Cosmos DB
 │       ├── auth/                     ← Authentification (Google OAuth, sessions)
 │       ├── game/                     ← Moteur de jeu (board, deck, players, boucle de tour)
 │       ├── messages/                 ← Sérialisation des messages WebSocket
@@ -126,6 +126,20 @@ BOT_SECRET=<shared-secret>                    # auth du dispatch
 
 Si l'une des deux manque, le dispatch est désactivé (le backend log un warning, la partie continue normalement et attend des humains).
 
+### Authentification WebSocket des bots
+
+Depuis que la couche WebSocket authentifie l'identité des joueurs, un `userId` envoyé
+par le client n'est **plus jamais accepté tel quel**. Le flux côté agent IA est :
+
+1. `POST /api/auth/bot` avec `{ secret, botId }` → la réponse contient désormais un
+   champ **`sessionToken`** (JWT signé par le backend).
+2. Le bot inclut ce token dans son message de join : `{ type: 'joinMatchmaking',
+   authToken: <sessionToken>, … }` — le serveur en dérive le `userId` vérifié.
+
+Un agent qui omet `authToken` rejoint la file **en invité** (sans compte, sans points) :
+le matchmaking ne le reconnaîtra pas comme bot (`BOT_USER_IDS`), ce qui peut entraîner
+des dispatchs supplémentaires. Mettre à jour le service d'agents en conséquence.
+
 ---
 
 ## Installation et démarrage
@@ -134,13 +148,16 @@ Si l'une des deux manque, le dispatch est désactivé (le backend log un warning
 
 - Node.js ≥ 18
 - npm ≥ 8 (workspaces)
-- Postgres (pour la persistance des utilisateurs, parties, leaderboard)
+- Azure Cosmos DB (pour la persistance des utilisateurs, points, leaderboard) — ou l'émulateur Cosmos local via `COSMOS_CONNECTION_STRING_LOCAL`
 
 ### Installation
 
 ```bash
 # À la racine — installe toutes les dépendances (shared + backend + frontend)
 npm install
+
+# Puis créer le fichier .env à la racine à partir du modèle
+cp .env.example .env   # et remplir les valeurs
 ```
 
 ### Build du package partagé

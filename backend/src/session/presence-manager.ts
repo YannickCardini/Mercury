@@ -7,8 +7,10 @@
 // sockets ouverts (multi-onglet) — la notif est diffusée à tous.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import type { ServerMessage } from '@mercury/shared';
+
 interface PendingEntry {
-    msg: object;
+    msg: ServerMessage;
     timer: NodeJS.Timeout;
     onFail: () => void;
 }
@@ -60,7 +62,7 @@ export class PresenceManager {
      * if the user never connects within that window. Returns true if
      * delivered immediately, false if queued or dropped.
      */
-    sendOrQueue(userId: string, msg: object, ttlMs: number, onFail: () => void): boolean {
+    sendOrQueue(userId: string, msg: ServerMessage, ttlMs: number, onFail: () => void): boolean {
         if (this.send(userId, msg)) return true;
 
         let queue = this.pending.get(userId);
@@ -92,7 +94,7 @@ export class PresenceManager {
      * queued quand la room source est détruite avant que l'invité revienne
      * en ligne.
      */
-    cancelQueued(userId: string, filter: (msg: object) => boolean): void {
+    cancelQueued(userId: string, filter: (msg: ServerMessage) => boolean): void {
         const queue = this.pending.get(userId);
         if (!queue) return;
         for (let i = queue.length - 1; i >= 0; i--) {
@@ -106,7 +108,7 @@ export class PresenceManager {
     }
 
     /** Returns true if the message was delivered to at least one socket. */
-    send(userId: string, msg: object): boolean {
+    send(userId: string, msg: ServerMessage): boolean {
         const set = this.byUserId.get(userId);
         if (!set || set.size === 0) return false;
         const json = JSON.stringify(msg);

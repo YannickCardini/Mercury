@@ -1,6 +1,6 @@
 {
   "name": "@mercury/shared",
-  "version": "1.4.2",
+  "version": "1.4.3",
   "description": "Types, constantes et configuration du plateau partagés entre le frontend et le backend Mercury.",
   "type": "module",
   "main": "./dist/index.js",

@@ -276,7 +276,9 @@ export class HomePage implements OnInit, OnDestroy {
 
   private connectPresenceIfIdle(userId: string): void {
     if (this.showCustomGame || this.showMatchmaking || this.appResume.hasActiveGame()) return;
-    this.presenceService.connect(environment.wsUrl, userId);
+    const authToken = this.auth.getIdToken();
+    if (!authToken) return; // présence réservée aux comptes authentifiés
+    this.presenceService.connect(environment.wsUrl, userId, authToken);
   }
 
   private disconnectPresence(): void {
@@ -425,9 +427,9 @@ export class HomePage implements OnInit, OnDestroy {
     const user = this.auth.user$.getValue();
     const playerName = user?.name;
     const playerPicture = user?.picture;
-    const userId = user?.id;
+    const authToken = this.auth.getIdToken() ?? undefined;
     this.gameStateService.connect(environment.wsUrl, () => {
-      this.gameStateService.sendJoinMatchmaking(playerName, playerPicture, userId, environment.debug);
+      this.gameStateService.sendJoinMatchmaking(playerName, playerPicture, authToken, environment.debug);
     });
 
     this.matchmakingSub = this.gameStateService.matchmakingStatus$.subscribe(status => {
@@ -570,7 +572,7 @@ export class HomePage implements OnInit, OnDestroy {
       const code = this.customRoomCode;
       console.log('[home] resuming — reconnecting to custom room', code);
       this.gameStateService.connect(environment.wsUrl, () => {
-        this.gameStateService.sendJoinCustomRoom(code, playerName, user?.picture, user?.id);
+        this.gameStateService.sendJoinCustomRoom(code, playerName, user?.picture, this.auth.getIdToken() ?? undefined);
       });
     });
 
@@ -603,7 +605,7 @@ export class HomePage implements OnInit, OnDestroy {
     this.tabLock.claimSession();
     this.wireCustomRoomSubs();
     this.gameStateService.connect(environment.wsUrl, () => {
-      this.gameStateService.sendCreateCustomRoom(playerName, user?.picture, user?.id);
+      this.gameStateService.sendCreateCustomRoom(playerName, user?.picture, this.auth.getIdToken() ?? undefined);
     });
   }
 
@@ -621,7 +623,7 @@ export class HomePage implements OnInit, OnDestroy {
     this.tabLock.claimSession();
     this.wireCustomRoomSubs();
     this.gameStateService.connect(environment.wsUrl, () => {
-      this.gameStateService.sendJoinCustomRoom(code, playerName, user?.picture, user?.id);
+      this.gameStateService.sendJoinCustomRoom(code, playerName, user?.picture, this.auth.getIdToken() ?? undefined);
     });
   }
 

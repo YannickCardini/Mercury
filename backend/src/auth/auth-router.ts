@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import { OAuth2Client } from 'google-auth-library';
+import { createHash, timingSafeEqual } from 'crypto';
 import { getUsersContainer } from '../db.js';
 import { signSessionToken, verifySessionToken } from './session-token.js';
 
@@ -8,13 +9,23 @@ const router = Router();
 const googleClient = new OAuth2Client();
 
 /**
+ * Comparaison en temps constant, sans fuite de longueur : on compare les
+ * empreintes SHA-256 (taille fixe) plutôt que les chaînes brutes.
+ */
+export function safeEqual(a: string, b: string): boolean {
+    const ha = createHash('sha256').update(a).digest();
+    const hb = createHash('sha256').update(b).digest();
+    return timingSafeEqual(ha, hb);
+}
+
+/**
  * Accepts either a long-lived session token (issued at login) or a Google ID
  * token (legacy / first login race). Returns the authenticated user's id, or
  * null if the token is missing or invalid. Used by all authenticated routers.
  */
 export async function verifyAuth(token: string | undefined): Promise<string | null> {
     if (!token) return null;
-    if (process.env['WORKER_SESSION_TOKEN'] && token === process.env['WORKER_SESSION_TOKEN']) {
+    if (process.env['WORKER_SESSION_TOKEN'] && safeEqual(token, process.env['WORKER_SESSION_TOKEN'])) {
         return '1337';
     }
     const fromSession = verifySessionToken(token);
@@ -126,6 +137,15 @@ router.patch('/user/:id', async (req: Request, res: Response) => {
     const { id } = req.params as { id: string };
     const { name, picture } = req.body as { name?: string; picture?: string };
 
+    // Seul le propriétaire du compte peut modifier son profil (même règle que DELETE).
+    const authHeader = req.headers['authorization'];
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
+    const verifiedSub = await verifyAuth(token);
+    if (!verifiedSub || verifiedSub !== id) {
+        res.status(403).json({ error: 'Forbidden' });
+        return;
+    }
+
     // Validate name
     if (name !== undefined) {
         if (typeof name !== 'string' || name.length < 1 || name.length > 30) {
@@ -149,7 +169,7 @@ router.patch('/user/:id', async (req: Request, res: Response) => {
             res.status(400).json({ error: 'Picture must be a base64 data URL (image/jpeg, image/png, or image/webp)' });
             return;
         }
-        const rawBytes = dataUrlMatch ? [2].length * 3 / 4 : 0;
+        const rawBytes = ((dataUrlMatch[2] ?? '').length * 3) / 4;
         if (rawBytes > 2 * 1024 * 1024) {
             res.status(400).json({ error: 'Picture exceeds 2 MB limit' });
             return;
@@ -211,7 +231,7 @@ router.get('/user/:id', async (req: Request, res: Response) => {
 router.post('/bot', async (req: Request, res: Response) => {
     const { secret, botId } = req.body as { secret?: string; botId?: string; };
 
-    if (!secret || secret !== process.env['BOT_SECRET']) {
+    if (!secret || !process.env['BOT_SECRET'] || !safeEqual(secret, process.env['BOT_SECRET'])) {
         res.status(401).json({ error: 'Invalid bot secret' });
         return;
     }
@@ -239,7 +259,16 @@ router.post('/bot', async (req: Request, res: Response) => {
         }
         resource.lastLogin = new Date().toISOString();
         await container.item(botId, botId).replace(resource);
-        res.json({ userId: resource.id, name: resource.name, picture: resource.picture, points: resource.points, ranking: resource.ranking });
+        // sessionToken : nécessaire depuis que le WebSocket authentifie les
+        // joueurs — l'agent IA doit l'inclure (authToken) dans son joinMatchmaking.
+        res.json({
+            userId: resource.id,
+            name: resource.name,
+            picture: resource.picture,
+            points: resource.points,
+            ranking: resource.ranking,
+            sessionToken: signSessionToken(resource.id),
+        });
     } catch (err) {
         console.error('❌ Cosmos DB error (POST /bot):', err);
         res.status(500).json({ error: 'Database error' });
@@ -259,7 +288,7 @@ router.post('/worker', async (req: Request, res: Response) => {
         return;
     }
 
-    if (!username || !password || username !== validUsername || password !== validPassword) {
+    if (!username || !password || !safeEqual(username, validUsername) || !safeEqual(password, validPassword)) {
         res.status(401).json({ error: 'Invalid credentials' });
         return;
     }

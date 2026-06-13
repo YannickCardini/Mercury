@@ -1,4 +1,4 @@
-import type { ClientMessage, MarbleColor } from '@mercury/shared';
+import type { ClientMessage, ServerMessage, MarbleColor } from '@mercury/shared';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GameMessenger — abstraction de la couche WebSocket
@@ -15,11 +15,19 @@ export type MessageHandler = (msg: ClientMessage, senderColor: MarbleColor | nul
 
 export interface GameMessenger {
     /** Envoie un message à tous les clients connectés. */
-    send(msg: object): void;
+    send(msg: ServerMessage): void;
     /** Envoie un message à un joueur spécifique (no-op si non connecté). */
-    sendTo(color: MarbleColor, msg: object): void;
+    sendTo(color: MarbleColor, msg: ServerMessage): void;
     /** Enregistre le handler appelé à chaque message entrant. */
     onMessage(handler: MessageHandler): void;
+}
+
+/**
+ * Envoi typé sur un WebSocket brut (hors messenger) : garantit à la compilation
+ * que tout message sortant respecte le contrat ServerMessage de @mercury/shared.
+ */
+export function wsSend(ws: WebSocket, msg: ServerMessage): void {
+    ws.send(JSON.stringify(msg));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -39,12 +47,12 @@ export class SingleWsMessenger implements GameMessenger {
         });
     }
 
-    send(msg: object): void {
+    send(msg: ServerMessage): void {
         this.ws.send(JSON.stringify(msg));
     }
 
     /** En single-WS, sendTo == send : un seul écran reçoit tout. */
-    sendTo(_color: MarbleColor, msg: object): void {
+    sendTo(_color: MarbleColor, msg: ServerMessage): void {
         this.ws.send(JSON.stringify(msg));
     }
 
@@ -177,7 +185,7 @@ export class MultiWsMessenger implements GameMessenger {
     }
 
     /** Envoie à tous les clients connectés (broadcast). */
-    send(msg: object): void {
+    send(msg: ServerMessage): void {
         const json = JSON.stringify(msg);
         for (const ws of this.connections.values()) {
             ws.send(json);
@@ -185,7 +193,7 @@ export class MultiWsMessenger implements GameMessenger {
     }
 
     /** Envoie uniquement au client du joueur `color`. No-op si non connecté. */
-    sendTo(color: MarbleColor, msg: object): void {
+    sendTo(color: MarbleColor, msg: ServerMessage): void {
         this.connections.get(color)?.send(JSON.stringify(msg));
     }
 

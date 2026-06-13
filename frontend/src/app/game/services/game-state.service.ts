@@ -329,6 +329,8 @@ export class GameStateService {
   gameAbandoned$ = new Subject<void>();
   /** Émet quand le WebSocket échoue à se connecter ou se ferme avant que la partie commence. */
   connectionError$ = new Subject<void>();
+  /** Émet quand une reconnexion automatique à la partie en cours est planifiée. */
+  reconnecting$ = new Subject<void>();
   /**
    * Émet quand le serveur rejette une tentative de join/create parce que le
    * compte signed-in est déjà joueur d'une partie en cours. Les clés de
@@ -341,6 +343,13 @@ export class GameStateService {
 
   private tabLock = inject(TabLockService);
   private ws: WebSocket | null = null;
+
+  // ── Reconnexion automatique en cours de partie ────────────────────────────
+  private lastUrl: string | null = null;
+  private intentionalClose = false;
+  private rejoinTimer: ReturnType<typeof setTimeout> | null = null;
+  private rejoinDelayMs = 1000;
+  private readonly maxRejoinDelayMs = 15_000;
 
   constructor() {
     // Réinitialise la sélection à chaque changement de tour
@@ -367,10 +376,13 @@ export class GameStateService {
       this.ws = null;
     }
 
+    this.lastUrl = url;
+    this.intentionalClose = false;
     this.ws = new WebSocket(url);
 
     this.ws.onopen = () => {
       this.isConnected.set(true);
+      this.rejoinDelayMs = 1000;
       console.log('Connecté au WebSocket');
       onOpen?.();
     };
@@ -469,8 +481,7 @@ export class GameStateService {
 
         case 'gameEnded': {
           const msg = parsed as GameEndedMessage;
-          localStorage.removeItem('active_game_id');
-          localStorage.removeItem('guest_player_id');
+          this.clearActiveGameSession();
           this.tabLock.releaseSession();
           if (msg.reason === 'abandoned') {
             this.gameAbandoned$.next();
@@ -512,13 +523,54 @@ export class GameStateService {
     };
     this.ws.onclose = (event: CloseEvent) => {
       this.isConnected.set(false);
+      if (this.intentionalClose) return;
       if (event.code === 4001) {
         this.tabLock.releaseSession();
         this.sessionReplaced$.next();
       } else if (this.data() === null) {
         this.connectionError$.next();
+      } else {
+        // Coupure inattendue en cours de partie (réseau mobile, WebView
+        // backgroundée…) : on retente automatiquement le joinGame avec backoff.
+        this.scheduleRejoin();
       }
     };
+  }
+
+  /**
+   * Reconnexion automatique à la partie en cours après une coupure réseau.
+   * Réutilise le chemin `joinGame` standard ; si le serveur ne connaît plus la
+   * partie, il répondra `actionRejected` (géré par la page de jeu).
+   */
+  private scheduleRejoin(): void {
+    const guestPlayerId = localStorage.getItem('guest_player_id');
+    const activeGameId = localStorage.getItem('active_game_id');
+    const url = this.lastUrl;
+    if (!guestPlayerId || !activeGameId || !url) {
+      this.connectionError$.next();
+      return;
+    }
+    this.reconnecting$.next();
+    const delay = this.rejoinDelayMs;
+    this.rejoinDelayMs = Math.min(this.rejoinDelayMs * 2, this.maxRejoinDelayMs);
+    if (this.rejoinTimer) clearTimeout(this.rejoinTimer);
+    this.rejoinTimer = setTimeout(() => {
+      this.rejoinTimer = null;
+      console.log('🔄 Reconnexion automatique à la partie en cours…');
+      this.connect(url, () => this.sendJoinGame(guestPlayerId, activeGameId));
+    }, delay);
+  }
+
+  /**
+   * Purge atomique de la session de jeu locale (clés de reconnexion + signaux).
+   * Unique point d'entrée : ne jamais supprimer ces clés localStorage ailleurs,
+   * un nettoyage partiel produit des reconnexions fantômes au prochain départ.
+   */
+  clearActiveGameSession(): void {
+    localStorage.removeItem('active_game_id');
+    localStorage.removeItem('guest_player_id');
+    this.activeGameId.set(null);
+    this.guestPlayerId.set(null);
   }
 
   // ── Configuration de partie ───────────────────────────────────────────────
@@ -557,13 +609,13 @@ export class GameStateService {
     this.send(JSON.stringify(msg));
   }
 
-  sendJoinMatchmaking(playerName?: string, picture?: string, userId?: string, debug?: boolean): void {
+  sendJoinMatchmaking(playerName?: string, picture?: string, authToken?: string, debug?: boolean): void {
     let browserId = localStorage.getItem('browser_id');
     if (!browserId) {
       browserId = crypto.randomUUID();
       localStorage.setItem('browser_id', browserId);
     }
-    this.send(JSON.stringify({ type: 'joinMatchmaking', playerName, browserId, picture, userId, debug }));
+    this.send(JSON.stringify({ type: 'joinMatchmaking', playerName, browserId, picture, authToken, debug }));
   }
 
   private getOrCreateBrowserId(): string {
@@ -575,24 +627,24 @@ export class GameStateService {
     return id;
   }
 
-  sendCreateCustomRoom(playerName: string, picture?: string, userId?: string): void {
+  sendCreateCustomRoom(playerName: string, picture?: string, authToken?: string): void {
     this.send(JSON.stringify({
       type: 'createCustomRoom',
       playerName,
       browserId: this.getOrCreateBrowserId(),
       ...(picture ? { picture } : {}),
-      ...(userId ? { userId } : {}),
+      ...(authToken ? { authToken } : {}),
     }));
   }
 
-  sendJoinCustomRoom(code: string, playerName: string, picture?: string, userId?: string): void {
+  sendJoinCustomRoom(code: string, playerName: string, picture?: string, authToken?: string): void {
     this.send(JSON.stringify({
       type: 'joinCustomRoom',
       code,
       playerName,
       browserId: this.getOrCreateBrowserId(),
       ...(picture ? { picture } : {}),
-      ...(userId ? { userId } : {}),
+      ...(authToken ? { authToken } : {}),
     }));
   }
 
@@ -625,8 +677,7 @@ export class GameStateService {
 
   sendAbandonGame(): void {
     this.send(JSON.stringify({ type: 'abandonGame' }));
-    localStorage.removeItem('guest_player_id');
-    localStorage.removeItem('active_game_id');
+    this.clearActiveGameSession();
     this.tabLock.releaseSession();
     this.reset();
   }
@@ -651,6 +702,12 @@ export class GameStateService {
     this.isReplayTurn.set(false);
     this.lastActionPlayed = null;
     this.tutorialHintId.set(null);
+    this.intentionalClose = true;
+    if (this.rejoinTimer) {
+      clearTimeout(this.rejoinTimer);
+      this.rejoinTimer = null;
+    }
+    this.rejoinDelayMs = 1000;
     this.ws?.close();
     this.ws = null;
   }
@@ -665,6 +722,11 @@ export class GameStateService {
   }
 
   disconnect(): void {
+    this.intentionalClose = true;
+    if (this.rejoinTimer) {
+      clearTimeout(this.rejoinTimer);
+      this.rejoinTimer = null;
+    }
     this.ws?.close();
   }
 }
