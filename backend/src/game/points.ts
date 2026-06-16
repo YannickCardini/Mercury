@@ -16,13 +16,17 @@
 
 /** Winner gain is clamped to this inclusive range. */
 const WIN_MIN = 1;
-const WIN_MAX = 6;
+const WIN_MAX = 8;
 /** Loser loss is clamped to this inclusive range (negative). */
-const LOSS_MIN = -3;
+const LOSS_MIN = -8;
 const LOSS_MAX = -1;
 /** Elo-style scaling factors. */
 const K_WIN = WIN_MAX;   // 6 — full gain when the field is far stronger
-const K_LOSS = 4;        // tuned so a neutral field (expected 0.5) costs -2
+const K_LOSS = 8;        // spread losses across the full [-8, -1] range so the
+                         // opponents' strength actually matters: losing when you
+                         // were the favourite (expected → 1) hurts up to -8, while
+                         // losing to a much stronger field (expected → 0) costs as
+                         // little as -1. A neutral field (expected 0.5) costs -4.
 
 export interface PlayerRating {
   userId: string;

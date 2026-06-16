@@ -166,6 +166,18 @@ export class Game {
         const wasDisconnected = !player.isConnected;
         player.isConnected = true;
 
+        // Coming back cancels the permanent-disconnect penalty: a player who
+        // rejoins and finishes the game must be scored normally (Elo), not left
+        // with the flat -2 — which would also exclude them from the end-game
+        // gameStats and freeze their screen on "Calculating…". Refund the -2 and
+        // drop them from the penalized set so applyEndGamePoints treats them as a
+        // regular participant.
+        if (player.userId && this.penalizedUserIds.delete(player.userId)) {
+            updateUserPoints(player.userId, 2)
+                .then(() => recomputeRankings())
+                .catch(err => console.error('❌ Failed to refund disconnect penalty on reconnect:', err));
+        }
+
         const commonGameState = this.buildGameStateSnapshot(currentPlayer);
 
         this.messenger.sendTo(color, {
@@ -914,6 +926,27 @@ export class Game {
                     newRanking: updated.ranking,
                 });
                 console.log(`📊 gameStats → ${p.color}: delta=${delta}, total=${updated.points}, rank=#${updated.ranking}`);
+            })
+        );
+
+        // Penalized humans who are still connected at game end (e.g. penalized
+        // via some path but never refunded) must still receive a gameStats, or
+        // their screen freezes on "Calculating…". They are not Elo-scored — their
+        // flat -2 was already applied — so we just report the current totals.
+        const penalizedConnected = this.players.filter(
+            p => p.isHuman && p.userId && p.isConnected && this.penalizedUserIds.has(p.userId),
+        );
+        await Promise.all(
+            penalizedConnected.map(async p => {
+                const updated = await getUserPointsAndRanking(p.userId!);
+                if (!updated) return;
+                this.messenger.sendTo(p.color, {
+                    type: 'gameStats',
+                    pointsDelta: -2,
+                    newPoints: updated.points,
+                    newRanking: updated.ranking,
+                });
+                console.log(`📊 gameStats → ${p.color} (pénalisé): delta=-2, total=${updated.points}, rank=#${updated.ranking}`);
             })
         );
     }
