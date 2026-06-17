@@ -159,7 +159,7 @@
               <img class="profile-avatar" [src]="editingProfile ? editPreviewUrl : user.picture" [alt]="user.name"
                 referrerpolicy="no-referrer">
               <label class="profile-avatar-change" *ngIf="editingProfile" title="Change picture">
-                <input type="file" accept="image/*" (change)="onFileSelected($event)" hidden>
+                <input type="file" accept="image/*,.heic,.heif" (change)="onFileSelected($event)" hidden>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
                   stroke-linecap="round" stroke-linejoin="round">
                   <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
@@ -179,7 +179,7 @@
             <div class="profile-edit-fields" *ngIf="editingProfile">
               <input class="edit-name-input" type="text" [(ngModel)]="editName" maxlength="30"
                 placeholder="Display name">
-              <div class="edit-status" *ngIf="isProcessingImage">Processing image…</div>
+              <div class="edit-status" *ngIf="previewUnavailable">Photo selected — preview unavailable, it will appear after saving.</div>
               <div class="edit-error" *ngIf="editError">{{ editError }}</div>
             </div>
 
@@ -204,7 +204,7 @@
               </ng-container>
               <ng-container *ngIf="editingProfile">
                 <button class="btn-action btn-action-secondary" (click)="toggleEditProfile(user)">Cancel</button>
-                <button class="btn-action btn-action-primary" (click)="saveProfile()" [disabled]="isSaving || isProcessingImage">
+                <button class="btn-action btn-action-primary" (click)="saveProfile()" [disabled]="isSaving">
                   {{ isSaving ? 'Saving…' : 'Save changes' }}
                 </button>
               </ng-container>

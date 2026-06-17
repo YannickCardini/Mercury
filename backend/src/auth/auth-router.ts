@@ -1,10 +1,19 @@
-import { Router, type Request, type Response } from 'express';
+import { Router, type Request, type Response, type NextFunction } from 'express';
 import { OAuth2Client } from 'google-auth-library';
 import { createHash, timingSafeEqual } from 'crypto';
+import multer, { MulterError } from 'multer';
 import { getUsersContainer } from '../db.js';
+import { processToWebp, uploadAvatarWebp } from '../storage/blob.js';
 import { signSessionToken, verifySessionToken } from './session-token.js';
 
 const router = Router();
+
+// Upload d'avatar : fichier brut en mémoire, resize/conversion ensuite par sharp.
+// Limite 20 MB sur le fichier source (le WebP final fait ~30-80 KB).
+const avatarUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 20 * 1024 * 1024, files: 1 },
+});
 
 const googleClient = new OAuth2Client();
 
@@ -203,6 +212,64 @@ router.patch('/user/:id', async (req: Request, res: Response) => {
     }
 });
 
+// POST /api/auth/user/:id/picture — upload a profile photo (multipart, field "file").
+// Accepts any sharp-decodable format (HEIC/HEIF/AVIF/JPEG/PNG/WebP/GIF/TIFF),
+// resizes server-side to a 512×512 WebP, stores it on Azure Blob Storage and
+// saves the blob URL (cache-busted) in the user document.
+router.post('/user/:id/picture', avatarUpload.single('file'), async (req: Request, res: Response) => {
+    const { id } = req.params as { id: string };
+
+    // Seul le propriétaire du compte peut modifier son avatar (même règle que PATCH).
+    const authHeader = req.headers['authorization'];
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
+    const verifiedSub = await verifyAuth(token);
+    if (!verifiedSub || verifiedSub !== id) {
+        res.status(403).json({ error: 'Forbidden' });
+        return;
+    }
+
+    const file = req.file;
+    if (!file) {
+        res.status(400).json({ error: 'No file uploaded' });
+        return;
+    }
+
+    let webp: Buffer;
+    try {
+        webp = await processToWebp(file.buffer);
+    } catch {
+        res.status(415).json({ error: 'Unsupported or corrupt image' });
+        return;
+    }
+
+    try {
+        const baseUrl = await uploadAvatarWebp(id, webp);
+        const pictureUrl = `${baseUrl}?v=${Date.now()}`;
+
+        const container = await getUsersContainer();
+        const { resource } = await container.item(id, id).read<UserDoc>();
+        if (!resource) {
+            res.status(404).json({ error: 'User not found' });
+            return;
+        }
+
+        resource.picture = pictureUrl;
+        await container.item(id, id).replace(resource);
+        res.json({
+            id: resource.id,
+            email: resource.email,
+            name: resource.name,
+            picture: resource.picture,
+            points: resource.points,
+            ranking: resource.ranking,
+            createdAt: resource.createdAt,
+        });
+    } catch (err) {
+        console.error('❌ Avatar upload error (POST /user/:id/picture):', err);
+        res.status(500).json({ error: 'Upload failed' });
+    }
+});
+
 // GET /api/auth/user/:id — public profile for a given user
 router.get('/user/:id', async (req: Request, res: Response) => {
     const { id } = req.params as { id: string };
@@ -363,6 +430,17 @@ router.get('/leaderboard', async (_req: Request, res: Response) => {
         console.error('❌ Cosmos DB error (GET /leaderboard):', err);
         res.status(500).json({ error: 'Database error' });
     }
+});
+
+// Erreurs multer (taille de fichier dépassée, etc.) → réponses HTTP propres.
+// LIMIT_FILE_SIZE renvoie 413 pour que le frontend affiche "image trop grande".
+router.use((err: unknown, _req: Request, res: Response, next: NextFunction) => {
+    if (err instanceof MulterError) {
+        const status = err.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
+        res.status(status).json({ error: err.message });
+        return;
+    }
+    next(err);
 });
 
 export default router;

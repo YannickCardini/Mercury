@@ -133,30 +133,56 @@ export class AuthService {
         }
     }
 
-    async updateProfile(name: string, picture: string): Promise<void> {
+    async updateProfile(name: string): Promise<void> {
         const user = this.user$.getValue();
         if (!user) return;
         try {
             const token = this.getIdToken();
             const updatedUser = await firstValueFrom(
-                this.http.patch<AuthUser>(`${environment.apiUrl}/api/auth/user/${user.id}`, { name, picture }, {
+                this.http.patch<AuthUser>(`${environment.apiUrl}/api/auth/user/${user.id}`, { name }, {
                     headers: { Authorization: `Bearer ${token}` }
                 })
             );
             this.user$.next(updatedUser);
             localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedUser));
         } catch (err) {
-            let message = 'Failed to update profile. Please try again.';
-            if (err instanceof HttpErrorResponse) {
-                if (err.status === 413) {
-                    message = 'Image is too large. Please choose a smaller image (max 2 MB).';
-                } else if ((err.error as { error?: string })?.error) {
-                    message = (err.error as { error: string }).error;
-                }
-            }
-            this.updateError$.next(message);
+            this.updateError$.next(this.extractUpdateError(err, 'Failed to update profile. Please try again.'));
             throw err;
         }
+    }
+
+    /**
+     * Envoie le fichier brut au backend qui le redimensionne (sharp) et le stocke
+     * sur Azure Blob Storage. On ne pose PAS Content-Type : le navigateur ajoute
+     * le boundary multipart. Le HEIC iPhone est accepté (décodé côté serveur).
+     */
+    async uploadProfilePicture(file: File): Promise<void> {
+        const user = this.user$.getValue();
+        if (!user) return;
+        try {
+            const token = this.getIdToken();
+            const form = new FormData();
+            form.append('file', file);
+            const updatedUser = await firstValueFrom(
+                this.http.post<AuthUser>(`${environment.apiUrl}/api/auth/user/${user.id}/picture`, form, {
+                    headers: { Authorization: `Bearer ${token}` }
+                })
+            );
+            this.user$.next(updatedUser);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedUser));
+        } catch (err) {
+            this.updateError$.next(this.extractUpdateError(err, 'Failed to update photo. Please try again.'));
+            throw err;
+        }
+    }
+
+    private extractUpdateError(err: unknown, fallback: string): string {
+        if (err instanceof HttpErrorResponse) {
+            if (err.status === 413) return 'Image is too large (max 20 MB).';
+            const serverError = (err.error as { error?: string })?.error;
+            if (serverError) return serverError;
+        }
+        return fallback;
     }
 
     async loginAsWorker(username: string, password: string): Promise<void> {

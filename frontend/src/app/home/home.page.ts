@@ -18,7 +18,6 @@ import { PresenceService } from '../services/presence.service';
 import type { GameInviteMessage, MarbleColor, CustomRoomPlayerInfo } from '@mercury/shared';
 import { environment } from 'src/environments/environment';
 import { generateGuestName } from '../shared/guest-name';
-import { normalizeProfileImage } from '../services/image-utils';
 
 interface ThreadSummary {
   peerId: string;
@@ -76,9 +75,10 @@ export class HomePage implements OnInit, OnDestroy {
   editingProfile = false;
   editName = '';
   editPreviewUrl = '';
-  editPictureDataUrl = '';
+  selectedFile: File | null = null;
+  private previewObjectUrl: string | null = null;
   isSaving = false;
-  isProcessingImage = false;
+  previewUnavailable = false;
   editError = '';
   private updateErrorSub: Subscription | null = null;
 
@@ -303,32 +303,41 @@ export class HomePage implements OnInit, OnDestroy {
 
   toggleEditProfile(user: AuthUser): void {
     this.editingProfile = !this.editingProfile;
+    this.clearSelectedFile();
     if (this.editingProfile) {
       this.editName = user.name;
       this.editPreviewUrl = user.picture;
-      this.editPictureDataUrl = user.picture;
       this.editError = '';
     }
   }
 
-  async onFileSelected(event: Event): Promise<void> {
+  onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
+    input.value = '';
     if (!file) return;
 
     this.editError = '';
-    this.isProcessingImage = true;
-    try {
-      const dataUrl = await normalizeProfileImage(file);
-      this.editPreviewUrl = dataUrl;
-      this.editPictureDataUrl = dataUrl;
-    } catch (err) {
-      this.editError = err instanceof Error && err.message === 'Could not read image.'
-        ? 'Could not read image.'
-        : 'Could not process image, please try another file.';
-    } finally {
-      this.isProcessingImage = false;
-      input.value = '';
+    this.clearSelectedFile();
+    this.selectedFile = file;
+
+    // Le navigateur ne décode pas le HEIC/HEIF en <img> → pas d'aperçu local
+    // pour ces formats (l'image finale, traitée par le serveur, revient au save).
+    const type = (file.type || '').toLowerCase();
+    if (type === '' || type === 'image/heic' || type === 'image/heif') {
+      this.previewUnavailable = true;
+      return;
+    }
+    this.previewObjectUrl = URL.createObjectURL(file);
+    this.editPreviewUrl = this.previewObjectUrl;
+  }
+
+  private clearSelectedFile(): void {
+    this.selectedFile = null;
+    this.previewUnavailable = false;
+    if (this.previewObjectUrl) {
+      URL.revokeObjectURL(this.previewObjectUrl);
+      this.previewObjectUrl = null;
     }
   }
 
@@ -337,7 +346,14 @@ export class HomePage implements OnInit, OnDestroy {
     this.isSaving = true;
     this.editError = '';
     try {
-      await this.auth.updateProfile(this.editName, this.editPictureDataUrl);
+      if (this.selectedFile) {
+        await this.auth.uploadProfilePicture(this.selectedFile);
+      }
+      const currentName = this.auth.user$.getValue()?.name;
+      if (this.editName && this.editName !== currentName) {
+        await this.auth.updateProfile(this.editName);
+      }
+      this.clearSelectedFile();
       this.editingProfile = false;
     } catch {
       // editError already set via updateError$ subscription
