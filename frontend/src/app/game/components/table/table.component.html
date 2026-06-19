@@ -182,6 +182,15 @@
   <div class="control-dashboard" [class.turn-inactive]="!gameStateService.isMyTurn()"
     [class.turn-active]="gameStateService.isMyTurn()" [style.border-top-color]="gameStateService.myPlayerColor() ?? ''"
     [style.--turn-glow]="getMyColorGlow()">
+
+    <!-- Tactile : tant qu'une carte est sélectionnée sans bille choisie, le footer
+         affiche l'effet de la carte (à la place du profil + bouton Confirmer). -->
+    @if (footerCardHelp(); as help) {
+    <div class="dashboard-card-help">
+      <span class="dch-title">{{ help.title }}</span>
+      <span class="dch-text">{{ help.text }}</span>
+    </div>
+    } @else {
     <div class="dashboard-grid">
 
       <div class="player-profile">
@@ -210,6 +219,7 @@
       </div>
 
     </div>
+    }
   </div>
 
   <!-- ===== SEVEN SPLIT OVERLAY — remplit tout l'espace du TableComponent

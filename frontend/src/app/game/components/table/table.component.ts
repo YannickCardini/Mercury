@@ -280,7 +280,6 @@ enum TURN_PHASE {
     this.actionEchoSub?.unsubscribe();
     this.timeoutSub?.unsubscribe();
     this.autoPlaySub?.unsubscribe();
-    clearTimeout(this.helpAutoCloseTimer);
     if (this.timeoutBannerTimeout) clearTimeout(this.timeoutBannerTimeout);
     if (this.autoPlayBannerTimeout) clearTimeout(this.autoPlayBannerTimeout);
   }
@@ -441,19 +440,6 @@ enum TURN_PHASE {
 
     if (!this.gameStateService.isMyTurn()) {
       this.turnPhase.set(TURN_PHASE.WAIT);
-      // Aide contextuelle disponible hors de son tour : sur tactile, taper une
-      // carte affiche son effet sans la sélectionner ni changer l'état du jeu.
-      // (Sur desktop, le survol passe par onCardHover, déjà indépendant du tour.)
-      // La carte ne bougeant pas (pas de sélection), on lit sa position directement.
-      if (!this.canHover && this.cardHelpEnabled()) {
-        if (this.cardHelp()?.index === index) {
-          this.closeCardHelp();
-          return;
-        }
-        const cardEls = document.querySelectorAll<HTMLElement>('.playable-card');
-        const cardEl = cardEls[index];
-        if (cardEl) this.openCardHelp(index, cardEl, 3500);
-      }
       return;
     }
 
@@ -478,25 +464,14 @@ enum TURN_PHASE {
       this.gameStateService.sevenFirstSteps.set(7);
       this.gameStateService.selectedSplit7MarblePosition.set(null);
       this.turnPhase.set(TURN_PHASE.MARBLE);
-      // Tactile : affiche l'aide après la fin de l'animation de sélection (350ms)
-      // pour que getBoundingClientRect() lise la position finale de la carte.
-      if (!this.canHover && this.cardHelpEnabled()) {
-        const targetIndex = index;
-        setTimeout(() => {
-          if (this.selectedCardIndex() !== targetIndex) return;
-          const cardEls = document.querySelectorAll<HTMLElement>('.playable-card');
-          const cardEl = cardEls[targetIndex];
-          if (cardEl) this.openCardHelp(targetIndex, cardEl, 3500);
-        }, 360);
-      }
     }
   }
 
-  // ── Aide contextuelle sur les cartes (auto-show mobile / hover desktop) ──
+  // ── Aide contextuelle sur les cartes (footer mobile / popover desktop) ──
   //
-  // - Tactile : le popover s'affiche automatiquement à la sélection d'une carte
-  //   et se ferme seul au bout de 3,5 s (ou dès l'action suivante).
-  // - Souris (appareils hover) : survol → popover, fermé au mouseleave.
+  // - Tactile : le footer (.control-dashboard) affiche l'effet de la carte tant
+  //   qu'elle est sélectionnée sans bille choisie. Piloté par `footerCardHelp`.
+  // - Souris (appareils hover) : survol → popover flottant, fermé au mouseleave.
   // Texte = source unique `getCardEffect()` (partagée avec le modal des règles).
   // L'option `cardHelpEnabled` (menu) désactive les deux comportements.
 
@@ -512,6 +487,21 @@ enum TURN_PHASE {
   readonly cardHelpEnabled = signal<boolean>(
     typeof localStorage === 'undefined' || localStorage.getItem('card_help_enabled') !== '0'
   );
+
+  /** Effet de la carte à afficher À LA PLACE du footer (titre + texte) sur tactile.
+   *  Visible tant qu'une carte est sélectionnée sans bille choisie ; disparaît dès
+   *  qu'une bille est sélectionnée (le bouton Confirmer redevient pertinent) ou que
+   *  la carte est désélectionnée. null sur desktop / aide off / indice tuto. */
+  readonly footerCardHelp = computed(() => {
+    if (this.canHover || !this.cardHelpEnabled()) return null;
+    if (this.gameStateService.tutorialHintId() === 'card') return null;
+    if (this.isDiscardMode() || this.showSevenSplitOverlay()) return null;
+    if (this.gameStateService.selectedMarblePosition() !== null) return null;
+    const idx = this.selectedCardIndex();
+    if (idx === null) return null;
+    const card = this.getPlayerHand()[idx];
+    return card ? getCardEffect(card.value) : null;
+  });
 
   toggleCardHelp(): void {
     const next = !this.cardHelpEnabled();
@@ -532,8 +522,6 @@ enum TURN_PHASE {
     window.matchMedia('(hover: hover)').matches &&
     window.matchMedia('(pointer: fine)').matches;
 
-  private helpAutoCloseTimer?: ReturnType<typeof setTimeout>;
-
   onCardHover(index: number, event: MouseEvent): void {
     if (!this.canHover || !this.cardHelpEnabled()) return;
     this.openCardHelp(index, event.currentTarget as HTMLElement);
@@ -544,7 +532,7 @@ enum TURN_PHASE {
     this.closeCardHelp();
   }
 
-  private openCardHelp(index: number, el: HTMLElement, autoCloseMs?: number): void {
+  private openCardHelp(index: number, el: HTMLElement): void {
     // Aide désactivée pendant l'indication de départ du tutoriel
     // (« Play a King, Ace or Joker to start »).
     if (this.gameStateService.tutorialHintId() === 'card') return;
@@ -567,16 +555,9 @@ enum TURN_PHASE {
     const arrowOffset = Math.min(Math.max(rawX - x, -(HALF - 7)), HALF - 7);
 
     this.cardHelp.set({ index, title: effect.title, text: effect.text, x, y: rect.top, arrowOffset });
-
-    if (autoCloseMs !== undefined) {
-      clearTimeout(this.helpAutoCloseTimer);
-      this.helpAutoCloseTimer = setTimeout(() => this.closeCardHelp(), autoCloseMs);
-    }
   }
 
   closeCardHelp(): void {
-    clearTimeout(this.helpAutoCloseTimer);
-    this.helpAutoCloseTimer = undefined;
     if (this.cardHelp() !== null) this.cardHelp.set(null);
   }
 

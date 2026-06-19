@@ -1439,3 +1439,36 @@
     from { opacity: 0; }
     to   { opacity: 1; }
 }
+
+/* =========================================
+   AIDE CARTE — DANS LE FOOTER (tactile)
+   Remplace le contenu du footer (profil + bouton) par l'effet de la carte tant
+   qu'une carte est sélectionnée sans bille choisie. Même emprise que la grille
+   pour ne pas faire « sauter » la hauteur du footer (cf. .avatar = 42px).
+   =========================================  */
+.dashboard-card-help {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    gap: 2px;
+    min-height: 42px;
+    max-width: 900px;
+    margin: 0 auto;
+    animation: cardHelpPop 0.18s ease-out both;
+
+    .dch-title {
+        font-size: 1rem;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        color: #fff;
+        line-height: 1.2;
+    }
+
+    .dch-text {
+        font-size: 0.85rem;
+        line-height: 1.3;
+        color: rgba(255, 255, 255, 0.78);
+    }
+}
