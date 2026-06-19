@@ -146,7 +146,7 @@
             <span class="mm mm-orange"></span>
           </div>
           <h2 class="modal-title">
-            {{ loginMode === 'login' ? 'Connexion' : 'Créer un compte' }}
+            {{ loginMode === 'login' ? 'Sign In' : 'Create Account' }}
           </h2>
         </div>
 
@@ -238,7 +238,7 @@
             <span>{{ (auth.isLoading$ | async) ? 'Signing in…' : 'Continue with Google' }}</span>
           </button>
 
-          <div class="or-divider"><span>ou</span></div>
+          <div class="or-divider"><span>or</span></div>
           <button class="btn-guest" (click)="continueAsGuest()">
             Continue without account&nbsp;→
           </button>

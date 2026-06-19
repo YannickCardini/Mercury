@@ -695,7 +695,7 @@ enum TURN_PHASE {
     const gameData = this.gameStateService.data();
     return gameData?.gameState.players.find(
       (p: any) => p.color === gameData.gameState.currentTurn
-    )?.name || 'Inconnu';
+    )?.name || 'Unknown';
   }
 
   getPlayerColor(): string {

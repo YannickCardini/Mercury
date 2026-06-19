@@ -133,7 +133,7 @@ export class GamePage implements OnDestroy, AfterViewInit {
     this.uiSubs.push(
       this.gameStateService.actionRejected$.subscribe(reason => this.handleInGameRejection(reason)),
       this.gameStateService.reconnecting$.subscribe(() =>
-        this.toast.show('Connexion perdue — reconnexion en cours…', 'error')),
+        this.toast.show('Connection lost — reconnecting…', 'error')),
     );
   }
 
@@ -146,7 +146,7 @@ export class GamePage implements OnDestroy, AfterViewInit {
   private handleInGameRejection(reason: string): void {
     if (this.gameStateService.data() === null) return; // phase de chargement → handleLoadFailure
     if (reason === 'Session expired or not found') {
-      this.toast.show('La partie est terminée ou n\'existe plus.', 'error', 4000);
+      this.toast.show('The game has ended or no longer exists.', 'error', 4000);
       this.backToMenu();
       return;
     }
@@ -155,9 +155,9 @@ export class GamePage implements OnDestroy, AfterViewInit {
 
   private rejectionLabel(reason: string): string {
     switch (reason) {
-      case 'Not your turn': return 'Ce n\'est pas votre tour.';
-      case 'Invalid action': return 'Coup non autorisé.';
-      default: return reason || 'Action refusée par le serveur.';
+      case 'Not your turn': return 'It\'s not your turn.';
+      case 'Invalid action': return 'Move not allowed.';
+      default: return reason || 'Action rejected by the server.';
     }
   }
 

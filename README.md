@@ -3,58 +3,9 @@
 Implémentation multijoueur en temps réel du jeu de société **Tock / Keezen**, en TypeScript de bout en bout.
 
 - **Backend** : Node.js + WebSocket (Express), authoritative server, persistance Azure Cosmos DB
-- **Frontend** : Angular 17 + Ionic (web + Android via Capacitor)
+- **Frontend** : Angular + Ionic (web + Android via Capacitor)
 - **Code partagé** : monorepo npm workspaces avec un package `@mercury/shared` (types, géométrie du plateau, constantes)
 - **Matchmaking** : file d'attente publique avec **complétion automatique par des bots IA** — voir [Agent IA externe](#agent-ia-externe--complétion-automatique-du-matchmaking)
-
----
-
-## Structure du projet
-
-```
-mercury/
-├── packages/
-│   └── shared/                       ← Source de vérité partagée frontend/backend
-│       └── src/
-│           ├── types.ts              ← Interfaces (Card, Player, Action, GameState, messages WS…)
-│           ├── board-config.ts       ← Géométrie du plateau (positions, chemins, helpers)
-│           ├── constants.ts          ← Durées d'animation, règles, config générale
-│           └── index.ts              ← Barrel export
-│
-├── backend/                          ← Serveur Express + WebSocket (Node.js, ESM)
-│   └── src/
-│       ├── index.ts                  ← Point d'entrée HTTP + WS
-│       ├── db.ts                     ← Accès Azure Cosmos DB
-│       ├── auth/                     ← Authentification (Google OAuth, sessions)
-│       ├── game/                     ← Moteur de jeu (board, deck, players, boucle de tour)
-│       ├── messages/                 ← Sérialisation des messages WebSocket
-│       ├── session/
-│       │   ├── matchmaking-manager.ts    ← File d'attente publique + dispatch agent IA
-│       │   ├── custom-game-manager.ts    ← Parties privées (lobby invité)
-│       │   ├── session-manager.ts        ← Sessions utilisateur
-│       │   ├── presence-manager.ts       ← Présence en ligne
-│       │   └── game-registry.ts          ← Registre des parties actives
-│       └── utils/
-│
-├── frontend/                         ← Application Angular 17 + Ionic
-│   └── src/app/
-│       ├── home/                     ← Accueil + lobby
-│       ├── game/                     ← Page de jeu
-│       │   ├── components/
-│       │   │   ├── board/            ← Rendu du plateau et des pions
-│       │   │   ├── table/            ← Joueurs adverses, mains, indicateurs
-│       │   │   ├── seven-overlay/    ← UX dédiée à la carte 7 (split de mouvement)
-│       │   │   ├── tutorial-overlay/ ← Tutoriel interactif
-│       │   │   ├── victory-overlay/  ← Écran de fin de partie
-│       │   │   └── emoji-reactions/  ← Réactions en temps réel
-│       │   └── services/             ← game-state, tab-lock…
-│       ├── profile/                  ← Profil utilisateur
-│       ├── leaderboard/              ← Classement
-│       └── services/                 ← presence, auth, websocket…
-│
-├── package.json                      ← Workspace root (npm workspaces)
-└── README.md
-```
 
 ---
 
@@ -65,6 +16,7 @@ mercury/
 Le frontend et le backend partagent naturellement :
 - Les **types TypeScript** (Card, Player, Action, GameState…)
 - La **géométrie du plateau** (positions des cases, homes, starts, arrivées)
+- La **validation des mouvements** (même logique appliquée côté client pour le feedback instantané)
 - Les **constantes** (durée du tour, durées d'animation, règles)
 
 Sans package partagé, ces données sont dupliquées et divergent — ce qui provoque des bugs difficiles à tracer. Avec `@mercury/shared`, il y a **une seule source de vérité**, garantie à la compilation par TypeScript des deux côtés du WebSocket.
@@ -75,6 +27,7 @@ Sans package partagé, ces données sont dupliquées et divergent — ce qui pro
 |---|---|
 | `types.ts` | Interfaces et types (`Card`, `Player`, `Action`, `GameState`, messages WebSocket…) |
 | `board-config.ts` | Positions du plateau : cases affichées, chemin principal, homes, starts, arrivées. Helpers : `getStartPosition()`, `hasWon()`, etc. |
+| `move-validator.ts` | Validation des mouvements légaux — partagée pour feedback immédiat côté client et vérification autoritaire côté serveur. |
 | `constants.ts` | Durées d'animation, durée du tour, config d'affichage, règles (`ENTER_CARDS`, `CARDS_PER_HAND`…) |
 | `index.ts` | Barrel export — importer toujours depuis `@mercury/shared` |
 
@@ -117,8 +70,6 @@ Conséquence : un joueur seul est très probablement rejoint par un bot dans la 
 
 ### Configuration
 
-Deux variables d'environnement côté backend :
-
 ```bash
 AGENT_URL=https://agent-service.example.com   # endpoint du service IA
 BOT_SECRET=<shared-secret>                    # auth du dispatch
@@ -160,6 +111,31 @@ npm install
 cp .env.example .env   # et remplir les valeurs
 ```
 
+### Variables d'environnement
+
+| Variable | Obligatoire | Description |
+|---|---|---|
+| `GOOGLE_AUDIENCE_WEB` | oui | Client ID OAuth Google (web) |
+| `GOOGLE_AUDIENCE_ANDROID` | oui | Client ID OAuth Google (Android) |
+| `COSMOS_CONNECTION_STRING` | prod | Chaîne de connexion Azure Cosmos DB |
+| `COSMOS_CONNECTION_STRING_LOCAL` | dev | Émulateur Cosmos local |
+| `SESSION_JWT_SECRET` | oui | Secret HS256 pour les session tokens (≥ 32 chars) |
+| `AZURE_STORAGE_CONNECTION_STRING` | oui | Azure Blob Storage (avatars) |
+| `AVATARS_CONTAINER` | non | Nom du container blob (défaut : `avatars`) |
+| `BOT_SECRET` | non | Secret partagé avec le service d'agents IA |
+| `AGENT_URL` | non | Endpoint du service d'agents IA — vide = dispatch désactivé |
+| `ALLOWED_ORIGINS` | prod | Origines CORS autorisées, séparées par des virgules |
+| `DEBUG` | non | `true` = active les routes de test et le joinMatchmaking debug vs 3 bots locaux |
+| `TRAIN_MODE` | non | `true` = self-play sans dispatch d'agents externes |
+| `LATEST_VERSION_CODE` | non | Surcharge `versionCode` sans redéploiement |
+| `LATEST_VERSION_NAME` | non | Surcharge `versionName` sans redéploiement |
+| `MIN_VERSION_CODE` | non | Code minimum avant mise à jour forcée (usage futur) |
+| `STORE_URL` | non | URL du Play Store affichée dans la popup de mise à jour |
+| `WORKER_USERNAME` | non | Identifiants compte staff (revue Google Play) |
+| `WORKER_PASSWORD` | non | Identifiants compte staff (revue Google Play) |
+
+> **Production** : `ALLOWED_ORIGINS` doit lister l'URL du frontend déployé. Sans cette variable, seuls `localhost` (dev) et `capacitor://localhost` sont autorisés.
+
 ### Build du package partagé
 
 Le package partagé doit être **buildé avant** de démarrer le frontend ou le backend.
@@ -198,8 +174,8 @@ Ouvrir [`frontend/android/app/build.gradle`](frontend/android/app/build.gradle) 
 
 ```groovy
 defaultConfig {
-    versionCode 9          // entier — incrémenter de 1 à chaque release
-    versionName "1.9"      // chaîne affichée dans le Play Store
+    versionCode 11         // entier — incrémenter de 1 à chaque release
+    versionName "0.11"     // chaîne affichée dans le Play Store
     …
 }
 ```
@@ -215,8 +191,8 @@ L'endpoint `GET /api/version` expose ces valeurs à l'app mobile, qui les compar
 Ces constantes peuvent également être surchargées sans redéploiement via les **variables d'environnement** du backend :
 
 ```bash
-LATEST_VERSION_CODE=9
-LATEST_VERSION_NAME=1.9
+LATEST_VERSION_CODE=11
+LATEST_VERSION_NAME=0.11
 ```
 
 ### 3. Construire le bundle de release

@@ -16,9 +16,9 @@
   <div class="timeout-banner" [ngClass]="'timeout-banner--' + color">
     <span class="timeout-icon">⏰</span>
     @if (color === gameStateService.myPlayerColor()) {
-    <span>Temps écoulé — l'ordinateur a joué à ta place</span>
+    <span>Time's up — the computer played for you</span>
     } @else {
-    <span>Temps écoulé — l'ordinateur a joué pour {{ color }}</span>
+    <span>Time's up — the computer played for {{ color }}</span>
     }
   </div>
   }
