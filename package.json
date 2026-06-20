@@ -12,5 +12,8 @@
     "dev:backend": "npm run dev --workspace=backend",
     "dev:frontend": "npm run start --workspace=frontend",
     "build:all": "npm run build:shared && npm run build --workspace=backend"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.0"
   }
 }

@@ -1,37 +1,53 @@
-import { Component, signal, computed, effect, OnDestroy, ViewChild, AfterViewInit } from '@angular/core';
-import { Router } from '@angular/router';
-import { BoardComponent } from './components/board/board.component';
-import { TableComponent } from './components/table/table.component';
-import { VictoryOverlayComponent } from './components/victory-overlay/victory-overlay.component';
-import { TutorialOverlayComponent } from './components/tutorial-overlay/tutorial-overlay.component';
-import { GameRulesModalComponent } from '../shared/game-rules-modal.component';
-import { LoadingScreenComponent } from '../shared/loading-screen.component';
-import { GameStateService } from './services/game-state.service';
-import { SoundService } from './services/sound.service';
-import { ToastService } from '../shared/toast.service';
-import { environment } from '../../environments/environment';
-import { Subscription } from 'rxjs';
-import { NEW_TURN_BANNER_DURATION_MS } from '@mercury/shared';
-import { Haptics, ImpactStyle } from '@capacitor/haptics';
-import { Capacitor } from '@capacitor/core';
+import {
+  Component,
+  signal,
+  computed,
+  effect,
+  OnDestroy,
+  ViewChild,
+  AfterViewInit,
+  ChangeDetectionStrategy,
+} from "@angular/core";
+import { Router } from "@angular/router";
+import { BoardComponent } from "./components/board/board.component";
+import { TableComponent } from "./components/table/table.component";
+import { VictoryOverlayComponent } from "./components/victory-overlay/victory-overlay.component";
+import { TutorialOverlayComponent } from "./components/tutorial-overlay/tutorial-overlay.component";
+import { GameRulesModalComponent } from "../shared/game-rules-modal.component";
+import { LoadingScreenComponent } from "../shared/loading-screen.component";
+import { GameStateService } from "./services/game-state.service";
+import { SoundService } from "./services/sound.service";
+import { ToastService } from "../shared/toast.service";
+import { environment } from "../../environments/environment";
+import { Subscription } from "rxjs";
+import { NEW_TURN_BANNER_DURATION_MS } from "@mercury/shared";
+import { Haptics, ImpactStyle } from "@capacitor/haptics";
+import { Capacitor } from "@capacitor/core";
 
 /** How long the load-failure message stays on the loading screen before redirecting home. */
 const LOAD_ERROR_REDIRECT_MS = 3000;
 
 @Component({
-  selector: 'app-game',
-  templateUrl: 'game.page.html',
-  styleUrl: 'game.page.scss',
-  imports: [BoardComponent, TableComponent, VictoryOverlayComponent, TutorialOverlayComponent, GameRulesModalComponent, LoadingScreenComponent],
+  selector: "app-game",
+  templateUrl: "game.page.html",
+  styleUrl: "game.page.scss",
+  changeDetection: ChangeDetectionStrategy.Eager,
+  imports: [
+    BoardComponent,
+    TableComponent,
+    VictoryOverlayComponent,
+    TutorialOverlayComponent,
+    GameRulesModalComponent,
+    LoadingScreenComponent,
+  ],
 })
 export class GamePage implements OnDestroy, AfterViewInit {
-
   @ViewChild(BoardComponent) private boardRef?: BoardComponent;
 
   showNewTurnBanner = signal(false);
   showRules = signal(false);
-  newTurnColor = signal<string>('');
-  newTurnName = signal<string>('');
+  newTurnColor = signal<string>("");
+  newTurnName = signal<string>("");
   newTurnPicture = signal<string | null>(null);
   /** Vrai quand la bannière du tour courant doit afficher la variante « Tour Bonus · Joker ». */
   isReplayBanner = signal(false);
@@ -49,14 +65,16 @@ export class GamePage implements OnDestroy, AfterViewInit {
     const err = this.loadError();
     if (err) return err;
     return this.gameStateService.isConnected()
-      ? 'Initializing game data...'
-      : 'Connecting to the server...';
+      ? "Initializing game data..."
+      : "Connecting to the server...";
   });
 
   winnerName = computed(() => {
     const color = this.gameStateService.winner();
-    if (!color) return '';
-    const player = this.gameStateService.data()?.gameState.players.find(p => p.color === color);
+    if (!color) return "";
+    const player = this.gameStateService
+      .data()
+      ?.gameState.players.find((p) => p.color === color);
     return player?.name ?? color;
   });
 
@@ -64,7 +82,9 @@ export class GamePage implements OnDestroy, AfterViewInit {
   isLocalPlayerGuest = computed(() => {
     const color = this.gameStateService.myPlayerColor();
     if (!color) return true;
-    const player = this.gameStateService.data()?.gameState.players.find(p => p.color === color);
+    const player = this.gameStateService
+      .data()
+      ?.gameState.players.find((p) => p.color === color);
     return !player?.userId;
   });
 
@@ -78,7 +98,12 @@ export class GamePage implements OnDestroy, AfterViewInit {
   /** Pending redirect-to-home timer shown after a load-failure message. */
   private loadFailRedirect: ReturnType<typeof setTimeout> | null = null;
 
-  constructor(public gameStateService: GameStateService, private soundService: SoundService, private router: Router, private toast: ToastService) {
+  constructor(
+    public gameStateService: GameStateService,
+    private soundService: SoundService,
+    private router: Router,
+    private toast: ToastService
+  ) {
     effect(() => {
       const winner = this.gameStateService.winner();
       if (!winner) return;
@@ -99,7 +124,9 @@ export class GamePage implements OnDestroy, AfterViewInit {
       const currentTurn = gameData.gameState?.currentTurn;
       if (!currentTurn) return;
 
-      const player = gameData.gameState.players.find(p => p.color === currentTurn);
+      const player = gameData.gameState.players.find(
+        (p) => p.color === currentTurn
+      );
       this.newTurnColor.set(currentTurn);
       this.newTurnName.set(player?.name ?? currentTurn);
       this.newTurnPicture.set(player?.picture ?? null);
@@ -108,7 +135,10 @@ export class GamePage implements OnDestroy, AfterViewInit {
         this.showNewTurnBanner.set(true);
         if (this.gameStateService.isMyTurn()) {
           this.soundService.playNewTurn();
-          if (Capacitor.isNativePlatform() && this.soundService.vibrationEnabled()) {
+          if (
+            Capacitor.isNativePlatform() &&
+            this.soundService.vibrationEnabled()
+          ) {
             Haptics.impact({ style: ImpactStyle.Medium });
           }
         }
@@ -124,16 +154,23 @@ export class GamePage implements OnDestroy, AfterViewInit {
     // Reconnection / game-start failures: surface the reason and return home
     // instead of hanging forever on the "Connecting…" loading screen.
     this.loadFailSubs.push(
-      this.gameStateService.actionRejected$.subscribe(reason => this.handleLoadFailure(reason)),
-      this.gameStateService.connectionError$.subscribe(() => this.handleLoadFailure('Could not connect to the game.')),
+      this.gameStateService.actionRejected$.subscribe((reason) =>
+        this.handleLoadFailure(reason)
+      ),
+      this.gameStateService.connectionError$.subscribe(() =>
+        this.handleLoadFailure("Could not connect to the game.")
+      )
     );
 
     // Feedback en jeu : rejets serveur (coup invalide, session expirée…) et
     // reconnexion automatique après une coupure réseau.
     this.uiSubs.push(
-      this.gameStateService.actionRejected$.subscribe(reason => this.handleInGameRejection(reason)),
+      this.gameStateService.actionRejected$.subscribe((reason) =>
+        this.handleInGameRejection(reason)
+      ),
       this.gameStateService.reconnecting$.subscribe(() =>
-        this.toast.show('Connection lost — reconnecting…', 'error')),
+        this.toast.show("Connection lost — reconnecting…", "error")
+      )
     );
   }
 
@@ -145,33 +182,36 @@ export class GamePage implements OnDestroy, AfterViewInit {
    */
   private handleInGameRejection(reason: string): void {
     if (this.gameStateService.data() === null) return; // phase de chargement → handleLoadFailure
-    if (reason === 'Session expired or not found') {
-      this.toast.show('The game has ended or no longer exists.', 'error', 4000);
+    if (reason === "Session expired or not found") {
+      this.toast.show("The game has ended or no longer exists.", "error", 4000);
       this.backToMenu();
       return;
     }
-    this.toast.show(this.rejectionLabel(reason), 'error');
+    this.toast.show(this.rejectionLabel(reason), "error");
   }
 
   private rejectionLabel(reason: string): string {
     switch (reason) {
-      case 'Not your turn': return 'It\'s not your turn.';
-      case 'Invalid action': return 'Move not allowed.';
-      default: return reason || 'Action rejected by the server.';
+      case "Not your turn":
+        return "It's not your turn.";
+      case "Invalid action":
+        return "Move not allowed.";
+      default:
+        return reason || "Action rejected by the server.";
     }
   }
 
   backToMenu(): void {
     this.gameStateService.clearActiveGameSession();
     this.gameStateService.reset();
-    void this.router.navigate(['/home']);
+    void this.router.navigate(["/home"]);
   }
 
   ngOnDestroy(): void {
     // Évite les memory leaks — toujours se désabonner manuellement
     this.newTurnSub?.unsubscribe();
-    this.loadFailSubs.forEach(sub => sub.unsubscribe());
-    this.uiSubs.forEach(sub => sub.unsubscribe());
+    this.loadFailSubs.forEach((sub) => sub.unsubscribe());
+    this.uiSubs.forEach((sub) => sub.unsubscribe());
     if (this.newTurnTimeout) clearTimeout(this.newTurnTimeout);
     if (this.loadFailRedirect) clearTimeout(this.loadFailRedirect);
   }
@@ -186,12 +226,12 @@ export class GamePage implements OnDestroy, AfterViewInit {
 
   connect(): void {
     this.gameStateService.connect(environment.wsUrl, () => {
-      const activeGameId = localStorage.getItem('active_game_id');
-      const guestPlayerId = localStorage.getItem('guest_player_id');
+      const activeGameId = localStorage.getItem("active_game_id");
+      const guestPlayerId = localStorage.getItem("guest_player_id");
       if (activeGameId && guestPlayerId) {
         this.gameStateService.sendJoinGame(guestPlayerId, activeGameId);
       } else {
-        this.handleLoadFailure('No active game session.');
+        this.handleLoadFailure("No active game session.");
       }
     });
   }
@@ -211,14 +251,16 @@ export class GamePage implements OnDestroy, AfterViewInit {
    */
   private handleLoadFailure(reason: string): void {
     if (this.gameStateService.data() !== null) return; // game already loaded → not a load failure
-    if (this.loadError()) return;                       // already handling a failure
-    this.loadError.set(reason || 'Unable to join the game');
+    if (this.loadError()) return; // already handling a failure
+    this.loadError.set(reason || "Unable to join the game");
     this.gameStateService.clearActiveGameSession();
     this.loadFailRedirect = setTimeout(() => {
-      if (this.gameStateService.data() !== null) { this.loadError.set(null); return; }
+      if (this.gameStateService.data() !== null) {
+        this.loadError.set(null);
+        return;
+      }
       this.gameStateService.reset();
-      void this.router.navigate(['/home']);
+      void this.router.navigate(["/home"]);
     }, LOAD_ERROR_REDIRECT_MS);
   }
-
 }

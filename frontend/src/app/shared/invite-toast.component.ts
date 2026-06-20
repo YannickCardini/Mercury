@@ -1,6 +1,12 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import type { GameInviteMessage } from '@mercury/shared';
+import {
+  Component,
+  EventEmitter,
+  Input,
+  Output,
+  ChangeDetectionStrategy,
+} from "@angular/core";
+
+import type { GameInviteMessage } from "@mercury/shared";
 
 /**
  * Bottom-right toast that appears when a `gameInvite` is pushed to the user.
@@ -8,11 +14,12 @@ import type { GameInviteMessage } from '@mercury/shared';
  * server cancels the invitation (room closed, expired, creator disconnected).
  */
 @Component({
-  selector: 'app-invite-toast',
+  selector: "app-invite-toast",
   standalone: true,
-  imports: [CommonModule],
-  templateUrl: './invite-toast.component.html',
-  styleUrls: ['./invite-toast.component.scss'],
+  imports: [],
+  templateUrl: "./invite-toast.component.html",
+  changeDetection: ChangeDetectionStrategy.Eager,
+  styleUrls: ["./invite-toast.component.scss"],
 })
 export class InviteToastComponent {
   @Input() invite: GameInviteMessage | null = null;

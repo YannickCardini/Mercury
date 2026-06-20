@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, ChangeDetectionStrategy } from "@angular/core";
 
 /**
  * Popup de mise à jour OBLIGATOIRE.
@@ -10,19 +10,21 @@ import { Component, Input } from '@angular/core';
  * jour l'application.
  */
 @Component({
-  selector: 'app-update-available-modal',
-  templateUrl: './update-available-modal.component.html',
-  styleUrl: './update-available-modal.component.scss',
+  selector: "app-update-available-modal",
+  templateUrl: "./update-available-modal.component.html",
+  styleUrl: "./update-available-modal.component.scss",
+  changeDetection: ChangeDetectionStrategy.Eager,
   standalone: true,
 })
 export class UpdateAvailableModalComponent {
   /** Affiche le popup quand true. */
   @Input() show = false;
   /** Lien Play Store ouvert par le bouton « Update ». */
-  @Input() storeUrl = 'https://play.google.com/store/apps/details?id=online.mercury.game';
+  @Input() storeUrl =
+    "https://play.google.com/store/apps/details?id=online.mercury.game";
 
   openStore(): void {
     // `_system` fait quitter la WebView et ouvre le Play Store (app ou navigateur).
-    window.open(this.storeUrl, '_system');
+    window.open(this.storeUrl, "_system");
   }
 }

@@ -1,18 +1,43 @@
-<div class="invite-toast" *ngIf="invite as inv" role="alert" aria-live="polite">
-  <img *ngIf="inv.fromUserPicture" class="invite-toast-avatar" [src]="inv.fromUserPicture" [alt]="inv.fromUserName" referrerpolicy="no-referrer">
-  <div *ngIf="!inv.fromUserPicture" class="invite-toast-avatar invite-toast-avatar--fallback"></div>
+@if (invite; as inv) {
+<div class="invite-toast" role="alert" aria-live="polite">
+  @if (inv.fromUserPicture) {
+  <img
+    class="invite-toast-avatar"
+    [src]="inv.fromUserPicture"
+    [alt]="inv.fromUserName"
+    referrerpolicy="no-referrer"
+  />
+  } @if (!inv.fromUserPicture) {
+  <div class="invite-toast-avatar invite-toast-avatar--fallback"></div>
+  }
   <div class="invite-toast-body">
     <p class="invite-toast-title">
       <strong>{{ inv.fromUserName }}</strong> invited you to a custom game.
     </p>
-    <p class="invite-toast-code">Room <span>{{ inv.roomCode }}</span></p>
+    <p class="invite-toast-code">
+      Room <span>{{ inv.roomCode }}</span>
+    </p>
   </div>
   <div class="invite-toast-actions">
-    <button class="invite-toast-decline" (click)="onDecline()" aria-label="Decline invite">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <button
+      class="invite-toast-decline"
+      (click)="onDecline()"
+      aria-label="Decline invite"
+    >
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
         <path d="M18 6 6 18M6 6l12 12" />
       </svg>
     </button>
     <button class="invite-toast-join" (click)="onJoin()">Join</button>
   </div>
 </div>
+}

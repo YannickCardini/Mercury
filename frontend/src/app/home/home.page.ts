@@ -1,23 +1,36 @@
-import { Component, OnInit, OnDestroy, inject, ViewChild, ElementRef, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
-import { HttpClient } from '@angular/common/http';
-import { GameRulesModalComponent } from '../shared/game-rules-modal.component';
-import { InviteToastComponent } from '../shared/invite-toast.component';
-import { Subscription, firstValueFrom, take } from 'rxjs';
-import { version } from '../../../../package.json';
-import { App } from '@capacitor/app';
-import { Capacitor } from '@capacitor/core';
-import { GameStateService } from '../game/services/game-state.service';
-import { TabLockService } from '../game/services/tab-lock.service';
-import { AppResumeService } from '../services/app-resume.service';
-import { AuthService, type AuthUser } from '../services/auth.service';
-import { ActiveGameService } from '../services/active-game.service';
-import { PresenceService } from '../services/presence.service';
-import type { GameInviteMessage, MarbleColor, CustomRoomPlayerInfo } from '@mercury/shared';
-import { environment } from 'src/environments/environment';
-import { generateGuestName } from '../shared/guest-name';
+import {
+  Component,
+  OnInit,
+  OnDestroy,
+  inject,
+  ViewChild,
+  ElementRef,
+  signal,
+  ChangeDetectionStrategy,
+} from "@angular/core";
+import { CommonModule } from "@angular/common";
+import { FormsModule } from "@angular/forms";
+import { Router } from "@angular/router";
+import { HttpClient } from "@angular/common/http";
+import { GameRulesModalComponent } from "../shared/game-rules-modal.component";
+import { InviteToastComponent } from "../shared/invite-toast.component";
+import { Subscription, firstValueFrom, take } from "rxjs";
+import { version } from "../../../../package.json";
+import { App } from "@capacitor/app";
+import { Capacitor } from "@capacitor/core";
+import { GameStateService } from "../game/services/game-state.service";
+import { TabLockService } from "../game/services/tab-lock.service";
+import { AppResumeService } from "../services/app-resume.service";
+import { AuthService, type AuthUser } from "../services/auth.service";
+import { ActiveGameService } from "../services/active-game.service";
+import { PresenceService } from "../services/presence.service";
+import type {
+  GameInviteMessage,
+  MarbleColor,
+  CustomRoomPlayerInfo,
+} from "@mercury/shared";
+import { environment } from "src/environments/environment";
+import { generateGuestName } from "../shared/guest-name";
 
 interface ThreadSummary {
   peerId: string;
@@ -51,35 +64,41 @@ interface InviteCandidate {
    * - sent:    invite dispatched to the recipient's socket
    * - error:   recipient declined or was offline
    */
-  inviteState: 'idle' | 'sending' | 'sent' | 'error';
+  inviteState: "idle" | "sending" | "sent" | "error";
 }
 
 @Component({
-  selector: 'app-home',
-  templateUrl: './home.page.html',
-  styleUrls: ['./home.page.scss'],
-  imports: [CommonModule, FormsModule, GameRulesModalComponent, InviteToastComponent],
+  selector: "app-home",
+  templateUrl: "./home.page.html",
+  styleUrls: ["./home.page.scss"],
+  changeDetection: ChangeDetectionStrategy.Eager,
+  imports: [
+    CommonModule,
+    FormsModule,
+    GameRulesModalComponent,
+    InviteToastComponent,
+  ],
 })
 export class HomePage implements OnInit, OnDestroy {
-  readonly titleLetters = ['M', 'E', 'R', 'C', 'U', 'R', 'Y'];
+  readonly titleLetters = ["M", "E", "R", "C", "U", "R", "Y"];
   readonly appVersion = signal(version);
 
   showLogin = false;
-  loginPromptReason: 'custom-game' | null = null;
+  loginPromptReason: "custom-game" | null = null;
   showSettings = false;
   showRules = false;
   showMatchmaking = false;
-  loginMode: 'login' | 'signup' = 'login';
+  loginMode: "login" | "signup" = "login";
 
   // ── Edit profile state ─────────────────────────────────────────────────────
   editingProfile = false;
-  editName = '';
-  editPreviewUrl = '';
+  editName = "";
+  editPreviewUrl = "";
   selectedFile: File | null = null;
   private previewObjectUrl: string | null = null;
   isSaving = false;
   previewUnavailable = false;
-  editError = '';
+  editError = "";
   private updateErrorSub: Subscription | null = null;
 
   // ── Matchmaking state ──────────────────────────────────────────────────────
@@ -97,25 +116,25 @@ export class HomePage implements OnInit, OnDestroy {
   matchmakingError = false;
 
   loginError = false;
-  loginErrorMessage = '';
+  loginErrorMessage = "";
 
   // ── Custom Game state ──────────────────────────────────────────────────────
   showCustomGame = false;
   /** Stage of the custom-game flow: pick action, then in-room. */
-  customStage: 'choose' | 'in-room' = 'choose';
-  customRoomCode = '';
+  customStage: "choose" | "in-room" = "choose";
+  customRoomCode = "";
   customRoomPlayers: CustomRoomPlayerInfo[] = [];
   myCustomColor: MarbleColor | null = null;
   iAmCreator = false;
-  customJoinCode = '';
-  customError = '';
+  customJoinCode = "";
+  customError = "";
   customCopied = false;
   customStarting = false;
   customCreating = false;
 
   // Invite section
   inviteCandidates: InviteCandidate[] = [];
-  inviteSearch = '';
+  inviteSearch = "";
   inviteLoading = false;
 
   private customRoomSub: Subscription | null = null;
@@ -133,21 +152,21 @@ export class HomePage implements OnInit, OnDestroy {
 
   // ── Inbox state ────────────────────────────────────────────────────────────
   showInbox = false;
-  inboxView: 'threads' | 'thread' = 'threads';
+  inboxView: "threads" | "thread" = "threads";
   threads: ThreadSummary[] = [];
   threadsLoading = false;
-  inboxError = '';
+  inboxError = "";
   unreadCount = 0;
 
   // Active thread (when inboxView === 'thread')
   currentPeer: { id: string; name: string; picture: string } | null = null;
   currentMessages: ThreadMessage[] = [];
   threadLoading = false;
-  composerText = '';
+  composerText = "";
   sending = false;
   readonly composerMaxLength = 500;
 
-  @ViewChild('threadScroll') threadScroll?: ElementRef<HTMLDivElement>;
+  @ViewChild("threadScroll") threadScroll?: ElementRef<HTMLDivElement>;
 
   private http = inject(HttpClient);
   private userSub: Subscription | null = null;
@@ -161,12 +180,16 @@ export class HomePage implements OnInit, OnDestroy {
     private presenceService: PresenceService,
     private activeGame: ActiveGameService,
     readonly auth: AuthService,
-    readonly appResume: AppResumeService,
-  ) { }
+    readonly appResume: AppResumeService
+  ) {}
 
   ngOnInit(): void {
-    if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android') {
-      void App.getInfo().then(info => this.appVersion.set(info.version)).catch(() => { /* keep package.json version */ });
+    if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android") {
+      void App.getInfo()
+        .then((info) => this.appVersion.set(info.version))
+        .catch(() => {
+          /* keep package.json version */
+        });
     }
 
     // Re-sync the "Resume" banner from storage; AppResumeService keeps it
@@ -176,20 +199,21 @@ export class HomePage implements OnInit, OnDestroy {
       // Don't let a user with an ongoing game linger on /home — bring them
       // straight back into the match. The Resume banner remains as a fallback
       // in case this navigation is cancelled by a guard.
-      void this.router.navigate(['/game']);
+      void this.router.navigate(["/game"]);
       return;
     }
-    this.loginErrorSub = this.auth.loginError$.subscribe(type => {
-      this.loginErrorMessage = type === 'server'
-        ? 'Server error. Please try again later.'
-        : 'Could not sign in with Google. Please try again.';
+    this.loginErrorSub = this.auth.loginError$.subscribe((type) => {
+      this.loginErrorMessage =
+        type === "server"
+          ? "Server error. Please try again later."
+          : "Could not sign in with Google. Please try again.";
       this.loginError = true;
-      setTimeout(() => this.loginError = false, 4000);
+      setTimeout(() => (this.loginError = false), 4000);
     });
-    this.updateErrorSub = this.auth.updateError$.subscribe(msg => {
+    this.updateErrorSub = this.auth.updateError$.subscribe((msg) => {
       this.editError = msg;
     });
-    this.userSub = this.auth.user$.subscribe(user => {
+    this.userSub = this.auth.user$.subscribe((user) => {
       if (user) {
         void this.refreshUnreadCount();
         this.connectPresenceIfIdle(user.id);
@@ -202,41 +226,45 @@ export class HomePage implements OnInit, OnDestroy {
       }
     });
 
-    this.gameInviteSub = this.presenceService.gameInvite$.subscribe(invite => {
-      // If the user is busy (in a room/game flow), silently drop.
-      if (this.showCustomGame || this.appResume.hasActiveGame()) return;
-      this.pendingInvite = invite;
-    });
-
-    this.gameInviteCancelledSub = this.presenceService.gameInviteCancelled$.subscribe(cancel => {
-      // Clear the toast only if it matches the cancelled invite (same inviter
-      // and room code) — a different in-flight invite would still be valid.
-      if (
-        this.pendingInvite &&
-        this.pendingInvite.fromUserId === cancel.fromUserId &&
-        this.pendingInvite.roomCode === cancel.roomCode
-      ) {
-        this.pendingInvite = null;
+    this.gameInviteSub = this.presenceService.gameInvite$.subscribe(
+      (invite) => {
+        // If the user is busy (in a room/game flow), silently drop.
+        if (this.showCustomGame || this.appResume.hasActiveGame()) return;
+        this.pendingInvite = invite;
       }
-    });
+    );
+
+    this.gameInviteCancelledSub =
+      this.presenceService.gameInviteCancelled$.subscribe((cancel) => {
+        // Clear the toast only if it matches the cancelled invite (same inviter
+        // and room code) — a different in-flight invite would still be valid.
+        if (
+          this.pendingInvite &&
+          this.pendingInvite.fromUserId === cancel.fromUserId &&
+          this.pendingInvite.roomCode === cancel.roomCode
+        ) {
+          this.pendingInvite = null;
+        }
+      });
 
     // The server rejected a join/create because this account is already in a
     // running game — abandon the attempt and drop into that game instead of
     // showing an error. localStorage keys were already restored by the service.
-    this.alreadyInGameSub = this.gameStateService.alreadyInActiveGame$.subscribe(info => {
-      this.cleanupMatchmaking();
-      this.cleanupCustomGame();
-      this.showMatchmaking = false;
-      this.showCustomGame = false;
-      this.tabLock.claimSession();
-      // connect() cleanly silences and replaces the rejected join socket, then
-      // re-joins the running game.
-      this.gameStateService.connect(environment.wsUrl, () => {
-        this.gameStateService.sendJoinGame(info.guestPlayerId, info.gameId);
+    this.alreadyInGameSub =
+      this.gameStateService.alreadyInActiveGame$.subscribe((info) => {
+        this.cleanupMatchmaking();
+        this.cleanupCustomGame();
+        this.showMatchmaking = false;
+        this.showCustomGame = false;
+        this.tabLock.claimSession();
+        // connect() cleanly silences and replaces the rejected join socket, then
+        // re-joins the running game.
+        this.gameStateService.connect(environment.wsUrl, () => {
+          this.gameStateService.sendJoinGame(info.guestPlayerId, info.gameId);
+        });
+        this.appResume.refreshFromStorage();
+        void this.router.navigate(["/game"]);
       });
-      this.appResume.refreshFromStorage();
-      void this.router.navigate(['/game']);
-    });
 
     // Signed-in users are server-authoritative: even with no local session,
     // an account that is a player in a running game must be pulled into it.
@@ -253,10 +281,10 @@ export class HomePage implements OnInit, OnDestroy {
     try {
       const info = await this.activeGame.fetch();
       if (!info) return;
-      localStorage.setItem('guest_player_id', info.guestPlayerId);
-      localStorage.setItem('active_game_id', info.gameId);
+      localStorage.setItem("guest_player_id", info.guestPlayerId);
+      localStorage.setItem("active_game_id", info.gameId);
       this.appResume.refreshFromStorage();
-      void this.router.navigate(['/game']);
+      void this.router.navigate(["/game"]);
     } catch {
       // Server unreachable — stay on home.
     }
@@ -275,7 +303,12 @@ export class HomePage implements OnInit, OnDestroy {
   }
 
   private connectPresenceIfIdle(userId: string): void {
-    if (this.showCustomGame || this.showMatchmaking || this.appResume.hasActiveGame()) return;
+    if (
+      this.showCustomGame ||
+      this.showMatchmaking ||
+      this.appResume.hasActiveGame()
+    )
+      return;
     const authToken = this.auth.getIdToken();
     if (!authToken) return; // présence réservée aux comptes authentifiés
     this.presenceService.connect(environment.wsUrl, userId, authToken);
@@ -287,19 +320,29 @@ export class HomePage implements OnInit, OnDestroy {
     this.presenceService.disconnect();
   }
 
-  openLogin() { this.showLogin = true; }
-  closeLogin() { this.showLogin = false; this.editingProfile = false; this.editError = ''; this.loginPromptReason = null; }
+  openLogin() {
+    this.showLogin = true;
+  }
+  closeLogin() {
+    this.showLogin = false;
+    this.editingProfile = false;
+    this.editError = "";
+    this.loginPromptReason = null;
+  }
 
   continueAsGuest(): void {
     const reason = this.loginPromptReason;
     this.closeLogin();
-    if (reason === 'custom-game') {
-      this.loginErrorMessage = 'Custom Game requires an account. Sign in to play.';
+    if (reason === "custom-game") {
+      this.loginErrorMessage =
+        "Custom Game requires an account. Sign in to play.";
       this.loginError = true;
-      setTimeout(() => this.loginError = false, 4000);
+      setTimeout(() => (this.loginError = false), 4000);
     }
   }
-  switchMode(mode: 'login' | 'signup') { this.loginMode = mode; }
+  switchMode(mode: "login" | "signup") {
+    this.loginMode = mode;
+  }
 
   toggleEditProfile(user: AuthUser): void {
     this.editingProfile = !this.editingProfile;
@@ -307,24 +350,24 @@ export class HomePage implements OnInit, OnDestroy {
     if (this.editingProfile) {
       this.editName = user.name;
       this.editPreviewUrl = user.picture;
-      this.editError = '';
+      this.editError = "";
     }
   }
 
   onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
-    input.value = '';
+    input.value = "";
     if (!file) return;
 
-    this.editError = '';
+    this.editError = "";
     this.clearSelectedFile();
     this.selectedFile = file;
 
     // Le navigateur ne décode pas le HEIC/HEIF en <img> → pas d'aperçu local
     // pour ces formats (l'image finale, traitée par le serveur, revient au save).
-    const type = (file.type || '').toLowerCase();
-    if (type === '' || type === 'image/heic' || type === 'image/heif') {
+    const type = (file.type || "").toLowerCase();
+    if (type === "" || type === "image/heic" || type === "image/heif") {
       this.previewUnavailable = true;
       return;
     }
@@ -344,7 +387,7 @@ export class HomePage implements OnInit, OnDestroy {
   async saveProfile(): Promise<void> {
     if (this.isSaving) return;
     this.isSaving = true;
-    this.editError = '';
+    this.editError = "";
     try {
       if (this.selectedFile) {
         await this.auth.uploadProfilePicture(this.selectedFile);
@@ -367,10 +410,11 @@ export class HomePage implements OnInit, OnDestroy {
       await this.auth.login();
       this.closeLogin();
     } catch (err) {
-      console.error('Google login error:', err);
-      this.loginErrorMessage = 'Could not sign in with Google. Please try again.';
+      console.error("Google login error:", err);
+      this.loginErrorMessage =
+        "Could not sign in with Google. Please try again.";
       this.loginError = true;
-      setTimeout(() => this.loginError = false, 4000);
+      setTimeout(() => (this.loginError = false), 4000);
     }
   }
 
@@ -378,19 +422,35 @@ export class HomePage implements OnInit, OnDestroy {
     await this.auth.logout();
   }
 
-  resumeGame(): void { this.router.navigate(['/game']); }
+  resumeGame(): void {
+    this.router.navigate(["/game"]);
+  }
 
-  openSettings() { this.showSettings = true; this.workerLoginVisible = false; this.workerVersionTaps = 0; }
-  closeSettings() { this.showSettings = false; this.workerLoginVisible = false; this.workerVersionTaps = 0; }
-  openPrivacyPolicy() { this.showSettings = false; this.router.navigate(['/privacy']); }
-  openDeleteAccount() { this.showSettings = false; this.router.navigate(['/delete-account']); }
+  openSettings() {
+    this.showSettings = true;
+    this.workerLoginVisible = false;
+    this.workerVersionTaps = 0;
+  }
+  closeSettings() {
+    this.showSettings = false;
+    this.workerLoginVisible = false;
+    this.workerVersionTaps = 0;
+  }
+  openPrivacyPolicy() {
+    this.showSettings = false;
+    this.router.navigate(["/privacy"]);
+  }
+  openDeleteAccount() {
+    this.showSettings = false;
+    this.router.navigate(["/delete-account"]);
+  }
 
   // ── Worker (staff) login ───────────────────────────────────────────────────
   workerVersionTaps = 0;
   workerLoginVisible = false;
-  workerUsername = '';
-  workerPassword = '';
-  workerLoginError = '';
+  workerUsername = "";
+  workerPassword = "";
+  workerLoginError = "";
   workerLoginLoading = false;
 
   onVersionTap(): void {
@@ -401,34 +461,40 @@ export class HomePage implements OnInit, OnDestroy {
   }
 
   async loginAsWorker(): Promise<void> {
-    this.workerLoginError = '';
+    this.workerLoginError = "";
     this.workerLoginLoading = true;
     try {
       await this.auth.loginAsWorker(this.workerUsername, this.workerPassword);
       this.closeSettings();
     } catch {
-      this.workerLoginError = 'Invalid credentials';
+      this.workerLoginError = "Invalid credentials";
     } finally {
       this.workerLoginLoading = false;
     }
   }
 
-  openRules() { this.showRules = true; }
-  closeRules() { this.showRules = false; }
-  goToLeaderboard() { this.router.navigate(['/leaderboard']); }
+  openRules() {
+    this.showRules = true;
+  }
+  closeRules() {
+    this.showRules = false;
+  }
+  goToLeaderboard() {
+    this.router.navigate(["/leaderboard"]);
+  }
 
   // ── Matchmaking ────────────────────────────────────────────────────────────
 
   async openMatchmaking(): Promise<void> {
     if (this.appResume.hasActiveGame() || this.appResume.validating()) {
-      this.router.navigate(['/game']);
+      this.router.navigate(["/game"]);
       return;
     }
 
     // Prevent duplicate matchmaking from multiple tabs
     if (await this.tabLock.isOtherTabActive()) {
       this.duplicateTabMessage = true;
-      setTimeout(() => this.duplicateTabMessage = false, 4000);
+      setTimeout(() => (this.duplicateTabMessage = false), 4000);
       return;
     }
 
@@ -445,30 +511,40 @@ export class HomePage implements OnInit, OnDestroy {
     const playerPicture = user?.picture;
     const authToken = this.auth.getIdToken() ?? undefined;
     this.gameStateService.connect(environment.wsUrl, () => {
-      this.gameStateService.sendJoinMatchmaking(playerName, playerPicture, authToken, environment.debug);
+      this.gameStateService.sendJoinMatchmaking(
+        playerName,
+        playerPicture,
+        authToken,
+        environment.debug
+      );
     });
 
-    this.matchmakingSub = this.gameStateService.matchmakingStatus$.subscribe(status => {
-      this.matchmakingConnected = status.connectedCount;
-      this.myMatchmakingColor = status.myColor;
-    });
+    this.matchmakingSub = this.gameStateService.matchmakingStatus$.subscribe(
+      (status) => {
+        this.matchmakingConnected = status.connectedCount;
+        this.myMatchmakingColor = status.myColor;
+      }
+    );
 
-    this.gameStartSub = this.gameStateService.gameStarted$.pipe(take(1)).subscribe(() => {
-      this.gameStateService.myPlayerColor.set(this.myMatchmakingColor);
-      this.cleanupMatchmaking();
-      this.showMatchmaking = false;
-      this.router.navigate(['/game']);
-    });
+    this.gameStartSub = this.gameStateService.gameStarted$
+      .pipe(take(1))
+      .subscribe(() => {
+        this.gameStateService.myPlayerColor.set(this.myMatchmakingColor);
+        this.cleanupMatchmaking();
+        this.showMatchmaking = false;
+        this.router.navigate(["/game"]);
+      });
 
-    this.connectionErrorSub = this.gameStateService.connectionError$.pipe(take(1)).subscribe(() => {
-      this.cleanupMatchmaking();
-      this.gameStateService.disconnect();
-      this.tabLock.releaseSession();
-      this.showMatchmaking = false;
-      this.matchmakingError = true;
-      setTimeout(() => this.matchmakingError = false, 4000);
-    });
-
+    this.connectionErrorSub = this.gameStateService.connectionError$
+      .pipe(take(1))
+      .subscribe(() => {
+        this.cleanupMatchmaking();
+        this.gameStateService.disconnect();
+        this.tabLock.releaseSession();
+        this.showMatchmaking = false;
+        this.matchmakingError = true;
+        setTimeout(() => (this.matchmakingError = false), 4000);
+      });
   }
 
   cancelMatchmaking(): void {
@@ -497,17 +573,17 @@ export class HomePage implements OnInit, OnDestroy {
 
   async openCustomGame(): Promise<void> {
     if (this.appResume.hasActiveGame() || this.appResume.validating()) {
-      this.router.navigate(['/game']);
+      this.router.navigate(["/game"]);
       return;
     }
     if (!this.auth.user$.getValue()) {
-      this.loginPromptReason = 'custom-game';
+      this.loginPromptReason = "custom-game";
       this.showLogin = true;
       return;
     }
     if (await this.tabLock.isOtherTabActive()) {
       this.duplicateTabMessage = true;
-      setTimeout(() => this.duplicateTabMessage = false, 4000);
+      setTimeout(() => (this.duplicateTabMessage = false), 4000);
       return;
     }
     this.disconnectPresence();
@@ -516,112 +592,143 @@ export class HomePage implements OnInit, OnDestroy {
   }
 
   private resetCustomGameState(): void {
-    this.customStage = 'choose';
-    this.customRoomCode = '';
+    this.customStage = "choose";
+    this.customRoomCode = "";
     this.customRoomPlayers = [];
     this.myCustomColor = null;
     this.iAmCreator = false;
-    this.customJoinCode = '';
-    this.customError = '';
+    this.customJoinCode = "";
+    this.customError = "";
     this.customCopied = false;
     this.customStarting = false;
     this.customCreating = false;
     this.inviteCandidates = [];
-    this.inviteSearch = '';
+    this.inviteSearch = "";
     this.inviteLoading = false;
   }
 
   private wireCustomRoomSubs(): void {
     this.cleanupCustomGame();
 
-    this.customRoomSub = this.gameStateService.customRoomStatus$.subscribe(status => {
-      this.customRoomCode = status.code;
-      this.customRoomPlayers = status.players;
-      this.myCustomColor = status.myColor;
-      this.iAmCreator = status.isCreator;
-      this.customStage = 'in-room';
-      this.customCreating = false;
-      this.customError = '';
-      // Lazy-load invite list once we know we're the signed-in creator.
-      if (status.isCreator && this.auth.user$.getValue() && this.inviteCandidates.length === 0) {
-        void this.loadInviteCandidates();
+    this.customRoomSub = this.gameStateService.customRoomStatus$.subscribe(
+      (status) => {
+        this.customRoomCode = status.code;
+        this.customRoomPlayers = status.players;
+        this.myCustomColor = status.myColor;
+        this.iAmCreator = status.isCreator;
+        this.customStage = "in-room";
+        this.customCreating = false;
+        this.customError = "";
+        // Lazy-load invite list once we know we're the signed-in creator.
+        if (
+          status.isCreator &&
+          this.auth.user$.getValue() &&
+          this.inviteCandidates.length === 0
+        ) {
+          void this.loadInviteCandidates();
+        }
       }
-    });
+    );
 
-    this.customGameStartSub = this.gameStateService.gameStarted$.pipe(take(1)).subscribe(() => {
-      this.gameStateService.myPlayerColor.set(this.myCustomColor);
-      this.cleanupCustomGame();
-      this.showCustomGame = false;
-      this.router.navigate(['/game']);
-    });
+    this.customGameStartSub = this.gameStateService.gameStarted$
+      .pipe(take(1))
+      .subscribe(() => {
+        this.gameStateService.myPlayerColor.set(this.myCustomColor);
+        this.cleanupCustomGame();
+        this.showCustomGame = false;
+        this.router.navigate(["/game"]);
+      });
 
-    this.customConnectionErrorSub = this.gameStateService.connectionError$.subscribe(() => {
-      // If the close was caused by the OS backgrounding our tab (mobile) AND
-      // we already have an established room to reconnect to, keep the UI on
-      // screen and wait for resume to reconnect. The server holds the slot
-      // for 60 s. If no room code yet (pre-customRoomStatus), fall through
-      // to the normal error path.
-      if (
-        (this.appResume.isBackgrounded() || this.appResume.resumedRecently()) &&
-        this.customRoomCode
-      ) {
-        console.log('[home] custom-room socket closed during background — will reconnect on resume');
-        return;
-      }
-      this.customCreating = false;
-      this.cleanupCustomGame();
-      this.gameStateService.disconnect();
-      this.tabLock.releaseSession();
-      this.showCustomGame = false;
-      this.matchmakingError = true;
-      setTimeout(() => this.matchmakingError = false, 4000);
-    });
+    this.customConnectionErrorSub =
+      this.gameStateService.connectionError$.subscribe(() => {
+        // If the close was caused by the OS backgrounding our tab (mobile) AND
+        // we already have an established room to reconnect to, keep the UI on
+        // screen and wait for resume to reconnect. The server holds the slot
+        // for 60 s. If no room code yet (pre-customRoomStatus), fall through
+        // to the normal error path.
+        if (
+          (this.appResume.isBackgrounded() ||
+            this.appResume.resumedRecently()) &&
+          this.customRoomCode
+        ) {
+          console.log(
+            "[home] custom-room socket closed during background — will reconnect on resume"
+          );
+          return;
+        }
+        this.customCreating = false;
+        this.cleanupCustomGame();
+        this.gameStateService.disconnect();
+        this.tabLock.releaseSession();
+        this.showCustomGame = false;
+        this.matchmakingError = true;
+        setTimeout(() => (this.matchmakingError = false), 4000);
+      });
 
     this.customResumeSub = this.appResume.resumed$.subscribe(() => {
       // On resume, if we still have an in-room context and the socket is
       // gone, transparently re-issue `joinCustomRoom` with the same code.
       // Backend matches us by userId/browserId and swaps us back into the
       // same slot, preserving the room for everyone.
-      if (!this.showCustomGame || !this.customRoomCode || this.gameStateService.isConnected()) return;
+      if (
+        !this.showCustomGame ||
+        !this.customRoomCode ||
+        this.gameStateService.isConnected()
+      )
+        return;
       const user = this.auth.user$.getValue();
-      const playerName = user?.name ?? '';
+      const playerName = user?.name ?? "";
       const code = this.customRoomCode;
-      console.log('[home] resuming — reconnecting to custom room', code);
+      console.log("[home] resuming — reconnecting to custom room", code);
       this.gameStateService.connect(environment.wsUrl, () => {
-        this.gameStateService.sendJoinCustomRoom(code, playerName, user?.picture, this.auth.getIdToken() ?? undefined);
+        this.gameStateService.sendJoinCustomRoom(
+          code,
+          playerName,
+          user?.picture,
+          this.auth.getIdToken() ?? undefined
+        );
       });
     });
 
-    this.customRejectedSub = this.gameStateService.actionRejected$.subscribe(reason => {
-      this.customCreating = false;
-      this.customError = reason;
-      // If we're still on the choose screen, the connection should be torn down
-      // because the server already rejected us (e.g., room not found).
-      if (this.customStage === 'choose') {
-        this.gameStateService.disconnect();
-      } else {
-        // Mid-room rejection (creator left / room expired) → return to home.
-        this.cancelCustomGame();
+    this.customRejectedSub = this.gameStateService.actionRejected$.subscribe(
+      (reason) => {
+        this.customCreating = false;
+        this.customError = reason;
+        // If we're still on the choose screen, the connection should be torn down
+        // because the server already rejected us (e.g., room not found).
+        if (this.customStage === "choose") {
+          this.gameStateService.disconnect();
+        } else {
+          // Mid-room rejection (creator left / room expired) → return to home.
+          this.cancelCustomGame();
+        }
       }
-    });
+    );
 
-    this.customInviteResponseSub = this.gameStateService.gameInviteResponse$.subscribe(resp => {
-      const candidate = this.inviteCandidates.find(c => c.id === resp.fromUserId);
-      if (!candidate) return;
-      candidate.inviteState = resp.accepted ? 'sent' : 'error';
-    });
+    this.customInviteResponseSub =
+      this.gameStateService.gameInviteResponse$.subscribe((resp) => {
+        const candidate = this.inviteCandidates.find(
+          (c) => c.id === resp.fromUserId
+        );
+        if (!candidate) return;
+        candidate.inviteState = resp.accepted ? "sent" : "error";
+      });
   }
 
   async createCustomRoom(): Promise<void> {
     if (this.customCreating) return;
     this.customCreating = true;
     const user = this.auth.user$.getValue();
-    const playerName = user?.name ?? generateGuestName('red');
-    this.customError = '';
+    const playerName = user?.name ?? generateGuestName("red");
+    this.customError = "";
     this.tabLock.claimSession();
     this.wireCustomRoomSubs();
     this.gameStateService.connect(environment.wsUrl, () => {
-      this.gameStateService.sendCreateCustomRoom(playerName, user?.picture, this.auth.getIdToken() ?? undefined);
+      this.gameStateService.sendCreateCustomRoom(
+        playerName,
+        user?.picture,
+        this.auth.getIdToken() ?? undefined
+      );
     });
   }
 
@@ -629,17 +736,22 @@ export class HomePage implements OnInit, OnDestroy {
     if (this.customCreating) return;
     const code = this.customJoinCode.trim().toUpperCase();
     if (!/^[A-Z0-9]{6}$/.test(code)) {
-      this.customError = 'Code must be 6 letters/digits.';
+      this.customError = "Code must be 6 letters/digits.";
       return;
     }
     this.customCreating = true;
     const user = this.auth.user$.getValue();
-    const playerName = user?.name ?? '';
-    this.customError = '';
+    const playerName = user?.name ?? "";
+    this.customError = "";
     this.tabLock.claimSession();
     this.wireCustomRoomSubs();
     this.gameStateService.connect(environment.wsUrl, () => {
-      this.gameStateService.sendJoinCustomRoom(code, playerName, user?.picture, this.auth.getIdToken() ?? undefined);
+      this.gameStateService.sendJoinCustomRoom(
+        code,
+        playerName,
+        user?.picture,
+        this.auth.getIdToken() ?? undefined
+      );
     });
   }
 
@@ -683,26 +795,33 @@ export class HomePage implements OnInit, OnDestroy {
     const code = this.customRoomCode;
     const onSuccess = () => {
       this.customCopied = true;
-      setTimeout(() => this.customCopied = false, 1800);
+      setTimeout(() => (this.customCopied = false), 1800);
     };
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(code).then(onSuccess).catch(() => onSuccess());
+      navigator.clipboard
+        .writeText(code)
+        .then(onSuccess)
+        .catch(() => onSuccess());
     } else {
       // Fallback for older browsers — best-effort.
-      const ta = document.createElement('textarea');
+      const ta = document.createElement("textarea");
       ta.value = code;
-      ta.style.position = 'fixed';
-      ta.style.left = '-9999px';
+      ta.style.position = "fixed";
+      ta.style.left = "-9999px";
       document.body.appendChild(ta);
       ta.select();
-      try { document.execCommand('copy'); } catch { /* ignore */ }
+      try {
+        document.execCommand("copy");
+      } catch {
+        /* ignore */
+      }
       document.body.removeChild(ta);
       onSuccess();
     }
   }
 
   customSlotPlayer(color: MarbleColor): CustomRoomPlayerInfo | undefined {
-    return this.customRoomPlayers.find(p => p.color === color);
+    return this.customRoomPlayers.find((p) => p.color === color);
   }
 
   // ── Invite toast (incoming) ───────────────────────────────────────────────
@@ -710,12 +829,12 @@ export class HomePage implements OnInit, OnDestroy {
   async onInviteJoin(invite: GameInviteMessage): Promise<void> {
     this.pendingInvite = null;
     if (this.appResume.hasActiveGame() || this.appResume.validating()) {
-      this.router.navigate(['/game']);
+      this.router.navigate(["/game"]);
       return;
     }
     if (await this.tabLock.isOtherTabActive()) {
       this.duplicateTabMessage = true;
-      setTimeout(() => this.duplicateTabMessage = false, 4000);
+      setTimeout(() => (this.duplicateTabMessage = false), 4000);
       return;
     }
     // Notify the inviter we accepted (best-effort), then tear down presence and
@@ -737,19 +856,25 @@ export class HomePage implements OnInit, OnDestroy {
     this.inviteLoading = true;
     try {
       const list = await firstValueFrom(
-        this.http.get<{ id: string; name: string; picture: string; points: number; ranking: number }[]>(
-          `${environment.apiUrl}/api/auth/leaderboard`,
-        )
+        this.http.get<
+          {
+            id: string;
+            name: string;
+            picture: string;
+            points: number;
+            ranking: number;
+          }[]
+        >(`${environment.apiUrl}/api/auth/leaderboard`)
       );
       const me = this.auth.user$.getValue();
       this.inviteCandidates = list
-        .filter(u => u.id && u.id !== me?.id)
-        .map(u => ({
+        .filter((u) => u.id && u.id !== me?.id)
+        .map((u) => ({
           id: u.id,
           name: u.name,
           picture: u.picture,
           points: u.points,
-          inviteState: 'idle' as const,
+          inviteState: "idle" as const,
         }));
     } catch {
       // Silently fail — invite section just won't show entries.
@@ -761,16 +886,19 @@ export class HomePage implements OnInit, OnDestroy {
   filteredInviteCandidates(): InviteCandidate[] {
     const q = this.inviteSearch.trim().toLowerCase();
     if (!q) return this.inviteCandidates;
-    return this.inviteCandidates.filter(u => u.name.toLowerCase().includes(q));
+    return this.inviteCandidates.filter((u) =>
+      u.name.toLowerCase().includes(q)
+    );
   }
 
   invitePlayer(candidate: InviteCandidate): void {
-    if (candidate.inviteState === 'sending' || candidate.inviteState === 'sent') return;
+    if (candidate.inviteState === "sending" || candidate.inviteState === "sent")
+      return;
     if (!this.customRoomCode) {
-      candidate.inviteState = 'error';
+      candidate.inviteState = "error";
       return;
     }
-    candidate.inviteState = 'sent';
+    candidate.inviteState = "sent";
     this.gameStateService.sendInviteUser(candidate.id, this.customRoomCode);
   }
 
@@ -789,7 +917,10 @@ export class HomePage implements OnInit, OnDestroy {
     }
     try {
       const res = await firstValueFrom(
-        this.http.get<{ count: number }>(`${environment.apiUrl}/api/messages/unread-count`, { headers })
+        this.http.get<{ count: number }>(
+          `${environment.apiUrl}/api/messages/unread-count`,
+          { headers }
+        )
       );
       this.unreadCount = res.count ?? 0;
     } catch {
@@ -800,7 +931,7 @@ export class HomePage implements OnInit, OnDestroy {
   async openInbox(): Promise<void> {
     if (!this.auth.user$.getValue()) return;
     this.showInbox = true;
-    this.inboxView = 'threads';
+    this.inboxView = "threads";
     this.currentPeer = null;
     this.currentMessages = [];
     void this.loadThreads();
@@ -809,19 +940,22 @@ export class HomePage implements OnInit, OnDestroy {
   private async loadThreads(): Promise<void> {
     const headers = await this.authHeaders();
     if (!headers) {
-      this.inboxError = 'Please sign in again to view your messages.';
+      this.inboxError = "Please sign in again to view your messages.";
       this.threadsLoading = false;
       return;
     }
-    this.inboxError = '';
+    this.inboxError = "";
     this.threadsLoading = true;
     try {
       const list = await firstValueFrom(
-        this.http.get<ThreadSummary[]>(`${environment.apiUrl}/api/messages/threads`, { headers })
+        this.http.get<ThreadSummary[]>(
+          `${environment.apiUrl}/api/messages/threads`,
+          { headers }
+        )
       );
       this.threads = list;
     } catch {
-      this.inboxError = 'Could not load your conversations.';
+      this.inboxError = "Could not load your conversations.";
     } finally {
       this.threadsLoading = false;
     }
@@ -838,21 +972,23 @@ export class HomePage implements OnInit, OnDestroy {
       picture: thread.peerPicture,
     };
     this.currentMessages = [];
-    this.composerText = '';
-    this.inboxView = 'thread';
+    this.composerText = "";
+    this.inboxView = "thread";
     this.threadLoading = true;
 
     const headers = await this.authHeaders();
     if (!headers) {
       this.threadLoading = false;
-      this.inboxError = 'Please sign in again.';
+      this.inboxError = "Please sign in again.";
       return;
     }
 
     try {
       const messages = await firstValueFrom(
         this.http.get<ThreadMessage[]>(
-          `${environment.apiUrl}/api/messages/thread/${encodeURIComponent(thread.peerId)}`,
+          `${environment.apiUrl}/api/messages/thread/${encodeURIComponent(
+            thread.peerId
+          )}`,
           { headers }
         )
       );
@@ -870,11 +1006,11 @@ export class HomePage implements OnInit, OnDestroy {
               { headers }
             )
           );
-          this.currentMessages = this.currentMessages.map(m =>
+          this.currentMessages = this.currentMessages.map((m) =>
             m.fromUserId === thread.peerId ? { ...m, read: true } : m
           );
           // Update local thread summary's unreadCount and global counter.
-          this.threads = this.threads.map(t =>
+          this.threads = this.threads.map((t) =>
             t.peerId === thread.peerId ? { ...t, unreadCount: 0 } : t
           );
           void this.refreshUnreadCount();
@@ -884,15 +1020,15 @@ export class HomePage implements OnInit, OnDestroy {
       }
     } catch {
       this.threadLoading = false;
-      this.inboxError = 'Could not load this conversation.';
+      this.inboxError = "Could not load this conversation.";
     }
   }
 
   backToThreads(): void {
-    this.inboxView = 'threads';
+    this.inboxView = "threads";
     this.currentPeer = null;
     this.currentMessages = [];
-    this.composerText = '';
+    this.composerText = "";
     void this.loadThreads();
   }
 
@@ -910,7 +1046,7 @@ export class HomePage implements OnInit, OnDestroy {
 
     const headers = await this.authHeaders();
     if (!headers) {
-      this.inboxError = 'Please sign in again.';
+      this.inboxError = "Please sign in again.";
       return;
     }
 
@@ -924,18 +1060,20 @@ export class HomePage implements OnInit, OnDestroy {
         )
       );
       this.currentMessages = [...this.currentMessages, created];
-      this.composerText = '';
+      this.composerText = "";
       this.scrollThreadToBottom();
     } catch {
-      this.inboxError = 'Could not send your message.';
-      setTimeout(() => { this.inboxError = ''; }, 3000);
+      this.inboxError = "Could not send your message.";
+      setTimeout(() => {
+        this.inboxError = "";
+      }, 3000);
     } finally {
       this.sending = false;
     }
   }
 
   onComposerKeydown(event: KeyboardEvent): void {
-    if (event.key === 'Enter' && !event.shiftKey) {
+    if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       void this.sendThreadReply();
     }
@@ -950,27 +1088,34 @@ export class HomePage implements OnInit, OnDestroy {
 
   formatInboxDate(iso: string): string {
     const d = new Date(iso);
-    if (isNaN(d.getTime())) return '';
+    if (isNaN(d.getTime())) return "";
     const diffMs = Date.now() - d.getTime();
     const minutes = Math.floor(diffMs / 60_000);
-    if (minutes < 1) return 'just now';
+    if (minutes < 1) return "just now";
     if (minutes < 60) return `${minutes} min ago`;
     const hours = Math.floor(minutes / 60);
     if (hours < 24) return `${hours} h ago`;
     const days = Math.floor(hours / 24);
-    if (days < 7) return `${days} day${days > 1 ? 's' : ''} ago`;
-    return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+    if (days < 7) return `${days} day${days > 1 ? "s" : ""} ago`;
+    return d.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
   }
 
   formatBubbleTime(iso: string): string {
     const d = new Date(iso);
-    if (isNaN(d.getTime())) return '';
-    return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    if (isNaN(d.getTime())) return "";
+    return d.toLocaleTimeString(undefined, {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   }
 
   openSenderProfile(userId: string | null | undefined): void {
     if (!userId) return;
     this.closeInbox();
-    void this.router.navigate(['/profile', userId]);
+    void this.router.navigate(["/profile", userId]);
   }
 }

@@ -1,13 +1,20 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { CARD_EFFECT_TILES } from './card-effects';
+import {
+  Component,
+  Input,
+  Output,
+  EventEmitter,
+  ChangeDetectionStrategy,
+} from "@angular/core";
+
+import { CARD_EFFECT_TILES } from "./card-effects";
 
 @Component({
-  selector: 'app-game-rules-modal',
-  templateUrl: './game-rules-modal.component.html',
-  styleUrl: './game-rules-modal.component.scss',
+  selector: "app-game-rules-modal",
+  templateUrl: "./game-rules-modal.component.html",
+  styleUrl: "./game-rules-modal.component.scss",
   standalone: true,
-  imports: [CommonModule],
+  changeDetection: ChangeDetectionStrategy.Eager,
+  imports: [],
 })
 export class GameRulesModalComponent {
   @Input() show = false;

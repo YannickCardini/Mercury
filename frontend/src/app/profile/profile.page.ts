@@ -1,11 +1,18 @@
-import { Component, OnInit, OnDestroy, inject, signal } from '@angular/core';
-import { CommonModule, Location } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { firstValueFrom, Subscription } from 'rxjs';
-import { environment } from 'src/environments/environment';
-import { AuthService, type AuthUser } from '../services/auth.service';
+import {
+  Component,
+  OnInit,
+  OnDestroy,
+  inject,
+  signal,
+  ChangeDetectionStrategy,
+} from "@angular/core";
+import { Location } from "@angular/common";
+import { FormsModule } from "@angular/forms";
+import { ActivatedRoute } from "@angular/router";
+import { HttpClient, HttpErrorResponse } from "@angular/common/http";
+import { firstValueFrom, Subscription } from "rxjs";
+import { environment } from "src/environments/environment";
+import { AuthService, type AuthUser } from "../services/auth.service";
 
 interface ProfileResponse {
   name: string;
@@ -17,10 +24,11 @@ interface ProfileResponse {
 }
 
 @Component({
-  selector: 'app-profile',
-  templateUrl: './profile.page.html',
-  styleUrls: ['./profile.page.scss'],
-  imports: [CommonModule, FormsModule],
+  selector: "app-profile",
+  templateUrl: "./profile.page.html",
+  styleUrls: ["./profile.page.scss"],
+  changeDetection: ChangeDetectionStrategy.Eager,
+  imports: [FormsModule],
 })
 export class ProfilePage implements OnInit, OnDestroy {
   private http = inject(HttpClient);
@@ -28,43 +36,47 @@ export class ProfilePage implements OnInit, OnDestroy {
   private location = inject(Location);
   private auth = inject(AuthService);
 
-  userId = signal<string>('');
+  userId = signal<string>("");
   profile = signal<ProfileResponse | null>(null);
   loading = signal(true);
-  error = signal('');
+  error = signal("");
 
   currentUser = signal<AuthUser | null>(null);
   private userSub: Subscription | null = null;
 
   // Send-message modal state
   showSendModal = signal(false);
-  messageText = signal('');
+  messageText = signal("");
   sending = signal(false);
-  sendStatus = signal<'idle' | 'success' | 'error'>('idle');
-  sendError = signal('');
+  sendStatus = signal<"idle" | "success" | "error">("idle");
+  sendError = signal("");
 
   readonly maxLength = 500;
 
   ngOnInit(): void {
-    this.userSub = this.auth.user$.subscribe(u => this.currentUser.set(u));
+    this.userSub = this.auth.user$.subscribe((u) => this.currentUser.set(u));
 
-    const id = this.route.snapshot.paramMap.get('id') ?? '';
+    const id = this.route.snapshot.paramMap.get("id") ?? "";
     this.userId.set(id);
     if (!id) {
-      this.error.set('Invalid profile id.');
+      this.error.set("Invalid profile id.");
       this.loading.set(false);
       return;
     }
 
     firstValueFrom(
-      this.http.get<ProfileResponse>(`${environment.apiUrl}/api/auth/user/${id}`)
-    ).then(data => {
-      this.profile.set(data);
-      this.loading.set(false);
-    }).catch(() => {
-      this.error.set('Could not load profile.');
-      this.loading.set(false);
-    });
+      this.http.get<ProfileResponse>(
+        `${environment.apiUrl}/api/auth/user/${id}`
+      )
+    )
+      .then((data) => {
+        this.profile.set(data);
+        this.loading.set(false);
+      })
+      .catch(() => {
+        this.error.set("Could not load profile.");
+        this.loading.set(false);
+      });
   }
 
   ngOnDestroy(): void {
@@ -85,32 +97,36 @@ export class ProfilePage implements OnInit, OnDestroy {
   }
 
   formatDate(iso: string | undefined): string {
-    if (!iso) return '—';
+    if (!iso) return "—";
     const d = new Date(iso);
-    if (isNaN(d.getTime())) return '—';
-    return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+    if (isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
   }
 
   formatLastSeen(iso: string | undefined): string {
-    if (!iso) return '—';
+    if (!iso) return "—";
     const d = new Date(iso);
-    if (isNaN(d.getTime())) return '—';
+    if (isNaN(d.getTime())) return "—";
     const diffMs = Date.now() - d.getTime();
     const minutes = Math.floor(diffMs / 60_000);
-    if (minutes < 1) return 'just now';
+    if (minutes < 1) return "just now";
     if (minutes < 60) return `${minutes} min ago`;
     const hours = Math.floor(minutes / 60);
     if (hours < 24) return `${hours} h ago`;
     const days = Math.floor(hours / 24);
-    if (days < 30) return `${days} day${days > 1 ? 's' : ''} ago`;
+    if (days < 30) return `${days} day${days > 1 ? "s" : ""} ago`;
     return this.formatDate(iso);
   }
 
   openSendModal(): void {
     if (!this.canSendMessage()) return;
-    this.messageText.set('');
-    this.sendStatus.set('idle');
-    this.sendError.set('');
+    this.messageText.set("");
+    this.sendStatus.set("idle");
+    this.sendError.set("");
     this.showSendModal.set(true);
   }
 
@@ -124,33 +140,38 @@ export class ProfilePage implements OnInit, OnDestroy {
     if (!text || text.length > this.maxLength) return;
     const idToken = await this.auth.getFreshIdToken();
     if (!idToken) {
-      this.sendStatus.set('error');
-      this.sendError.set('Please sign in again to send a message.');
+      this.sendStatus.set("error");
+      this.sendError.set("Please sign in again to send a message.");
       return;
     }
 
     this.sending.set(true);
-    this.sendStatus.set('idle');
+    this.sendStatus.set("idle");
     try {
       await firstValueFrom(
-        this.http.post(`${environment.apiUrl}/api/messages`, {
-          toUserId: this.userId(),
-          text,
-        }, {
-          headers: { Authorization: `Bearer ${idToken}` },
-        })
+        this.http.post(
+          `${environment.apiUrl}/api/messages`,
+          {
+            toUserId: this.userId(),
+            text,
+          },
+          {
+            headers: { Authorization: `Bearer ${idToken}` },
+          }
+        )
       );
-      this.sendStatus.set('success');
-      this.messageText.set('');
+      this.sendStatus.set("success");
+      this.messageText.set("");
       setTimeout(() => {
-        if (this.sendStatus() === 'success') this.showSendModal.set(false);
+        if (this.sendStatus() === "success") this.showSendModal.set(false);
       }, 1200);
     } catch (err) {
-      this.sendStatus.set('error');
-      let msg = 'Could not send message. Please try again.';
+      this.sendStatus.set("error");
+      let msg = "Could not send message. Please try again.";
       if (err instanceof HttpErrorResponse) {
         const body = err.error as { error?: string } | undefined;
-        if (err.status === 401) msg = 'Your session has expired. Please sign in again.';
+        if (err.status === 401)
+          msg = "Your session has expired. Please sign in again.";
         else if (body?.error) msg = body.error;
       }
       this.sendError.set(msg);

@@ -6,12 +6,16 @@ import {
   signal,
   computed,
   inject,
-} from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { Subscription } from 'rxjs';
-import { REACTION_EMOJIS, type ReactionEmoji, type MarbleColor } from '@mercury/shared';
-import { GameStateService } from '../../services/game-state.service';
-import { SoundService } from '../../services/sound.service';
+} from "@angular/core";
+
+import { Subscription } from "rxjs";
+import {
+  REACTION_EMOJIS,
+  type ReactionEmoji,
+  type MarbleColor,
+} from "@mercury/shared";
+import { GameStateService } from "../../services/game-state.service";
+import { SoundService } from "../../services/sound.service";
 
 interface FloatingReaction {
   id: number;
@@ -25,15 +29,14 @@ const COOLDOWN_MS = 2000;
 const FLOAT_DURATION_MS = 1600;
 
 @Component({
-  selector: 'app-emoji-reactions',
+  selector: "app-emoji-reactions",
   standalone: true,
-  imports: [CommonModule],
-  templateUrl: './emoji-reactions.component.html',
-  styleUrl: './emoji-reactions.component.scss',
+  imports: [],
+  templateUrl: "./emoji-reactions.component.html",
+  styleUrl: "./emoji-reactions.component.scss",
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class EmojiReactionsComponent implements OnInit, OnDestroy {
-
   readonly emojis = REACTION_EMOJIS;
 
   showPalette = signal(false);
@@ -51,7 +54,7 @@ export class EmojiReactionsComponent implements OnInit, OnDestroy {
   private nextId = 1;
 
   ngOnInit(): void {
-    this.sub = this.gameStateService.reaction$.subscribe(msg => {
+    this.sub = this.gameStateService.reaction$.subscribe((msg) => {
       this.spawnFloating(msg.author, msg.emoji);
       this.soundService.playReaction(msg.emoji);
     });
@@ -66,7 +69,7 @@ export class EmojiReactionsComponent implements OnInit, OnDestroy {
 
   togglePalette(): void {
     if (this.cooldownActive()) return;
-    this.showPalette.update(v => !v);
+    this.showPalette.update((v) => !v);
   }
 
   closePalette(): void {
@@ -85,15 +88,17 @@ export class EmojiReactionsComponent implements OnInit, OnDestroy {
   }
 
   private spawnFloating(color: MarbleColor, emoji: ReactionEmoji): void {
-    const panel = document.querySelector<HTMLElement>(`[data-player-color="${color}"]`);
+    const panel = document.querySelector<HTMLElement>(
+      `[data-player-color="${color}"]`
+    );
     const rect = panel?.getBoundingClientRect();
     const x = rect ? rect.left + rect.width / 2 : window.innerWidth / 2;
     const y = rect ? rect.top + rect.height / 2 : window.innerHeight / 2;
 
     const id = this.nextId++;
-    this.floating.update(list => [...list, { id, emoji, color, x, y }]);
+    this.floating.update((list) => [...list, { id, emoji, color, x, y }]);
     setTimeout(() => {
-      this.floating.update(list => list.filter(f => f.id !== id));
+      this.floating.update((list) => list.filter((f) => f.id !== id));
     }, FLOAT_DURATION_MS);
   }
 }

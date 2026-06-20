@@ -1,6 +1,6 @@
 {
   "name": "@mercury/shared",
-  "version": "1.4.3",
+  "version": "1.4.4",
   "description": "Types, constantes et configuration du plateau partagés entre le frontend et le backend Mercury.",
   "type": "module",
   "main": "./dist/index.js",
@@ -17,6 +17,6 @@
     "clean": "rm -rf dist"
   },
   "devDependencies": {
-    "typescript": "^5.0.0"
+    "typescript": "~6.0.0"
   }
 }
