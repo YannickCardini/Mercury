@@ -24,7 +24,6 @@ import type { PresenceManager } from './presence-manager.js';
 import type { ReconnectRegistry } from './reconnect-registry.js';
 import { generateRoomCode } from '../utils/utils.js';
 
-const INVITATION_TTL_MS = 5 * 60 * 1000;
 const GRACE_PERIOD_MS = 60 * 1000;
 
 const COLORS: MarbleColor[] = ['red', 'green', 'blue', 'orange'];
@@ -54,17 +53,15 @@ interface CustomRoom {
     messenger: MultiWsMessenger;
     players: CustomPlayer[];
     expiryTimer: NodeJS.Timeout;
-    /** Set of userIds invited via handleInviteUser — used to broadcast cancel on teardown. */
+    /**
+     * Set of userIds invited via handleInviteUser. Tant que l'invité y figure,
+     * l'invitation est « en attente » et liée au cycle de vie de la room :
+     * elle est (re)livrée à chaque (ré)enregistrement de présence de l'invité,
+     * et sert aussi à diffuser le cancel à la destruction de la room.
+     */
     invitees: Set<string>;
     /** Shared registry injected from SessionManager so reconnect lookups work. */
     reconnect: ReconnectRegistry;
-}
-
-/** Type-narrowing helper : un message queued par `PresenceManager` est un
- *  gameInvite portant le `roomCode` cherché. */
-function isInvitePayloadForRoom(msg: object, roomCode: string): boolean {
-    const m = msg as { type?: string; roomCode?: string };
-    return m.type === 'gameInvite' && m.roomCode === roomCode;
 }
 
 export class CustomGameManager {
@@ -75,7 +72,11 @@ export class CustomGameManager {
         private reconnect: ReconnectRegistry,
         private matchmaking: MatchmakingManager,
         private presence: PresenceManager,
-    ) { }
+    ) {
+        // Re-livraison des invitations à l'ouverture / au retour au premier plan
+        // de l'app de l'invité (PresenceManager.register), cf. TODO 1.A.
+        this.presence.setOnRegister((userId) => this.redeliverPendingInvites(userId));
+    }
 
     createRoom(
         ws: WebSocket,
@@ -272,13 +273,11 @@ export class CustomGameManager {
      * Push a `gameInvite` to the recipient. Only the room creator can send
      * invites, and only for their own room.
      *
-     * Persistance offline : on s'appuie sur `PresenceManager.sendOrQueue`.
-     * Si l'invité a au moins une socket de présence ouverte, le message est
-     * délivré tout de suite. Sinon il reste en file in-memory pour 5 min
-     * (TTL identique à l'ancien `defaultTtl` Cosmos) et sera flushé
-     * automatiquement quand l'invité ré-enregistrera sa présence. Si la TTL
-     * expire avant retour, l'entrée est silencieusement abandonnée et on
-     * retire l'invité de `room.invitees` pour cohérence du cancel broadcast.
+     * Persistance offline : l'invitation n'a plus de TTL fixe — elle est liée
+     * au cycle de vie de la room via `room.invitees`. Si l'invité est en ligne,
+     * elle est délivrée immédiatement ; sinon elle reste en attente et sera
+     * (re)livrée par `redeliverPendingInvites` au prochain (ré)enregistrement
+     * de présence de l'invité, tant que la room est encore rejoignable.
      */
     private handleInviteUser(ws: WebSocket, toUserId: string, roomCode: string): void {
         const room = this.rooms.get(roomCode);
@@ -287,27 +286,54 @@ export class CustomGameManager {
         if (!creator || creator.ws !== ws || !creator.userId) return;
 
         room.invitees.add(toUserId);
+        this.tryDeliverInvite(room, toUserId);
+    }
 
-        const invitePayload = {
-            type: 'gameInvite' as const,
+    /**
+     * (Re)livre les invitations en attente pour `userId` quand il (ré)enregistre
+     * sa présence (ouverture / retour au premier plan de l'app). Cf. TODO 1.A.
+     */
+    private redeliverPendingInvites(userId: string): void {
+        for (const room of this.rooms.values()) {
+            if (room.invitees.has(userId)) this.tryDeliverInvite(room, userId);
+        }
+    }
+
+    /**
+     * Livre un `gameInvite` à `toUserId` si la room est encore rejoignable :
+     *   - la room existe (présente dans `this.rooms` ⇒ partie non lancée, car
+     *     elle en est retirée au démarrage), ET
+     *   - elle n'est pas pleine (< 4 joueurs), ET
+     *   - l'invité n'y est pas déjà (il a déjà accepté / rejoint).
+     * Sinon l'invitation n'est plus valide : on retire l'invité de
+     * `room.invitees` et on n'envoie rien.
+     */
+    private tryDeliverInvite(room: CustomRoom, toUserId: string): void {
+        // Déjà présent dans la room (a accepté / rejoint) : rien à re-livrer.
+        if (room.players.some(p => p.userId === toUserId)) return;
+
+        // Room pleine : l'invitation n'est plus rejoignable → nettoyage.
+        if (room.players.length >= COLORS.length) {
+            room.invitees.delete(toUserId);
+            return;
+        }
+
+        const creator = room.players.find(p => p.color === room.creatorColor);
+        if (!creator || !creator.userId) return;
+
+        this.presence.send(toUserId, {
+            type: 'gameInvite',
             fromUserId: creator.userId,
             fromUserName: creator.name,
             ...(creator.picture ? { fromUserPicture: creator.picture } : {}),
             roomCode: room.code,
-        };
-
-        this.presence.sendOrQueue(toUserId, invitePayload, INVITATION_TTL_MS, () => {
-            // TTL expirée sans reconnexion : on ne peut plus livrer.
-            // Retire l'invité du registre pour éviter un cancel broadcast inutile.
-            const currentRoom = this.rooms.get(roomCode);
-            currentRoom?.invitees.delete(toUserId);
         });
     }
 
     /**
-     * Manual cancellation of a single invitation by the creator. Removes any
-     * queued copy in `PresenceManager` and pushes a `gameInviteCancelled` to
-     * the recipient if currently online.
+     * Manual cancellation of a single invitation by the creator. Drops the
+     * pending invitation (so it won't be re-delivered) and pushes a
+     * `gameInviteCancelled` to the recipient if currently online.
      */
     private handleCancelInvite(ws: WebSocket, toUserId: string, roomCode: string): void {
         const room = this.rooms.get(roomCode);
@@ -316,7 +342,6 @@ export class CustomGameManager {
         if (!creator || creator.ws !== ws || !creator.userId) return;
 
         room.invitees.delete(toUserId);
-        this.presence.cancelQueued(toUserId, m => isInvitePayloadForRoom(m, roomCode));
         this.presence.send(toUserId, {
             type: 'gameInviteCancelled',
             fromUserId: creator.userId,
@@ -326,13 +351,11 @@ export class CustomGameManager {
 
     /**
      * Quand une room est détruite, on prévient les invités en ligne via
-     * `gameInviteCancelled` ET on retire les invitations encore en file pour
-     * les invités offline — sinon ils verraient une invitation périmée à
-     * leur prochaine reconnexion.
+     * `gameInviteCancelled` et on vide `room.invitees` pour qu'aucune invitation
+     * périmée ne soit re-livrée à une prochaine reconnexion.
      */
     private broadcastCancelToInvitees(room: CustomRoom, fromUserId: string): void {
         for (const toUserId of room.invitees) {
-            this.presence.cancelQueued(toUserId, m => isInvitePayloadForRoom(m, room.code));
             this.presence.send(toUserId, {
                 type: 'gameInviteCancelled',
                 fromUserId,

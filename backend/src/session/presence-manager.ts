@@ -9,17 +9,21 @@
 
 import type { ServerMessage } from '@mercury/shared';
 
-interface PendingEntry {
-    msg: ServerMessage;
-    timer: NodeJS.Timeout;
-    onFail: () => void;
-}
-
 export class PresenceManager {
 
     private byUserId = new Map<string, Set<WebSocket>>();
     private byWs = new Map<WebSocket, string>();
-    private pending = new Map<string, PendingEntry[]>();
+    private onRegisterCb: ((userId: string) => void) | null = null;
+
+    /**
+     * Hook appelé chaque fois qu'un `userId` (ré)enregistre une socket de
+     * présence (ouverture / retour au premier plan de l'app). CustomGameManager
+     * s'y abonne pour re-livrer les invitations en attente liées au cycle de vie
+     * d'une room, sans dépendre d'un TTL fixe (cf. TODO 1.A).
+     */
+    setOnRegister(cb: (userId: string) => void): void {
+        this.onRegisterCb = cb;
+    }
 
     register(userId: string, ws: WebSocket): void {
         const existing = this.byWs.get(ws);
@@ -34,15 +38,7 @@ export class PresenceManager {
         set.add(ws);
         this.byWs.set(ws, userId);
 
-        // Flush any messages that were queued while this user was unregistered.
-        const queue = this.pending.get(userId);
-        if (queue) {
-            this.pending.delete(userId);
-            for (const entry of queue) {
-                clearTimeout(entry.timer);
-                try { ws.send(JSON.stringify(entry.msg)); } catch { /* ignore */ }
-            }
-        }
+        this.onRegisterCb?.(userId);
     }
 
     unregister(ws: WebSocket): void {
@@ -54,57 +50,6 @@ export class PresenceManager {
             if (set.size === 0) this.byUserId.delete(userId);
         }
         this.byWs.delete(ws);
-    }
-
-    /**
-     * Attempts immediate delivery. If the user has no registered socket,
-     * queues the message for up to `ttlMs` milliseconds and calls `onFail`
-     * if the user never connects within that window. Returns true if
-     * delivered immediately, false if queued or dropped.
-     */
-    sendOrQueue(userId: string, msg: ServerMessage, ttlMs: number, onFail: () => void): boolean {
-        if (this.send(userId, msg)) return true;
-
-        let queue = this.pending.get(userId);
-        if (!queue) {
-            queue = [];
-            this.pending.set(userId, queue);
-        }
-
-        // Use a placeholder then overwrite so the closure can reference `entry`.
-        const entry = {} as PendingEntry;
-        entry.msg = msg;
-        entry.onFail = onFail;
-        entry.timer = setTimeout(() => {
-            const q = this.pending.get(userId);
-            if (q) {
-                const idx = q.indexOf(entry);
-                if (idx !== -1) q.splice(idx, 1);
-                if (q.length === 0) this.pending.delete(userId);
-            }
-            onFail();
-        }, ttlMs);
-        queue.push(entry);
-        return false;
-    }
-
-    /**
-     * Retire de la file in-memory toutes les entrées de `userId` matchant
-     * `filter`, et clear leurs timers. Utilisé pour révoquer une invitation
-     * queued quand la room source est détruite avant que l'invité revienne
-     * en ligne.
-     */
-    cancelQueued(userId: string, filter: (msg: ServerMessage) => boolean): void {
-        const queue = this.pending.get(userId);
-        if (!queue) return;
-        for (let i = queue.length - 1; i >= 0; i--) {
-            const entry = queue[i]!;
-            if (filter(entry.msg)) {
-                clearTimeout(entry.timer);
-                queue.splice(i, 1);
-            }
-        }
-        if (queue.length === 0) this.pending.delete(userId);
     }
 
     /** Returns true if the message was delivered to at least one socket. */

@@ -36,9 +36,10 @@ export class SessionManager {
 
     private customGames = new CustomGameManager(this.reconnect, this.matchmaking, this.presence);
 
-    // Pas de constructeur : `PresenceManager.register` flushe nativement la
-    // file in-memory à chaque (ré-)enregistrement, ce qui couvre la livraison
-    // des `gameInvite` queued pour les utilisateurs offline.
+    // Pas de constructeur : `CustomGameManager` s'abonne à
+    // `PresenceManager.setOnRegister` pour re-livrer les invitations en attente
+    // (liées au cycle de vie de la room) dès qu'un invité réenregistre sa
+    // présence — y compris après l'ancien TTL de 5 min, désormais supprimé.
 
     /**
      * Enregistre un WebSocket "présence" pour un utilisateur signed-in idle

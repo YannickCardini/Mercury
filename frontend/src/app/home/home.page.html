@@ -917,61 +917,72 @@
               }
               <span class="custom-invite-name">{{ u.name }}</span>
               <span class="custom-invite-points">{{ u.points }} pts</span>
-              <button
-                class="custom-invite-btn"
-                [class.sent]="u.inviteState === 'sent'"
-                [class.error]="u.inviteState === 'error'"
-                [class.sending]="u.inviteState === 'sending'"
-                [disabled]="u.inviteState === 'sending' || u.inviteState === 'sent'"
-                [attr.aria-label]="u.inviteState === 'sent' ? 'Invite sent' :
-                                             u.inviteState === 'sending' ? 'Sending invite' :
-                                             u.inviteState === 'error' ? 'Retry invite' : 'Invite player'"
-                (click)="invitePlayer(u)"
-              >
-                @if (u.inviteState === 'idle') {
-                <span class="custom-invite-btn-label">Invite</span>
-                } @if (u.inviteState === 'sending') {
-                <svg
-                  class="custom-invite-spinner"
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
+              <div class="custom-invite-actions">
+                <!-- Cancel (X) — only while an invite is pending -->
+                @if (isInvitePending(u)) {
+                <button
+                  type="button"
+                  class="custom-invite-cancel"
+                  title="Cancel invitation"
+                  aria-label="Cancel invitation"
+                  (click)="cancelInvite(u)"
                 >
-                  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                </svg>
-                } @if (u.inviteState === 'sent') {
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="3"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-                } @if (u.inviteState === 'error') {
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2.8"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <path d="M18 6 6 18M6 6l12 12" />
-                </svg>
+                  <!-- X -->
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 6 6 18M6 6l12 12" />
+                  </svg>
+                </button>
                 }
-              </button>
+                <!-- Status / invite trigger -->
+                <button
+                  type="button"
+                  class="custom-invite-btn"
+                  [class.pending]="u.inviteState === 'pending'"
+                  [class.accepted]="u.inviteState === 'accepted'"
+                  [class.error]="u.inviteState === 'error'"
+                  [class.sending]="u.inviteState === 'sending'"
+                  [disabled]="
+                    u.inviteState === 'sending' ||
+                    u.inviteState === 'pending' ||
+                    u.inviteState === 'accepted'
+                  "
+                  [title]="inviteStatusLabel(u)"
+                  [attr.aria-label]="inviteStatusLabel(u)"
+                  (click)="invitePlayer(u)"
+                >
+                  @if (u.inviteState === 'sending') {
+                  <!-- Spinner -->
+                  <svg class="custom-invite-spinner" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                  </svg>
+                  } @else if (u.inviteState === 'pending') {
+                  <!-- Clock / awaiting -->
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                  </svg>
+                  } @else if (u.inviteState === 'accepted') {
+                  <!-- Checkmark -->
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  } @else if (u.inviteState === 'error') {
+                  <!-- Retry / refresh -->
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                    <path d="M3 3v5h5" />
+                  </svg>
+                  } @else {
+                  <!-- Idle: person + plus -->
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <line x1="19" y1="8" x2="19" y2="14" />
+                    <line x1="22" y1="11" x2="16" y2="11" />
+                  </svg>
+                  }
+                </button>
+              </div>
             </li>
             } @if (filteredInviteCandidates().length === 0) {
             <li class="custom-invite-empty">No players found.</li>

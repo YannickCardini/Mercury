@@ -59,12 +59,14 @@ interface InviteCandidate {
   picture: string;
   points: number;
   /**
-   * UI-only state for instant feedback after clicking "Invite".
-   * - sending: WS message in flight (rare, instantly resolves to `sent`)
-   * - sent:    invite dispatched to the recipient's socket
-   * - error:   recipient declined or was offline
+   * UI-only state driving the status sub-button and the cancel (X) sub-button.
+   * - idle:     « non envoyé » — no invite sent yet (or after a cancel)
+   * - sending:  WS message in flight (rare, instantly resolves to `pending`)
+   * - pending:  « en attente d'acceptation » — sent, awaiting a response
+   * - accepted: « accepté » — recipient accepted (gameInviteResponse accepted)
+   * - error:    recipient declined or was offline (re-invitable)
    */
-  inviteState: "idle" | "sending" | "sent" | "error";
+  inviteState: "idle" | "sending" | "pending" | "accepted" | "error";
 }
 
 @Component({
@@ -711,7 +713,7 @@ export class HomePage implements OnInit, OnDestroy {
           (c) => c.id === resp.fromUserId
         );
         if (!candidate) return;
-        candidate.inviteState = resp.accepted ? "sent" : "error";
+        candidate.inviteState = resp.accepted ? "accepted" : "error";
       });
   }
 
@@ -892,14 +894,51 @@ export class HomePage implements OnInit, OnDestroy {
   }
 
   invitePlayer(candidate: InviteCandidate): void {
-    if (candidate.inviteState === "sending" || candidate.inviteState === "sent")
+    // Only (re)invitable from a settled state; in-flight/accepted are no-ops.
+    if (
+      candidate.inviteState === "sending" ||
+      candidate.inviteState === "pending" ||
+      candidate.inviteState === "accepted"
+    )
       return;
     if (!this.customRoomCode) {
       candidate.inviteState = "error";
       return;
     }
-    candidate.inviteState = "sent";
+    candidate.inviteState = "pending";
     this.gameStateService.sendInviteUser(candidate.id, this.customRoomCode);
+  }
+
+  /** True while an invitation is in flight or awaiting a response (cancellable). */
+  isInvitePending(candidate: InviteCandidate): boolean {
+    return (
+      candidate.inviteState === "sending" || candidate.inviteState === "pending"
+    );
+  }
+
+  /** Tooltip / aria-label for the status icon button. */
+  inviteStatusLabel(candidate: InviteCandidate): string {
+    switch (candidate.inviteState) {
+      case "sending":
+        return "Sending invite…";
+      case "pending":
+        return "Awaiting acceptance";
+      case "accepted":
+        return "Invite accepted";
+      case "error":
+        return "Retry invite";
+      default:
+        return "Invite player";
+    }
+  }
+
+  /** Cancels a pending invitation and resets the candidate to idle. */
+  cancelInvite(candidate: InviteCandidate): void {
+    if (!this.isInvitePending(candidate)) return;
+    if (this.customRoomCode) {
+      this.gameStateService.sendCancelInvite(candidate.id, this.customRoomCode);
+    }
+    candidate.inviteState = "idle";
   }
 
   // ── Inbox ──────────────────────────────────────────────────────────────────

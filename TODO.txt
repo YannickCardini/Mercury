@@ -1,0 +1,139 @@
+================================================================================
+ MERCURY — TODO
+================================================================================
+Note : ce fichier décrit CE QU'IL FAUT FAIRE. Les chemins de fichiers et noms
+de symboles ci-dessous sont donnés pour situer le travail, à vérifier avant
+modification.
+
+
+────────────────────────────────────────────────────────────────────────────
+ 1. INVITATIONS CUSTOM GAME — livraison fiable + refonte du bouton « Invite »
+────────────────────────────────────────────────────────────────────────────
+
+Contexte actuel :
+  - Le créateur d'une room custom invite un joueur depuis la modale
+    (frontend/src/app/home/home.page.html, section « Invite a player »).
+  - Côté serveur, backend/src/session/custom-game-manager.ts → handleInviteUser()
+    pousse un message `gameInvite` via presence.sendOrQueue(...) avec un TTL
+    in-memory de 5 min (INVITATION_TTL_MS). Si l'invité n'a pas de socket de
+    présence ouverte, le message est mis en file et flushé à sa reconnexion.
+  - Le frontend affiche l'invitation via le composant invite-toast
+    (frontend/src/app/shared/invite-toast.component.html).
+
+1.A — Livraison fiable de l'invitation à l'ouverture de l'app
+  Problème : si l'invité se connecte APRÈS l'expiration du TTL de 5 min (ou
+  selon le timing de reconnexion), il ne reçoit jamais la notification.
+  Objectif : qu'une invitation soit délivrée dès que l'invité ouvre / repasse
+  Mercury au premier plan (app Android fermée OU en arrière-plan), TANT QUE la
+  room custom est toujours rejoignable, c.-à-d. :
+     - la room existe encore (non détruite), ET
+     - la room n'est pas pleine (< 4 joueurs), ET
+     - la partie n'a pas démarré / n'est pas fermée.
+  À faire :
+     - Lier la validité de l'invitation au cycle de vie de la room plutôt qu'à
+       un TTL fixe de 5 min : ré-évaluer/re-livrer les invitations en attente
+       au moment où l'invité (ré)enregistre sa présence (PresenceManager.register)
+       ou au resume de l'app.
+     - Avant de (re)livrer, vérifier que la room est toujours rejoignable selon
+       les 3 conditions ci-dessus ; sinon, ne rien envoyer et nettoyer
+       room.invitees + la file PresenceManager.
+     - S'assurer que invite-toast s'affiche bien à ce moment-là côté frontend.
+  NB : aucune infra de push natif (FCM / @capacitor push) n'existe aujourd'hui ;
+  ne pas en introduire. La « notification » reste l'invite-toast in-app, déclenché
+  à l'ouverture/au premier plan de l'app.
+
+1.B — Refonte du bouton « Invite » (un bouton → deux sous-boutons)
+  Emplacement : home.page.html, ligne du bouton `.custom-invite-btn` dans
+  `.custom-invite-list`. État actuel : un seul bouton, type InviteState
+  "idle" | "sending" | "sent" | "error" (home.page.ts).
+  Objectif : pour chaque joueur invitable, remplacer le bouton unique par
+  DEUX sous-boutons :
+     1. Une croix (X) pour ANNULER l'invitation → appelle
+        gameStateService.sendCancelInvite(userId, roomCode) (déjà câblé côté
+        service, ligne ~664 game-state.service.ts ; handler serveur existant :
+        handleCancelInvite dans custom-game-manager.ts). Visible uniquement
+        quand une invitation est en cours/en attente.
+     2. Un bouton de STATUT affichant l'état de l'invitation :
+          - « non envoyé »            (idle)
+          - « en attente d'acceptation » (envoyé, pas encore de réponse)
+          - « accepté »               (gameInviteResponse accepted === true)
+  À faire :
+     - Étendre le type InviteState pour distinguer « envoyé / en attente » de
+       « accepté » (aujourd'hui "sent" est réutilisé pour la réponse acceptée,
+       cf. home.page.ts ~714 gameInviteResponse$).
+     - Mettre à jour le template et les libellés/aria-labels en conséquence.
+
+
+────────────────────────────────────────────────────────────────────────────
+ 2. MODALE CUSTOM GAME — responsive sur petits écrans (ex. 1366×768)
+────────────────────────────────────────────────────────────────────────────
+
+Contexte : dans la modale custom (home.page.html, `.modal-card.custom-card`,
+stage `in-room`), la liste des joueurs invitables (« Invite a player ») devient
+minuscule sur beaucoup d'écrans peu hauts, car `.modal-header` et `.custom-slots`
+occupent trop de place verticale.
+
+À faire (CSS, home.page.scss) :
+  - Ajouter une media query (ex. hauteur ≤ 768px, à calibrer) qui MASQUE
+    `.modal-header` et `.custom-slots` dans la modale custom, pour laisser la
+    place à la liste d'invitation.
+  - Conserver l'affichage de `.modal-header` et `.custom-slots` sur les écrans
+    suffisamment grands.
+  - IMPÉRATIF : la croix de fermeture en haut à droite (`.modal-close`) doit
+    rester visible et NE PAS se superposer aux autres éléments (notamment
+    `.custom-code-block`) une fois `.modal-header` / `.custom-slots` masqués.
+    Ajuster les marges/positionnement en conséquence.
+
+
+────────────────────────────────────────────────────────────────────────────
+ 3. AJOUTER 3 NOUVEAUX EMOJIS DE RÉACTION
+────────────────────────────────────────────────────────────────────────────
+
+Ajouter les emojis 😊 😱 😍 au système de réactions in-game.
+
+À faire :
+  - packages/shared/src/types.ts : ajouter '😊', '😱', '😍' à la constante
+    REACTION_EMOJIS (le type ReactionEmoji s'en déduit automatiquement).
+  - frontend/src/app/game/services/sound.service.ts :
+      a) Ajouter au mapping emoji→clé son :
+           '😊' → 'emoji_smile'
+           '😱' → 'emoji_fear'
+           '😍' → 'emoji_love'
+      b) Ajouter à la liste de préchargement les entrées :
+           { key: 'emoji_smile', url: 'assets/sounds/emojis/smile.mp3' }
+           { key: 'emoji_fear',  url: 'assets/sounds/emojis/fear.mp3' }
+           { key: 'emoji_love',  url: 'assets/sounds/emojis/love.mp3' }
+  - NE PAS créer les fichiers audio : smile.mp3 / fear.mp3 / love.mp3 seront
+    ajoutés manuellement plus tard par le propriétaire du projet dans
+    frontend/src/assets/sounds/emojis/.
+
+
+────────────────────────────────────────────────────────────────────────────
+ 4. REVOIR LE SYSTÈME DE POINTS (fin de partie)
+────────────────────────────────────────────────────────────────────────────
+
+Fichier : backend/src/game/points.ts (computeEndGamePointsDeltas), pur et
+testable. Appliqué par Game.applyEndGamePoints (backend/src/game/game.ts).
+Formule actuelle : style Elo, gain/perte borné dans [1, 8] (WIN_MIN/MAX,
+LOSS_MIN/MAX, K_WIN/K_LOSS).
+
+Objectif visé :
+  - En MOYENNE, un joueur doit gagner / perdre ≈ 3 points par partie quand les
+    joueurs ont des niveaux proches.
+  - Plus l'écart de points entre joueurs est grand, plus le swing augmente :
+    ~4 pts lorsque plusieurs centaines de points les séparent, puis 5, puis 6,
+    etc., de façon LOGARITHMIQUE selon l'écart (croissance qui ralentit).
+  - Direction de l'écart (récompense de l'upset) :
+      • le joueur le PLUS FAIBLE (moins de points) qui gagne récupère PLUS
+        de points ;
+      • le joueur le PLUS FORT (plus de points) qui perd en perd PLUS.
+    (Exemple cité : gros écart → +4 pour le faible qui gagne, -4 pour le fort
+     qui perd, puis 5, 6… à mesure que l'écart grandit.)
+
+À faire :
+  - Recalibrer la formule pour que le swing moyen tourne autour de 3 (au lieu
+    du [1,8] actuel) et grandisse logarithmiquement avec l'écart de points.
+  - Conserver la cohérence somme nulle / symétrie gagnant↔perdant souhaitée.
+  - Mettre à jour / ajouter des tests unitaires (cf. fichiers *.test.ts du
+    dossier backend/src/game) pour valider : swing ≈ 3 à niveau égal, et
+    progression 4→5→6 selon l'écart.
