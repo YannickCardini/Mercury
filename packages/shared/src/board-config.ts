@@ -14,6 +14,21 @@ import type { MarbleColor } from './types.js';
 
 export const GRID_SIZE = 15;
 
+// ── Cases à afficher (chemin + zones spéciales) ───────────────────────────────
+// Toutes les cases non listées ici sont cachées (case-hidden).
+
+export const SQUARES_TO_DISPLAY: number[] = [
+  3, 6, 7, 8, 9, 10, 13, 18, 21, 25, 28, 33,
+  36, 38, 40, 43, 48, 51, 53, 55, 58, 66, 68,
+  70, 76, 77, 78, 79, 80, 81, 83, 85, 86, 87,
+  88, 89, 90, 91, 105, 106, 108, 109, 110,
+  111, 115, 116, 117, 118, 120, 121, 135,
+  136, 137, 138, 139, 140, 141, 143, 145,
+  146, 147, 148, 149, 150, 156, 158, 160,
+  168, 171, 173, 175, 178, 183, 186, 188,
+  190, 193, 198, 201, 205, 208, 213, 216,
+  217, 218, 219, 220, 223, 231,
+];
 
 // ── Chemin principal ──────────────────────────────────────────────────────────
 // Ordre de parcours des cases du chemin commun (sens de déplacement des pions).
@@ -29,20 +44,20 @@ export const MAIN_PATH: number[] = [
 // Positions initiales des 4 pions d'un joueur, avant d'entrer en jeu.
 
 export const HOME_POSITIONS: Record<MarbleColor, number[]> = {
-  red: [13, 14, 28, 29],
-  green: [208, 209, 223, 224],
-  blue: [197, 198, 212, 213],
-  orange: [2, 3, 17, 18],
+  red: [3, 18, 33, 48],
+  green: [13, 28, 43, 58],
+  blue: [178, 193, 208, 223],
+  orange: [168, 183, 198, 213],
 };
 
 // ── Cases d'entrée en jeu (start) ─────────────────────────────────────────────
 // Case sur laquelle un pion arrive quand il entre en jeu (carte A ou K).
 
 export const START_POSITIONS: Record<MarbleColor, number> = {
-  red: 10,
-  green: 150,
-  blue: 216,
-  orange: 76,
+  red: 9,
+  green: 135,
+  blue: 217,
+  orange: 91,
 };
 
 // ── Cases d'arrivée (arrival) ─────────────────────────────────────────────────
@@ -75,23 +90,6 @@ export const SKIPPED_INDICES: number[] = [
   152, 153, 154, 155,
   162, 163, 164, 165,
 ];
-
-// ── Cases à afficher (chemin + zones spéciales) ───────────────────────────────
-// Toutes les cases non listées ici sont cachées (case-hidden).
-//
-// NB : les cases de HOME ne sont volontairement PAS listées ici. Les billes de
-// départ sont désormais rendues dans le grand panneau joueur de chaque coin
-// (cf. board.component « home-tray »), pas dans la grille. Les cases restent
-// donc `case-hidden` : l'espace de grille est conservé (alignement préservé)
-// mais ni le cercle de home ni la bille ne sont affichés dans la grille.
-
-export const SQUARES_TO_DISPLAY: number[] = [...MAIN_PATH,
-...ARRIVAL_POSITIONS['red'],
-...ARRIVAL_POSITIONS['green'],
-...ARRIVAL_POSITIONS['blue'],
-...ARRIVAL_POSITIONS['orange'],
-];
-
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

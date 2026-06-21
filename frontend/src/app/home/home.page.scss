@@ -2608,3 +2608,19 @@ $bg-mid: #1a2840;
     cursor: not-allowed;
   }
 }
+
+// ─── Custom modal — responsive small screens ──────────────────────────────────
+@media (max-height: 768px) {
+  .custom-card.custom-card--in-room {
+    .modal-header,
+    .custom-slots {
+      display: none;
+    }
+
+    // Push code block below the close button (top:14px + height:30px = 44px)
+    // to avoid visual overlap once .modal-header is gone.
+    .custom-code-block {
+      margin-top: 20px;
+    }
+  }
+}

@@ -697,7 +697,7 @@
 
     <!-- ══════════════ CUSTOM GAME MODAL ══════════════ -->
     <div class="modal-overlay" [class.active]="showCustomGame">
-      <div class="modal-card custom-card" (click)="$event.stopPropagation()">
+      <div class="modal-card custom-card" [class.custom-card--in-room]="customStage === 'in-room'" (click)="$event.stopPropagation()">
         <button class="modal-close" (click)="cancelCustomGame()">
           <svg
             width="14"
