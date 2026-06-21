@@ -6,78 +6,18 @@
       @let index = getSquareIndex(row, col);
 
       @if (!shouldSkip(index)) {
-      <ion-col class="tock-col" [class.span-5]="playerInfoStarts[index]">
-
-        @if (playerInfoStarts[index]; as pColor) {
-        @let player = getPlayer(pColor);
-        <div class="player-card" [class.active-turn]="isCurrentTurn(pColor)"
-          [class.disconnected]="player && !player.isConnected" [class.no-cards]="player && player.cardsLeft === 0"
-          [ngClass]="'theme-' + pColor" [attr.data-player-color]="pColor">
-          <div class="avatar-ring"
-            (click)="onAvatarClick(pColor, $event)"
-            (mouseenter)="onAvatarMouseEnter(pColor, $event)"
-            (mouseleave)="onAvatarMouseLeave()">
-            @if (player?.picture) {
-              <img class="avatar-img" [src]="player!.picture" [alt]="player!.name" referrerpolicy="no-referrer" />
-            } @else {
-              <div class="avatar-color"></div>
-            }
-          </div>
-          <div class="player-info">
-            <span class="player-name" (click)="onAvatarClick(pColor, $event)">{{ getDisplayName(player) }}</span>
-            @if (player && !player.isConnected) {
-            <div class="disconnect-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="1" y1="1" x2="23" y2="23"></line>
-                <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
-                <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
-                <path d="M10.71 5.05A16 16 0 0 1 22.56 9"></path>
-                <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path>
-                <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
-                <line x1="12" y1="20" x2="12.01" y2="20"></line>
-              </svg>
-            </div>
-            } @else if (isCurrentTurn(pColor)) {
-            <span class="turn-timer">{{ gameStateService.timeLeft() }}s</span>
-            } @else if (player) {
-            <div class="cards-indicator">
-              @for (i of fiveSlots; track i) {
-              <div class="card-slot" [class.card-slot--filled]="i < player.cardsLeft"></div>
-              }
-            </div>
-            }
-          </div>
-        </div>
-        }
-
-        @else {
+      <ion-col class="tock-col">
         <div [class]="getSquareClass(index)" [ngClass]="getSquareAnimClass(index)"
           [class.square-preview-path]="isPreviewPath(index)"
           [class.square-preview-path-marble2]="isPreviewPathMarble2(index)"
           [class.square-preview-destination]="isPreviewDestination(index)">
-          @if (getMarbleOnSquare(index); as marbleColor) {
-          <div class="marble" [ngClass]="[
-              'marble-' + marbleColor,
-              getMarbleAnimClass(index),
-              isSelectableMarble(index) ? 'marble-selectable' : '',
-              isSelectedMarble(index)   ? 'marble-selected'   : '',
-              isSplit7SecondMarble(index) ? 'marble-selected-split2' : '',
-              isMyMarble(index)         ? 'marble-mine'        : '',
-              isDimmedMarble(index)     ? 'marble-dimmed'      : ''
-            ]" (click)="onMarbleClick(index)" (mouseenter)="onMarbleMouseEnter(index)"
-            (mouseleave)="onMarbleMouseLeave(index)">
-            <div class="marble-highlight"></div>
-          </div>
-          }
-
+          <ng-container *ngTemplateOutlet="marbleCell; context: { $implicit: index }"></ng-container>
           <span class="square-number">
             {{ debug ? index : '' }}<div style="font-size: medium;color:white">{{ debug ? '' : (getArrivalNumber(index)
               ?? '') }}
             </div>
           </span>
         </div>
-        }
       </ion-col>
       }
       }
@@ -85,13 +25,30 @@
     }
   </ion-grid>
 
+  <!-- Rendu d'une bille -->
+  <ng-template #marbleCell let-index>
+    @if (getMarbleOnSquare(index); as marbleColor) {
+    <div class="marble" [ngClass]="[
+        'marble-' + marbleColor,
+        getMarbleAnimClass(index),
+        isSelectableMarble(index) ? 'marble-selectable' : '',
+        isSelectedMarble(index)   ? 'marble-selected'   : '',
+        isSplit7SecondMarble(index) ? 'marble-selected-split2' : '',
+        isMyMarble(index)         ? 'marble-mine'        : '',
+        isDimmedMarble(index)     ? 'marble-dimmed'      : ''
+      ]" (click)="onMarbleClick(index)" (mouseenter)="onMarbleMouseEnter(index)"
+      (mouseleave)="onMarbleMouseLeave(index)">
+      <div class="marble-highlight"></div>
+    </div>
+    }
+  </ng-template>
+
   <!-- Pile de défausse — overlay centré sur la zone vide du board -->
   <div class="discard-zone">
     <div class="discard-pile">
       @for (card of discardPile(); track $index) {
       @if ($index < 5) { <div class="discard-card" [class.discard-card--top]="$index === 0"
         [style.--stack-offset]="$index" [style.z-index]="5 - $index">
-        <!-- Réutilise le composant carte premium -->
         <app-tock-card [value]="card.value" [suit]="card.suit">
         </app-tock-card>
     </div>
@@ -125,60 +82,3 @@
   }
 </div>
 </div>
-
-<!-- Profile panel (backdrop + panel, fixed to viewport) -->
-<!-- NOTE: must remain OUTSIDE .board-container — backdrop-filter on that element
-     would make position:fixed children position relative to it, not the viewport. -->
-@if (profilePanel(); as panel) {
-  @if (!panel.openedByHover) {
-    <div class="profile-backdrop" (click)="closeProfilePanel()"></div>
-  }
-  <div #profilePanelEl class="profile-panel"
-    [style.left.px]="panel.x"
-    [style.top.px]="panel.y"
-    [ngClass]="'profile-panel--' + panel.color"
-    (click)="$event.stopPropagation()"
-    (mouseenter)="onPanelMouseEnter()"
-    (mouseleave)="onPanelMouseLeave()">
-
-    <button class="profile-panel__close-btn" (click)="closeProfilePanel()" aria-label="Close">&#x2715;</button>
-
-    @if (panel.isGuest) {
-      <div class="profile-panel__guest">
-        <div class="profile-panel__guest-icon">👤</div>
-        <span>Guest player</span>
-        <span class="profile-panel__guest-sub">Not signed in</span>
-      </div>
-    } @else if (panel.loading) {
-      <div class="profile-panel__loading">
-        <div class="profile-panel__spinner"></div>
-      </div>
-    } @else if (panel.data; as data) {
-      <div class="profile-panel__header">
-        @if (data.picture) {
-          <img class="profile-panel__photo" [src]="data.picture" [alt]="data.name" referrerpolicy="no-referrer" />
-        } @else {
-          <div class="profile-panel__photo profile-panel__photo--fallback" [ngClass]="'theme-' + panel.color"></div>
-        }
-        <div class="profile-panel__name-block">
-          <span class="profile-panel__name">{{ data.name }}</span>
-          @if (data.ranking > 0) {
-            <span class="profile-panel__rank">#{{ data.ranking }}</span>
-          }
-        </div>
-      </div>
-      <div class="profile-panel__stats">
-        <div class="profile-panel__stat">
-          <span class="profile-panel__stat-value">{{ data.points }}</span>
-          <span class="profile-panel__stat-label">points</span>
-        </div>
-      </div>
-      <div class="profile-panel__since">{{ computeMemberSince(data.createdAt) }}</div>
-      @if (isWeb && panel.userId) {
-        <button class="profile-panel__leaderboard-btn" (click)="viewProfile(panel.userId)">View profile</button>
-      }
-    } @else {
-      <div class="profile-panel__error">Could not load profile</div>
-    }
-  </div>
-}

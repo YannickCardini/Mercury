@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, HostListener, OnInit, OnDestroy, signal, computed, effect, inject, ViewChild, ElementRef } from '@angular/core';
+import { ChangeDetectionStrategy, Component, HostListener, OnInit, OnDestroy, signal, computed, effect, inject } from '@angular/core';
 import { GameStateService } from '../../services/game-state.service';
 import { SoundService } from '../../services/sound.service';
 import { IonCol, IonGrid, IonRow } from '@ionic/angular/standalone';
@@ -20,7 +20,6 @@ import {
   HOME_POSITIONS,
   START_POSITIONS,
   ARRIVAL_POSITIONS,
-  PLAYER_INFO_STARTS,
   SKIPPED_INDICES,
   MARBLE_ANIMATION_DURATIONS,
   ENTER_IMPACT_DURATION_MS,
@@ -41,20 +40,6 @@ export interface ProfileData {
   points: number;
   ranking: number;
   createdAt: string;
-}
-
-export interface ProfilePanelState {
-  color: MarbleColor;
-  data: ProfileData | null;
-  loading: boolean;
-  isGuest: boolean;
-  userId: string | null;
-  x: number;
-  y: number;
-  // When true, the panel was opened via mouse hover: no backdrop is rendered
-  // (hover/leave events handle closing) so the backdrop cannot steal the
-  // cursor and cause an open/close flicker loop on the avatar.
-  openedByHover: boolean;
 }
 
 export interface CardInfo {
@@ -88,7 +73,6 @@ export class BoardComponent implements OnInit, OnDestroy {
   readonly homes = HOME_POSITIONS;
   readonly arrivals = ARRIVAL_POSITIONS;
   readonly starts = START_POSITIONS;
-  readonly playerInfoStarts = PLAYER_INFO_STARTS;
   readonly skippedIndices = SKIPPED_INDICES;
 
   // ── État UI ─────────────────────────────────────────────────────────────────
@@ -211,13 +195,9 @@ export class BoardComponent implements OnInit, OnDestroy {
 
   readonly debug = environment.debug;
 
-  // ── Profile panel ────────────────────────────────────────────────────────────
+  // ── Profile panel (API) ──────────────────────────────────────────────────────
   private http = inject(HttpClient);
   private router = inject(Router);
-  readonly isHoverDevice = window.matchMedia('(hover: hover)').matches;
-  profilePanel = signal<ProfilePanelState | null>(null);
-  @ViewChild('profilePanelEl') profilePanelEl?: ElementRef<HTMLElement>;
-  private panelCloseTimer?: ReturnType<typeof setTimeout>;
 
   // ── Timers internes ─────────────────────────────────────────────────────────
   private flyingCardTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -229,30 +209,6 @@ export class BoardComponent implements OnInit, OnDestroy {
 
     effect(() => {
       this.displayedGameData.set(this.gameStateService.data());
-    });
-
-    // Re-clamp the profile panel position after each render, using the panel's
-    // actual DOM dimensions instead of the conservative PANEL_H estimate.
-    effect(() => {
-      const panel = this.profilePanel();
-      if (!panel) return;
-      setTimeout(() => {
-        const el = this.profilePanelEl?.nativeElement;
-        if (!el) return;
-        const h = el.offsetHeight;
-        const w = el.offsetWidth;
-        const current = this.profilePanel();
-        if (!current || current.color !== panel.color) return;
-        let { x, y } = current;
-        const origX = x, origY = y;
-        if (y + h > window.innerHeight - 8) y = window.innerHeight - h - 8;
-        if (y < 8) y = 8;
-        if (x + w > window.innerWidth - 8) x = window.innerWidth - w - 8;
-        if (x < 8) x = 8;
-        if (x !== origX || y !== origY) {
-          this.profilePanel.set({ ...current, x, y });
-        }
-      }, 0);
     });
 
     this.actionPlayedSub = this.gameStateService.actionPlayed$.subscribe((action: Action) => {
@@ -850,85 +806,15 @@ export class BoardComponent implements OnInit, OnDestroy {
     }
   }
 
-  // ── Profile panel ─────────────────────────────────────────────────────────
+  // ── Profile panel (API) ───────────────────────────────────────────────────
 
-  onAvatarClick(color: MarbleColor, event: MouseEvent): void {
-    event.stopPropagation();
-    if (this.profilePanel()?.color === color) {
-      this.closeProfilePanel();
-      return;
-    }
-    this.openProfilePanel(color, event.currentTarget as HTMLElement, false);
-  }
-
-  onAvatarMouseEnter(color: MarbleColor, event: MouseEvent): void {
-    if (!this.isHoverDevice) return;
-    if (this.panelCloseTimer) {
-      clearTimeout(this.panelCloseTimer);
-      this.panelCloseTimer = undefined;
-    }
-    if (this.profilePanel()?.color !== color) {
-      this.openProfilePanel(color, event.currentTarget as HTMLElement, true);
-    }
-  }
-
-  onAvatarMouseLeave(): void {
-    if (!this.isHoverDevice) return;
-    this.panelCloseTimer = setTimeout(() => this.closeProfilePanel(), 150);
-  }
-
-  onPanelMouseEnter(): void {
-    if (this.panelCloseTimer) {
-      clearTimeout(this.panelCloseTimer);
-      this.panelCloseTimer = undefined;
-    }
-  }
-
-  onPanelMouseLeave(): void {
-    if (!this.isHoverDevice) return;
-    this.closeProfilePanel();
-  }
-
-  closeProfilePanel(): void {
-    this.profilePanel.set(null);
-  }
-
-  @HostListener('document:keydown.escape')
-  onEscape(): void {
-    this.closeProfilePanel();
-  }
-
-  private openProfilePanel(color: MarbleColor, el: HTMLElement, openedByHover: boolean): void {
-    const player = this.getPlayer(color);
-    const PANEL_W = 224;
-    const PANEL_H = 200;
-
-    const rect = el.getBoundingClientRect();
-    let x = rect.right + 8;
-    let y = rect.top;
-
-    if (x + PANEL_W > window.innerWidth - 8) x = rect.left - PANEL_W - 8;
-    if (x < 8) x = 8;
-    if (y + PANEL_H > window.innerHeight - 8) y = window.innerHeight - PANEL_H - 8;
-    if (y < 8) y = 8;
-
-    const isGuest = !player?.userId;
-    this.profilePanel.set({ color, data: null, loading: !isGuest, isGuest, userId: player?.userId ?? null, x, y, openedByHover });
-
-    if (player?.userId) {
-      firstValueFrom(
-        this.http.get<ProfileData>(`${environment.apiUrl}/api/auth/user/${player.userId}`)
-      ).then(data => {
-        const current = this.profilePanel();
-        if (current?.color === color) {
-          this.profilePanel.set({ ...current, data, loading: false });
-        }
-      }).catch(() => {
-        const current = this.profilePanel();
-        if (current?.color === color) {
-          this.profilePanel.set({ ...current, loading: false });
-        }
-      });
+  async fetchPlayerProfile(userId: string): Promise<ProfileData | null> {
+    try {
+      return await firstValueFrom(
+        this.http.get<ProfileData>(`${environment.apiUrl}/api/auth/user/${userId}`)
+      );
+    } catch {
+      return null;
     }
   }
 

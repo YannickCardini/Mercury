@@ -49,10 +49,10 @@ export const MAIN_PATH: number[] = [
 // Positions initiales des 4 pions d'un joueur, avant d'entrer en jeu.
 
 export const HOME_POSITIONS: Record<MarbleColor, number[]> = {
-  red: [14, 15, 29, 30],
-  green: [209, 210, 224, 225],
-  blue: [196, 197, 211, 212],
-  orange: [1, 2, 16, 17],
+  red: [56, 57, 71, 72],
+  green: [161, 162, 176, 177],
+  blue: [154, 155, 169, 170],
+  orange: [49, 50, 64, 65],
 
 };
 
@@ -91,11 +91,7 @@ export const PLAYER_INFO_STARTS: Record<number, MarbleColor> = {
 // Ces cases font partie de la zone des panneaux joueurs et ne sont pas rendues.
 
 export const SKIPPED_INDICES: number[] = [
-  62, 63, 64, 65,
-  72, 73, 74, 75,
-  152, 153, 154, 155,
-  162, 163, 164, 165,
-];
+  ];
 
 export const SQUARES_TO_DISPLAY: number[] = computeSquaresToDisplay();
 
