@@ -1,0 +1,59 @@
+<div class="pb" [ngClass]="'pb--' + color()" [class.pb--current]="isCurrentTurn()"
+  [class.pb--urgent]="isUrgent()" [class.pb--disconnected]="!isConnected()" [class.pb--empty]="!player()">
+
+  <!-- Anneau-timer : se vide depuis le haut quand c'est le tour du joueur -->
+  <svg class="pb-ring" viewBox="0 0 100 100">
+    <circle class="pb-ring-bg" cx="50" cy="50" r="46" />
+    <circle class="pb-ring-arc" cx="50" cy="50" r="46" [style.stroke]="arcColor()"
+      [style.stroke-dasharray]="circumference" [style.stroke-dashoffset]="dashOffset()" />
+  </svg>
+
+  <!-- Photo de profil (ou silhouette par défaut) -->
+  <div class="pb-avatar">
+    @if (player()?.picture) {
+    <img [src]="player()!.picture" alt="" referrerpolicy="no-referrer" />
+    } @else {
+    <svg class="pb-placeholder" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-4.42 0-8 2.69-8 6v2h16v-2c0-3.31-3.58-6-8-6Z" />
+    </svg>
+    }
+  </div>
+
+  <!-- Jeton « nombre de cartes » (haut-droite) -->
+  @if (player(); as p) {
+  <div class="pb-cards" [attr.title]="p.cardsLeft + ' cards'">
+    <svg class="pb-cards-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect x="3" y="5" width="13" height="16" rx="2" />
+      <path d="M8 5V4a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2h-1" />
+    </svg>
+    <span class="pb-cards-count">{{ p.cardsLeft }}</span>
+  </div>
+  }
+
+  <!-- Plaque nominative (bas-centre) : nom puis rang (médaille selon le palier) -->
+  @if (player(); as p) {
+  <div class="pb-nameplate">
+    <span class="pb-name">{{ displayName() }}</span>
+    @if (rank() !== null) {
+    <span class="pb-rank" [ngClass]="'pb-rank--' + rankTier()">Rank #{{ rank() }}</span>
+    }
+  </div>
+  }
+
+  <!-- Indicateur de déconnexion (haut-gauche) -->
+  @if (player() && !isConnected()) {
+  <div class="pb-disconnect" title="Disconnected">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+      stroke-linejoin="round" aria-hidden="true">
+      <path d="M1 1l22 22" />
+      <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55" />
+      <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39" />
+      <path d="M10.71 5.05A16 16 0 0 1 22.58 9" />
+      <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88" />
+      <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+      <line x1="12" y1="20" x2="12.01" y2="20" />
+    </svg>
+  </div>
+  }
+</div>

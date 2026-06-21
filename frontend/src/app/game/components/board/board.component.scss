@@ -49,6 +49,39 @@ $colors: (
     contain: layout style paint;
 }
 
+/* ─────────────────────────────────────────────────────────────
+   PASTILLES JOUEUR — nichées dans les quatre coins (vides) du plateau.
+   z-index 16 : restent visibles au-dessus de l'overlay « carte sélectionnée »
+   (board-container.card-selected::after, z-index 15).
+   ───────────────────────────────────────────────────────────── */
+.player-badge-slot {
+    position: absolute;
+    z-index: 16;
+    pointer-events: none;
+}
+
+.player-badge-slot--tl {
+    top: calc(var(--square-size) * 0.05);
+    left: calc(var(--square-size) * 0.05);
+}
+
+.player-badge-slot--tr {
+    top: calc(var(--square-size) * 0.05);
+    right: calc(var(--square-size) * 0.05);
+}
+
+/* Pastilles du bas remontées de ~1,5 case : la plaque nom + rang (qui déborde
+   sous l'avatar) reste visible au lieu d'être rognée par le bord du plateau. */
+.player-badge-slot--bl {
+    bottom: calc(var(--square-size) * 1);
+    left: calc(var(--square-size) * 0.05);
+}
+
+.player-badge-slot--br {
+    bottom: calc(var(--square-size) * 1);
+    right: calc(var(--square-size) * 0.05);
+}
+
 /* --- Grille Ionic Override --- */
 .tock-grid {
     padding: 0;

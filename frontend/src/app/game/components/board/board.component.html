@@ -25,6 +25,15 @@
     }
   </ion-grid>
 
+  <!-- Pastilles joueur dans les quatre coins du plateau -->
+  @for (slot of cornerSlots; track slot.color) {
+  <app-player-badge class="player-badge-slot" [ngClass]="'player-badge-slot--' + slot.corner"
+    [player]="getPlayer(slot.color)" [color]="slot.color" [isCurrentTurn]="isCurrentTurn(slot.color)"
+    [timeLeft]="gameStateService.timeLeft()" [timer]="displayedGameData()?.gameState?.timer ?? 0"
+    [rank]="playerRankings()[slot.color] ?? null">
+  </app-player-badge>
+  }
+
   <!-- Rendu d'une bille -->
   <ng-template #marbleCell let-index>
     @if (getMarbleOnSquare(index); as marbleColor) {

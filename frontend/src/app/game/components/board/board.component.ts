@@ -4,6 +4,7 @@ import { SoundService } from '../../services/sound.service';
 import { IonCol, IonGrid, IonRow } from '@ionic/angular/standalone';
 import { CommonModule } from '@angular/common';
 import { TockCardComponent } from 'src/app/shared/tock-card.component';
+import { PlayerBadgeComponent } from './player-badge.component';
 import { Subscription, firstValueFrom } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
@@ -62,7 +63,7 @@ export interface SquareAnimation {
   selector: 'app-board',
   templateUrl: 'board.component.html',
   styleUrls: ['board.component.scss'],
-  imports: [IonCol, IonRow, IonGrid, CommonModule, TockCardComponent],
+  imports: [IonCol, IonRow, IonGrid, CommonModule, TockCardComponent, PlayerBadgeComponent],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class BoardComponent implements OnInit, OnDestroy {
@@ -209,6 +210,23 @@ export class BoardComponent implements OnInit, OnDestroy {
 
     effect(() => {
       this.displayedGameData.set(this.gameStateService.data());
+    });
+
+    // Récupère (une seule fois par joueur identifié) le rang affiché sur la pastille.
+    // Les bots et invités n'ont pas de userId → pas de rang, badge masqué.
+    effect(() => {
+      const data = this.gameStateService.data();
+      if (!data) return;
+      for (const p of data.gameState.players) {
+        if (!p.userId || this.fetchedRankingUserIds.has(p.userId)) continue;
+        this.fetchedRankingUserIds.add(p.userId);
+        const color = p.color;
+        this.fetchPlayerProfile(p.userId).then(profile => {
+          if (profile && typeof profile.ranking === 'number') {
+            this.playerRankings.update(r => ({ ...r, [color]: profile.ranking }));
+          }
+        });
+      }
     });
 
     this.actionPlayedSub = this.gameStateService.actionPlayed$.subscribe((action: Action) => {
@@ -687,6 +705,21 @@ export class BoardComponent implements OnInit, OnDestroy {
   getPlayer(color: MarbleColor): Player | undefined {
     return this.displayedGameData()?.gameState.players.find(p => p.color === color);
   }
+
+  /**
+   * Sièges des pastilles joueur, mappés sur le coin physique de chaque couleur
+   * (cf. HOME_POSITIONS / PLAYER_INFO_STARTS après la reconfiguration du plateau).
+   */
+  readonly cornerSlots: ReadonlyArray<{ color: MarbleColor; corner: 'tl' | 'tr' | 'bl' | 'br' }> = [
+    { color: 'orange', corner: 'tl' },
+    { color: 'red', corner: 'tr' },
+    { color: 'blue', corner: 'bl' },
+    { color: 'green', corner: 'br' },
+  ];
+
+  /** Rang au classement par couleur, alimenté à la demande via l'API profil. */
+  playerRankings = signal<Partial<Record<MarbleColor, number>>>({});
+  private fetchedRankingUserIds = new Set<string>();
 
   /** 5 slots fixes pour l'affichage de la main (indices 0–4) */
   readonly fiveSlots = [0, 1, 2, 3, 4];

@@ -1,0 +1,266 @@
+:host {
+    /* Diamètre dérivé de la taille d'une case du plateau (héritée du board-container). */
+    --pb-size: calc(var(--square-size, 32px) * 2.7);
+    display: block;
+    width: var(--pb-size);
+    height: var(--pb-size);
+    /* N'intercepte pas les clics destinés au plateau / aux billes. */
+    pointer-events: none;
+}
+
+.pb {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    --pb-color: #94a3b8;
+}
+
+/* Teinte de l'anneau au repos, alignée sur les couleurs des billes. */
+.pb--red {
+    --pb-color: #dc2626;
+}
+
+.pb--green {
+    --pb-color: #22c55e;
+}
+
+.pb--blue {
+    --pb-color: #3b82f6;
+}
+
+.pb--orange {
+    --pb-color: #fb923c;
+}
+
+/* ── Anneau-timer ─────────────────────────────────────────────────────────── */
+.pb-ring {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    /* Démarre le vidage depuis le haut. */
+    transform: rotate(-90deg);
+    overflow: visible;
+    z-index: 1;
+}
+
+.pb-ring-bg {
+    fill: none;
+    stroke: rgba(15, 23, 42, 0.55);
+    stroke-width: 5.5;
+}
+
+.pb-ring-arc {
+    fill: none;
+    stroke: var(--pb-color);
+    stroke-width: 5.5;
+    stroke-linecap: round;
+    opacity: 0.5;
+    transition: stroke-dashoffset 1s linear, stroke 0.4s ease, opacity 0.4s ease;
+}
+
+.pb--current .pb-ring-arc {
+    opacity: 1;
+    filter: drop-shadow(0 0 4px currentColor);
+}
+
+.pb--urgent .pb-ring-arc {
+    animation: pbRingPulse 1s ease-in-out infinite;
+}
+
+/* ── Avatar ───────────────────────────────────────────────────────────────── */
+.pb-avatar {
+    position: absolute;
+    inset: 8%;
+    border-radius: 50%;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at 50% 35%, #334155, #1e293b 70%);
+    border: 2px solid rgba(255, 255, 255, 0.85);
+    box-shadow:
+        0 4px 14px rgba(0, 0, 0, 0.45),
+        inset 0 1px 3px rgba(255, 255, 255, 0.25);
+    z-index: 2;
+    transition: filter 0.3s ease;
+
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+}
+
+.pb-placeholder {
+    width: 58%;
+    height: 58%;
+    color: rgba(255, 255, 255, 0.55);
+}
+
+.pb--empty .pb-avatar {
+    opacity: 0.5;
+}
+
+/* ── Jeton « nombre de cartes » (haut-droite) ─────────────────────────────── */
+.pb-cards {
+    position: absolute;
+    top: 6%;
+    right: 2%;
+    z-index: 4;
+    display: flex;
+    align-items: center;
+    gap: calc(var(--pb-size) * 0.025);
+    height: calc(var(--pb-size) * 0.3);
+    padding: 0 calc(var(--pb-size) * 0.07);
+    background: linear-gradient(145deg, #2a3850, #111c30);
+    border: 1.5px solid var(--pb-color);
+    border-radius: 999px;
+    color: #fff;
+    box-shadow: 0 2px 7px rgba(0, 0, 0, 0.55);
+}
+
+.pb-cards-icon {
+    width: calc(var(--pb-size) * 0.15);
+    height: calc(var(--pb-size) * 0.15);
+    opacity: 0.85;
+}
+
+.pb-cards-count {
+    font-family: 'DM Sans', sans-serif;
+    font-size: calc(var(--pb-size) * 0.16);
+    font-weight: 700;
+    line-height: 1;
+}
+
+/* ── Plaque nominative (bas-centre) : nom au-dessus, rang en dessous ───────── */
+.pb-nameplate {
+    position: absolute;
+    left: 50%;
+    bottom: -25%;
+    transform: translateX(-50%);
+    z-index: 4;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: calc(var(--pb-size) * 0.025);
+    max-width: 124%;
+    padding: calc(var(--pb-size) * 0.04) calc(var(--pb-size) * 0.09) calc(var(--pb-size) * 0.05);
+    background: linear-gradient(145deg, rgba(34, 47, 70, 0.97), rgba(13, 21, 37, 0.97));
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: calc(var(--pb-size) * 0.16);
+    box-shadow: 0 3px 11px rgba(0, 0, 0, 0.55);
+}
+
+.pb-name {
+    max-width: calc(var(--pb-size) * 0.96);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 700;
+    font-size: calc(var(--pb-size) * 0.145);
+    line-height: 1.05;
+    color: #f1f5f9;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    letter-spacing: 0.01em;
+}
+
+/* Rang : pastille « médaille » selon le palier ; atténuée hors top 3. */
+.pb-rank {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 800;
+    font-size: calc(var(--pb-size) * 0.11);
+    line-height: 1;
+    letter-spacing: 0.02em;
+    padding: calc(var(--pb-size) * 0.022) calc(var(--pb-size) * 0.075);
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+.pb-rank--gold {
+    color: #3a2800;
+    background: linear-gradient(145deg, #ffe793, #e0a72c);
+    box-shadow:
+        inset 0 1px 1px rgba(255, 255, 255, 0.65),
+        0 1px 4px rgba(224, 167, 44, 0.55);
+}
+
+.pb-rank--silver {
+    color: #2b333d;
+    background: linear-gradient(145deg, #f6f9fc, #a9b6c4);
+    box-shadow:
+        inset 0 1px 1px rgba(255, 255, 255, 0.75),
+        0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.pb-rank--bronze {
+    color: #3a1e08;
+    background: linear-gradient(145deg, #f3cda0, #bd7338);
+    box-shadow:
+        inset 0 1px 1px rgba(255, 255, 255, 0.45),
+        0 1px 4px rgba(189, 115, 56, 0.55);
+}
+
+/* Hors podium : ton effacé, sans relief, pour bien marquer la différence. */
+.pb-rank--normal {
+    color: rgba(226, 232, 240, 0.5);
+    background: rgba(255, 255, 255, 0.06);
+    font-weight: 700;
+}
+
+/* ── Déconnexion (haut-gauche) ────────────────────────────────────────────── */
+.pb--disconnected .pb-avatar {
+    filter: grayscale(0.85) brightness(0.65);
+}
+
+.pb-disconnect {
+    position: absolute;
+    top: 6%;
+    left: 2%;
+    z-index: 4;
+    width: calc(var(--pb-size) * 0.27);
+    height: calc(var(--pb-size) * 0.27);
+    border-radius: 50%;
+    background: #ef4444;
+    border: 2px solid #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+    animation: pbPulse 1.6s ease-in-out infinite;
+}
+
+.pb-disconnect svg {
+    width: 62%;
+    height: 62%;
+}
+
+@keyframes pbPulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    50% {
+        transform: scale(1.08);
+        opacity: 0.78;
+    }
+}
+
+@keyframes pbRingPulse {
+
+    0%,
+    100% {
+        opacity: 1;
+        filter: drop-shadow(0 0 3px currentColor);
+    }
+
+    50% {
+        opacity: 0.7;
+        filter: drop-shadow(0 0 8px currentColor);
+    }
+}
