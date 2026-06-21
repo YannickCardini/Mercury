@@ -44,14 +44,14 @@ export class AppComponent implements OnInit {
 
     // Handle session replaced by another tab (close code 4001)
     this.gameStateService.sessionReplaced$.subscribe(() => {
-      this.toast.show("Partie reprise dans un autre onglet.");
+      this.toast.show("Game resumed in another tab.");
       this.router.navigate(["/home"]);
     });
 
     // Handle game abandoned (all human players left)
     this.gameStateService.gameAbandoned$.subscribe(() => {
       this.toast.show(
-        "La partie a été annulée : plus aucun joueur connecté.",
+        "The game was cancelled: no players connected.",
         "error",
         4000
       );

@@ -16,19 +16,24 @@ export const GRID_SIZE = 15;
 
 // ── Cases à afficher (chemin + zones spéciales) ───────────────────────────────
 // Toutes les cases non listées ici sont cachées (case-hidden).
+// Computed dynamically from MAIN_PATH, HOME_POSITIONS, and ARRIVAL_POSITIONS.
 
-export const SQUARES_TO_DISPLAY: number[] = [
-  3, 6, 7, 8, 9, 10, 13, 18, 21, 25, 28, 33,
-  36, 38, 40, 43, 48, 51, 53, 55, 58, 66, 68,
-  70, 76, 77, 78, 79, 80, 81, 83, 85, 86, 87,
-  88, 89, 90, 91, 105, 106, 108, 109, 110,
-  111, 115, 116, 117, 118, 120, 121, 135,
-  136, 137, 138, 139, 140, 141, 143, 145,
-  146, 147, 148, 149, 150, 156, 158, 160,
-  168, 171, 173, 175, 178, 183, 186, 188,
-  190, 193, 198, 201, 205, 208, 213, 216,
-  217, 218, 219, 220, 223, 231,
-];
+function computeSquaresToDisplay(): number[] {
+  const squares = new Set<number>();
+
+  MAIN_PATH.forEach((sq) => squares.add(sq));
+
+  Object.values(HOME_POSITIONS).forEach((positions) => {
+    positions.forEach((sq) => squares.add(sq));
+  });
+
+  Object.values(ARRIVAL_POSITIONS).forEach((positions) => {
+    positions.forEach((sq) => squares.add(sq));
+  });
+
+  return Array.from(squares).sort((a, b) => a - b);
+}
+
 
 // ── Chemin principal ──────────────────────────────────────────────────────────
 // Ordre de parcours des cases du chemin commun (sens de déplacement des pions).
@@ -44,10 +49,11 @@ export const MAIN_PATH: number[] = [
 // Positions initiales des 4 pions d'un joueur, avant d'entrer en jeu.
 
 export const HOME_POSITIONS: Record<MarbleColor, number[]> = {
-  red: [3, 18, 33, 48],
-  green: [13, 28, 43, 58],
-  blue: [178, 193, 208, 223],
-  orange: [168, 183, 198, 213],
+  red: [14, 15, 29, 30],
+  green: [209, 210, 224, 225],
+  blue: [196, 197, 211, 212],
+  orange: [1, 2, 16, 17],
+
 };
 
 // ── Cases d'entrée en jeu (start) ─────────────────────────────────────────────
@@ -75,10 +81,10 @@ export const ARRIVAL_POSITIONS: Record<MarbleColor, number[]> = {
 // Cases de la grille utilisées pour afficher les panneaux joueur dans le HTML.
 
 export const PLAYER_INFO_STARTS: Record<number, MarbleColor> = {
-  61: 'red',
-  71: 'green',
-  151: 'orange',
-  161: 'blue',
+  61: 'orange',
+  71: 'red',
+  151: 'blue',
+  161: 'green',
 };
 
 // ── Cases ignorées dans le rendu ──────────────────────────────────────────────
@@ -90,6 +96,8 @@ export const SKIPPED_INDICES: number[] = [
   152, 153, 154, 155,
   162, 163, 164, 165,
 ];
+
+export const SQUARES_TO_DISPLAY: number[] = computeSquaresToDisplay();
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
