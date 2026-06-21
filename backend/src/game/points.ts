@@ -16,17 +16,21 @@
 
 /** Winner gain is clamped to this inclusive range. */
 const WIN_MIN = 1;
-const WIN_MAX = 8;
+const WIN_MAX = 6;
 /** Loser loss is clamped to this inclusive range (negative). */
-const LOSS_MIN = -8;
+const LOSS_MIN = -6;
 const LOSS_MAX = -1;
-/** Elo-style scaling factors. */
-const K_WIN = WIN_MAX;   // 6 — full gain when the field is far stronger
-const K_LOSS = 8;        // spread losses across the full [-8, -1] range so the
-                         // opponents' strength actually matters: losing when you
-                         // were the favourite (expected → 1) hurts up to -8, while
-                         // losing to a much stronger field (expected → 0) costs as
-                         // little as -1. A neutral field (expected 0.5) costs -4.
+/**
+ * Elo-style scaling factor (K = 6).
+ *
+ * With K = 6 the swing at equal ratings equals K * 0.5 = 3 (target average).
+ * As the rating gap grows, the Elo expectation deviates from 0.5 and the swing
+ * grows logarithmically: ≈ 4 around a 150-pt gap, ≈ 5 around 300 pts, ≈ 6
+ * beyond ~600 pts — matching the intended progression.
+ * Using the same K for wins and losses keeps the formula symmetric.
+ */
+const K_WIN = 6;
+const K_LOSS = 6;
 
 export interface PlayerRating {
   userId: string;
