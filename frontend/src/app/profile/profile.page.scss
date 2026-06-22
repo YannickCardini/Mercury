@@ -1,10 +1,5 @@
 @use "sass:color";
-
-$c-gold: #f0c040;
-$c-silver: #94a3b8;
-$c-blue: #3b82f6;
-$bg-dark: #0f172a;
-$bg-mid: #1a2840;
+@use "../styles/palette" as *; // palette « Système solaire » centralisée
 
 :host {
   display: block;
@@ -16,7 +11,7 @@ $bg-mid: #1a2840;
   width: 100%;
   min-height: 100%;
   box-sizing: border-box;
-  background: radial-gradient(ellipse at 50% 30%, $bg-mid 0%, $bg-dark 80%);
+  background: transparent; // fond spatial global visible à travers la page
   display: flex;
   justify-content: center;
   align-items: flex-start;

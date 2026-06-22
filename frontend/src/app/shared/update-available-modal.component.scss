@@ -1,9 +1,5 @@
 @use "sass:color";
-
-$c-red:    #dc2626;
-$c-green:  #22c55e;
-$c-blue:   #3b82f6;
-$c-orange: #fb923c;
+@use "../styles/palette" as *; // palette « Système solaire » centralisée
 
 // ─── Overlay ──────────────────────────────────────────────────────────────────
 // z-index volontairement au-dessus de tout (rules-overlay = 200) pour qu'il

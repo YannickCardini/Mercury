@@ -1,13 +1,5 @@
 @use "sass:color";
-
-// ─── Palette ──────────────────────────────────────────────────────────────────
-$c-red: #dc2626;
-$c-green: #22c55e;
-$c-blue: #3b82f6;
-$c-orange: #fb923c;
-$c-gold: #f0c040;
-$bg-dark: #0f172a;
-$bg-mid: #1a2840;
+@use "../styles/palette" as *; // palette « Système solaire » centralisée
 
 // ─── Host ────────────────────────────────────────────────────────────────────
 :host {
@@ -17,7 +9,7 @@ $bg-mid: #1a2840;
 }
 
 .home-content {
-  background: $bg-dark;
+  background: transparent; // laisse voir le fond spatial global
   overflow: hidden;
   width: 100%;
   height: 100%;
@@ -31,7 +23,7 @@ $bg-mid: #1a2840;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: radial-gradient(ellipse at 50% 35%, $bg-mid 0%, $bg-dark 80%);
+  background: transparent; // fond spatial global visible à travers la page
 
   // Grid pattern
   &::before {

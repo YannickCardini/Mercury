@@ -1,0 +1,75 @@
+<div class="space-bg" [class.calm]="calm()" aria-hidden="true">
+  @if (!calm()) {
+  <!-- Nébuleuses colorées qui respirent en arrière-plan -->
+  <div class="nebula nebula--blue"></div>
+  <div class="nebula nebula--violet"></div>
+  <div class="nebula nebula--cyan"></div>
+  <div class="nebula nebula--magenta"></div>
+  <div class="nebula nebula--teal"></div>
+
+  <!-- Quelques planètes discrètes -->
+  <div class="planet planet--giant"></div>
+  <div class="planet planet--ringed">
+    <span class="planet__ring"></span>
+  </div>
+  <div class="planet planet--small"></div>
+  }
+
+  @if (calm()) {
+  <!-- Voie lactée : bande d'étoiles inclinée + halo diffus (route /game) -->
+  <div class="galaxy">
+    <div class="galaxy__glow"></div>
+    <div class="galaxy__dust"></div>
+    <div class="galaxy__stars" [style.box-shadow]="galaxyStars()"></div>
+  </div>
+
+  <!-- Couche d'étoiles supplémentaire pour densifier le ciel de la partie -->
+  <div class="stars stars--calm" [style.box-shadow]="calmStars()"></div>
+  }
+
+  <!-- Trois couches d'étoiles : la dérive très lente crée un effet de parallaxe -->
+  <div class="stars stars--small" [style.box-shadow]="starsSmall()"></div>
+  <div class="stars stars--medium" [style.box-shadow]="starsMedium()"></div>
+  <div class="stars stars--large" [style.box-shadow]="starsLarge()"></div>
+
+  <!-- Une poignée d'étoiles qui scintillent légèrement -->
+  @for (t of twinkles(); track $index) {
+  <span
+    class="twinkle"
+    [style.top.%]="t.top"
+    [style.left.%]="t.left"
+    [style.width.px]="t.size"
+    [style.height.px]="t.size"
+    [style.animation-delay.s]="t.delay"
+    [style.animation-duration.s]="t.duration"></span>
+  }
+
+  @if (!calm()) {
+  <!-- Étoiles filantes occasionnelles -->
+  <div class="shooting-star shooting-star--1"></div>
+  <div class="shooting-star shooting-star--2"></div>
+  <div class="shooting-star shooting-star--3"></div>
+  }
+
+  <!-- Vaisseau : apparition aléatoire et rare (piloté en TS), hors mode calme -->
+  @if (!calm() && ship(); as s) {
+  <div
+    class="spaceship"
+    [class.spaceship--rtl]="!s.ltr"
+    [style.top.%]="s.top"
+    [style.animation-duration.ms]="s.duration">
+    <svg viewBox="0 0 64 24" width="100%" height="100%" fill="none">
+      <!-- Traînée de réacteur -->
+      <path class="spaceship__trail" d="M2 12 H22" stroke-linecap="round" />
+      <!-- Coque -->
+      <path
+        d="M20 12 C28 6, 44 6, 56 12 C44 18, 28 18, 20 12 Z"
+        fill="#8fa6cf" />
+      <!-- Cockpit -->
+      <ellipse cx="42" cy="11" rx="6" ry="3" fill="#bfe3ff" opacity="0.9" />
+      <!-- Aileron -->
+      <path d="M24 12 L18 4 L28 10 Z" fill="#5d749e" />
+    </svg>
+  </div>
+  }
+</div>

@@ -1,4 +1,5 @@
 @use "sass:color";
+@use "../../../styles/palette" as *; // palette « Système solaire » centralisée
 
 :host {
     display: flex;
@@ -7,17 +8,6 @@
     width: 100%;
     height: 100%;
 }
-
-/* ─────────────────────────────────────────────────────────────
-   VARIABLES THÈME
-   ───────────────────────────────────────────────────────────── */
-$c-red: #dc2626;
-$c-green: #22c55e;
-$c-blue: #3b82f6;
-$c-orange: #fb923c;
-$c-gold: #f0c040;
-$bg-dark: #0f172a;
-$bg-mid: #1e2d45;
 /* --- Variables et Couleurs --- */
 $colors: (
     "red": #dc2626,

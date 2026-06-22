@@ -1,0 +1,410 @@
+// ─── Fond spatial global ─────────────────────────────────────────────────────
+// Couleurs alignées sur la palette de l'app ($bg-dark #0f172a / $bg-mid #1a2840).
+$space-deep: #05070f;
+$space-mid: #0f172a;
+$space-glow: #1a2840;
+
+:host {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  display: block;
+  pointer-events: none;
+  overflow: hidden;
+  // Base : ciel profond, légèrement plus clair vers le haut.
+  background:
+    radial-gradient(ellipse at 50% 0%, $space-glow 0%, $space-mid 45%, $space-deep 100%);
+}
+
+.space-bg {
+  position: absolute;
+  inset: 0;
+}
+
+// ─── Nébuleuses ──────────────────────────────────────────────────────────────
+.nebula {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  opacity: 0.35;
+  mix-blend-mode: screen;
+  will-change: transform, opacity;
+}
+
+.nebula--blue {
+  top: -10%;
+  left: -5%;
+  width: 60vw;
+  height: 60vw;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.55), transparent 70%);
+  animation: nebula-drift-a 380s ease-in-out infinite;
+}
+
+.nebula--violet {
+  bottom: -15%;
+  right: -10%;
+  width: 70vw;
+  height: 70vw;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.45), transparent 70%);
+  animation: nebula-drift-b 460s ease-in-out infinite;
+}
+
+.nebula--cyan {
+  top: 35%;
+  right: 20%;
+  width: 45vw;
+  height: 45vw;
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.35), transparent 70%);
+  animation: nebula-drift-a 520s ease-in-out infinite reverse;
+}
+
+.nebula--magenta {
+  top: 5%;
+  right: 5%;
+  width: 50vw;
+  height: 50vw;
+  background: radial-gradient(circle, rgba(217, 70, 160, 0.32), transparent 70%);
+  animation: nebula-drift-b 600s ease-in-out infinite;
+}
+
+.nebula--teal {
+  bottom: 0%;
+  left: 25%;
+  width: 55vw;
+  height: 55vw;
+  background: radial-gradient(circle, rgba(45, 212, 160, 0.26), transparent 72%);
+  animation: nebula-drift-a 680s ease-in-out infinite reverse;
+}
+
+@keyframes nebula-drift-a {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.30; }
+  50% { transform: translate(4vw, 3vh) scale(1.15); opacity: 0.45; }
+}
+
+@keyframes nebula-drift-b {
+  0%, 100% { transform: translate(0, 0) scale(1.05); opacity: 0.25; }
+  50% { transform: translate(-5vw, -2vh) scale(0.9); opacity: 0.40; }
+}
+
+// ─── Planètes ────────────────────────────────────────────────────────────────
+// Discrètes : faible opacité, contour adouci, dérive très lente. Le dégradé
+// décentré simule une lumière rasante venant du même point que les nébuleuses.
+.planet {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0.5;
+  will-change: transform;
+}
+
+// Géante gazeuse bleutée, en haut à droite.
+.planet--giant {
+  top: 8%;
+  right: 8%;
+  width: 130px;
+  height: 130px;
+  background: radial-gradient(
+    circle at 32% 28%,
+    #6b8cce 0%,
+    #38507e 45%,
+    #1c2944 75%,
+    #131c30 100%
+  );
+  box-shadow:
+    inset -12px -10px 30px rgba(0, 0, 0, 0.55),
+    0 0 50px rgba(59, 130, 246, 0.18);
+  animation: planet-float 60s ease-in-out infinite;
+}
+
+// Planète à anneaux, en bas à gauche.
+.planet--ringed {
+  bottom: 14%;
+  left: 6%;
+  width: 80px;
+  height: 80px;
+  background: radial-gradient(
+    circle at 35% 30%,
+    #c9a77a 0%,
+    #9c7d52 45%,
+    #5e4a30 80%,
+    #3a2e1f 100%
+  );
+  box-shadow:
+    inset -8px -6px 20px rgba(0, 0, 0, 0.55),
+    0 0 40px rgba(201, 167, 122, 0.15);
+  animation: planet-float 74s ease-in-out infinite reverse;
+}
+
+.planet__ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 170%;
+  height: 46%;
+  transform: translate(-50%, -50%) rotate(-22deg);
+  border-radius: 50%;
+  border: 4px solid rgba(201, 167, 122, 0.35);
+  border-top-color: transparent;
+  border-bottom-color: rgba(201, 167, 122, 0.12);
+  box-sizing: border-box;
+}
+
+// Petite planète rougeâtre, à mi-hauteur à gauche.
+.planet--small {
+  top: 58%;
+  left: 18%;
+  width: 42px;
+  height: 42px;
+  opacity: 0.4;
+  background: radial-gradient(
+    circle at 35% 30%,
+    #c97a6b 0%,
+    #8e4e42 50%,
+    #4a2620 100%
+  );
+  box-shadow: inset -5px -4px 12px rgba(0, 0, 0, 0.55);
+  animation: planet-float 52s ease-in-out infinite;
+}
+
+@keyframes planet-float {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(0, -14px); }
+}
+
+// ─── Champs d'étoiles ────────────────────────────────────────────────────────
+// Une seule div par couche : le `box-shadow` (injecté depuis le TS) sème des
+// centaines de points. Le pseudo-élément ::after duplique la couche 2000px plus
+// bas pour permettre une dérive verticale infinie sans couture.
+.stars {
+  position: absolute;
+  top: 0;
+  left: 0;
+  background: transparent;
+  border-radius: 50%;
+  will-change: transform;
+
+  &::after {
+    content: "";
+    position: absolute;
+    top: 2000px;
+    left: 0;
+    width: inherit;
+    height: inherit;
+    border-radius: inherit;
+    background: transparent;
+    box-shadow: inherit;
+  }
+}
+
+// Dérive volontairement très lente (quasi imperceptible). Le léger écart de
+// vitesse entre couches préserve une infime sensation de parallaxe.
+.stars--small {
+  width: 1px;
+  height: 1px;
+  animation: stars-drift 2400s linear infinite;
+}
+
+.stars--medium {
+  width: 2px;
+  height: 2px;
+  animation: stars-drift 1800s linear infinite;
+}
+
+.stars--large {
+  width: 3px;
+  height: 3px;
+  animation: stars-drift 1300s linear infinite;
+}
+
+// Couche dédiée au mode calme (/game) : statique et un peu plus marquée.
+.stars--calm {
+  width: 1.6px;
+  height: 1.6px;
+}
+
+@keyframes stars-drift {
+  from { transform: translateY(0); }
+  to { transform: translateY(-2000px); }
+}
+
+// Mode calme (/game) : ciel stable, seules quelques étoiles scintillent.
+.space-bg.calm {
+  // Léger voile lumineux pour un ciel un peu moins sombre.
+  background: radial-gradient(ellipse at 50% 38%, rgba(34, 50, 84, 0.45), transparent 75%);
+
+  .stars {
+    animation: none;
+  }
+}
+
+// ─── Étoiles scintillantes ───────────────────────────────────────────────────
+// Seule une poignée d'étoiles clignote, et très doucement.
+.twinkle {
+  position: absolute;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.8);
+  opacity: 0.5;
+  will-change: opacity, transform;
+  animation: twinkle ease-in-out infinite;
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.35; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+
+// ─── Galaxie (Voie lactée, mode calme /game) ─────────────────────────────────
+// Bande d'étoiles concentrée (générée en TS) + halo diffus, inclinée en diagonale.
+.galaxy {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2600px;
+  height: 2600px;
+  margin: -1300px 0 0 -1300px; // recentre le champ de 2600×2600
+  transform: rotate(-28deg);
+  opacity: 1;
+  pointer-events: none;
+}
+
+// Lueur colorée diffuse le long de la bande.
+.galaxy__glow {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 560px;
+  transform: translateY(-50%);
+  background:
+    radial-gradient(ellipse 60% 50% at 50% 50%, rgba(160, 190, 255, 0.22), transparent 70%),
+    radial-gradient(ellipse 28% 60% at 36% 50%, rgba(190, 170, 255, 0.16), transparent 70%),
+    radial-gradient(ellipse 28% 60% at 64% 50%, rgba(130, 210, 240, 0.16), transparent 70%);
+  filter: blur(26px);
+}
+
+// Voile sombre : évoque les bandes de poussière qui traversent la Voie lactée.
+.galaxy__dust {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 110px;
+  transform: translateY(-35%) rotate(2deg);
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(5, 7, 15, 0.5) 28%,
+    rgba(5, 7, 15, 0.55) 60%,
+    transparent
+  );
+  filter: blur(16px);
+}
+
+.galaxy__stars {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  background: transparent;
+  border-radius: 50%;
+}
+
+// ─── Étoiles filantes ────────────────────────────────────────────────────────
+.shooting-star {
+  position: absolute;
+  width: 120px;
+  height: 1.5px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.9), transparent);
+  border-radius: 999px;
+  opacity: 0;
+  transform: rotate(-35deg);
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.6));
+  will-change: transform, opacity;
+}
+
+.shooting-star--1 {
+  top: 12%;
+  left: 70%;
+  animation: shoot 48s ease-in infinite;
+}
+
+.shooting-star--2 {
+  top: 30%;
+  left: 85%;
+  animation: shoot 67s ease-in infinite 22s;
+}
+
+.shooting-star--3 {
+  top: 5%;
+  left: 45%;
+  animation: shoot 89s ease-in infinite 50s;
+}
+
+@keyframes shoot {
+  0% { transform: rotate(-35deg) translateX(0); opacity: 0; }
+  // Fenêtre très courte rapportée à un long cycle : passages bien plus rares.
+  1% { opacity: 1; }
+  4% { transform: rotate(-35deg) translateX(-520px); opacity: 0; }
+  100% { transform: rotate(-35deg) translateX(-520px); opacity: 0; }
+}
+
+// ─── Vaisseau ────────────────────────────────────────────────────────────────
+// L'élément n'est présent dans le DOM que pendant la traversée (cf. TS), donc
+// l'animation se joue une seule fois, du bord d'écran au bord opposé.
+.spaceship {
+  position: absolute;
+  left: 0;
+  width: 56px;
+  height: 22px;
+  opacity: 0;
+  filter: drop-shadow(0 0 6px rgba(143, 166, 207, 0.5));
+  will-change: transform, opacity;
+  animation-name: spaceship-ltr;
+  animation-timing-function: linear;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
+
+// Sens inverse : on rejoue l'autre keyframe et on retourne le SVG.
+.spaceship--rtl {
+  animation-name: spaceship-rtl;
+
+  svg {
+    transform: scaleX(-1);
+  }
+}
+
+.spaceship__trail {
+  stroke: rgba(191, 227, 255, 0.7);
+  stroke-width: 2;
+}
+
+@keyframes spaceship-ltr {
+  0% { transform: translateX(-20vw); opacity: 0; }
+  12% { opacity: 0.7; }
+  88% { opacity: 0.7; }
+  100% { transform: translateX(120vw); opacity: 0; }
+}
+
+@keyframes spaceship-rtl {
+  0% { transform: translateX(120vw); opacity: 0; }
+  12% { opacity: 0.7; }
+  88% { opacity: 0.7; }
+  100% { transform: translateX(-20vw); opacity: 0; }
+}
+
+// Respect des préférences d'accessibilité : on fige les animations.
+@media (prefers-reduced-motion: reduce) {
+  .nebula,
+  .planet,
+  .twinkle,
+  .stars,
+  .stars::after,
+  .shooting-star,
+  .spaceship {
+    animation: none !important;
+  }
+  .shooting-star,
+  .spaceship { opacity: 0; }
+}

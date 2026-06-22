@@ -14,6 +14,7 @@ import { AuthService } from "./services/auth.service";
 import { ActiveGameService } from "./services/active-game.service";
 import { ToastService } from "./shared/toast.service";
 import { UpdateAvailableModalComponent } from "./shared/update-available-modal.component";
+import { SpaceBackgroundComponent } from "./shared/space-background.component";
 import { environment } from "../environments/environment";
 import { StatusBar } from "@capacitor/status-bar";
 
@@ -21,7 +22,11 @@ import { StatusBar } from "@capacitor/status-bar";
   selector: "app-root",
   templateUrl: "app.component.html",
   changeDetection: ChangeDetectionStrategy.Eager,
-  imports: [RouterOutlet, UpdateAvailableModalComponent],
+  imports: [
+    RouterOutlet,
+    UpdateAvailableModalComponent,
+    SpaceBackgroundComponent,
+  ],
 })
 export class AppComponent implements OnInit {
   private gameStateService = inject(GameStateService);

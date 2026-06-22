@@ -1,0 +1,40 @@
+// ═══════════════════════════════════════════════════════════════════════════
+//  Palette « Système solaire » — thème partagé
+// ───────────────────────────────────────────────────────────────────────────
+//  Source unique de vérité pour les couleurs de l'app. Chaque page fait :
+//      @use "../styles/palette" as *;
+//  et utilise directement $c-green, $bg-dark, etc. (rôles sémantiques
+//  conservés, teintes ré-habillées en tons « planètes »).
+//
+//  Mapping rôle → planète :
+//    Jouer        → Terre    (émeraude)
+//    Partie perso → Mars     (rouille)
+//    Classement   → Saturne  (or sable)
+//    Accent/lien  → Neptune  (azur)
+//    Danger       → Mars vif (rouge braise)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ─── Teintes planètes (noms sémantiques explicites) ──────────────────────────
+$p-earth:   #2dd4a0; // Terre   — action principale « Jouer »
+$p-mars:    #d9603e; // Mars    — action secondaire « Partie perso »
+$p-saturn:  #e0b15a; // Saturne — classement / récompenses
+$p-neptune: #4f8cff; // Neptune — accent, liens, surbrillance
+$p-venus:   #f0a850; // Vénus   — ambre chaud (accents tertiaires)
+$p-nebula:  #8b5cf6; // Nébuleuse violette
+$p-moon:    #b8c4d8; // Lune    — argenté froid
+$p-mars-bright: #e0533d; // Mars vif — danger / destructif
+
+// ─── Alias hérités ($c-*) — pointent vers les teintes planètes ───────────────
+// Permet de centraliser sans réécrire toutes les références existantes.
+$c-green:  $p-earth;       // ex-#22c55e
+$c-orange: $p-mars;        // ex-#fb923c
+$c-gold:   $p-saturn;      // ex-#f0c040
+$c-blue:   $p-neptune;     // ex-#3b82f6
+$c-red:    $p-mars-bright; // ex-#dc2626 / #ef4444
+$c-purple: $p-nebula;
+$c-silver: $p-moon;        // ex-#94a3b8 / #cbd5e1
+$c-bronze: #cd7f32;        // inchangé (médailles)
+
+// ─── Fonds (alignés sur le fond spatial app-space-background) ─────────────────
+$bg-dark: #0f172a; // ciel profond
+$bg-mid:  #1a2840; // halo central
