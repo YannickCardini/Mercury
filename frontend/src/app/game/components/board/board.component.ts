@@ -800,7 +800,8 @@ export class BoardComponent implements OnInit, OnDestroy {
     // Un pion actuellement sélectionnable (ex. second pion valide d'un split 7
     // qui ne peut pas initier un coup seul) ne doit jamais être grisé.
     if (this.isSelectableMarble(index)) return false;
-    return this.getMarbleOnSquare(index) === this.gameStateService.myPlayerColor() && !playable.has(index);
+    // Tout pion non sélectionnable est atténué — y compris les pions adverses.
+    return this.getMarbleOnSquare(index) !== null;
   }
 
   onMarbleClick(index: number): void {

@@ -8,6 +8,7 @@
     width: 100%;
     height: 100%;
 }
+
 /* --- Variables et Couleurs --- */
 $colors: (
     "red": #dc2626,
@@ -137,34 +138,39 @@ $colors: (
     }
 }
 
-/* --- Design des Pions (Billes 3D CSS) --- */
+/* --- Design des Pions (SVG pixel-art par couleur) ---
+   Le SVG (viewBox 44×92) représente un pion vu de 3/4 : tête en haut, base
+   évasée en bas. La base atteint la pleine largeur du viewBox (x 0→44), donc en
+   calant la largeur du pion sur celle de la case circulaire, sa base remplit
+   pile une case. Le corps dépasse vers le haut (ratio 44/92 ≈ pion haut de ~2
+   cases) et se superpose naturellement à la rangée du dessus. */
 .marble {
     position: absolute;
+    left: 12%;
+    /* Cale la base (centre ≈ 76,5 % de la hauteur du SVG) sur le centre de la
+       case : top = (0,5 − 92/44 × 0,765) ≈ −110 % de la hauteur de case. */
+    top: -75%;
     width: 80%;
-    height: 80%;
-    border-radius: 50%;
-    z-index: 10;
-    border: 2.5px solid rgba(255, 255, 255, 0.9);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5), inset -2px -2px 6px rgba(0, 0, 0, 0.3);
+    aspect-ratio: 47 / 92;
+    height: auto;
+    z-index: 100;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 100% 100%;
     cursor: default;
     -webkit-tap-highlight-color: transparent;
     user-select: none;
     -webkit-user-select: none;
     outline: none;
 
+    /* Reflet brillant des anciennes billes CSS : inutile pour le pion SVG. */
     .marble-highlight {
-        position: absolute;
-        top: 15%;
-        left: 15%;
-        width: 30%;
-        height: 30%;
-        border-radius: 50%;
-        background: radial-gradient(circle, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0) 70%);
+        display: none;
     }
 
     @each $name, $hex in $colors {
         &.marble-#{$name} {
-            background: radial-gradient(circle at 35% 35%, color.adjust($hex, $lightness: 20%), $hex 60%, color.adjust($hex, $lightness: -20%));
+            background-image: url("/assets/icon/pawn-#{$name}.svg");
         }
     }
 
@@ -1006,28 +1012,38 @@ $colors: (
 
 
 
-@keyframes marblePulse {
-
-    0%,
-    100% {
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5), inset -2px -2px 6px rgba(0, 0, 0, 0.3),
-            0 0 0 0 rgba(255, 255, 255, 0.6);
-    }
-
-    50% {
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5), inset -2px -2px 6px rgba(0, 0, 0, 0.3),
-            0 0 0 5px rgba(255, 255, 255, 0);
-    }
-}
-
 .marble.marble-selectable {
     cursor: pointer;
     z-index: 20;
-    animation: marblePulse 1.4s ease-in-out infinite;
 
     &:hover {
         transform: scale(1.15);
-        filter: brightness(1.25);
+        filter: brightness(1.2);
+    }
+}
+
+/* En mode tutoriel (hint 'marble'), les pions jouables reçoivent le même
+   contour/halo jaune pulsant que l'état sélectionné, appliqué directement
+   sur l'élément .marble pour que drop-shadow suive la silhouette du SVG. */
+@keyframes tutorialMarblePulse {
+
+    0%,
+    100% {
+        filter:
+            drop-shadow(1.5px 0 0 rgba(255, 211, 77, 0.9)) drop-shadow(-1.5px 0 0 rgba(255, 211, 77, 0.9)) drop-shadow(0 1.5px 0 rgba(255, 211, 77, 0.9)) drop-shadow(0 -1.5px 0 rgba(255, 211, 77, 0.9)) drop-shadow(0 0 4px rgba(255, 211, 77, 0.5));
+    }
+
+    50% {
+        filter:
+            drop-shadow(1.5px 0 0 rgba(255, 211, 77, 1)) drop-shadow(-1.5px 0 0 rgba(255, 211, 77, 1)) drop-shadow(0 1.5px 0 rgba(255, 211, 77, 1)) drop-shadow(0 -1.5px 0 rgba(255, 211, 77, 1)) drop-shadow(0 0 10px rgba(255, 211, 77, 0.85));
+    }
+}
+
+.board-container.tutorial-marble .marble.marble-selectable {
+    animation: tutorialMarblePulse 1.3s ease-in-out infinite;
+
+    &:hover {
+        transform: scale(1.15);
     }
 }
 
@@ -1132,7 +1148,8 @@ $colors: (
     }
 }
 
-/* Lévitation et halo lumineux quand le pion est sélectionné */
+/* Lévitation quand le pion est sélectionné (transform uniquement → cohabite avec
+   la pulsation du halo, qui n'anime que `filter`). */
 @keyframes levitateSelected {
 
     0%,
@@ -1145,19 +1162,35 @@ $colors: (
     }
 }
 
+/* Contour + halo jaune qui épousent la silhouette du SVG. La couleur passe par
+   --pawn-outline pour que le 2ᵉ pion d'un split de 7 puisse la surcharger en or
+   sans dupliquer le keyframe. */
+@keyframes selectedGlow {
+
+    0%,
+    100% {
+        filter:
+            brightness(1.1) drop-shadow(1.5px 0 0 var(--pawn-outline)) drop-shadow(-1.5px 0 0 var(--pawn-outline)) drop-shadow(0 1.5px 0 var(--pawn-outline)) drop-shadow(0 -1.5px 0 var(--pawn-outline)) drop-shadow(0 0 4px var(--pawn-outline));
+    }
+
+    50% {
+        filter:
+            brightness(1.15) drop-shadow(1.5px 0 0 var(--pawn-outline)) drop-shadow(-1.5px 0 0 var(--pawn-outline)) drop-shadow(0 1.5px 0 var(--pawn-outline)) drop-shadow(0 -1.5px 0 var(--pawn-outline)) drop-shadow(0 0 10px var(--pawn-outline));
+    }
+}
+
 .marble.marble-selected {
-    animation: levitateSelected 2s ease-in-out infinite;
+    --pawn-outline: rgba(255, 220, 80, 1);
+    animation: levitateSelected 2s ease-in-out infinite, selectedGlow 1s ease-in-out infinite;
     cursor: pointer;
-    border: 2px solid #ffffff;
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.5), 0 0 15px rgba(255, 255, 255, 0.8);
-    filter: brightness(1.5);
     z-index: 20;
 }
 
-/* Second pion d'un split de 7 : halo doré pour le distinguer du pion principal */
+/* Second pion d'un split de 7 : contour doré (et non jaune) pour le distinguer
+   du pion principal. Appliqué en plus de .marble-selected → seule la couleur du
+   contour change. */
 .marble.marble-selected-split2 {
-    border-color: #fbbf24;
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.5), 0 0 16px rgba(251, 191, 36, 0.9);
+    --pawn-outline: #fbbf24;
 }
 
 /* =========================================
