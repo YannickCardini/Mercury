@@ -64,6 +64,9 @@ export interface SquareAnimation {
   templateUrl: 'board.component.html',
   styleUrls: ['board.component.scss'],
   imports: [IonCol, IonRow, IonGrid, CommonModule, TockCardComponent, PlayerBadgeComponent],
+  // `is-native` : permet d'alléger en CSS les effets coûteux/flashants sur WebView
+  // Android (filtres SVG sur l'anneau-timer des badges).
+  host: { '[class.is-native]': '!isWeb' },
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class BoardComponent implements OnInit, OnDestroy {

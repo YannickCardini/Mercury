@@ -48,6 +48,12 @@ $colors: (
     position: absolute;
     z-index: 16;
     pointer-events: none;
+    /* Couche de composition stable pour le badge : combinée à l'isolation de
+       l'anneau-timer (cf. player-badge), évite que les repaints de l'anneau
+       fassent clignoter l'avatar/la plaque au changement de tour sur mobile. */
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
 }
 
 .player-badge-slot--tl {
