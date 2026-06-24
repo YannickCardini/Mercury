@@ -247,12 +247,11 @@ export class TutorialOverlayComponent implements OnDestroy {
       this.highlights.set([box]);
       this.pill.set({ left: box.cx, top: box.cy - box.height / 2, side: 'above', arrowShift: 0 });
     } else {
-      // 'board' — the board component applies the drop-shadow highlight directly
-      // on .marble-selectable elements (follows SVG silhouette). Only compute
-      // the pill position here; no highlight div needed.
+      // 'board' — outline the selectable marble; place the pill just outside
+      // the player's home corner (the only selectable spot on the first turn).
       const marbles = Array.from(document.querySelectorAll<HTMLElement>('.marble-selectable'));
       if (!marbles.length) return this.clear();
-      this.highlights.set([]);
+      this.highlights.set(marbles.map(el => this.orientedBox(el, 'marble')));
       const myColor = this.gameState.myPlayerColor();
       const homeEls = myColor
         ? Array.from(document.querySelectorAll<HTMLElement>(`.home-${myColor}`))

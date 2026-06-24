@@ -8,16 +8,6 @@ import {
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { NavigationEnd, Router } from "@angular/router";
 import { filter } from "rxjs";
-import { Capacitor } from "@capacitor/core";
-
-/**
- * Sur mobile natif (WebView Android), chaque champ d'étoiles est une `box-shadow`
- * de plusieurs centaines de points, dupliquée par un ::after : la peinture
- * initiale et la mémoire de la couche deviennent vite lourdes. On divise les
- * effectifs par ~3 sur natif (densité encore largement suffisante à l'écran).
- */
-const STAR_DENSITY = Capacitor.isNativePlatform() ? 0.34 : 1;
-const stars = (n: number) => Math.round(n * STAR_DENSITY);
 
 /** État d'un passage de vaisseau (généré aléatoirement à chaque apparition). */
 interface ShipState {
@@ -54,18 +44,18 @@ interface Twinkle {
 })
 export class SpaceBackgroundComponent {
   /** box-shadow listant toutes les étoiles d'une couche (petite / moyenne / grande). */
-  protected readonly starsSmall = signal(this.buildStars(stars(700), 1));
-  protected readonly starsMedium = signal(this.buildStars(stars(200), 1.6));
-  protected readonly starsLarge = signal(this.buildStars(stars(70), 2.4));
+  protected readonly starsSmall = signal(this.buildStars(700, 1));
+  protected readonly starsMedium = signal(this.buildStars(200, 1.6));
+  protected readonly starsLarge = signal(this.buildStars(70, 2.4));
 
   /** Une poignée d'étoiles qui scintillent légèrement. */
   protected readonly twinkles = signal<Twinkle[]>(this.buildTwinkles(9));
 
   /** Étoiles groupées en bande pour dessiner la Voie lactée (mode calme). */
-  protected readonly galaxyStars = signal(this.buildGalaxyStars(stars(820)));
+  protected readonly galaxyStars = signal(this.buildGalaxyStars(820));
 
   /** Couche d'étoiles supplémentaire, propre au mode calme (/game), plus dense. */
-  protected readonly calmStars = signal(this.buildStars(stars(600), 1.2));
+  protected readonly calmStars = signal(this.buildStars(600, 1.2));
 
   /** Vaisseau courant (null = aucun passage en cours). */
   protected readonly ship = signal<ShipState | null>(null);

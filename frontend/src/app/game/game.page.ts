@@ -31,9 +31,6 @@ const LOAD_ERROR_REDIRECT_MS = 3000;
   selector: "app-game",
   templateUrl: "game.page.html",
   styleUrl: "game.page.scss",
-  // `is-native` : allège en CSS les effets coûteux (backdrop-filter) qui flashent
-  // en blanc sur WebView Android lors des recompositions.
-  host: { "[class.is-native]": "isNative" },
   changeDetection: ChangeDetectionStrategy.Eager,
   imports: [
     BoardComponent,
@@ -46,8 +43,6 @@ const LOAD_ERROR_REDIRECT_MS = 3000;
 })
 export class GamePage implements OnDestroy, AfterViewInit {
   @ViewChild(BoardComponent) private boardRef?: BoardComponent;
-
-  readonly isNative = Capacitor.isNativePlatform();
 
   showNewTurnBanner = signal(false);
   showRules = signal(false);

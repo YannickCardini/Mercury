@@ -33,9 +33,9 @@ export const TURN_TIMEOUT_OFFSET_MS = 5000;
 // ── Durées d'animation des pions (ms) ────────────────────────────────────────
 
 export const MARBLE_ANIMATION_DURATIONS: Record<ActionType, number> = {
-  enter: 600,
-  move: 180,    // PAR case ; rejoué à chaque case du trajet
-  capture: 660,
+  enter: 800,
+  move: 200,
+  capture: 800,
   swap: 1200,
   promote: 1000,
   discard: 1000,
@@ -70,28 +70,11 @@ export const ENTER_CARDS: string[] = ['A', 'K', 'Joker'];
 
 // ── Durées d'animation enter+capture (ms) ────────────────────────────────────
 
-/**
- * Durée de l'animation enter+capture (pawnDropSlam) : le pion entrant chute droit
- * sur l'ennemi et l'écrabouille. La victime (pawnCrush) réagit pile au contact via
- * un `animation-delay` interne au CSS — aucun timing JS.
- */
-export const ENTER_CAPTURE_DURATION_MS = 720;
+/** Durée de l'animation d'impact du pion entrant sur la case (squash/rebound). */
+export const ENTER_IMPACT_DURATION_MS = 500;
 
-/**
- * Fractions de fin (× durée de base) des animations de victime, calées sur le
- * contact de l'attaquant. Le client attend ce délai avant de nettoyer la victime.
- *   capture  : pawnKnockout → delay .52 + durée .85 = 1.37
- *   enter+cap: pawnCrush    → delay .56 + durée .67 = 1.23
- */
-export const CAPTURE_VICTIM_END_RATIO = 1.37;
-export const ENTER_CAPTURE_VICTIM_END_RATIO = 1.23;
-
-/**
- * Durée de la réaction (pawnJostle) d'un pion qu'un autre pion survole en passant
- * sur sa case (sans le capturer). Indépendante de la durée du saut : le pion
- * bousculé s'écrase puis se redresse pendant que le sauteur poursuit sa route.
- */
-export const JOSTLE_DURATION_MS = 380;
+/** Durée de l'animation d'éjection du pion ennemi lors d'un enter+capture. */
+export const MARBLE_EJECTED_DURATION_MS = 400;
 
 /** Délai entre chaque carte lors d'un discard (vol en cascade).
  *  Doit correspondre à STAGGER_MS dans board.component.ts > flyDiscardCards. */
@@ -134,10 +117,7 @@ function singleMarbleDuration(
     }
     case 'capture': {
       const steps = mainPathStepCount(from, to);
-      // Les (steps-1) premières cases sont des sauts ; la dernière est l'impact,
-      // dont la victime (pawnKnockout) finit à capture × 1.37.
-      const impact = Math.round(MARBLE_ANIMATION_DURATIONS.capture * CAPTURE_VICTIM_END_RATIO);
-      return (steps - 1) * MARBLE_ANIMATION_DURATIONS.move + impact;
+      return (steps - 1) * MARBLE_ANIMATION_DURATIONS.move + MARBLE_ANIMATION_DURATIONS.capture;
     }
     case 'promote': {
       const startPos = START_POSITIONS[playerColor];
@@ -148,8 +128,9 @@ function singleMarbleDuration(
     }
     case 'enter': {
       if (capturedOnEnter) {
-        // pawnDropSlam + pawnCrush : la victime finit à enter-capture × 1.23.
-        return Math.round(ENTER_CAPTURE_DURATION_MS * ENTER_CAPTURE_VICTIM_END_RATIO);
+        return MARBLE_EJECTED_DURATION_MS
+             + MARBLE_ANIMATION_DURATIONS.enter
+             + ENTER_IMPACT_DURATION_MS;
       }
       return MARBLE_ANIMATION_DURATIONS.enter;
     }

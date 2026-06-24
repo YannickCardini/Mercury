@@ -1,4 +1,4 @@
-<div class="board-container" [style.--square-size.px]="squareSize" [class.card-selected]="isCardSelected()" [class.tutorial-marble]="gameStateService.tutorialHintId() === 'marble'">
+<div class="board-container" [style.--square-size.px]="squareSize" [class.card-selected]="isCardSelected()">
   <ion-grid class="tock-grid">
     @for (row of rows; track row) {
     <ion-row class="tock-row">
@@ -36,11 +36,6 @@
 
   <!-- Rendu d'une bille -->
   <ng-template #marbleCell let-index>
-    <!-- Pion éphémère (victime de capture/enter+capture, ou pion bousculé lors d'un
-         survol) : rendu en plus du pion du modèle pour les faire coexister sur la case. -->
-    @if (getOverlayMarble(index); as overlay) {
-    <div class="marble" [ngClass]="['marble-' + overlay.color, overlay.animClass]"></div>
-    }
     @if (getMarbleOnSquare(index); as marbleColor) {
     <div class="marble" [ngClass]="[
         'marble-' + marbleColor,

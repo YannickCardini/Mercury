@@ -39,8 +39,6 @@ enum TURN_PHASE {
   styleUrl: 'table.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  // `is-native` : désactive en CSS les backdrop-filter coûteux sur WebView Android.
-  host: { '[class.is-native]': 'isNative' },
   imports: [CommonModule, TockCardComponent, EmojiReactionsComponent]
 }) export class TableComponent implements OnInit, OnDestroy {
 
