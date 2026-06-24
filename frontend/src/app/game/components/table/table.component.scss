@@ -452,6 +452,13 @@
     left: 0;
     right: 0;
     box-sizing: border-box;
+    /* Couche de composition stable : `dashboardActivePulse` (tour actif) anime le
+       box-shadow, ce qui repeint le footer à chaque frame. Sans couche dédiée, ce
+       repaint fait clignoter le footer sur Android. translateZ(0) l'isole pour que
+       le repaint reste confiné à son backing store. */
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
 
     &.turn-inactive {
         opacity: 0.45;
@@ -1470,5 +1477,30 @@
         font-size: 0.85rem;
         line-height: 1.3;
         color: rgba(255, 255, 255, 0.78);
+    }
+}
+/* =========================================
+   MOBILE NATIF (Capacitor / WebView Android)
+   -----------------------------------------
+   `backdrop-filter` re-échantillonne et refloute tout le fond (champ d'étoiles)
+   à chaque frame d'animation et flashe en blanc lors des recompositions. Tous
+   les panneaux concernés ont déjà un fond ≥ 75 % opaque : on retire le filtre
+   (et on opacifie le footer, légèrement translucide) sans perte visible.
+   ========================================= */
+:host(.is-native) {
+    .turn-phase,
+    .control-dashboard,
+    .menu-trigger,
+    .menu-dropdown,
+    .timeout-banner,
+    .seven-split-bar,
+    .resign-overlay,
+    .card-help-popover {
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+    }
+
+    .control-dashboard {
+        background: rgba(15, 23, 42, 0.97);
     }
 }

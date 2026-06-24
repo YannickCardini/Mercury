@@ -38,8 +38,14 @@
     inset: 0;
     width: 100%;
     height: 100%;
-    /* Démarre le vidage depuis le haut. */
-    transform: rotate(-90deg);
+    /* Démarre le vidage depuis le haut. translateZ(0) isole l'anneau sur SA
+       propre couche de composition : l'anneau du joueur courant se repeint en
+       continu (dashoffset/couleur/filtre chaque seconde, et fortement au
+       handover). Sans cette isolation, ces repaints salissent toute la couche du
+       badge → l'avatar + la plaque clignotent sur Android au changement de tour. */
+    transform: rotate(-90deg) translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
     overflow: visible;
     z-index: 1;
 }
@@ -56,7 +62,12 @@
     stroke-width: 5.5;
     stroke-linecap: round;
     opacity: 0.5;
-    transition: stroke-dashoffset 1s linear, stroke 0.4s ease, opacity 0.4s ease;
+    /* Filtre TOUJOURS présent (transparent au repos) : passer le tour à un joueur
+       ne fait alors que changer la *valeur* du drop-shadow, et non basculer le
+       filtre de absent→présent. Cette bascule créait/détruisait une couche de
+       composition et faisait clignoter le badge entier sur Android. */
+    filter: drop-shadow(0 0 4px transparent);
+    transition: stroke-dashoffset 1s linear, stroke 0.4s ease, opacity 0.4s ease, filter 0.4s ease;
 }
 
 .pb--current .pb-ring-arc {
@@ -262,5 +273,38 @@
     50% {
         opacity: 0.7;
         filter: drop-shadow(0 0 8px currentColor);
+    }
+}
+
+/* ── Mobile natif (WebView Android) ───────────────────────────────────────────
+   Les filtres SVG (drop-shadow) sur l'anneau se re-rasterisent et font clignoter
+   le badge au changement de tour. On supprime la lueur — la couleur et l'opacité
+   de l'anneau marquent déjà clairement le tour courant — et la pulsation
+   d'urgence se réduit à une variation d'opacité, purement gérée par le
+   compositeur (aucun repaint). */
+:host-context(.is-native) {
+
+    .pb-ring-arc {
+        filter: none;
+    }
+
+    .pb--current .pb-ring-arc {
+        filter: none;
+    }
+
+    .pb--urgent .pb-ring-arc {
+        animation-name: pbRingPulseFlat;
+    }
+}
+
+@keyframes pbRingPulseFlat {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.6;
     }
 }
