@@ -36,8 +36,11 @@ $colors: (
     padding: calc(var(--square-size) * 0.2);
     box-sizing: border-box;
     position: relative;
-    /* Isole le board pour réduire la portée des reflows/repaints sur mobile */
-    contain: layout style paint;
+    /* Isole le board (stacking context + confinement du layout) pour réduire la
+       portée des reflows/repaints sur mobile. PAS de `paint` : les pions sont des
+       SVG hauts qui débordent vers le haut, `paint` les rognerait sur la rangée
+       du dessus. `layout` suffit à garder le contexte d'empilement interne. */
+    contain: layout style;
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -153,7 +156,15 @@ $colors: (
     width: 80%;
     aspect-ratio: 47 / 92;
     height: auto;
-    z-index: 100;
+    /* La base du pion SVG est le pivot de TOUTES les animations : tout scale /
+       translateY pivote sur la base, le pion reste planté sur sa case. */
+    transform-origin: bottom center;
+    /* TOUS les pions partagent le même z-index : leur recouvrement suit alors
+       l'ordre du DOM (rangées de haut en bas), donc un pion d'une rangée basse
+       (= devant) recouvre celui d'une rangée haute (= derrière), quel que soit
+       son propriétaire. Au-dessus du voile « carte sélectionnée » (z-index 15)
+       et sous les animations (capture/slam) qui doivent ressortir. */
+    z-index: 20;
     background-repeat: no-repeat;
     background-position: center;
     background-size: 100% 100%;
@@ -179,299 +190,387 @@ $colors: (
 
 /* ==========================================================================
    ANIMATIONS PAR TYPE D'ACTION
+
+   Pions = SVG hauts pivotant sur leur base (transform-origin: bottom center).
+   Timeline `linear` + `animation-timing-function` PAR keyframe → l'offset d'un
+   keyframe (ex. 52 %) correspond à une fraction de temps RÉELLE, ce qui permet
+   de caler la réaction de la victime pile au contact via `animation-delay`.
+   Durées injectées en JS (injectAnimationDurations) ; fallback ci-dessous.
    ========================================================================== */
 
-/* --------------------------------------------------------------------------
-   ENTER — Le pion entre en jeu : chute depuis le haut avec rebond physique
-   Durée : 800ms
-   -------------------------------------------------------------------------- */
-@keyframes marbleDrop {
+:root {
+    --anim-enter: 600ms;
+    --anim-move: 180ms;
+    /* PAR case ; répété par case parcourue */
+    --anim-capture: 660ms;
+    --anim-enter-capture: 720ms;
+    --anim-jostle: 380ms;
+}
+
+/* ─── ENTER — chute lourde d'un pion en bois qui se plante (aucun rebond) ─── */
+@keyframes pawnEnter {
     0% {
-        transform: translateY(-220%) scale(0.4);
+        transform: translateY(-340%) scaleX(.94) scaleY(1.05);
         opacity: 0;
-        box-shadow: 0 40px 20px rgba(0, 0, 0, 0.3);
+        animation-timing-function: linear;
     }
 
-    55% {
-        transform: translateY(10%) scale(1.08);
+    8% {
+        transform: translateY(-330%) scaleX(.94) scaleY(1.05);
         opacity: 1;
-        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.45);
+        animation-timing-function: cubic-bezier(.5, 0, .96, .4);
     }
 
-    72% {
-        transform: translateY(-8%) scale(0.95);
-        box-shadow: 0 10px 16px rgba(0, 0, 0, 0.35);
+    /* accélère la chute */
+    56% {
+        transform: translateY(0) scaleX(1.2) scaleY(.8) rotate(-1.5deg);
+        /* IMPACT (squash) */
+        filter: brightness(1.03) drop-shadow(0 3px 3px rgba(0, 0, 0, .5));
+        animation-timing-function: cubic-bezier(.18, .9, .3, 1);
     }
 
-    85% {
-        transform: translateY(4%) scale(1.02);
+    73% {
+        transform: translateY(0) scaleX(.97) scaleY(1.04) rotate(1deg);
+        animation-timing-function: ease-out;
+    }
+
+    88% {
+        transform: translateY(0) scaleX(1.02) scaleY(.99) rotate(-.4deg);
+        animation-timing-function: ease-out;
     }
 
     100% {
-        transform: translateY(0%) scale(1);
+        transform: translateY(0) scale(1) rotate(0deg);
         opacity: 1;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5), inset -2px -2px 6px rgba(0, 0, 0, 0.3);
     }
 }
 
 .marble.marble-entering {
-    animation: marbleDrop var(--anim-enter) cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+    animation: pawnEnter var(--anim-enter) linear forwards;
     pointer-events: none;
     will-change: transform, opacity;
 }
 
-/* --------------------------------------------------------------------------
-   ENTER + CAPTURE — Éjection de l'ennemi et impact du pion entrant
-   -------------------------------------------------------------------------- */
+/* Enfoncement de la case calé sur l'impact (56 %) */
+@keyframes squarePress {
 
-/* L'ennemi est violemment éjecté de la case */
-@keyframes marbleEjected {
-    0% {
-        transform: translate(0, 0) scale(1);
-        opacity: 1;
-    }
-
-    30% {
-        transform: translate(20px, -30px) scale(0.8);
-        opacity: 0.6;
-        filter: brightness(1.8) drop-shadow(0 0 8px red);
-    }
-
-    100% {
-        transform: translate(40px, -60px) scale(0.2) rotate(720deg);
-        opacity: 0;
-    }
-}
-
-/* Squash + rebound du pion entrant au moment de l'impact */
-@keyframes marbleEnterImpact {
-    0% {
-        transform: scale(1);
-        filter: brightness(1);
-    }
-
-    20% {
-        transform: scale(1.2, 0.7);
-        filter: brightness(1.6);
-    }
-
-    50% {
-        transform: scale(0.95, 1.05);
-        filter: brightness(1.2);
-    }
-
-    75% {
-        transform: scale(1.04, 0.98);
-    }
-
+    0%,
     100% {
         transform: scale(1);
-        filter: brightness(1);
-    }
-}
-
-/* Onde de choc sur la case à l'impact */
-@keyframes squareEnterImpact {
-    0% {
-        box-shadow: inset 0 0 0 rgba(255, 140, 0, 0), 0 0 0 0 rgba(255, 140, 0, 0.9);
     }
 
-    30% {
-        box-shadow: inset 0 0 20px rgba(255, 140, 0, 0.8), 0 0 0 28px rgba(255, 140, 0, 0);
+    22% {
+        transform: scale(.93);
     }
-
-    100% {
-        box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.2), inset -2px -2px 5px rgba(255, 255, 255, 0.9);
-    }
-}
-
-.marble.marble-ejected {
-    animation: marbleEjected var(--anim-marble-ejected) ease-in forwards;
-    z-index: 25;
-    pointer-events: none;
-    will-change: transform, opacity;
-}
-
-.marble.marble-enter-impact {
-    animation: marbleEnterImpact var(--anim-enter-impact) ease-out forwards;
-    pointer-events: none;
-    will-change: transform, filter;
 }
 
 .case-path.square-enter-impact {
-    animation: squareEnterImpact var(--anim-enter-impact) ease-out forwards;
+    animation: squarePress calc(var(--anim-enter) * .44) ease-out;
+    animation-delay: calc(var(--anim-enter) * .56);
 }
 
-/* --------------------------------------------------------------------------
-   MOVE — Déplacement
-   Durée : 600ms
-   -------------------------------------------------------------------------- */
-@keyframes marbleMove {
+/* ─── MOVE — saut léger PAR case (rejoué à chaque case du trajet) ─── */
+@keyframes pawnHop {
     0% {
-        transform: scale(0.6) translateY(-30%);
-        opacity: 0.5;
-        filter: brightness(1.8);
+        transform: translateY(0) scaleX(1) scaleY(1);
+        animation-timing-function: cubic-bezier(.3, .1, .5, 1);
     }
 
-    45% {
-        transform: scale(1.12) translateY(0);
-        opacity: 1;
-        filter: brightness(1.4);
+    50% {
+        transform: translateY(-32%) scaleX(.96) scaleY(1.05);
+        animation-timing-function: cubic-bezier(.5, 0, .7, 1);
     }
 
-    70% {
-        transform: scale(0.96);
-        filter: brightness(1.1);
+    90% {
+        transform: translateY(0) scaleX(1.07) scaleY(.93);
+        animation-timing-function: ease-out;
     }
 
     100% {
-        transform: scale(1);
-        opacity: 1;
-        filter: brightness(1);
+        transform: translateY(0) scaleX(1) scaleY(1);
     }
 }
 
 .marble.marble-moving {
-    animation: marbleMove var(--anim-move) cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    animation: pawnHop var(--anim-move) linear forwards;
     pointer-events: none;
     will-change: transform;
 }
 
-/* --------------------------------------------------------------------------
-   CAPTURE
-   Durée : 700ms
-   -------------------------------------------------------------------------- */
-/* --------------------------------------------------------------------------
-   CAPTURE (Attaque, Éjection et Onde de choc)
-   -------------------------------------------------------------------------- */
-
-/* L'attaquant saute haut et s'écrase violemment */
-@keyframes marbleSlam {
+/* ─── PASS-OVER — un pion survolé se PENCHE sur le côté pour laisser passer le
+   sauteur, puis se redresse ─── */
+/* Pivote sur sa base (transform-origin: bottom center). Le sauteur est à son
+   apogée vers ~90 ms : le pion est alors déjà incliné. Sa durée (plus longue
+   que le saut) le laisse se redresser une fois le sauteur passé. */
+@keyframes pawnJostle {
     0% {
-        transform: translateY(0) scale(1);
-        filter: brightness(1);
+        transform: translateX(0) rotate(0deg);
+        animation-timing-function: cubic-bezier(.3, .6, .4, 1);
     }
 
-    40% {
-        transform: translateY(-100%) scale(1.2);
-        filter: brightness(1.5);
+    30% {
+        /* se penche pour dégager le passage */
+        transform: translateX(-10%) rotate(-16deg);
+        animation-timing-function: ease-in-out;
     }
 
-    /* Sommet du saut */
-    50% {
-        transform: translateY(-100%) scale(1.2);
+    55% {
+        /* maintient l'inclinaison le temps que le sauteur passe */
+        transform: translateX(-11%) rotate(-17deg);
+        animation-timing-function: cubic-bezier(.3, .5, .35, 1);
     }
 
-    /* Temps de suspension (hang time) */
     80% {
-        transform: translateY(15%) scale(0.85);
+        /* se redresse avec un léger débord de l'autre côté */
+        transform: translateX(2%) rotate(4deg);
+        animation-timing-function: ease-out;
     }
 
-    /* Écrasement (squash) sur la case */
     100% {
-        transform: translateY(0) scale(1);
-        filter: brightness(1);
+        transform: translateX(0) rotate(0deg);
     }
-
-    /* Reprise de forme */
 }
 
-/* La victime prend le coup, flashe, et est éjectée au loin */
-@keyframes marbleKnockout {
+.marble.marble-jostled {
+    animation: pawnJostle var(--anim-jostle) linear forwards;
+    /* Même niveau que les autres pions : recouvrement par ordre du DOM. Dans sa
+       propre case, l'overlay est rendu AVANT le pion sauteur, donc le sauteur
+       passe naturellement au-dessus. */
+    z-index: 20;
+    pointer-events: none;
+    will-change: transform;
+}
+
+/* ─── CAPTURE — l'attaquant plonge en avant et POUSSE la victime, qui bascule
+   hors de sa case PILE au contact (façon pièce d'échecs renversée) ─── */
+@keyframes pawnSlam {
     0% {
-        transform: scale(1) rotate(0deg);
+        transform: translateY(0) translateX(0) scale(1) rotate(0deg);
+        animation-timing-function: cubic-bezier(.2, .7, .35, 1);
+    }
+
+    34% {
+        /* apogée du bond : s'élève en se reculant pour armer la charge */
+        transform: translateY(-118%) translateX(-12%) scale(1.14) rotate(-6deg);
+        filter: brightness(1.32) drop-shadow(0 26px 12px rgba(0, 0, 0, .26));
+        animation-timing-function: ease-in;
+    }
+
+    42% {
+        transform: translateY(-110%) translateX(-7%) scale(1.13) rotate(-4deg);
+        /* léger hang time */
+        animation-timing-function: cubic-bezier(.7, 0, .95, .35);
+    }
+
+    52% {
+        /* CONTACT : plonge en avant et percute la victime (épaule + écrasement) */
+        transform: translateY(6%) translateX(11%) scaleX(1.24) scaleY(.74) rotate(9deg);
+        filter: brightness(1.1) drop-shadow(0 3px 3px rgba(0, 0, 0, .5));
+        animation-timing-function: cubic-bezier(.2, .85, .3, 1);
+    }
+
+    74% {
+        transform: translateY(-6%) translateX(-2%) scaleX(.98) scaleY(1.03) rotate(-2deg);
+        animation-timing-function: ease-out;
+    }
+
+    100% {
+        transform: translateY(0) translateX(0) scale(1) rotate(0deg);
+    }
+}
+
+/* La victime bascule sur sa base (transform-origin: bottom center) : elle se
+   couche et glisse hors de la case sans s'envoler. */
+@keyframes pawnKnockout {
+    0% {
+        transform: translate(0, 0) scale(1) rotate(0deg);
         opacity: 1;
-        filter: brightness(1);
+        animation-timing-function: cubic-bezier(.3, .4, .7, .7);
     }
 
-    15% {
-        transform: scale(1.4) rotate(-15deg);
-        filter: brightness(2) drop-shadow(0 0 10px red);
+    14% {
+        /* encaisse le choc : écrasé + flash rouge, amorce de la bascule */
+        transform: translate(12%, 0) scaleX(1.18) scaleY(.84) rotate(14deg);
+        filter: brightness(2.3) drop-shadow(0 0 12px rgba(255, 60, 60, .95));
+        animation-timing-function: cubic-bezier(.35, 0, .8, .5);
     }
 
-    /* Impact flash */
     100% {
-        transform: translate(200%, -300%) scale(0.2) rotate(1080deg);
+        /* couchée (~quart de tour) et éjectée hors de la case, en fondu */
+        transform: translate(135%, 16%) scale(.92) rotate(100deg);
         opacity: 0;
-    }
-
-    /* Éjection (Yeet) */
-}
-
-/* L'onde de choc sur la case */
-@keyframes shockwaveSquare {
-    0% {
-        box-shadow: inset 0 0 0 rgba(255, 60, 60, 0), 0 0 0 0 rgba(255, 60, 60, 0.8);
-    }
-
-    40% {
-        box-shadow: inset 0 0 20px rgba(255, 60, 60, 0.8), 0 0 0 25px rgba(255, 60, 60, 0);
-    }
-
-    100% {
-        box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.2), inset -2px -2px 5px rgba(255, 255, 255, 0.9);
     }
 }
 
 .marble.marble-capturing {
-    animation: marbleSlam var(--anim-capture) cubic-bezier(0.25, 1, 0.5, 1) forwards;
+    animation: pawnSlam var(--anim-capture) linear forwards;
     z-index: 30;
-    /* L'attaquant passe par-dessus tout le monde */
     pointer-events: none;
     will-change: transform, filter;
 }
 
 .marble.marble-captured-exit {
-    animation: marbleKnockout var(--anim-capture) cubic-bezier(0.17, 0.89, 0.32, 1.28) forwards;
+    animation: pawnKnockout calc(var(--anim-capture) * .85) linear forwards both;
+    animation-delay: calc(var(--anim-capture) * .52);
+    /* ← réagit pile au contact (52 %) */
     z-index: 25;
     pointer-events: none;
     will-change: transform, opacity;
 }
 
-.case-path.square-impact {
-    animation: shockwaveSquare var(--anim-capture) ease-out forwards;
-}
-
-/* --------------------------------------------------------------------------
-   SWAP — Échange
-   Durée : 900ms
-   -------------------------------------------------------------------------- */
-@keyframes marbleSwap {
+/* Onde de choc rouge sur la case, calée au contact */
+@keyframes shockwaveSquare {
     0% {
-        transform: scale(1) rotate(0deg);
-        filter: brightness(1);
-    }
-
-    20% {
-        transform: scale(1.15) rotate(60deg);
-        filter: brightness(1.6) drop-shadow(0 0 6px rgba(255, 220, 50, 0.8));
+        box-shadow: inset 0 0 0 rgba(255, 60, 60, 0), 0 0 0 0 rgba(255, 60, 60, .85);
     }
 
     40% {
-        transform: scale(0.85) rotate(120deg);
-        filter: brightness(0.8);
-    }
-
-    60% {
-        transform: scale(1.1) rotate(200deg);
-        filter: brightness(1.5) drop-shadow(0 0 6px rgba(255, 220, 50, 0.8));
-    }
-
-    80% {
-        transform: scale(0.9) rotate(300deg);
-        filter: brightness(1);
+        box-shadow: inset 0 0 22px rgba(255, 60, 60, .85), 0 0 0 26px rgba(255, 60, 60, 0);
     }
 
     100% {
-        transform: scale(1) rotate(360deg);
+        box-shadow: inset 2px 2px 5px rgba(0, 0, 0, .2), inset -2px -2px 5px rgba(255, 255, 255, .9);
+    }
+}
+
+.case-path.square-impact {
+    animation: shockwaveSquare calc(var(--anim-capture) * .7) ease-out forwards;
+    animation-delay: calc(var(--anim-capture) * .52);
+}
+
+/* ─── ENTER + CAPTURE — chute droite qui écrabouille l'ennemi PILE au contact ─── */
+@keyframes pawnDropSlam {
+    0% {
+        transform: translateY(-340%) scale(.82);
+        opacity: 0;
+        animation-timing-function: linear;
+    }
+
+    8% {
+        transform: translateY(-330%) scale(.84);
+        opacity: 1;
+        animation-timing-function: cubic-bezier(.6, 0, .9, .35);
+    }
+
+    56% {
+        transform: translateY(9%) scaleX(1.3) scaleY(.66);
+        /* CONTACT */
+        filter: brightness(1.2) drop-shadow(0 3px 3px rgba(0, 0, 0, .5));
+        animation-timing-function: cubic-bezier(.2, .85, .3, 1);
+    }
+
+    74% {
+        transform: translateY(-6%) scaleX(.98) scaleY(1.03);
+        animation-timing-function: ease-out;
+    }
+
+    100% {
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes pawnCrush {
+    0% {
+        transform: scaleX(1) scaleY(1);
+        opacity: 1;
+        animation-timing-function: ease-out;
+    }
+
+    30% {
+        transform: scaleX(1.55) scaleY(.1);
+        opacity: .85;
+        filter: brightness(1.7) drop-shadow(0 0 9px rgba(255, 60, 60, .75));
+    }
+
+    100% {
+        transform: scaleX(1.8) scaleY(.04);
+        opacity: 0;
+    }
+}
+
+.marble.marble-enter-slam {
+    animation: pawnDropSlam var(--anim-enter-capture) linear forwards;
+    z-index: 30;
+    pointer-events: none;
+    will-change: transform;
+}
+
+.marble.marble-crushed {
+    animation: pawnCrush calc(var(--anim-enter-capture) * .67) linear forwards both;
+    animation-delay: calc(var(--anim-enter-capture) * .56);
+    /* ← écrasé au contact (56 %) */
+    z-index: 20;
+    pointer-events: none;
+    will-change: transform, opacity;
+}
+
+.case-path.square-enter-impact-capture {
+    /* réutilise l'onde de choc rouge */
+    animation: shockwaveSquare calc(var(--anim-enter-capture) * .6) ease-out forwards;
+    animation-delay: calc(var(--anim-enter-capture) * .56);
+}
+
+/* --------------------------------------------------------------------------
+   SWAP — Échange (téléportation)
+   Durée : 900ms
+
+   Les deux pions ne BOUGENT PAS : leur position est déjà permutée dans le
+   modèle au début de l'animation. On joue uniquement un effet de lumière —
+   chaque pion se dématérialise dans un éclair (fondu vers l'invisible + halo
+   céleste), puis se rematérialise. Aucune transform → aucun déplacement.
+   -------------------------------------------------------------------------- */
+@keyframes marbleSwap {
+    0% {
+        opacity: 1;
+        filter: brightness(1);
+    }
+
+    30% {
+        opacity: 0.2;
+        filter: brightness(2.2) drop-shadow(0 0 12px rgba(150, 225, 255, 0.9));
+    }
+
+    50% {
+        /* point de dématérialisation : le pion est invisible, halo maximal */
+        opacity: 0;
+        filter: brightness(3) drop-shadow(0 0 20px rgba(180, 235, 255, 1));
+    }
+
+    70% {
+        opacity: 0.2;
+        filter: brightness(2.2) drop-shadow(0 0 12px rgba(150, 225, 255, 0.9));
+    }
+
+    100% {
+        opacity: 1;
         filter: brightness(1);
     }
 }
 
 .marble.marble-swapping {
-    animation: marbleSwap var(--anim-swap) cubic-bezier(0.45, 0.05, 0.55, 0.95) forwards;
+    animation: marbleSwap var(--anim-swap) ease-in-out forwards;
     pointer-events: none;
-    will-change: transform, filter;
+    will-change: opacity, filter;
+}
+
+/* Pulsation lumineuse de la case, calée sur la dématérialisation (50 %) */
+@keyframes squareSwap {
+
+    0%,
+    100% {
+        box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.2), inset -2px -2px 5px rgba(255, 255, 255, 0.9);
+    }
+
+    50% {
+        box-shadow:
+            inset 0 0 10px rgba(150, 225, 255, 0.7),
+            0 0 25px rgba(150, 225, 255, 0.8),
+            0 0 50px rgba(150, 225, 255, 0.4);
+    }
+}
+
+.case-path.square-swapping {
+    animation: squareSwap var(--anim-swap) ease-in-out forwards;
 }
 
 /* --------------------------------------------------------------------------
@@ -1049,8 +1148,8 @@ $colors: (
 
 /* --------------------------------------------------------------------------
    BOARD ASSOMBRI — Quand une carte est sélectionnée, un overlay couvre tout
-   le board (z-index: 15). Les billes du joueur local (.marble-mine) passent
-   au-dessus (z-index: 20) et restent pleinement visibles.
+   le board (z-index: 15). Tous les pions (z-index: 20) restent au-dessus du
+   voile ; les pions adverses / non-jouables sont atténués via .marble-dimmed.
    -------------------------------------------------------------------------- */
 .board-container.card-selected {
     &::after {
@@ -1062,10 +1161,6 @@ $colors: (
         z-index: 15;
         pointer-events: none;
     }
-}
-
-.marble.marble-mine {
-    z-index: 20;
 }
 
 /* Bille propre non-jouable avec la carte sélectionnée : atténuée mais visible */

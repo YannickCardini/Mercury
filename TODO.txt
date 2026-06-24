@@ -1,0 +1,503 @@
+# Intégration des nouvelles animations de pions
+
+> Source de vérité : le banc d'essai `Pawn Animations.dc.html` (toutes les valeurs ci-dessous en sont extraites et testées).
+
+## Principes (ce qui change vs l'ancien système)
+
+Les anciennes `@keyframes` ont été pensées pour des **billes rondes centrées**. Les pions sont
+maintenant des **SVG hauts** dont la base remplit la case et le corps déborde vers le haut. Donc :
+
+1. **`transform-origin: bottom center` sur `.marble`** → tout `scale`/`translateY` pivote sur la
+   base : le pion reste planté sur sa case au lieu de « décoller » en se déformant.
+2. **Timeline `linear` + `animation-timing-function` PAR keyframe** → l'offset d'un keyframe (ex. `52%`)
+   correspond alors à une fraction de temps RÉELLE. C'est indispensable pour **caler la réaction de la
+   victime pile au contact** de l'attaquant.
+3. **Synchro attaquant/victime = `animation-delay` sur la victime** (= fraction de contact × durée).
+   Plus aucun `setTimeout` à gérer pour capture / enter+capture.
+4. **Faisceaux, halos, étincelles, poussière = éléments overlay** ajoutés à la case (CSS ne suffit pas
+   pour les particules) → petit helper `PawnFx` fourni plus bas.
+
+---
+
+## 1) SCSS — remplace ton bloc « ANIMATIONS PAR TYPE D'ACTION »
+
+```scss
+/* La base du pion SVG est le pivot de TOUTES les animations */
+.marble {
+    transform-origin: bottom center;
+}
+
+/* Durées (adapte si besoin) */
+:root {
+    --anim-enter:        600ms;
+    --anim-move:         180ms;   /* PAR case ; répété par case parcourue */
+    --anim-capture:      660ms;
+    --anim-enter-capture:720ms;
+    --anim-promote:      1500ms;
+    --anim-teleport:     880ms;
+}
+
+/* ─── ENTER — chute lourde d'un pion en bois qui se plante (aucun rebond) ─── */
+@keyframes pawnEnter {
+    0%   { transform: translateY(-340%) scaleX(.94) scaleY(1.05); opacity: 0;
+           animation-timing-function: linear; }
+    8%   { transform: translateY(-330%) scaleX(.94) scaleY(1.05); opacity: 1;
+           animation-timing-function: cubic-bezier(.5,0,.96,.4); }      /* accélère la chute */
+    56%  { transform: translateY(0) scaleX(1.2) scaleY(.8) rotate(-1.5deg);   /* IMPACT (squash) */
+           filter: brightness(1.03) drop-shadow(0 3px 3px rgba(0,0,0,.5));
+           animation-timing-function: cubic-bezier(.18,.9,.3,1); }
+    73%  { transform: translateY(0) scaleX(.97) scaleY(1.04) rotate(1deg);
+           animation-timing-function: ease-out; }
+    88%  { transform: translateY(0) scaleX(1.02) scaleY(.99) rotate(-.4deg);
+           animation-timing-function: ease-out; }
+    100% { transform: translateY(0) scale(1) rotate(0deg); opacity: 1; }
+}
+.marble.marble-entering {
+    animation: pawnEnter var(--anim-enter) linear forwards;
+    pointer-events: none; will-change: transform, opacity;
+}
+/* Enfoncement de la case calé sur l'impact (56 %) */
+@keyframes squarePress {
+    0%, 100% { transform: scale(1); }
+    22%      { transform: scale(.93); }
+}
+.case-path.square-enter-impact {
+    animation: squarePress calc(var(--anim-enter) * .44) ease-out;
+    animation-delay: calc(var(--anim-enter) * .56);
+}
+
+/* ─── MOVE — saut léger PAR case (l'engine le rejoue à chaque case du trajet) ─── */
+@keyframes pawnHop {
+    0%   { transform: translateY(0) scaleX(1) scaleY(1);
+           animation-timing-function: cubic-bezier(.3,.1,.5,1); }
+    50%  { transform: translateY(-32%) scaleX(.96) scaleY(1.05);
+           animation-timing-function: cubic-bezier(.5,0,.7,1); }
+    90%  { transform: translateY(0) scaleX(1.07) scaleY(.93);
+           animation-timing-function: ease-out; }
+    100% { transform: translateY(0) scaleX(1) scaleY(1); }
+}
+.marble.marble-moving {
+    animation: pawnHop var(--anim-move) linear forwards;
+    pointer-events: none; will-change: transform;
+}
+
+/* ─── CAPTURE — l'attaquant bondit et s'écrase ; la victime est éjectée PILE au contact ─── */
+@keyframes pawnSlam {
+    0%   { transform: translateY(0) scale(1);
+           animation-timing-function: cubic-bezier(.2,.7,.35,1); }
+    34%  { transform: translateY(-130%) scale(1.16);            /* apogée du saut */
+           filter: brightness(1.35) drop-shadow(0 28px 12px rgba(0,0,0,.28));
+           animation-timing-function: ease-in; }
+    42%  { transform: translateY(-124%) scale(1.14);            /* léger hang time */
+           animation-timing-function: cubic-bezier(.7,0,.95,.35); }
+    52%  { transform: translateY(9%) scaleX(1.28) scaleY(.7);   /* CONTACT / écrasement */
+           filter: brightness(1.1) drop-shadow(0 3px 3px rgba(0,0,0,.5));
+           animation-timing-function: cubic-bezier(.2,.85,.3,1); }
+    74%  { transform: translateY(-8%) scaleX(.98) scaleY(1.03);
+           animation-timing-function: ease-out; }
+    100% { transform: translateY(0) scale(1); }
+}
+@keyframes pawnKnockout {
+    0%   { transform: translate(0,0) scale(1) rotate(0deg); opacity: 1;
+           animation-timing-function: cubic-bezier(.4,0,.7,.5); }
+    12%  { transform: translate(0,-6%) scaleX(1.4) scaleY(.78) rotate(-8deg);  /* flash d'impact */
+           filter: brightness(2.4) drop-shadow(0 0 12px rgba(255,60,60,.95)); }
+    100% { transform: translate(240%,-330%) scale(.14) rotate(900deg); opacity: 0; }
+}
+.marble.marble-capturing {
+    animation: pawnSlam var(--anim-capture) linear forwards;
+    z-index: 30; pointer-events: none; will-change: transform, filter;
+}
+.marble.marble-captured-exit {
+    animation: pawnKnockout calc(var(--anim-capture) * .85) linear forwards both;
+    animation-delay: calc(var(--anim-capture) * .52);   /* ← réagit pile au contact (52 %) */
+    z-index: 25; pointer-events: none; will-change: transform, opacity;
+}
+/* Onde de choc rouge sur la case, calée au contact */
+@keyframes shockwaveSquare {
+    0%   { box-shadow: inset 0 0 0 rgba(255,60,60,0), 0 0 0 0 rgba(255,60,60,.85); }
+    40%  { box-shadow: inset 0 0 22px rgba(255,60,60,.85), 0 0 0 26px rgba(255,60,60,0); }
+    100% { box-shadow: inset 2px 2px 5px rgba(0,0,0,.2), inset -2px -2px 5px rgba(255,255,255,.9); }
+}
+.case-path.square-impact {
+    animation: shockwaveSquare calc(var(--anim-capture) * .7) ease-out forwards;
+    animation-delay: calc(var(--anim-capture) * .52);
+}
+
+/* ─── BONUS ENTER+CAPTURE — chute droite qui écrabouille l'ennemi PILE au contact ─── */
+@keyframes pawnDropSlam {
+    0%   { transform: translateY(-340%) scale(.82); opacity: 0;
+           animation-timing-function: linear; }
+    8%   { transform: translateY(-330%) scale(.84); opacity: 1;
+           animation-timing-function: cubic-bezier(.6,0,.9,.35); }
+    56%  { transform: translateY(9%) scaleX(1.3) scaleY(.66);          /* CONTACT */
+           filter: brightness(1.2) drop-shadow(0 3px 3px rgba(0,0,0,.5));
+           animation-timing-function: cubic-bezier(.2,.85,.3,1); }
+    74%  { transform: translateY(-6%) scaleX(.98) scaleY(1.03);
+           animation-timing-function: ease-out; }
+    100% { transform: translateY(0) scale(1); }
+}
+@keyframes pawnCrush {
+    0%   { transform: scaleX(1) scaleY(1); opacity: 1;
+           animation-timing-function: ease-out; }
+    30%  { transform: scaleX(1.55) scaleY(.1); opacity: .85;
+           filter: brightness(1.7) drop-shadow(0 0 9px rgba(255,60,60,.75)); }
+    100% { transform: scaleX(1.8) scaleY(.04); opacity: 0; }
+}
+.marble.marble-enter-slam {
+    animation: pawnDropSlam var(--anim-enter-capture) linear forwards;
+    z-index: 30; pointer-events: none; will-change: transform;
+}
+.marble.marble-crushed {
+    animation: pawnCrush calc(var(--anim-enter-capture) * .67) linear forwards both;
+    animation-delay: calc(var(--anim-enter-capture) * .56);   /* ← écrasé au contact (56 %) */
+    z-index: 20; pointer-events: none; will-change: transform, opacity;
+}
+.case-path.square-enter-impact-capture {  /* réutilise l'onde de choc rouge */
+    animation: shockwaveSquare calc(var(--anim-enter-capture) * .6) ease-out forwards;
+    animation-delay: calc(var(--anim-enter-capture) * .56);
+}
+
+/* ─── PROMOTION — ascension dorée (lévitation + faisceau + halos + étincelles) ─── */
+/* La lévitation du pion est en CSS ; faisceau/halos/étincelles = PawnFx (section 3). */
+@keyframes pawnAscend {
+    0%   { transform: translateY(0) scale(1);
+           filter: brightness(1) drop-shadow(0 5px 4px rgba(0,0,0,.45));
+           animation-timing-function: cubic-bezier(.3,.4,.3,1); }
+    40%  { transform: translateY(-44%) scale(1.07);
+           filter: brightness(1.7) drop-shadow(0 0 14px rgba(255,205,80,.95));
+           animation-timing-function: ease-in-out; }
+    62%  { transform: translateY(-50%) scale(1.08);
+           filter: brightness(2.1) drop-shadow(0 0 22px rgba(255,205,80,.95));
+           animation-timing-function: ease-in-out; }
+    100% { transform: translateY(0) scale(1);
+           filter: brightness(1) drop-shadow(0 5px 4px rgba(0,0,0,.45)); }
+}
+.marble.marble-promoting {
+    animation: pawnAscend var(--anim-promote) linear forwards;
+    z-index: 30; pointer-events: none; will-change: transform, filter;
+}
+
+/* ─── TELEPORT — faisceau lumineux : dématérialisation / rematérialisation (AUCUN déplacement) ─── */
+/* L'échange des places se fait dans le modèle à 50 % (pion invisible). Faisceaux = PawnFx. */
+@keyframes pawnTeleport {
+    0%   { opacity: 1; transform: translateY(0) scaleX(1) scaleY(1);
+           filter: brightness(1) drop-shadow(0 5px 4px rgba(0,0,0,.45));
+           animation-timing-function: cubic-bezier(.5,0,.75,.4); }
+    45%  { opacity: 1; transform: scaleX(1.06) scaleY(1.06);
+           filter: brightness(3.2) drop-shadow(0 0 16px rgba(160,225,255,.95)); }
+    50%  { opacity: 0; transform: translateY(-14%) scaleX(.42) scaleY(1.25); }  /* invisible → swap modèle ICI */
+    55%  { opacity: 0; transform: translateY(-14%) scaleX(.42) scaleY(1.25);
+           filter: brightness(3.2) drop-shadow(0 0 16px rgba(160,225,255,.95));
+           animation-timing-function: cubic-bezier(.25,.6,.5,1); }
+    100% { opacity: 1; transform: translateY(0) scaleX(1) scaleY(1);
+           filter: brightness(1) drop-shadow(0 5px 4px rgba(0,0,0,.45)); }
+}
+.marble.marble-teleporting {
+    animation: pawnTeleport var(--anim-teleport) linear forwards;
+    pointer-events: none; will-change: transform, opacity, filter;
+}
+```
+
+---
+
+## 2) Helper overlay `PawnFx` (faisceaux, halos, étincelles, poussière)
+
+Vanilla TS, sans dépendance. Chaque méthode reçoit **l'élément de la case** (`.case-path`,
+qui est déjà `position: relative`) et y ajoute des overlays auto-nettoyés. Le board doit laisser
+`overflow: visible` (déjà le cas) pour que faisceaux et étincelles dépassent vers le haut.
+
+```ts
+// pawn-fx.ts
+export class PawnFx {
+  /** Poussière à l'atterrissage (ENTER, ENTER+CAPTURE). */
+  static dust(square: HTMLElement) {
+    const r = square.getBoundingClientRect();
+    for (let i = 0; i < 9; i++) {
+      const p = document.createElement('div');
+      const ang = -Math.PI / 2 + (Math.random() - .5) * 2.4;
+      const dist = 30 + Math.random() * 38;
+      p.className = 'pawn-fx';
+      p.style.cssText =
+        `position:absolute;left:50%;top:50%;width:11px;height:11px;border-radius:50%;` +
+        `background:radial-gradient(circle,#cfcfd6,#8a8a93);pointer-events:none;z-index:140;`;
+      square.appendChild(p);
+      p.animate([
+        { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 },
+        { transform: `translate(calc(-50% + ${Math.cos(ang) * dist}px),` +
+                     `calc(-50% + ${Math.abs(Math.sin(ang)) * -dist * .4 + 6}px)) scale(0)`, opacity: 0 },
+      ], { duration: 680, easing: 'cubic-bezier(.2,.6,.3,1)', fill: 'forwards' })
+        .finished.then(() => p.remove()).catch(() => p.remove());
+    }
+  }
+
+  /** Colonne de lumière. color: 'gold' (promotion) | 'cyan' (teleport). Retourne l'élément à animer/retirer. */
+  static beam(square: HTMLElement, color: 'gold' | 'cyan'): HTMLElement {
+    const grad = color === 'gold'
+      ? 'linear-gradient(to top, rgba(255,235,150,.72) 0%, rgba(255,205,70,.32) 45%, rgba(255,205,70,0) 100%)'
+      : 'linear-gradient(to top, rgba(205,240,255,.7) 0%, rgba(150,215,255,.3) 50%, rgba(150,215,255,0) 100%)';
+    const glow = color === 'gold' ? 'rgba(255,205,80,.7)' : 'rgba(140,210,255,.75)';
+    const beam = document.createElement('div');
+    beam.className = 'pawn-fx';
+    beam.style.cssText =
+      `position:absolute;left:50%;bottom:50%;width:105%;height:320%;` +
+      `transform:translateX(-50%) scaleY(0);transform-origin:bottom center;` +
+      `background:${grad};border-radius:44px 44px 0 0;filter:blur(.5px);` +
+      `box-shadow:0 0 30px ${glow}, inset 0 0 22px rgba(255,255,255,.5);` +
+      `pointer-events:none;z-index:96;`;
+    square.appendChild(beam);
+    return beam;
+  }
+
+  /** Anneau de lumière qui se propage (promotion). */
+  static ring(square: HTMLElement) {
+    const ring = document.createElement('div');
+    ring.className = 'pawn-fx';
+    ring.style.cssText =
+      `position:absolute;left:50%;top:50%;width:100%;height:100%;` +
+      `transform:translate(-50%,-50%);border-radius:50%;` +
+      `border:3px solid rgba(255,215,90,.9);box-shadow:0 0 18px rgba(255,215,90,.7);` +
+      `pointer-events:none;z-index:97;`;
+    square.appendChild(ring);
+    ring.animate([
+      { transform: 'translate(-50%,-50%) scale(.5)', opacity: .9 },
+      { transform: 'translate(-50%,-50%) scale(2.7)', opacity: 0 },
+    ], { duration: 900, easing: 'cubic-bezier(.2,.6,.3,1)', fill: 'forwards' })
+      .finished.then(() => ring.remove()).catch(() => ring.remove());
+  }
+
+  /** Gerbe d'étincelles dorées qui montent (promotion). */
+  static rise(square: HTMLElement) {
+    for (let i = 0; i < 14; i++) {
+      const p = document.createElement('div');
+      const sz = 6 + Math.random() * 6;
+      p.className = 'pawn-fx';
+      p.style.cssText =
+        `position:absolute;left:calc(50% + ${(Math.random() - .5) * 64}px);top:50%;` +
+        `width:${sz}px;height:${sz}px;border-radius:50%;` +
+        `background:radial-gradient(circle,#fff,#ffce40);box-shadow:0 0 8px rgba(255,210,90,.9);` +
+        `pointer-events:none;z-index:140;`;
+      square.appendChild(p);
+      const rise = 120 + Math.random() * 130, sway = (Math.random() - .5) * 44;
+      p.animate([
+        { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 },
+        { transform: `translate(calc(-50% + ${sway}px), calc(-50% - ${rise}px)) scale(0)`, opacity: 0 },
+      ], { duration: 900 + Math.random() * 420, easing: 'cubic-bezier(.3,.5,.4,1)', fill: 'forwards' })
+        .finished.then(() => p.remove()).catch(() => p.remove());
+    }
+  }
+
+  /** Animation d'apparition/disparition d'un faisceau retourné par beam(). */
+  static fadeBeam(beam: HTMLElement, dir: 'in' | 'out', duration: number) {
+    const f = dir === 'in'
+      ? [{ opacity: 0, transform: 'translateX(-50%) scaleY(0)' },
+         { opacity: 1, transform: 'translateX(-50%) scaleY(1)' }]
+      : [{ opacity: 1, transform: 'translateX(-50%) scaleY(1)' },
+         { opacity: 0, transform: 'translateX(-50%) scaleY(0)' }];
+    return beam.animate(f, { duration, easing: dir === 'in' ? 'cubic-bezier(.3,.8,.4,1)' : 'ease-in', fill: 'forwards' });
+  }
+}
+```
+
+---
+
+## 3) Câblage dans le composant board
+
+### ENTER / MOVE / PROMOTION (lévitation)
+Inchangé dans l'esprit : `getMarbleAnimClass(index)` renvoie `marble-entering` / `marble-moving` /
+`marble-promoting`. Pour MOVE multi-cases, **rejoue `marble-moving` à chaque case** du trajet
+(retire puis remets la classe, ou incrémente une clé d'animation, entre chaque case).
+
+### CAPTURE et ENTER+CAPTURE — **aucun JS de timing**
+Pose simplement les classes sur les deux pions en même temps :
+- attaquant : `marble-capturing` (resp. `marble-enter-slam`)
+- victime   : `marble-captured-exit` (resp. `marble-crushed`)
+- case      : `square-impact` (resp. `square-enter-impact-capture`)
+
+Le `animation-delay` interne fait réagir la victime **pile au contact**. Retire les classes /
+renvoie la victime « à la maison » sur l'`animationend` de la victime.
+
+### PROMOTION — effets overlay
+```ts
+const sq = this.squareEl(promoIndex);           // l'élément .case-path de la case d'arrivée
+const beam = PawnFx.beam(sq, 'gold');
+PawnFx.fadeBeam(beam, 'in', 420);
+PawnFx.ring(sq);
+setTimeout(() => PawnFx.ring(sq), 440);
+PawnFx.rise(sq);
+setTimeout(() => PawnFx.rise(sq), 640);
+setTimeout(() => PawnFx.rise(sq), 1040);
+setTimeout(() => PawnFx.fadeBeam(beam, 'out', 220).finished.then(() => beam.remove()),
+           DURATION_PROMOTE - 220);
+// + classe marble-promoting sur le pion pour toute la durée
+```
+
+### TELEPORT — faisceaux + swap du modèle à mi-parcours
+```ts
+const sqA = this.squareEl(idxA), sqB = this.squareEl(idxB);
+const beamA = PawnFx.beam(sqA, 'cyan'), beamB = PawnFx.beam(sqB, 'cyan');
+PawnFx.fadeBeam(beamA, 'in', 240); PawnFx.fadeBeam(beamB, 'in', 240);
+// classe marble-teleporting sur les DEUX pions
+const D = 880; // = --anim-teleport
+setTimeout(() => this.swapMarblesInModel(idxA, idxB), D * 0.5);   // ← pendant l'invisibilité
+setTimeout(() => {
+  PawnFx.fadeBeam(beamA, 'out', 220).finished.then(() => beamA.remove());
+  PawnFx.fadeBeam(beamB, 'out', 220).finished.then(() => beamB.remove());
+}, D);
+```
+> Important : **ne déplace pas les pions latéralement**. On joue le flash sur place, on échange les
+> données du modèle quand les deux pions sont invisibles (50 %), Angular re-rend chaque pion dans sa
+> nouvelle case, et la 2ᵉ moitié du keyframe le rematérialise.
+
+---
+
+## Récap timings (fractions de contact)
+
+| Animation        | Classe pion          | Classe victime         | Contact | Synchro            |
+|------------------|----------------------|------------------------|---------|--------------------|
+| Enter            | `marble-entering`    | —                      | 56 %    | `squarePress` delay |
+| Move (×case)     | `marble-moving`      | —                      | —       | rejouer par case   |
+| Capture          | `marble-capturing`   | `marble-captured-exit` | 52 %    | `animation-delay`  |
+| Teleport         | `marble-teleporting` | (l'autre pion idem)    | 50 %    | swap modèle + beam |
+| Promotion        | `marble-promoting`   | —                      | —       | PawnFx (overlays)  |
+| Enter + Capture  | `marble-enter-slam`  | `marble-crushed`       | 56 %    | `animation-delay`  |
+
+
+
+Prompt a essayer en 1er:
+
+
+rincipes (ce qui change vs l'ancien système)Les anciennes @keyframes ont été pensées pour des billes rondes centrées. Les pions sont maintenant des SVG hauts dont la base remplit la case et le corps déborde vers le haut. Donc :transform-origin: bottom center sur .marble → tout scale/translateY pivote sur la base : le pion reste planté sur sa case au lieu de « décoller » en se déformant.Timeline linear + animation-timing-function PAR keyframe → l'offset d'un keyframe (ex. 52%) correspond alors à une fraction de temps RÉELLE. C'est indispensable pour caler la réaction de la victime pile au contact de l'attaquant.Synchro attaquant/victime = animation-delay sur la victime (= fraction de contact × durée). Plus aucun setTimeout à gérer dans le code pour la capture ou le enter+capture.Zéro JS de timing → Tout est géré par les classes CSS et les délais natifs.1) SCSS — remplace ton bloc « ANIMATIONS PAR TYPE D'ACTION »SCSS/* La base du pion SVG est le pivot de TOUTES les animations */
+.marble {
+    transform-origin: bottom center;
+}
+
+/* Durées */
+:root {
+    --anim-enter:         600ms;
+    --anim-move:          180ms;   /* PAR case ; répété par case parcourue */
+    --anim-capture:       660ms;
+    --anim-enter-capture: 720ms;
+}
+
+/* ─── ENTER — chute lourde d'un pion en bois qui se plante (aucun rebond) ─── */
+@keyframes pawnEnter {
+    0%   { transform: translateY(-340%) scaleX(.94) scaleY(1.05); opacity: 0;
+           animation-timing-function: linear; }
+    8%   { transform: translateY(-330%) scaleX(.94) scaleY(1.05); opacity: 1;
+           animation-timing-function: cubic-bezier(.5,0,.96,.4); }      /* accélère la chute */
+    56%  { transform: translateY(0) scaleX(1.2) scaleY(.8) rotate(-1.5deg);   /* IMPACT (squash) */
+           filter: brightness(1.03) drop-shadow(0 3px 3px rgba(0,0,0,.5));
+           animation-timing-function: cubic-bezier(.18,.9,.3,1); }
+    73%  { transform: translateY(0) scaleX(.97) scaleY(1.04) rotate(1deg);
+           animation-timing-function: ease-out; }
+    88%  { transform: translateY(0) scaleX(1.02) scaleY(.99) rotate(-.4deg);
+           animation-timing-function: ease-out; }
+    100% { transform: translateY(0) scale(1) rotate(0deg); opacity: 1; }
+}
+.marble.marble-entering {
+    animation: pawnEnter var(--anim-enter) linear forwards;
+    pointer-events: none; will-change: transform, opacity;
+}
+/* Enfoncement de la case calé sur l'impact (56 %) */
+@keyframes squarePress {
+    0%, 100% { transform: scale(1); }
+    22%      { transform: scale(.93); }
+}
+.case-path.square-enter-impact {
+    animation: squarePress calc(var(--anim-enter) * .44) ease-out;
+    animation-delay: calc(var(--anim-enter) * .56);
+}
+
+/* ─── MOVE — saut léger PAR case (l'engine le rejoue à chaque case du trajet) ─── */
+@keyframes pawnHop {
+    0%   { transform: translateY(0) scaleX(1) scaleY(1);
+           animation-timing-function: cubic-bezier(.3,.1,.5,1); }
+    50%  { transform: translateY(-32%) scaleX(.96) scaleY(1.05);
+           animation-timing-function: cubic-bezier(.5,0,.7,1); }
+    90%  { transform: translateY(0) scaleX(1.07) scaleY(.93);
+           animation-timing-function: ease-out; }
+    100% { transform: translateY(0) scaleX(1) scaleY(1); }
+}
+.marble.marble-moving {
+    animation: pawnHop var(--anim-move) linear forwards;
+    pointer-events: none; will-change: transform;
+}
+
+/* ─── CAPTURE — l'attaquant bondit et s'écrase ; la victime est éjectée PILE au contact ─── */
+@keyframes pawnSlam {
+    0%   { transform: translateY(0) scale(1);
+           animation-timing-function: cubic-bezier(.2,.7,.35,1); }
+    34%  { transform: translateY(-130%) scale(1.16);            /* apogée du saut */
+           filter: brightness(1.35) drop-shadow(0 28px 12px rgba(0,0,0,.28));
+           animation-timing-function: ease-in; }
+    42%  { transform: translateY(-124%) scale(1.14);            /* léger hang time */
+           animation-timing-function: cubic-bezier(.7,0,.95,.35); }
+    52%  { transform: translateY(9%) scaleX(1.28) scaleY(.7);   /* CONTACT / écrasement */
+           filter: brightness(1.1) drop-shadow(0 3px 3px rgba(0,0,0,.5));
+           animation-timing-function: cubic-bezier(.2,.85,.3,1); }
+    74%  { transform: translateY(-8%) scaleX(.98) scaleY(1.03);
+           animation-timing-function: ease-out; }
+    100% { transform: translateY(0) scale(1); }
+}
+@keyframes pawnKnockout {
+    0%   { transform: translate(0,0) scale(1) rotate(0deg); opacity: 1;
+           animation-timing-function: cubic-bezier(.4,0,.7,.5); }
+    12%  { transform: translate(0,-6%) scaleX(1.4) scaleY(.78) rotate(-8deg);  /* flash d'impact */
+           filter: brightness(2.4) drop-shadow(0 0 12px rgba(255,60,60,.95)); }
+    100% { transform: translate(240%,-330%) scale(.14) rotate(900deg); opacity: 0; }
+}
+.marble.marble-capturing {
+    animation: pawnSlam var(--anim-capture) linear forwards;
+    z-index: 30; pointer-events: none; will-change: transform, filter;
+}
+.marble.marble-captured-exit {
+    animation: pawnKnockout calc(var(--anim-capture) * .85) linear forwards both;
+    animation-delay: calc(var(--anim-capture) * .52);   /* ← réagit pile au contact (52 %) */
+    z-index: 25; pointer-events: none; will-change: transform, opacity;
+}
+/* Onde de choc rouge sur la case, calée au contact (CSS Pur) */
+@keyframes shockwaveSquare {
+    0%   { box-shadow: inset 0 0 0 rgba(255,60,60,0), 0 0 0 0 rgba(255,60,60,.85); }
+    40%  { box-shadow: inset 0 0 22px rgba(255,60,60,.85), 0 0 0 26px rgba(255,60,60,0); }
+    100% { box-shadow: inset 2px 2px 5px rgba(0,0,0,.2), inset -2px -2px 5px rgba(255,255,255,.9); }
+}
+.case-path.square-impact {
+    animation: shockwaveSquare calc(var(--anim-capture) * .7) ease-out forwards;
+    animation-delay: calc(var(--anim-capture) * .52);
+}
+
+/* ─── BONUS ENTER+CAPTURE — chute droite qui écrabouille l'ennemi PILE au contact ─── */
+@keyframes pawnDropSlam {
+    0%   { transform: translateY(-340%) scale(.82); opacity: 0;
+           animation-timing-function: linear; }
+    8%   { transform: translateY(-330%) scale(.84); opacity: 1;
+           animation-timing-function: cubic-bezier(.6,0,.9,.35); }
+    56%  { transform: translateY(9%) scaleX(1.3) scaleY(.66);          /* CONTACT */
+           filter: brightness(1.2) drop-shadow(0 3px 3px rgba(0,0,0,.5));
+           animation-timing-function: cubic-bezier(.2,.85,.3,1); }
+    74%  { transform: translateY(-6%) scaleX(.98) scaleY(1.03);
+           animation-timing-function: ease-out; }
+    100% { transform: translateY(0) scale(1); }
+}
+@keyframes pawnCrush {
+    0%   { transform: scaleX(1) scaleY(1); opacity: 1;
+           animation-timing-function: ease-out; }
+    30%  { transform: scaleX(1.55) scaleY(.1); opacity: .85;
+           filter: brightness(1.7) drop-shadow(0 0 9px rgba(255,60,60,.75)); }
+    100% { transform: scaleX(1.8) scaleY(.04); opacity: 0; }
+}
+.marble.marble-enter-slam {
+    animation: pawnDropSlam var(--anim-enter-capture) linear forwards;
+    z-index: 30; pointer-events: none; will-change: transform;
+}
+.marble.marble-crushed {
+    animation: pawnCrush calc(var(--anim-enter-capture) * .67) linear forwards both;
+    animation-delay: calc(var(--anim-enter-capture) * .56);   /* ← écrasé au contact (56 %) */
+    z-index: 20; pointer-events: none; will-change: transform, opacity;
+}
+.case-path.square-enter-impact-capture {  /* réutilise l'onde de choc rouge */
+    animation: shockwaveSquare calc(var(--anim-enter-capture) * .6) ease-out forwards;
+    animation-delay: calc(var(--anim-enter-capture) * .56);
+}
+2) Câblage dans le composant boardNote importante : Les animations de PROMOTION et de TÉLÉPORTATION ne font pas partie de ce scope. Elles seront implémentées plus tard. Ne t'en occupe pas pour le moment.ENTER / MOVEgetMarbleAnimClass(index) renvoie marble-entering ou marble-moving.Pour un déplacement multi-cases (MOVE), rejoue marble-moving à chaque case du trajet (retire puis remets la classe, ou incrémente une clé d'animation via Angular entre chaque case pour forcer le trigger).CAPTURE et ENTER+CAPTUREPose simplement les classes sur les deux pions et sur la case en même temps, sans gérer de setTimeout dans ton code TypeScript. Le animation-delay interne au CSS s'occupe de la synchronisation :Capture classique :Attaquant : .marble-capturingVictime : .marble-captured-exitCase : .square-impactEnter + Capture (Chute directe sur un ennemi) :Attaquant : .marble-enter-slamVictime : .marble-crushedCase : .square-enter-impact-captureNettoyage : Retire les classes et renvoie/supprime la victime du board uniquement au moment du callback animationend de la victime.Récap timings (fractions de contact)AnimationClasse pionClasse victimeContactSynchroEntermarble-entering—56 %squarePress delayMove (×case)marble-moving——rejouer par caseCapturemarble-capturingmarble-captured-exit52 %animation-delayEnter + Capturemarble-enter-slammarble-crushed56 %
