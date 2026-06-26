@@ -453,6 +453,10 @@ export class CustomGameManager {
                 p.userId,
             );
         }
+        // Les sockets appartiennent désormais au messenger du matchmaking ;
+        // on neutralise l'ancien messenger de la room (timers 180s + handlers
+        // close orphelins) pour éviter un faux "permanently disconnected".
+        room.messenger.dispose();
     }
 
     /**
@@ -519,6 +523,7 @@ export class CustomGameManager {
                 if (p.graceTimer) { clearTimeout(p.graceTimer); p.graceTimer = null; }
             }
             clearTimeout(room.expiryTimer);
+            room.messenger.dispose();
             this.rooms.delete(code);
             if (leaving.userId) this.broadcastCancelToInvitees(room, leaving.userId);
             console.log(`❌ Custom room ${code} destroyed (creator left)`);
@@ -527,6 +532,7 @@ export class CustomGameManager {
 
         if (room.players.length === 0) {
             clearTimeout(room.expiryTimer);
+            room.messenger.dispose();
             this.rooms.delete(code);
             console.log(`❌ Custom room ${code} destroyed (empty)`);
             return;
@@ -578,6 +584,7 @@ export class CustomGameManager {
             try { p.ws.removeEventListener('close', p.closeListener); } catch { /* ignore */ }
             if (p.graceTimer) { clearTimeout(p.graceTimer); p.graceTimer = null; }
         }
+        room.messenger.dispose();
         this.rooms.delete(code);
         if (creator?.userId) this.broadcastCancelToInvitees(room, creator.userId);
         console.log(`⏰ Custom room ${code} expired`);

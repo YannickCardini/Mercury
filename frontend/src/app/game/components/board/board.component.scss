@@ -1,5 +1,6 @@
 @use "sass:color";
 @use "../../../styles/palette" as *; // palette « Système solaire » centralisée
+@use "../../../styles/planets" as *; // rendu billes « planètes » partagé
 
 :host {
     display: flex;
@@ -143,7 +144,9 @@ $colors: (
     }
 }
 
-/* --- Design des Pions (Billes 3D CSS) --- */
+/* --- Design des Pions (Billes texturées « planètes », fixes sur le plateau) ---
+   Géométrie / animations / aspect 3D identiques à l'origine : seule la texture
+   de fond change (planète posée en background, découpée par le border-radius). */
 .marble {
     position: absolute;
     width: 80%;
@@ -158,6 +161,15 @@ $colors: (
     -webkit-user-select: none;
     outline: none;
 
+    /* Couche de composition stable par bille : la texture (gradients) est
+       rasterizée une seule fois et mise en cache. Empêche la re-rasterization
+       de toutes les billes quand le .board-container repeint (overlay carte,
+       changement de tour…) — sinon « flash » des billes sur WebView mobile.
+       Même technique que .player-badge-slot ci-dessus. */
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+
     .marble-highlight {
         position: absolute;
         top: 15%;
@@ -168,12 +180,8 @@ $colors: (
         background: radial-gradient(circle, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0) 70%);
     }
 
-    @each $name, $hex in $colors {
-        &.marble-#{$name} {
-            background: radial-gradient(circle at 35% 35%, color.adjust($hex, $lightness: 20%), $hex 60%, color.adjust($hex, $lightness: -20%));
-        }
-    }
-
+    // Texture planète (statique) selon la couleur — remplace l'ancien aplat
+    @include planet-static-variants("marble");
 }
 
 
@@ -1279,5 +1287,58 @@ $colors: (
     to {
         opacity: 1;
         transform: translate(-50%, 6px) scale(1);
+    }
+}
+
+/* ==========================================================================
+   ALLÉGEMENTS NATIFS (WebView Android) — réduit le coût de peinture en jeu.
+   Le rendu web/desktop reste inchangé ; on ne touche qu'au natif (.is-native).
+   ========================================================================== */
+:host(.is-native) {
+    /* Le flou « glass » du plateau est très coûteux à recomposer à chaque
+       repaint sur WebView → fond mat équivalent, sans backdrop-filter. */
+    .board-container {
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        background: rgba(255, 255, 255, 0.10);
+    }
+
+    /* Pulsation des billes sélectionnables : remplace l'animation de box-shadow
+       (repaint/frame) par un anneau en pseudo-élément animé en transform+opacity
+       (composé par le GPU, aucune re-peinture). */
+    .marble.marble-selectable {
+        animation: none;
+
+        &::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.6);
+            pointer-events: none;
+            animation: marblePulseRing 1.4s ease-in-out infinite;
+        }
+
+        &:hover {
+            filter: none; // garde le scale, retire le brightness (repaint)
+        }
+    }
+
+    /* Bille sélectionnée : on garde la lévitation (transform), on retire le
+       filtre brightness (coûteux en repaint sur WebView). */
+    .marble.marble-selected {
+        filter: none;
+    }
+}
+
+@keyframes marblePulseRing {
+    0% {
+        transform: scale(1);
+        opacity: 0.85;
+    }
+
+    100% {
+        transform: scale(1.4);
+        opacity: 0;
     }
 }

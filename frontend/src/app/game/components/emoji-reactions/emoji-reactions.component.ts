@@ -58,8 +58,22 @@ export class EmojiReactionsComponent implements OnInit, OnDestroy {
       this.spawnFloating(msg.author, msg.emoji);
       this.soundService.playReaction(msg.emoji);
     });
-    // Tick once a second so the cooldown computed clears the disabled state.
-    this.nowTimer = setInterval(() => this.now.set(Date.now()), 250);
+    // Pas de timer permanent : il ne sert qu'à libérer le bouton après le
+    // cooldown. On ne le démarre donc que pendant la fenêtre de cooldown
+    // (cf. startCooldownTicker), pour éviter 4 cycles de change detection/s
+    // inutiles toute la partie.
+  }
+
+  /** Démarre un tick 250 ms le temps du cooldown, puis s'auto-arrête. */
+  private startCooldownTicker(): void {
+    if (this.nowTimer) return;
+    this.nowTimer = setInterval(() => {
+      this.now.set(Date.now());
+      if (!this.cooldownActive()) {
+        clearInterval(this.nowTimer);
+        this.nowTimer = undefined;
+      }
+    }, 250);
   }
 
   ngOnDestroy(): void {
@@ -80,6 +94,7 @@ export class EmojiReactionsComponent implements OnInit, OnDestroy {
     if (this.cooldownActive()) return;
     this.lastSentAt.set(Date.now());
     this.now.set(Date.now());
+    this.startCooldownTicker();
     this.showPalette.set(false);
     this.gameStateService.sendReaction(emoji);
     // The server will echo the broadcast back to us — we let the broadcast

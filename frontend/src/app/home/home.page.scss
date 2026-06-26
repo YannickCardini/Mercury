@@ -1,5 +1,6 @@
 @use "sass:color";
 @use "../styles/palette" as *; // palette « Système solaire » centralisée
+@use "../styles/planets" as *; // rendu billes « planètes » partagé
 
 // ─── Host ────────────────────────────────────────────────────────────────────
 :host {
@@ -231,43 +232,14 @@
   position: absolute;
   width: 22px;
   height: 22px;
-  border-radius: 50%;
   top: -11px;
   left: calc(50% - 11px);
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4), 0 0 10px var(--planet-glow, transparent);
   animation: homeOrbitSpin 7s linear infinite;
   animation-delay: var(--orbit-delay);
 
-  &::after {
-    content: '';
-    position: absolute;
-    top: 18%;
-    left: 18%;
-    width: 28%;
-    height: 28%;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(255, 255, 255, 0.7), transparent 70%);
-  }
-
-  &.ho-red {
-    background: radial-gradient(circle at 35% 35%, color.adjust($c-red, $lightness: 15%), $c-red 60%, color.adjust($c-red, $lightness: -15%));
-    box-shadow: 0 0 10px rgba($c-red, 0.5), 0 3px 8px rgba(0, 0, 0, 0.4);
-  }
-
-  &.ho-green {
-    background: radial-gradient(circle at 35% 35%, color.adjust($c-green, $lightness: 15%), $c-green 60%, color.adjust($c-green, $lightness: -15%));
-    box-shadow: 0 0 10px rgba($c-green, 0.5), 0 3px 8px rgba(0, 0, 0, 0.4);
-  }
-
-  &.ho-orange {
-    background: radial-gradient(circle at 35% 35%, color.adjust($c-orange, $lightness: 15%), $c-orange 60%, color.adjust($c-orange, $lightness: -15%));
-    box-shadow: 0 0 10px rgba($c-orange, 0.5), 0 3px 8px rgba(0, 0, 0, 0.4);
-  }
-
-  &.ho-blue {
-    background: radial-gradient(circle at 35% 35%, color.adjust($c-blue, $lightness: 15%), $c-blue 60%, color.adjust($c-blue, $lightness: -15%));
-    box-shadow: 0 0 10px rgba($c-blue, 0.5), 0 3px 8px rgba(0, 0, 0, 0.4);
-  }
+  @include planet-base;
+  @include planet-variants("ho");
 }
 
 @keyframes homeOrbitSpin {
@@ -488,35 +460,13 @@
   position: relative;
   width: 22px;
   height: 22px;
-  border-radius: 50%;
   flex-shrink: 0;
 
-  &::after {
-    content: '';
-    position: absolute;
-    top: 18%;
-    left: 18%;
-    width: 28%;
-    height: 28%;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(255, 255, 255, 0.65), transparent 70%);
-  }
+  @include planet-base;
+  @include planet-variants("ab"); // green→Terre, orange→Jupiter, blue→Neptune
+  box-shadow: 0 0 8px 1px var(--planet-glow, transparent);
 
-  &.ab-green {
-    background: radial-gradient(circle at 35% 35%, color.adjust($c-green, $lightness: 12%), $c-green 60%, color.adjust($c-green, $lightness: -12%));
-    box-shadow: 0 0 8px rgba($c-green, 0.6);
-  }
-
-  &.ab-orange {
-    background: radial-gradient(circle at 35% 35%, color.adjust($c-orange, $lightness: 12%), $c-orange 60%, color.adjust($c-orange, $lightness: -12%));
-    box-shadow: 0 0 8px rgba($c-orange, 0.6);
-  }
-
-  &.ab-blue {
-    background: radial-gradient(circle at 35% 35%, color.adjust($c-blue, $lightness: 12%), $c-blue 60%, color.adjust($c-blue, $lightness: -12%));
-    box-shadow: 0 0 8px rgba($c-blue, 0.6);
-  }
-
+  // Saturne (or) — hors du mapping planètes : conserve le disque doré
   &.ab-gold {
     background: radial-gradient(circle at 35% 35%, color.adjust($c-gold, $lightness: 12%), $c-gold 60%, color.adjust($c-gold, $lightness: -12%));
     box-shadow: 0 0 8px rgba($c-gold, 0.6);
@@ -650,41 +600,18 @@
 }
 
 .mm {
-  position: relative;
   width: 14px;
   height: 14px;
-  border-radius: 50%;
   display: inline-block;
 
-  &::after {
-    content: '';
-    position: absolute;
-    top: 18%;
-    left: 18%;
-    width: 28%;
-    height: 28%;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(255, 255, 255, 0.6), transparent 70%);
-  }
+  @include planet-base;
+  @include planet-variants("mm"); // red→Mars, green→Terre, blue→Neptune, orange→Jupiter
+  box-shadow: 0 0 6px var(--planet-glow, transparent);
 
-  &.mm-red {
-    background: radial-gradient(circle at 35% 35%, color.adjust($c-red, $lightness: 15%), $c-red 55%, color.adjust($c-red, $lightness: -10%));
-  }
-
-  &.mm-green {
-    background: radial-gradient(circle at 35% 35%, color.adjust($c-green, $lightness: 15%), $c-green 55%, color.adjust($c-green, $lightness: -10%));
-  }
-
-  &.mm-blue {
-    background: radial-gradient(circle at 35% 35%, color.adjust($c-blue, $lightness: 15%), $c-blue 55%, color.adjust($c-blue, $lightness: -10%));
-  }
-
-  &.mm-orange {
-    background: radial-gradient(circle at 35% 35%, color.adjust($c-orange, $lightness: 15%), $c-orange 55%, color.adjust($c-orange, $lightness: -10%));
-  }
-
+  // Saturne (or) — hors du mapping planètes : conserve le disque doré
   &.mm-gold {
     background: radial-gradient(circle at 35% 35%, color.adjust($c-gold, $lightness: 15%), $c-gold 55%, color.adjust($c-gold, $lightness: -10%));
+    box-shadow: none;
   }
 }
 

@@ -103,6 +103,10 @@ const socketAlive = new WeakMap<object, boolean>();
 setInterval(() => {
     for (const client of wss.clients) {
         if (socketAlive.get(client) === false) {
+            // Pas de pong depuis le dernier tick : socket zombie (typiquement une
+            // WebView mobile gelée en arrière-plan). On la termine côté serveur —
+            // le close handler démarrera alors la fenêtre de reconnexion.
+            console.log('💀 Socket zombie terminée par le heartbeat (pong manquant)');
             client.terminate();
             continue;
         }

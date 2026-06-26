@@ -146,6 +146,10 @@ export class MatchmakingManager {
 
         if (this.session.players.length === 0) {
             if (this.session.botDispatchTimer) clearInterval(this.session.botDispatchTimer);
+            // Nettoie les timers de reconnexion (180s) démarrés par le close
+            // handler du messenger : la session n'ira jamais jusqu'à launch(),
+            // sinon un timer orphelin loggue un faux "permanently disconnected".
+            this.session.messenger.dispose();
             this.session = null;
             console.log('❌ Matchmaking session annulée (tous déconnectés)');
         } else {

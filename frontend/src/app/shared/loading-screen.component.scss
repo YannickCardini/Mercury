@@ -1,5 +1,6 @@
 @use "sass:color";
 @use "../styles/palette" as *; // palette « Système solaire » centralisée
+@use "../styles/planets" as *; // rendu billes « planètes » partagé
 
 :host {
     position: fixed;
@@ -113,39 +114,14 @@
     position: absolute;
     width: 26px;
     height: 26px;
-    border-radius: 50%;
     top: -13px;
     left: calc(50% - 13px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), inset -2px -2px 5px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 0 12px 1px var(--planet-glow, transparent);
     animation: orbitSpin 6s linear infinite;
     animation-delay: var(--orbit-delay);
 
-    &::after {
-        content: '';
-        position: absolute;
-        top: 18%;
-        left: 18%;
-        width: 28%;
-        height: 28%;
-        border-radius: 50%;
-        background: radial-gradient(circle, rgba(255, 255, 255, 0.8), transparent 70%);
-    }
-
-    &.marble-red {
-        background: radial-gradient(circle at 35% 35%, color.adjust($c-red, $lightness: 15%), $c-red 60%, color.adjust($c-red, $lightness: -15%));
-    }
-
-    &.marble-green {
-        background: radial-gradient(circle at 35% 35%, color.adjust($c-green, $lightness: 15%), $c-green 60%, color.adjust($c-green, $lightness: -15%));
-    }
-
-    &.marble-blue {
-        background: radial-gradient(circle at 35% 35%, color.adjust($c-blue, $lightness: 15%), $c-blue 60%, color.adjust($c-blue, $lightness: -15%));
-    }
-
-    &.marble-orange {
-        background: radial-gradient(circle at 35% 35%, color.adjust($c-orange, $lightness: 15%), $c-orange 60%, color.adjust($c-orange, $lightness: -15%));
-    }
+    @include planet-base;
+    @include planet-variants("marble");
 }
 
 @keyframes orbitSpin {

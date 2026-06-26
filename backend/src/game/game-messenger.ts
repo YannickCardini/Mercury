@@ -146,7 +146,7 @@ export class MultiWsMessenger implements GameMessenger {
     }
 
     private registerCloseHandler(color: MarbleColor, ws: WebSocket): void {
-        ws.addEventListener('close', () => {
+        ws.addEventListener('close', (event: CloseEvent) => {
             // Only react if this is still the active socket for this color
             if (this.connections.get(color) !== ws) return;
 
@@ -154,7 +154,11 @@ export class MultiWsMessenger implements GameMessenger {
             // not after the 180s grace period.
             this.onTempDisconnect?.(color);
 
-            console.log(`⏳ ${color} disconnected — 180s reconnection window started`);
+            // Log the close code/reason to distinguish a backgrounded mobile
+            // WebView (1001/1006, heartbeat termination) from an intentional
+            // close, so production disconnects can be attributed reliably.
+            const reason = event.reason ? ` "${event.reason}"` : '';
+            console.log(`⏳ ${color} disconnected (code=${event.code}${reason}) — 180s reconnection window started`);
             const timer = setTimeout(() => {
                 this.disconnectTimers.delete(color);
                 this.connections.delete(color);
@@ -182,6 +186,24 @@ export class MultiWsMessenger implements GameMessenger {
         // Remove from map first so the close handler won't fire any callbacks
         this.connections.delete(color);
         ws?.close(4002, 'Player abandoned the game');
+    }
+
+    /**
+     * Tear down the messenger: clear every pending reconnection timer and drop
+     * all references. Used when a session is abandoned before the game launches
+     * (e.g. matchmaking cancelled because everyone left). Without this, the 180s
+     * timers started by `registerCloseHandler` survive on the orphaned messenger
+     * and fire a misleading "permanently disconnected" log 3 minutes later.
+     */
+    dispose(): void {
+        for (const timer of this.disconnectTimers.values()) {
+            clearTimeout(timer);
+        }
+        this.disconnectTimers.clear();
+        this.connections.clear();
+        this.onPermanentDisconnect = null;
+        this.onTempDisconnect = null;
+        this.onReconnect = null;
     }
 
     /** Envoie à tous les clients connectés (broadcast). */

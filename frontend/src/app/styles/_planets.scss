@@ -1,0 +1,150 @@
+// ═══════════════════════════════════════════════════════════════════════════
+//  Billes « planètes » — rendu sphère texturée partagé
+// ───────────────────────────────────────────────────────────────────────────
+//  Source unique de vérité pour le rendu des billes du jeu. Remplace les
+//  anciens disques `radial-gradient` unicolores dupliqués dans chaque composant.
+//
+//  Mapping couleur (code existant) → planète :
+//    red    → Mars       green  → Terre
+//    blue   → Neptune    orange → Jupiter
+//
+//  Deux usages :
+//   • Billes décoratives (home, loading, modales, victoire, bannière) :
+//       texture animée (rotation) via pseudo-éléments.
+//         @include planet-base; @include planet-variants("prefixe");
+//   • Plateau de jeu : texture FIXE posée directement en background, sans
+//     modifier la géométrie / les animations existantes des billes.
+//         @include planet-static-variants("prefixe");
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ─── Textures (background-image) — listes de gradients réutilisables ──────────
+// Chaque tuile contient une planète complète ; le dernier calque (linear) sert
+// de couleur de fond opaque.
+
+$planet-mars-bg:
+  (radial-gradient(ellipse 52% 15% at 50% 1%, #ffe7d8 0 50%, rgba(255,231,216,0) 78%),
+   radial-gradient(circle at 20% 44%, #ad3a1f 0 8%,  rgba(173,58,31,0) 10%),
+   radial-gradient(circle at 38% 70%, #c14a26 0 11%, rgba(193,74,38,0) 13%),
+   radial-gradient(circle at 70% 38%, #f0966a 0 7%,  rgba(240,150,106,0) 9%),
+   radial-gradient(circle at 86% 66%, #9c2f16 0 9%,  rgba(156,47,22,0) 11%),
+   linear-gradient(180deg, #e2673c, #cf5530));
+
+$planet-earth-bg:
+  (radial-gradient(circle at 26% 30%, rgba(255,255,255,.9) 0 3.5%, rgba(255,255,255,0) 6%),
+   radial-gradient(circle at 62% 22%, rgba(255,255,255,.8) 0 3%,   rgba(255,255,255,0) 5%),
+   radial-gradient(ellipse 15% 19% at 30% 42%, #3aa64a 0 68%, rgba(58,166,74,0) 74%),
+   radial-gradient(ellipse 20% 15% at 66% 60%, #49b558 0 68%, rgba(73,181,88,0) 74%),
+   radial-gradient(circle at 82% 34%, #2e8f3d 0 6%, rgba(46,143,61,0) 8%),
+   radial-gradient(circle at 14% 72%, #2f9440 0 7%, rgba(47,148,64,0) 9%),
+   linear-gradient(180deg, #25a0f0, #1366c4));
+
+$planet-neptune-bg:
+  (radial-gradient(ellipse 12% 8% at 40% 44%, #11205f 0 50%, rgba(17,32,95,0) 60%),
+   repeating-linear-gradient(180deg,
+     #6f8dff 0%, #6f8dff 6%,  #4f68e8 6%,  #4f68e8 13%,
+     #6079f5 13%,#6079f5 20%, #3f54cf 20%, #3f54cf 27%,
+     #5a73f0 27%,#5a73f0 34%, #4257d6 34%, #4257d6 42%,
+     #6079f5 42%,#6079f5 50%),
+   linear-gradient(180deg, #4259d6, #2a3aa0));
+
+$planet-jupiter-bg:
+  (radial-gradient(ellipse 13% 9% at 66% 58%, #aa3320 0 50%, #e0875a 56%, rgba(224,135,90,0) 62%),
+   repeating-linear-gradient(180deg,
+     #f4debb 0%, #f4debb 6%,  #e0b485 6%,  #e0b485 12%,
+     #cf9a64 12%,#cf9a64 17%, #ead0a3 17%, #ead0a3 24%,
+     #c8854f 24%,#c8854f 30%, #f0d9b2 30%, #f0d9b2 37%,
+     #d6a878 37%,#d6a878 44%, #bd7a45 44%, #bd7a45 50%),
+   linear-gradient(180deg, #e0b485, #cf9a64));
+
+// Glow coloré (halo) par planète
+$planet-mars-glow:    rgba(226, 103, 60, .50);
+$planet-earth-glow:   rgba(60, 150, 235, .50);
+$planet-neptune-glow: rgba(70, 100, 235, .55);
+$planet-jupiter-glow: rgba(230, 160, 90, .50);
+
+// Vitesses de rotation (billes décoratives)
+$planet-mars-spin:    30s;
+$planet-earth-spin:   34s;
+$planet-neptune-spin: 28s;
+$planet-jupiter-spin: 24s;
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  Variante DÉCORATIVE — texture animée via pseudo-éléments
+// ═══════════════════════════════════════════════════════════════════════════
+
+@keyframes planet-spin { to { transform: translateX(-50%); } }
+
+// Structure commune. $spin:false => texture fixe.
+@mixin planet-base($spin: true) {
+  position: relative;
+  border-radius: 50%;
+  overflow: hidden;
+
+  // surface texturée, large de 200% et tuilée → boucle sans raccord
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    width: 200%;
+    height: 100%;
+    background-repeat: repeat-x;
+    background-size: 50% 100%;
+    @if $spin {
+      animation: planet-spin var(--spin, 28s) linear infinite;
+      will-change: transform;
+    }
+  }
+
+  // ombrage sphérique + brillance fixe par-dessus la texture (échelle en %)
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    pointer-events: none;
+    background:
+      radial-gradient(circle at 32% 27%,
+        rgba(#fff, .60) 0%, rgba(#fff, .14) 16%, rgba(#fff, 0) 38%),
+      radial-gradient(circle at 50% 50%,
+        rgba(#000, 0) 50%, rgba(#000, .30) 78%, rgba(#000, .55) 100%);
+  }
+}
+
+@mixin planet-skin($glow, $spin, $bg) {
+  --planet-glow: #{$glow};
+  --spin: #{$spin};
+  &::before { background-image: $bg; }
+}
+
+@mixin planet-mars    { @include planet-skin($planet-mars-glow,    $planet-mars-spin,    $planet-mars-bg); }
+@mixin planet-earth   { @include planet-skin($planet-earth-glow,   $planet-earth-spin,   $planet-earth-bg); }
+@mixin planet-neptune { @include planet-skin($planet-neptune-glow, $planet-neptune-spin, $planet-neptune-bg); }
+@mixin planet-jupiter { @include planet-skin($planet-jupiter-glow, $planet-jupiter-spin, $planet-jupiter-bg); }
+
+// Applique le mapping couleur → planète pour un préfixe de classe donné.
+//   @include planet-variants("marble")  =>  &.marble-red { … Mars … }  etc.
+@mixin planet-variants($p) {
+  &.#{$p}-red    { @include planet-mars; }
+  &.#{$p}-green  { @include planet-earth; }
+  &.#{$p}-blue   { @include planet-neptune; }
+  &.#{$p}-orange { @include planet-jupiter; }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  Variante STATIQUE — texture posée en background (plateau de jeu)
+//  N'altère ni la taille, ni la position, ni les animations de la bille :
+//  seul le background change. La texture est découpée par le border-radius.
+// ═══════════════════════════════════════════════════════════════════════════
+
+@mixin planet-texture-static($bg) {
+  background-image: $bg;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+
+@mixin planet-static-variants($p) {
+  &.#{$p}-red    { @include planet-texture-static($planet-mars-bg); }
+  &.#{$p}-green  { @include planet-texture-static($planet-earth-bg); }
+  &.#{$p}-blue   { @include planet-texture-static($planet-neptune-bg); }
+  &.#{$p}-orange { @include planet-texture-static($planet-jupiter-bg); }
+}

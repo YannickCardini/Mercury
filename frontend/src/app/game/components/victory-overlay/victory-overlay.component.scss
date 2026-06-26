@@ -1,5 +1,6 @@
 @use "sass:color";
 @use "../../../styles/palette" as *; // palette « Système solaire » centralisée
+@use "../../../styles/planets" as *; // rendu billes « planètes » partagé
 
 // ── Overlay plein écran ──────────────────────────────────────────
 
@@ -35,11 +36,6 @@
       .winner-name {
         color: $hex;
         text-shadow: 0 0 16px rgba($hex, 0.8);
-      }
-
-      .wm-#{$name} {
-        background: radial-gradient(circle at 35% 35%, color.adjust($hex, $lightness: 18%), $hex 60%, color.adjust($hex, $lightness: -18%));
-        box-shadow: 0 0 20px rgba($hex, 0.7), 0 4px 10px rgba(0, 0, 0, 0.5);
       }
     }
   }
@@ -158,21 +154,12 @@
 .winner-marble {
   width: 36px;
   height: 36px;
-  border-radius: 50%;
   flex-shrink: 0;
-  position: relative;
   animation: marblePulse 1.8s ease-in-out infinite;
 
-  &::after {
-    content: '';
-    position: absolute;
-    top: 18%;
-    left: 18%;
-    width: 28%;
-    height: 28%;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(255, 255, 255, 0.75), transparent 70%);
-  }
+  @include planet-base;
+  @include planet-variants("wm"); // red→Mars, green→Terre, blue→Neptune, orange→Jupiter
+  box-shadow: 0 0 20px 1px var(--planet-glow, transparent), 0 4px 10px rgba(0, 0, 0, 0.5);
 }
 
 @keyframes marblePulse {

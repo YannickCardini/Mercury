@@ -23,6 +23,7 @@ import { Subscription } from "rxjs";
 import { NEW_TURN_BANNER_DURATION_MS } from "@mercury/shared";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { Capacitor } from "@capacitor/core";
+import { KeepAwake } from "@capacitor-community/keep-awake";
 
 /** How long the load-failure message stays on the loading screen before redirecting home. */
 const LOAD_ERROR_REDIRECT_MS = 3000;
@@ -31,7 +32,7 @@ const LOAD_ERROR_REDIRECT_MS = 3000;
   selector: "app-game",
   templateUrl: "game.page.html",
   styleUrl: "game.page.scss",
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     BoardComponent,
     TableComponent,
@@ -114,6 +115,19 @@ export class GamePage implements OnDestroy, AfterViewInit {
       }
     });
 
+    // Empêche l'écran de se verrouiller pendant SON tour : sur Android le
+    // verrouillage coupe le Wi-Fi (→ socket morte) au pire moment. On relâche
+    // dès que le tour passe à un adversaire pour ne pas vider la batterie.
+    if (Capacitor.isNativePlatform()) {
+      effect(() => {
+        if (this.gameStateService.isMyTurn()) {
+          void KeepAwake.keepAwake().catch(() => { /* ignore */ });
+        } else {
+          void KeepAwake.allowSleep().catch(() => { /* ignore */ });
+        }
+      });
+    }
+
     // ✅ Subscription RxJS propre — réactive à chaque next() du BehaviorSubject,
     // contrairement à .value qui est un snapshot lu une seule fois au moment
     // de l'exécution de l'effect.
@@ -170,6 +184,9 @@ export class GamePage implements OnDestroy, AfterViewInit {
       ),
       this.gameStateService.reconnecting$.subscribe(() =>
         this.toast.show("Connection lost — reconnecting…", "error")
+      ),
+      this.gameStateService.reconnected$.subscribe(() =>
+        this.toast.show("Reconnected", "info", 1500)
       )
     );
   }
@@ -214,6 +231,10 @@ export class GamePage implements OnDestroy, AfterViewInit {
     this.uiSubs.forEach((sub) => sub.unsubscribe());
     if (this.newTurnTimeout) clearTimeout(this.newTurnTimeout);
     if (this.loadFailRedirect) clearTimeout(this.loadFailRedirect);
+    // Quitter la partie : on relâche le verrou écran.
+    if (Capacitor.isNativePlatform()) {
+      void KeepAwake.allowSleep().catch(() => { /* ignore */ });
+    }
   }
 
   ngAfterViewInit(): void {

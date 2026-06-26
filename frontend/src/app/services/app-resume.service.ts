@@ -2,6 +2,7 @@ import { Injectable, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { Subject, take } from 'rxjs';
 import { App } from '@capacitor/app';
+import { Network } from '@capacitor/network';
 import { Capacitor } from '@capacitor/core';
 import { GameStateService } from '../game/services/game-state.service';
 import { TabLockService } from '../game/services/tab-lock.service';
@@ -80,6 +81,16 @@ export class AppResumeService {
         } else {
           this.wasBackgrounded = true;
         }
+      });
+
+      // Une transition réseau (Wi-Fi→data au verrouillage écran, retour de tunnel…)
+      // coupe la socket sans forcément backgrounder l'app. Dès que la connectivité
+      // revient, on reconnecte immédiatement la partie en cours.
+      void Network.addListener('networkStatusChange', (status) => {
+        if (!status.connected) return;
+        if (!this.readActiveGameFromStorage()) return;
+        console.log('[AppResume] réseau revenu — reconnexion immédiate');
+        this.gameStateService.reconnectNow(environment.wsUrl);
       });
     }
   }
@@ -162,17 +173,15 @@ export class AppResumeService {
       this.validating.set(false);
     }, VALIDATION_TIMEOUT_MS);
 
-    if (this.gameStateService.isConnected()) {
-      // Socket survived the background — just ask for a fresh state.
-      console.log('[AppResume] socket still alive — re-issuing joinGame to refresh state');
-      this.gameStateService.sendJoinGame(guestPlayerId, activeGameId);
-    } else {
-      // Background suspended the socket — reconnect, then re-join.
-      console.log('[AppResume] socket is down — reconnecting before joinGame');
+    if (!this.gameStateService.isConnected()) {
+      // Background suspended the socket — we'll claim the tab lock before the
+      // immediate reconnect below.
       this.tabLock.claimSession();
-      this.gameStateService.connect(environment.wsUrl, () => {
-        this.gameStateService.sendJoinGame(guestPlayerId, activeGameId);
-      });
     }
+    // Reconnexion immédiate (reset du backoff) : si la socket a survécu,
+    // reconnectNow se contente de renvoyer joinGame ; sinon il reconnecte tout
+    // de suite sans attendre le rejoinTimer accumulé pendant l'arrière-plan.
+    console.log('[AppResume] triggering immediate reconnect/refresh');
+    this.gameStateService.reconnectNow(environment.wsUrl);
   }
 }

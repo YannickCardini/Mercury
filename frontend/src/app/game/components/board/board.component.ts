@@ -183,7 +183,10 @@ export class BoardComponent implements OnInit, OnDestroy {
   private marbleByPosition = computed<Map<number, MarbleColor>>(() => {
     const m = new Map<number, MarbleColor>();
     const gameData = this.displayedGameData();
-    if (!gameData || !this.gameStateService.isConnected()) return m;
+    // On garde le dernier état connu même en cas de hoquet réseau : ne PAS
+    // dépendre de isConnected() ici, sinon un blip de connexion vide toutes les
+    // cases d'un coup (flash de tout le plateau).
+    if (!gameData) return m;
     for (const player of gameData.gameState.players) {
       const color = player.color as MarbleColor;
       const positions = player.marblePositions ?? [];

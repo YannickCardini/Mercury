@@ -1,5 +1,6 @@
 @use "sass:color";
 @use "../styles/palette" as *; // palette « Système solaire » centralisée
+@use "../styles/planets" as *; // rendu billes « planètes » partagé
 
 // ─── Overlay ──────────────────────────────────────────────────────────────────
 // z-index volontairement au-dessus de tout (rules-overlay = 200) pour qu'il
@@ -81,28 +82,14 @@
 
 // ─── Marble dots ──────────────────────────────────────────────────────────────
 .mm {
-  position: relative;
   width: 12px;
   height: 12px;
-  border-radius: 50%;
   display: inline-block;
   flex-shrink: 0;
 
-  &::after {
-    content: '';
-    position: absolute;
-    top: 20%;
-    left: 20%;
-    width: 26%;
-    height: 26%;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(255, 255, 255, 0.7), transparent 70%);
-  }
-
-  &.mm-red    { background: radial-gradient(circle at 35% 35%, color.adjust($c-red,    $lightness: 18%), $c-red    55%, color.adjust($c-red,    $lightness: -12%)); }
-  &.mm-green  { background: radial-gradient(circle at 35% 35%, color.adjust($c-green,  $lightness: 18%), $c-green  55%, color.adjust($c-green,  $lightness: -12%)); }
-  &.mm-blue   { background: radial-gradient(circle at 35% 35%, color.adjust($c-blue,   $lightness: 18%), $c-blue   55%, color.adjust($c-blue,   $lightness: -12%)); }
-  &.mm-orange { background: radial-gradient(circle at 35% 35%, color.adjust($c-orange, $lightness: 18%), $c-orange 55%, color.adjust($c-orange, $lightness: -12%)); }
+  @include planet-base;
+  @include planet-variants("mm"); // red→Mars, green→Terre, blue→Neptune, orange→Jupiter
+  box-shadow: 0 0 6px var(--planet-glow, transparent);
 }
 
 // ─── Body ─────────────────────────────────────────────────────────────────────

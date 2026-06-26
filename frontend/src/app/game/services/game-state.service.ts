@@ -331,6 +331,8 @@ export class GameStateService {
   connectionError$ = new Subject<void>();
   /** Émet quand une reconnexion automatique à la partie en cours est planifiée. */
   reconnecting$ = new Subject<void>();
+  /** Émet quand le serveur confirme la reconnexion (gameState « Reconnected »). */
+  reconnected$ = new Subject<void>();
   /**
    * Émet quand le serveur rejette une tentative de join/create parce que le
    * compte signed-in est déjà joueur d'une partie en cours. Les clés de
@@ -425,6 +427,9 @@ export class GameStateService {
             this.myPlayerColor.set(msg.myColor);
           }
           this.gameStarted$.next();
+          if (msg.message === 'Reconnected') {
+            this.reconnected$.next();
+          }
           if (msg.message === 'New turn') {
             // Détecte un tour bonus Joker : la dernière action diffusée était un
             // Joker effectivement joué, et c'est de nouveau le tour de la même
@@ -523,6 +528,11 @@ export class GameStateService {
     };
     this.ws.onclose = (event: CloseEvent) => {
       this.isConnected.set(false);
+      // Trace la cause de la fermeture pour distinguer une WebView backgroundée
+      // (visibility=hidden, codes 1001/1006) d'une vraie coupure réseau.
+      console.log(
+        `🔌 WebSocket fermé (code=${event.code}, reason="${event.reason}", visibility=${document.visibilityState})`,
+      );
       if (this.intentionalClose) return;
       if (event.code === 4001) {
         this.tabLock.releaseSession();
@@ -559,6 +569,39 @@ export class GameStateService {
       console.log('🔄 Reconnexion automatique à la partie en cours…');
       this.connect(url, () => this.sendJoinGame(guestPlayerId, activeGameId));
     }, delay);
+  }
+
+  /**
+   * Reconnexion immédiate à la partie en cours, sans attendre le backoff.
+   * Appelée au retour de l'arrière-plan ou à un changement réseau (Wi-Fi↔data) :
+   * pendant que la WebView est gelée, le backoff de `scheduleRejoin` peut avoir
+   * gonflé jusqu'à 15 s — on l'annule et on le réinitialise pour reconnecter tout
+   * de suite. No-op s'il n'y a pas de partie active stockée.
+   * @param url URL WebSocket à utiliser si aucune connexion n'a encore eu lieu
+   *            cette session (sinon on réutilise la dernière URL connue).
+   */
+  reconnectNow(url?: string): void {
+    const guestPlayerId = localStorage.getItem('guest_player_id');
+    const activeGameId = localStorage.getItem('active_game_id');
+    const target = url ?? this.lastUrl;
+    if (!guestPlayerId || !activeGameId || !target) return;
+
+    // Annule un rejoin programmé et remet le backoff à zéro.
+    if (this.rejoinTimer) {
+      clearTimeout(this.rejoinTimer);
+      this.rejoinTimer = null;
+    }
+    this.rejoinDelayMs = 1000;
+
+    if (this.isConnected()) {
+      // La socket a survécu : un simple joinGame rafraîchit l'état.
+      this.sendJoinGame(guestPlayerId, activeGameId);
+      return;
+    }
+
+    this.reconnecting$.next();
+    console.log('🔄 Reconnexion immédiate à la partie en cours…');
+    this.connect(target, () => this.sendJoinGame(guestPlayerId, activeGameId));
   }
 
   /**
