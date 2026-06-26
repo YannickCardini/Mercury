@@ -345,6 +345,49 @@ $colors: (
 }
 
 /* --------------------------------------------------------------------------
+   JOSTLE — Réaction d'un pion survolé par un sauteur : il se penche pour laisser
+   passer puis se redresse. Transform-only (translateX + rotate) → composé par le
+   GPU, aucun repaint : sûr et fluide sur WebView mobile.
+   -------------------------------------------------------------------------- */
+@keyframes pawnJostle {
+    0% {
+        transform: translateX(0) rotate(0deg);
+        animation-timing-function: cubic-bezier(.3, .6, .4, 1);
+    }
+
+    30% {
+        /* se penche pour dégager le passage */
+        transform: translateX(-10%) rotate(-16deg);
+        animation-timing-function: ease-in-out;
+    }
+
+    55% {
+        /* maintient l'inclinaison le temps que le sauteur passe */
+        transform: translateX(-11%) rotate(-17deg);
+        animation-timing-function: cubic-bezier(.3, .5, .35, 1);
+    }
+
+    80% {
+        /* se redresse avec un léger débord de l'autre côté */
+        transform: translateX(2%) rotate(4deg);
+        animation-timing-function: ease-out;
+    }
+
+    100% {
+        transform: translateX(0) rotate(0deg);
+    }
+}
+
+.marble.marble-jostled {
+    animation: pawnJostle var(--anim-jostle) linear forwards;
+    /* Au-dessus du pion du modèle (z-index 10) pour que la réaction reste bien
+       visible pendant que le sauteur passe sur la case. */
+    z-index: 20;
+    pointer-events: none;
+    will-change: transform;
+}
+
+/* --------------------------------------------------------------------------
    CAPTURE
    Durée : 700ms
    -------------------------------------------------------------------------- */

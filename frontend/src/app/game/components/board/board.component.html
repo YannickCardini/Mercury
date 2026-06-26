@@ -37,6 +37,13 @@
 
   <!-- Rendu d'une bille -->
   <ng-template #marbleCell let-index>
+    <!-- Pion éphémère « bousculé » : rendu en plus du pion du modèle pour qu'ils
+         coexistent sur la case le temps de la réaction (le sauteur passe par-dessus). -->
+    @if (getOverlayMarble(index); as overlay) {
+    <div class="marble" [ngClass]="['marble-' + overlay.color, overlay.animClass]">
+      <div class="marble-highlight"></div>
+    </div>
+    }
     @if (getMarbleOnSquare(index); as marbleColor) {
     <div class="marble" [ngClass]="[
         'marble-' + marbleColor,

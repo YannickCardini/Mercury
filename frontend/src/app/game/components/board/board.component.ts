@@ -35,6 +35,14 @@ import {
   type LegalMoveContext,
 } from '@mercury/shared';
 
+/**
+ * Durée de la réaction « jostle » d'un pion qu'un autre survole en passant (ms).
+ * Volontairement locale au composant : purement cosmétique et jouée EN PARALLÈLE
+ * du saut, sans incidence sur le rythme serveur (computeMinAnimationDuration) —
+ * inutile de la partager. Doit correspondre au keyframe `pawnJostle` (--anim-jostle).
+ */
+const JOSTLE_DURATION_MS = 380;
+
 export interface ProfileData {
   name: string;
   picture: string;
@@ -83,6 +91,13 @@ export class BoardComponent implements OnInit, OnDestroy {
   squareSize: number = 0;
   squareToDisplay: number[] = SQUARES_TO_DISPLAY;
   squareAnimations = signal<Record<number, SquareAnimation>>({});
+  /**
+   * Pions éphémères rendus EN PLUS du pion du modèle sur une même case, le temps
+   * d'une réaction. Sert au « jostle » : un pion survolé par un sauteur est sorti
+   * du modèle et rendu ici avec `marble-jostled`, puis réintégré une fois la
+   * réaction terminée (évite deux pions sur la même case).
+   */
+  overlayMarbles = signal<Record<number, { color: MarbleColor; animClass: string }>>({});
   discardPile = signal<CardInfo[]>([]);
   flyingCard = signal<CardInfo | null>(null);
   /** Cartes en vol simultanées lors d'un discard (plusieurs cartes) */
@@ -355,6 +370,7 @@ export class BoardComponent implements OnInit, OnDestroy {
       if (t === 'move') {
         for (const step of this.calculateActionsMove(a)) {
           this.soundService.playMove();
+          this.jostlePassedMarble(step.to, step.playerColor as MarbleColor);
           this.updateMarblePosition(step);
           await applyAndWait(step.to, { marbleClass: 'marble-moving' }, MARBLE_ANIMATION_DURATIONS.move);
         }
@@ -363,6 +379,7 @@ export class BoardComponent implements OnInit, OnDestroy {
         for (let i = 0; i < captureSteps.length - 1; i++) {
           const step = captureSteps[i]!;
           this.soundService.playMove();
+          this.jostlePassedMarble(step.to, step.playerColor as MarbleColor);
           this.updateMarblePosition(step);
           await applyAndWait(step.to, { marbleClass: 'marble-moving' }, MARBLE_ANIMATION_DURATIONS.move);
         }
@@ -380,6 +397,7 @@ export class BoardComponent implements OnInit, OnDestroy {
         const mainPathAction: Action = { ...a, type: 'move', to: beforeStartPos };
         for (const step of this.calculateActionsMove(mainPathAction)) {
           this.soundService.playMove();
+          this.jostlePassedMarble(step.to, step.playerColor as MarbleColor);
           this.updateMarblePosition(step);
           await applyAndWait(step.to, { marbleClass: 'marble-moving' }, MARBLE_ANIMATION_DURATIONS.move);
         }
@@ -609,6 +627,55 @@ export class BoardComponent implements OnInit, OnDestroy {
     });
   }
 
+  /** Réintègre un pion (position 0 → `position`) après une réaction de jostle. */
+  private restoreMarbleToSquare(position: number, color: MarbleColor): void {
+    this.displayedGameData.update(current => {
+      if (!current) return current;
+      const updatedPlayers = current.gameState.players.map(p => {
+        if (p.color === color) {
+          const marblePositions = [...p.marblePositions];
+          const idx = marblePositions.indexOf(0);
+          if (idx !== -1) marblePositions[idx] = position;
+          return { ...p, marblePositions };
+        }
+        return p;
+      });
+      return { ...current, gameState: { ...current.gameState, players: updatedPlayers } };
+    });
+  }
+
+  /**
+   * Réaction d'un pion survolé par un sauteur. Si la case d'arrivée d'un hop est
+   * occupée par un pion adverse (survol SANS capture — la case de capture finale
+   * est gérée ailleurs), ce pion se penche (`marble-jostled`) pour laisser passer.
+   *
+   * Il est sorti du modèle et rendu en overlay le temps de la réaction, puis
+   * réintégré : évite d'avoir deux pions sur une même case. L'animation est
+   * transform-only et tourne EN PARALLÈLE du saut — elle ne bloque pas la
+   * séquence et reste légère sur WebView mobile.
+   */
+  private jostlePassedMarble(square: number, movingColor: MarbleColor): void {
+    const occupant = this.getMarbleOnSquare(square);
+    if (!occupant || occupant === movingColor) return;
+
+    this.removeMarbleFromSquare(square, occupant);
+    this.overlayMarbles.update(prev => ({ ...prev, [square]: { color: occupant, animClass: 'marble-jostled' } }));
+
+    setTimeout(() => {
+      this.overlayMarbles.update(prev => {
+        const next = { ...prev };
+        delete next[square];
+        return next;
+      });
+      // Ne réintègre que si notre retrait optimiste tient toujours (case vide).
+      // Si l'état autoritaire du serveur est déjà arrivé, le pion y est déjà :
+      // ne rien faire, sous peine de dupliquer ou téléporter un pion.
+      if (this.getMarbleOnSquare(square) === null) {
+        this.restoreMarbleToSquare(square, occupant);
+      }
+    }, JOSTLE_DURATION_MS);
+  }
+
   // ── Getters ─────────────────────────────────────────────────────────────────
 
   get topDiscardCard(): CardInfo | null {
@@ -617,6 +684,10 @@ export class BoardComponent implements OnInit, OnDestroy {
 
   getMarbleAnimClass(index: number): string {
     return this.squareAnimations()[index]?.marbleClass ?? '';
+  }
+
+  getOverlayMarble(index: number): { color: MarbleColor; animClass: string } | null {
+    return this.overlayMarbles()[index] ?? null;
   }
 
   getSquareAnimClass(index: number): string {
@@ -648,6 +719,7 @@ export class BoardComponent implements OnInit, OnDestroy {
     root.style.setProperty('--anim-card-fly', `${CARD_FLY_DURATION_MS}ms`);
     root.style.setProperty('--anim-enter-impact', `${ENTER_IMPACT_DURATION_MS}ms`);
     root.style.setProperty('--anim-marble-ejected', `${MARBLE_EJECTED_DURATION_MS}ms`);
+    root.style.setProperty('--anim-jostle', `${JOSTLE_DURATION_MS}ms`);
   }
 
   @HostListener('window:resize')
