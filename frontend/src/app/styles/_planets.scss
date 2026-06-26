@@ -32,11 +32,13 @@ $planet-mars-bg:
 $planet-earth-bg:
   (radial-gradient(circle at 26% 30%, rgba(255,255,255,.9) 0 3.5%, rgba(255,255,255,0) 6%),
    radial-gradient(circle at 62% 22%, rgba(255,255,255,.8) 0 3%,   rgba(255,255,255,0) 5%),
-   radial-gradient(ellipse 15% 19% at 30% 42%, #3aa64a 0 68%, rgba(58,166,74,0) 74%),
-   radial-gradient(ellipse 20% 15% at 66% 60%, #49b558 0 68%, rgba(73,181,88,0) 74%),
-   radial-gradient(circle at 82% 34%, #2e8f3d 0 6%, rgba(46,143,61,0) 8%),
-   radial-gradient(circle at 14% 72%, #2f9440 0 7%, rgba(47,148,64,0) 9%),
-   linear-gradient(180deg, #25a0f0, #1366c4));
+   radial-gradient(ellipse 22% 26% at 30% 42%, #3aa64a 0 68%, rgba(58,166,74,0) 76%),
+   radial-gradient(ellipse 28% 22% at 66% 60%, #49b558 0 68%, rgba(73,181,88,0) 76%),
+   radial-gradient(ellipse 18% 22% at 50% 28%, #2e9e42 0 60%, rgba(46,158,66,0) 72%),
+   radial-gradient(circle at 82% 34%, #2e8f3d 0 10%, rgba(46,143,61,0) 14%),
+   radial-gradient(circle at 14% 72%, #2f9440 0 11%, rgba(47,148,64,0) 15%),
+   radial-gradient(circle at 76% 78%, #3aab4c 0 8%,  rgba(58,171,76,0) 12%),
+   linear-gradient(180deg, #1a82c8, #0e529e));
 
 $planet-neptune-bg:
   (radial-gradient(ellipse 12% 8% at 40% 44%, #11205f 0 50%, rgba(17,32,95,0) 60%),
@@ -58,7 +60,7 @@ $planet-jupiter-bg:
 
 // Glow coloré (halo) par planète
 $planet-mars-glow:    rgba(226, 103, 60, .50);
-$planet-earth-glow:   rgba(60, 150, 235, .50);
+$planet-earth-glow:   rgba(50, 160, 80, .50);
 $planet-neptune-glow: rgba(70, 100, 235, .55);
 $planet-jupiter-glow: rgba(230, 160, 90, .50);
 
