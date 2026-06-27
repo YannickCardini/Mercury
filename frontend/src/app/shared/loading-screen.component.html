@@ -11,18 +11,7 @@
   </div>
 
   <!-- Billes en orbite (les 4 couleurs du jeu) -->
-  <div class="marble-orbit">
-    <div class="orbit-ring">
-      <div class="orbit-marble marble-red" style="--orbit-delay: 0s"></div>
-      <div class="orbit-marble marble-green" style="--orbit-delay: -1.5s"></div>
-      <div class="orbit-marble marble-blue" style="--orbit-delay: -3s"></div>
-      <div class="orbit-marble marble-orange" style="--orbit-delay: -4.5s"></div>
-    </div>
-    <!-- Étoile centrale qui pulse -->
-    <div class="orbit-center">
-      <div class="orbit-center-core"></div>
-    </div>
-  </div>
+  <app-marble-orbit></app-marble-orbit>
 
   <!-- Message statut -->
   <p class="loading-status">{{ status }}</p>

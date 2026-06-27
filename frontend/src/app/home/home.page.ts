@@ -14,6 +14,7 @@ import { Router } from "@angular/router";
 import { HttpClient } from "@angular/common/http";
 import { GameRulesModalComponent } from "../shared/game-rules-modal.component";
 import { InviteToastComponent } from "../shared/invite-toast.component";
+import { MarbleOrbitComponent } from "../shared/marble-orbit.component";
 import { Subscription, firstValueFrom, take } from "rxjs";
 import { version } from "../../../../package.json";
 import { App } from "@capacitor/app";
@@ -79,6 +80,7 @@ interface InviteCandidate {
     FormsModule,
     GameRulesModalComponent,
     InviteToastComponent,
+    MarbleOrbitComponent,
   ],
 })
 export class HomePage implements OnInit, OnDestroy {
@@ -502,6 +504,8 @@ export class HomePage implements OnInit, OnDestroy {
 
     this.disconnectPresence();
     this.tabLock.claimSession();
+    // Réchauffe le bundle du jeu pendant l'attente matchmaking.
+    void import("../game/game.page");
     // En mode debug, on saute l'affichage du modal d'attente : le backend lance
     // immédiatement une partie vs 3 bots IA.
     this.showMatchmaking = !environment.debug;

@@ -7,6 +7,14 @@
     inset: 0;
     z-index: 9999;
     display: block;
+    transition: opacity 0.25s ease-out, visibility 0s linear 0.25s;
+
+    &.hidden {
+        opacity: 0;
+        pointer-events: none;
+        // visibility:hidden après le fondu → animations CSS pausées, GPU libéré
+        visibility: hidden;
+    }
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -89,94 +97,8 @@
 }
 
 /* ── Orbite de billes ────────────────────────────────────────── */
-.marble-orbit {
-    position: relative;
-    width: 180px;
-    height: 180px;
+app-marble-orbit {
     z-index: 1;
-}
-
-.orbit-ring {
-    position: absolute;
-    inset: 0;
-    border-radius: 50%;
-    border: 1px dashed rgba(255, 255, 255, 0.15);
-    animation: orbitRingSpin 6s linear infinite;
-}
-
-@keyframes orbitRingSpin {
-    to {
-        transform: rotate(360deg);
-    }
-}
-
-.orbit-marble {
-    position: absolute;
-    width: 26px;
-    height: 26px;
-    top: -13px;
-    left: calc(50% - 13px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 0 12px 1px var(--planet-glow, transparent);
-    animation: orbitSpin 6s linear infinite;
-    animation-delay: var(--orbit-delay);
-
-    @include planet-base;
-    @include planet-variants("marble");
-}
-
-@keyframes orbitSpin {
-
-    /* Chaque bille fait le tour complet en restant "au-dessus" de l'anneau */
-    from {
-        transform: rotate(0deg) translateY(-90px) rotate(0deg);
-    }
-
-    to {
-        transform: rotate(360deg) translateY(-90px) rotate(-360deg);
-    }
-}
-
-/* Centre de l'orbite */
-.orbit-center {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.orbit-center-core {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 35% 35%, #7dd3fc, $c-blue 60%, #1e3a5f);
-    box-shadow: 0 0 20px rgba($c-blue, 0.6), 0 0 40px rgba($c-blue, 0.3);
-    animation: corePulse 1.8s ease-in-out infinite;
-
-    &::after {
-        content: '';
-        position: absolute;
-        top: 18%;
-        left: 18%;
-        width: 28%;
-        height: 28%;
-        border-radius: 50%;
-        background: radial-gradient(circle, rgba(255, 255, 255, 0.7), transparent 70%);
-    }
-}
-
-@keyframes corePulse {
-
-    0%,
-    100% {
-        transform: scale(1);
-        box-shadow: 0 0 20px rgba($c-blue, 0.6), 0 0 40px rgba($c-blue, 0.3);
-    }
-
-    50% {
-        transform: scale(1.15);
-        box-shadow: 0 0 30px rgba($c-blue, 0.9), 0 0 60px rgba($c-blue, 0.5);
-    }
 }
 
 @keyframes haloPulse {

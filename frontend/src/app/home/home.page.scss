@@ -204,94 +204,10 @@
 
 // ─── Marble orbit decoration ──────────────────────────────────────────────────
 .home-orbit {
-  position: relative;
-  width: 140px;
-  height: 140px;
   flex-shrink: 0;
 
   @media (orientation: landscape) {
     display: none;
-  }
-}
-
-.ho-ring {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  border: 1px dashed rgba(255, 255, 255, 0.12);
-  animation: orbitRingSpin 7s linear infinite;
-}
-
-@keyframes orbitRingSpin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.ho-marble {
-  position: absolute;
-  width: 22px;
-  height: 22px;
-  top: -11px;
-  left: calc(50% - 11px);
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4), 0 0 10px var(--planet-glow, transparent);
-  animation: homeOrbitSpin 7s linear infinite;
-  animation-delay: var(--orbit-delay);
-
-  @include planet-base;
-  @include planet-variants("ho");
-}
-
-@keyframes homeOrbitSpin {
-  from {
-    transform: rotate(0deg) translateY(-70px) rotate(0deg);
-  }
-
-  to {
-    transform: rotate(360deg) translateY(-70px) rotate(-360deg);
-  }
-}
-
-.ho-center {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.ho-core {
-  position: relative;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #7dd3fc, $c-blue 60%, #1e3a5f);
-  box-shadow: 0 0 18px rgba($c-blue, 0.65), 0 0 36px rgba($c-blue, 0.3);
-  animation: corePulse 2s ease-in-out infinite;
-
-  &::after {
-    content: '';
-    position: absolute;
-    top: 18%;
-    left: 18%;
-    width: 28%;
-    height: 28%;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(255, 255, 255, 0.65), transparent 70%);
-  }
-}
-
-@keyframes corePulse {
-
-  0%,
-  100% {
-    transform: scale(1);
-    box-shadow: 0 0 18px rgba($c-blue, 0.65), 0 0 36px rgba($c-blue, 0.3);
-  }
-
-  50% {
-    transform: scale(1.18);
-    box-shadow: 0 0 28px rgba($c-blue, 0.9), 0 0 56px rgba($c-blue, 0.5);
   }
 }
 
@@ -1170,7 +1086,10 @@
   cursor: pointer;
   transition: background 0.2s, border-color 0.2s, color 0.2s;
 
-  span { flex: 1; text-align: left; }
+  span {
+    flex: 1;
+    text-align: left;
+  }
 
   .chevron {
     opacity: 0.4;
@@ -1322,7 +1241,9 @@
 }
 
 @keyframes btnSpin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 // ─── Auth error banner ────────────────────────────────────────────────────────
@@ -1649,7 +1570,9 @@
 }
 
 @keyframes inboxSpin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .inbox-list {
@@ -1681,8 +1604,14 @@
     background: rgba($c-blue, 0.08);
     border-color: rgba($c-blue, 0.25);
 
-    .inbox-from { color: white; }
-    .inbox-preview { color: rgba(255, 255, 255, 0.95); font-weight: 500; }
+    .inbox-from {
+      color: white;
+    }
+
+    .inbox-preview {
+      color: rgba(255, 255, 255, 0.95);
+      font-weight: 500;
+    }
   }
 }
 
@@ -1965,23 +1894,29 @@
     padding: 24px 14px 16px;
     max-height: 90vh;
   }
+
   .inbox-item {
     padding: 10px 10px;
     gap: 10px;
   }
+
   .inbox-avatar {
     width: 36px;
     height: 36px;
   }
+
   .inbox-from {
     font-size: 0.85rem;
   }
+
   .inbox-preview {
     font-size: 0.78rem;
   }
+
   .bubble {
     max-width: 85%;
   }
+
   .thread-scroll {
     max-height: 60vh;
   }
@@ -2405,8 +2340,13 @@
 }
 
 @keyframes custom-invite-spin {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .custom-invite-empty {
@@ -2490,8 +2430,13 @@
   box-sizing: border-box;
   transition: border-color 0.2s;
 
-  &::placeholder { color: rgba(255, 255, 255, 0.25); }
-  &:focus { border-color: rgba($c-blue, 0.5); }
+  &::placeholder {
+    color: rgba(255, 255, 255, 0.25);
+  }
+
+  &:focus {
+    border-color: rgba($c-blue, 0.5);
+  }
 }
 
 .worker-login-error {
@@ -2531,6 +2476,7 @@
 // ─── Custom modal — responsive small screens ──────────────────────────────────
 @media (max-height: 768px) {
   .custom-card.custom-card--in-room {
+
     .modal-header,
     .custom-slots {
       display: none;

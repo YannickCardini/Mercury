@@ -1,0 +1,99 @@
+@use "../styles/palette" as *;
+@use "../styles/planets" as *;
+
+// ─── Tailles paramétrées via CSS custom properties ────────────────────────────
+// Défauts = 'lg' (écran de chargement : 180 px)
+:host {
+  display: block;
+  position: relative;
+  --_size:   180px;
+  --_marble: 26px;
+  --_radius: 90px;
+  --_core:   40px;
+  --_dur:    6s;
+  width:  var(--_size);
+  height: var(--_size);
+
+  // 'sm' = page home (140 px)
+  &.sm {
+    --_size:   140px;
+    --_marble: 22px;
+    --_radius: 70px;
+    --_core:   32px;
+    --_dur:    7s;
+  }
+}
+
+// ─── Anneau pointillé ─────────────────────────────────────────────────────────
+.mo-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px dashed rgba(255, 255, 255, 0.13);
+  animation: moRingSpin var(--_dur) linear infinite;
+}
+
+@keyframes moRingSpin {
+  to { transform: rotate(360deg); }
+}
+
+// ─── Billes en orbite ─────────────────────────────────────────────────────────
+.mo-marble {
+  position: absolute;
+  width:  var(--_marble);
+  height: var(--_marble);
+  top:  calc(-1 * var(--_marble) / 2);
+  left: calc(50% - var(--_marble) / 2);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.45), 0 0 11px 1px var(--planet-glow, transparent);
+  animation: moOrbitSpin var(--_dur) linear infinite;
+  animation-delay: var(--orbit-delay);
+
+  @include planet-base;
+  @include planet-variants("mo");
+}
+
+@keyframes moOrbitSpin {
+  from { transform: rotate(0deg)   translateY(calc(-1 * var(--_radius))) rotate(0deg); }
+  to   { transform: rotate(360deg) translateY(calc(-1 * var(--_radius))) rotate(-360deg); }
+}
+
+// ─── Bille bleue centrale ─────────────────────────────────────────────────────
+.mo-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mo-core {
+  position: relative;
+  width:  var(--_core);
+  height: var(--_core);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #7dd3fc, $c-blue 60%, #1e3a5f);
+  box-shadow: 0 0 20px rgba($c-blue, 0.65), 0 0 40px rgba($c-blue, 0.3);
+  animation: moCorePulse 2s ease-in-out infinite;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 18%;
+    left: 18%;
+    width: 28%;
+    height: 28%;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.65), transparent 70%);
+  }
+}
+
+@keyframes moCorePulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 20px rgba($c-blue, 0.65), 0 0 40px rgba($c-blue, 0.3);
+  }
+  50% {
+    transform: scale(1.16);
+    box-shadow: 0 0 30px rgba($c-blue, 0.9), 0 0 56px rgba($c-blue, 0.5);
+  }
+}

@@ -4,7 +4,6 @@ import {
   computed,
   effect,
   OnDestroy,
-  ViewChild,
   AfterViewInit,
   ChangeDetectionStrategy,
 } from "@angular/core";
@@ -43,8 +42,6 @@ const LOAD_ERROR_REDIRECT_MS = 3000;
   ],
 })
 export class GamePage implements OnDestroy, AfterViewInit {
-  @ViewChild(BoardComponent) private boardRef?: BoardComponent;
-
   showNewTurnBanner = signal(false);
   showRules = signal(false);
   newTurnColor = signal<string>("");
@@ -60,6 +57,7 @@ export class GamePage implements OnDestroy, AfterViewInit {
    * "Connecting to the server...".
    */
   loadError = signal<string | null>(null);
+  boardReady = signal(false);
 
   /** Status line for the initial-load loading screen. */
   loadingStatus = computed(() => {
@@ -238,11 +236,9 @@ export class GamePage implements OnDestroy, AfterViewInit {
   }
 
   ngAfterViewInit(): void {
-    if (this.gameStateService.isConnected()) {
-      requestAnimationFrame(() => this.boardRef?.calculateSquareSize());
-      return;
+    if (!this.gameStateService.isConnected()) {
+      this.connect();
     }
-    this.connect();
   }
 
   connect(): void {

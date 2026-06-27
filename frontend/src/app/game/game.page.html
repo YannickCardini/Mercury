@@ -1,11 +1,13 @@
 <div class="grid-container">
 
   <!-- ═══════════════════════════════════════════════════════════
-       ÉCRAN DE CHARGEMENT — visible tant qu'aucune donnée n'est reçue
+       ÉCRAN DE CHARGEMENT — visible jusqu'à ce que les données soient
+       reçues ET que le board ait calculé sa taille (fondu en sortie)
        ═══════════════════════════════════════════════════════════ -->
-  @if (!gameStateService.data()) {
-  <app-loading-screen [status]="loadingStatus()"></app-loading-screen>
-  }
+  <app-loading-screen
+    [status]="loadingStatus()"
+    [visible]="!gameStateService.data() || !boardReady()"
+  ></app-loading-screen>
 
   <!-- ═══════════════════════════════════════════════════════════
        JEU PRINCIPAL
@@ -35,7 +37,7 @@
     }
 
     <div class="board-wrapper">
-      <app-board #board></app-board>
+      <app-board (ready)="boardReady.set(true)"></app-board>
     </div>
     <div class="table-wrapper" [style.height.px]="gameStateService.boardContainerSize()"
       [style.width.px]="gameStateService.boardContainerSize()">

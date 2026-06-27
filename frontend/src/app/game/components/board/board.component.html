@@ -1,4 +1,4 @@
-<div class="board-container" [style.--square-size.px]="squareSize" [class.card-selected]="isCardSelected()">
+<div class="board-container" [style.--square-size.px]="squareSize() || null" [class.card-selected]="isCardSelected()">
   <ion-grid class="tock-grid">
     @for (row of rows; track row) {
     <ion-row class="tock-row">

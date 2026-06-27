@@ -92,16 +92,7 @@
       </div>
 
       <!-- Marble orbit decoration -->
-      <div class="home-orbit">
-        <div class="ho-ring"></div>
-        <div class="ho-marble ho-red" style="--orbit-delay: 0s"></div>
-        <div class="ho-marble ho-green" style="--orbit-delay: -1.5s"></div>
-        <div class="ho-marble ho-orange" style="--orbit-delay: -3s"></div>
-        <div class="ho-marble ho-blue" style="--orbit-delay: -4.5s"></div>
-        <div class="ho-center">
-          <div class="ho-core"></div>
-        </div>
-      </div>
+      <app-marble-orbit size="sm" class="home-orbit"></app-marble-orbit>
 
       <!-- Duplicate tab warning -->
       @if (duplicateTabMessage) {

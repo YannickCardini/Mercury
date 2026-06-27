@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, HostListener, OnInit, OnDestroy, signal, computed, effect, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, HostListener, OnDestroy, Output, EventEmitter, afterNextRender, signal, computed, effect, inject } from '@angular/core';
 import { GameStateService } from '../../services/game-state.service';
 import { SoundService } from '../../services/sound.service';
 import { IonCol, IonGrid, IonRow } from '@ionic/angular/standalone';
@@ -77,7 +77,7 @@ export interface SquareAnimation {
   host: { '[class.is-native]': '!isWeb' },
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class BoardComponent implements OnInit, OnDestroy {
+export class BoardComponent implements OnDestroy {
 
   // ── Config plateau ──────────────────────────────────────────────────────────
   readonly isWeb = !Capacitor.isNativePlatform();
@@ -88,7 +88,9 @@ export class BoardComponent implements OnInit, OnDestroy {
   readonly skippedIndices = SKIPPED_INDICES;
 
   // ── État UI ─────────────────────────────────────────────────────────────────
-  squareSize: number = 0;
+  squareSize = signal(0);
+  @Output() ready = new EventEmitter<void>();
+  private _readyEmitted = false;
   squareToDisplay: number[] = SQUARES_TO_DISPLAY;
   squareAnimations = signal<Record<number, SquareAnimation>>({});
   /**
@@ -252,6 +254,11 @@ export class BoardComponent implements OnInit, OnDestroy {
 
     this.actionPlayedSub = this.gameStateService.actionPlayed$.subscribe((action: Action) => {
       this.runActionSequence(action);
+    });
+
+    afterNextRender(() => {
+      this.calculateSquareSize();
+      this.injectAnimationDurations();
     });
   }
 
@@ -699,11 +706,6 @@ export class BoardComponent implements OnInit, OnDestroy {
 
   // ── Lifecycle ───────────────────────────────────────────────────────────────
 
-  ngOnInit() {
-    this.calculateSquareSize();
-    this.injectAnimationDurations();
-  }
-
   ngOnDestroy(): void {
     this.actionPlayedSub?.unsubscribe();
     if (this.flyingCardTimeout) clearTimeout(this.flyingCardTimeout);
@@ -733,8 +735,13 @@ export class BoardComponent implements OnInit, OnDestroy {
 
     const bounds = wrapper.getBoundingClientRect();
     const containerSize = Math.min(bounds.width, bounds.height) * 0.95;
-    this.squareSize = containerSize / this.gridSize;
+    const size = containerSize / this.gridSize;
+    this.squareSize.set(size);
     this.gameStateService.boardContainerSize.set(this.calculateTableWrapperSize(containerSize));
+    if (!this._readyEmitted && size > 0) {
+      this._readyEmitted = true;
+      this.ready.emit();
+    }
   }
 
   private calculateTableWrapperSize(containerSize: number): number {
