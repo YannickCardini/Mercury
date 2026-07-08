@@ -1373,6 +1373,14 @@ $colors: (
     .marble.marble-selected {
         filter: none;
     }
+
+    /* La case de destination pulse via box-shadow (repaint à chaque frame).
+       En natif on stoppe l'animation : le halo statique défini sur la règle de
+       base reste visible, sans re-peinture. (previewPathPulse n'anime que
+       l'opacité → composé GPU, on le laisse.) */
+    .case-path.square-preview-destination::before {
+        animation: none;
+    }
 }
 
 @keyframes marblePulseRing {

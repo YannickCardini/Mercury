@@ -153,3 +153,17 @@
     opacity: 0;
   }
 }
+
+/* ==========================================================================
+   ALLÉGEMENT NATIF (WebView Android) — le bouton emoji est toujours visible et
+   la palette apparaît en overlay ; leurs backdrop-filter blur() recomposent le
+   flou à chaque frame. En natif on les retire (fonds déjà quasi opaques).
+   Web/desktop inchangé.
+   ========================================================================== */
+:host(.is-native) {
+  .emoji-trigger,
+  .emoji-palette {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}

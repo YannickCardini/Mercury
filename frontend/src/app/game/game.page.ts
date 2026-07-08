@@ -40,8 +40,12 @@ const LOAD_ERROR_REDIRECT_MS = 3000;
     GameRulesModalComponent,
     LoadingScreenComponent,
   ],
+  // `is-native` : allège en CSS les effets coûteux (backdrop-filter) sur
+  // WebView Android. Le rendu web/desktop reste inchangé.
+  host: { "[class.is-native]": "isNative" },
 })
 export class GamePage implements OnDestroy, AfterViewInit {
+  readonly isNative = Capacitor.isNativePlatform();
   showNewTurnBanner = signal(false);
   showRules = signal(false);
   newTurnColor = signal<string>("");

@@ -26,7 +26,7 @@
   overflow: hidden;
   background: transparent; // fond spatial global visible à travers la page
 
-  // Grid pattern
+  /*   // Grid pattern
   &::before {
     content: '';
     position: absolute;
@@ -37,7 +37,7 @@
     background-size: 40px 40px;
     pointer-events: none;
     z-index: 0;
-  }
+  }*/
 
   // Central blue halo
   &::after {

@@ -1472,3 +1472,40 @@
         color: rgba(255, 255, 255, 0.78);
     }
 }
+
+/* ==========================================================================
+   ALLÉGEMENTS NATIFS (WebView Android) — réduit le coût de peinture en jeu.
+   Le rendu web/desktop reste inchangé ; on ne touche qu'au natif (.is-native).
+   ========================================================================== */
+:host(.is-native) {
+
+    /* Le dashboard est visible en permanence : son backdrop-filter blur(24px)
+       saturate(1.8) recompose le flou à chaque frame. → fond mat opaque. */
+    .control-dashboard {
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        background: rgba(15, 23, 42, 0.94);
+
+        /* Pendant le tour, dashboardActivePulse anime une box-shadow en boucle
+           (repaint/frame). → halo statique, aucune re-peinture. */
+        &.turn-active {
+            animation: none;
+            box-shadow: 0 -6px 22px var(--turn-glow, transparent);
+        }
+    }
+
+    /* Indicateur de phase, toujours affiché : retire le flou (petit élément,
+       le fond translucide suffit). */
+    .turn-phase {
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+    }
+
+    /* Overlays à la demande (fonds déjà quasi opaques) : on retire juste le
+       flou coûteux. */
+    .menu-dropdown,
+    .card-help-popover {
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+    }
+}

@@ -8,6 +8,7 @@ import {
   inject,
 } from "@angular/core";
 
+import { Capacitor } from "@capacitor/core";
 import { Subscription } from "rxjs";
 import {
   REACTION_EMOJIS,
@@ -35,8 +36,11 @@ const FLOAT_DURATION_MS = 1600;
   templateUrl: "./emoji-reactions.component.html",
   styleUrl: "./emoji-reactions.component.scss",
   changeDetection: ChangeDetectionStrategy.OnPush,
+  // `is-native` : allège en CSS les backdrop-filter coûteux sur WebView Android.
+  host: { "[class.is-native]": "isNative" },
 })
 export class EmojiReactionsComponent implements OnInit, OnDestroy {
+  readonly isNative = Capacitor.isNativePlatform();
   readonly emojis = REACTION_EMOJIS;
 
   showPalette = signal(false);

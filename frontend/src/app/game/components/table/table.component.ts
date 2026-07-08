@@ -39,7 +39,10 @@ enum TURN_PHASE {
   styleUrl: 'table.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, TockCardComponent, EmojiReactionsComponent]
+  imports: [CommonModule, TockCardComponent, EmojiReactionsComponent],
+  // `is-native` : allège en CSS les effets coûteux (backdrop-filter, box-shadow
+  // animée) sur WebView Android. Le rendu web/desktop reste inchangé.
+  host: { '[class.is-native]': 'isNative' }
 }) export class TableComponent implements OnInit, OnDestroy {
 
 
