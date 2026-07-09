@@ -101,6 +101,9 @@ export class SessionManager {
      * Utilisé pour le mode single-device (start message).
      */
     startSingleDevice(ws: WebSocket, config: GameConfig): void {
+        // Le mode de jeu est décidé par le serveur (GAME_MODE), jamais par le
+        // client — on retire un éventuel gameMode envoyé dans la config.
+        delete config.gameMode;
         const messenger = new SingleWsMessenger(ws);
         const game = new Game(config, messenger);
         GameRegistry.register(game.id, game);
@@ -136,6 +139,8 @@ export class SessionManager {
      * Sinon, crée une room et envoie le code au créateur.
      */
     createRoom(ws: WebSocket, config: GameConfig): void {
+        // Le mode de jeu est décidé par le serveur (GAME_MODE), jamais par le client.
+        delete config.gameMode;
         // Block any signed-in player already engaged in a running game.
         for (const p of config.players) {
             if (p.isHuman && p.userId && this.rejectIfInActiveGame(ws, p.userId)) return;

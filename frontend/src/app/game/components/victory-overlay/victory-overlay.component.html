@@ -1,4 +1,4 @@
-<div class="victory-overlay" [attr.data-color]="color()" [class.defeat]="!isWinner()">
+<div class="victory-overlay" [attr.data-color]="winners()[0]?.color" [class.defeat]="!isWinner()">
 
   <!-- Confetti — only for the winner -->
   @if (isWinner()) {
@@ -13,10 +13,12 @@
   <div class="victory-card" [class.by-default]="byDefault()">
     <div class="trophy">{{ byDefault() ? '🏳️' : (isWinner() ? '🏆' : '💀') }}</div>
     <div class="victory-title">{{ isWinner() ? 'Victory!' : 'Defeat' }}</div>
+    @for (winner of winners(); track winner.color) {
     <div class="winner-row">
-      <div class="winner-marble" [class]="'wm-' + color()"></div>
-      <div class="winner-name">{{ name() }}</div>
+      <div class="winner-marble" [class]="'wm-' + winner.color"></div>
+      <div class="winner-name">{{ winner.name }}</div>
     </div>
+    }
     <div class="winner-subtitle">
       @if (byDefault()) {
         All other players have left the game

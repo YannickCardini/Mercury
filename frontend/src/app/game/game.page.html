@@ -51,13 +51,13 @@
   <!-- ═══════════════════════════════════════════════════════════
        ÉCRAN DE VICTOIRE
        ═══════════════════════════════════════════════════════════ -->
-  <app-game-rules-modal [show]="showRules()" (closeModal)="showRules.set(false)"></app-game-rules-modal>
+  <app-game-rules-modal [show]="showRules()" [gameMode]="gameStateService.gameMode()"
+    (closeModal)="showRules.set(false)"></app-game-rules-modal>
 
-  @if (gameStateService.winner(); as winnerColor) {
+  @if (gameStateService.winners().length > 0) {
   <app-victory-overlay
-    [color]="winnerColor"
-    [name]="winnerName()"
-    [isWinner]="gameStateService.myPlayerColor() === winnerColor || gameStateService.myPlayerColor() === null"
+    [winners]="winnersInfo()"
+    [isWinner]="isLocalWinner()"
     [byDefault]="gameStateService.winReason() === 'win_by_default'"
     [isGuest]="isLocalPlayerGuest()"
     [pointsDelta]="gameStateService.gameStats()?.pointsDelta ?? null"

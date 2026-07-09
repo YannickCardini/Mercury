@@ -3,7 +3,9 @@ import { CommonModule } from '@angular/common';
 import type { MarbleColor, Player } from '@mercury/shared';
 
 /**
- * Pastille joueur circulaire affichée dans un coin du plateau.
+ * Pastille joueur affichée dans un coin du plateau — circulaire par défaut,
+ * ou en losange (`shape="diamond"`) pour distinguer visuellement une paire
+ * de joueurs (partenaires d'équipe sur la diagonale).
  *
  * Regroupe, autour de la photo de profil :
  *   • un anneau-timer qui se vide à chaque seconde quand c'est le tour du joueur ;
@@ -34,9 +36,27 @@ export class PlayerBadgeComponent {
   timer = input<number>(0);
   /** Rang du joueur au classement, ou `null` si indisponible (bot / invité). */
   rank = input<number | null>(null);
+  /** Forme du badge : cercle (défaut) ou losange (paire d'équipe). */
+  shape = input<'circle' | 'diamond'>('circle');
 
   /** Rayon SVG (viewBox 100×100) ; circonférence = 2πr. */
   readonly circumference = 2 * Math.PI * 46;
+
+  /**
+   * Anneau losange : carré pivoté de 45°, coins arrondis. À encombrement égal
+   * un losange paraît bien plus petit qu'un cercle ; on égalise donc les AIRES :
+   * 2R² = πr² → sommets à R = r·√(π/2) ≈ 57.7 du centre (le SVG déborde de sa
+   * viewBox, overflow visible — les slots losange sont rentrés d'autant dans le
+   * board pour échapper au contain:paint). Périmètre = 4·(côté − 2rx) + 2πrx.
+   */
+  readonly diamondRadius = 46 * Math.sqrt(Math.PI / 2);
+  readonly diamondSide = this.diamondRadius * Math.SQRT2;
+  readonly diamondCornerRadius = 12.5;
+  readonly diamondPerimeter =
+    4 * (this.diamondSide - 2 * this.diamondCornerRadius) + 2 * Math.PI * this.diamondCornerRadius;
+
+  /** Longueur totale du tracé de l'anneau, selon la forme. */
+  perimeter = computed(() => (this.shape() === 'diamond' ? this.diamondPerimeter : this.circumference));
 
   /** Fraction de temps restante (1 = plein). Plein quand ce n'est pas son tour. */
   ratio = computed(() => {
@@ -46,8 +66,8 @@ export class PlayerBadgeComponent {
     return Math.max(0, Math.min(1, this.timeLeft() / total));
   });
 
-  /** Décalage de l'arc : 0 = plein, circonférence = vide. */
-  dashOffset = computed(() => this.circumference * (1 - this.ratio()));
+  /** Décalage de l'arc : 0 = plein, périmètre = vide. */
+  dashOffset = computed(() => this.perimeter() * (1 - this.ratio()));
 
   /**
    * Couleur de l'arc pendant le tour actif (vert → ambre → rouge).

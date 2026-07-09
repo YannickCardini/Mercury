@@ -72,13 +72,19 @@ export class GamePage implements OnDestroy, AfterViewInit {
       : "Connecting to the server...";
   });
 
-  winnerName = computed(() => {
-    const color = this.gameStateService.winner();
-    if (!color) return "";
-    const player = this.gameStateService
-      .data()
-      ?.gameState.players.find((p) => p.color === color);
-    return player?.name ?? color;
+  /** Gagnant(s) avec leur nom : un en 1v3, les deux coéquipiers en 2v2. */
+  winnersInfo = computed(() => {
+    const players = this.gameStateService.data()?.gameState.players ?? [];
+    return this.gameStateService.winners().map((color) => ({
+      color,
+      name: players.find((p) => p.color === color)?.name ?? color,
+    }));
+  });
+
+  /** Vrai si le joueur local fait partie des gagnants (spectateur → vue neutre gagnante). */
+  isLocalWinner = computed(() => {
+    const myColor = this.gameStateService.myPlayerColor();
+    return myColor === null || this.gameStateService.winners().includes(myColor);
   });
 
   /** True when the local player has no userId (guest / not signed in). */
@@ -108,9 +114,10 @@ export class GamePage implements OnDestroy, AfterViewInit {
     private toast: ToastService
   ) {
     effect(() => {
-      const winner = this.gameStateService.winner();
-      if (!winner) return;
-      if (winner === this.gameStateService.myPlayerColor()) {
+      const winners = this.gameStateService.winners();
+      if (winners.length === 0) return;
+      const myColor = this.gameStateService.myPlayerColor();
+      if (myColor !== null && winners.includes(myColor)) {
         this.soundService.playVictory();
       } else {
         this.soundService.playDefeat();

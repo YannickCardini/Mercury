@@ -9,10 +9,17 @@ import { GameRegistry } from '../session/game-registry.js';
 import { updateUserPoints, recomputeRankings, getUserPointsAndRanking } from '../db.js';
 import { computeEndGamePointsDeltas } from './points.js';
 import { isTrainMode } from '../train-mode.js';
+import { getServerGameMode } from '../game-mode.js';
 import { logGameStats } from './game-stats.js';
 import {
     getHomePositions,
     hasWon,
+    hasTeamWon,
+    getControlledColor,
+    getTeammateColor,
+    findSolidaireEntry,
+    ENTER_CARDS,
+    HOME_POSITIONS,
     TURN_DURATION_SECONDS,
     TURN_DURATION_MS,
     TURN_TIMEOUT_OFFSET_MS,
@@ -20,7 +27,7 @@ import {
     computeMinAnimationDuration,
 } from '@mercury/shared';
 import { REACTION_EMOJIS } from "@mercury/shared";
-import type { Action, Card, ClientMessage, GameConfig, GameState, MarbleColor, ReactionEmoji } from "@mercury/shared";
+import type { Action, Card, ClientMessage, GameConfig, GameMode, GameState, MarbleColor, ReactionEmoji } from "@mercury/shared";
 
 const REACTION_COOLDOWN_MS = 2000;
 
@@ -29,6 +36,8 @@ export class Game {
     readonly id: string = crypto.randomUUID();
 
     private players: Player[];
+    /** Mode de jeu de la partie — fixé à la création (voir getServerGameMode). */
+    private readonly gameMode: GameMode;
     private turn: number = 0;
     private round: number = 0;
     private readonly startTime: number = Date.now();
@@ -75,6 +84,8 @@ export class Game {
 
     constructor(config: GameConfig, messenger: GameMessenger) {
         this.messenger = messenger;
+        // Le mode vient de la config (tests) ou de l'env serveur (GAME_MODE).
+        this.gameMode = config.gameMode ?? getServerGameMode();
 
         this.players = config.players.map(cfg => {
             const player = new Player(
@@ -103,7 +114,7 @@ export class Game {
                 console.error(`💥 Partie ${this.id} interrompue par une exception:`, err);
                 this.gameFinished = true;
                 try {
-                    this.messenger.send({ type: 'gameEnded', winner: null, reason: 'abandoned' });
+                    this.messenger.send({ type: 'gameEnded', winners: [], reason: 'abandoned' });
                 } catch { /* sockets déjà fermées */ }
             })
             .finally(() => {
@@ -150,6 +161,7 @@ export class Game {
                 ...(p.userId !== undefined ? { userId: p.userId } : {}),
             })),
             currentTurn: currentPlayer.color,
+            gameMode: this.gameMode,
             timer: TURN_DURATION_SECONDS,
             discardedCards: this.discardedCards,
             canDiscard: this.computeCanDiscard(currentPlayer),
@@ -274,12 +286,12 @@ export class Game {
         if (!this.aborted) {
             console.log("🏆 Game over!");
             this.gameFinished = true;
-            const winner = this.players.find(p => hasWon(p.marblePositions, p.color))!;
-            this.messenger.send({ type: 'gameEnded', winner: winner.color, reason: 'win' });
-            this.logStats(winner.color, 'win');
+            const winners = this.computeWinners();
+            this.messenger.send({ type: 'gameEnded', winners, reason: 'win' });
+            this.logStats(winners, 'win');
             GameRegistry.delete(this.id);
             this.onGameEnded?.(this.id);
-            this.applyEndGamePoints(winner.color).catch(err =>
+            this.applyEndGamePoints(winners).catch(err =>
                 console.error('❌ Failed to update points after game end:', err)
             );
         }
@@ -299,8 +311,6 @@ export class Game {
      */
     private async playOneTurn(): Promise<boolean> {
         const player = this.players[this.currentPlayerIndex]!;
-        const marblesByColor = Object.fromEntries(this.players.map(p => [p.color, [...p.marblePositions]])) as Record<MarbleColor, number[]>;
-        const invincibleMarblesByColor = this.buildInvincibleMarblesByColor();
 
         console.log(`🔄 Tour ${this.turn} (Manche ${this.round}) — ${player.name} (${player.color})`);
 
@@ -322,16 +332,23 @@ export class Game {
             move = this.computeFallbackAction(player);
             isAutoPlay = true;
         } else {
-            move = await this.waitForActionOrTimeout(player, marblesByColor, invincibleMarblesByColor);
+            move = await this.waitForActionOrTimeout(player);
             isTimeout = this.pendingTimeoutAction !== null;
         }
 
         this.pendingTimeoutAction = null;
-        const enrichedMove: Action = { ...move, playerColor: player.color };
+        // `playerColor` = le joueur qui a joué la carte (main, tour, rejeu Joker).
+        // `marbleColor` = le propriétaire du pion déplacé, qui peut être le
+        // coéquipier en 2v2 (switch de fin de jeu, solidaire, Valet libre).
+        const enrichedMove: Action = {
+            ...move,
+            marbleColor: move.marbleColor ?? move.playerColor,
+            playerColor: player.color,
+        };
 
         if (enrichedMove.type === 'enter') {
             const enemyOnStart = this.players.some(
-                p => p.color !== player.color && p.marblePositions.includes(enrichedMove.to),
+                p => p.color !== enrichedMove.marbleColor && p.marblePositions.includes(enrichedMove.to),
             );
             if (enemyOnStart) {
                 enrichedMove.capturedOnEnter = true;
@@ -504,8 +521,12 @@ export class Game {
 
         console.log(`🏆 ${winner.name} (${winner.color}) wins — last connected player`);
 
-        this.messenger.send({ type: 'gameEnded', winner: winner.color, reason: 'win_by_default' });
-        this.logStats(winner.color, 'win_by_default');
+        // En 2v2, le dernier humain connecté fait gagner son ÉQUIPE entière.
+        const winners = this.gameMode === '2v2'
+            ? [winner.color, getTeammateColor(winner.color)]
+            : [winner.color];
+        this.messenger.send({ type: 'gameEnded', winners, reason: 'win_by_default' });
+        this.logStats(winners, 'win_by_default');
 
         if (this.pendingHumanActionResolve) {
             const currentPlayer = this.players[this.currentPlayerIndex]!;
@@ -521,7 +542,7 @@ export class Game {
         GameRegistry.delete(this.id);
         this.onGameEnded?.(this.id);
 
-        this.applyEndGamePoints(winner.color).catch(err =>
+        this.applyEndGamePoints(winners).catch(err =>
             console.error('❌ Failed to update points after game end:', err)
         );
     }
@@ -535,8 +556,8 @@ export class Game {
         console.log("🚫 Game aborted — no connected human players remain");
 
         // Notify any still-connected clients (unlikely but possible with bots-only race)
-        this.messenger.send({ type: 'gameEnded', winner: null, reason: 'abandoned' });
-        this.logStats(null, 'abandoned');
+        this.messenger.send({ type: 'gameEnded', winners: [], reason: 'abandoned' });
+        this.logStats([], 'abandoned');
 
         // Unblock any pending promises so the game loop can exit
         if (this.pendingHumanActionResolve) {
@@ -593,20 +614,19 @@ export class Game {
      * Retourne null si l'action est illégale.
      */
     private validateHumanAction(action: Action, player: Player): Action | null {
-        const marblesByColor = Object.fromEntries(this.players.map(p => [p.color, [...p.marblePositions]])) as Record<MarbleColor, number[]>;
-        const ctx: LegalMoveContext = {
-            ownMarbles: [...player.marblePositions],
-            allMarbles: Object.values(marblesByColor).flat(),
-            playerColor: player.color,
-            marblesByColor,
-            invincibleMarblesByColor: this.buildInvincibleMarblesByColor(),
-        };
+        const ctx = this.buildLegalMoveContext(player);
 
         if (action.type === 'pass') {
             return { ...action, playerColor: player.color };
         }
 
+        // Mise en jeu solidaire (2v2) : quand elle s'applique, elle est
+        // OBLIGATOIRE — la défausse est refusée et la seule action acceptée est
+        // l'entrée d'un pion du coéquipier avec un A, un K ou un Joker.
+        const solidaire = findSolidaireEntry(player.cards, ctx);
+
         if (action.type === 'discard') {
+            if (solidaire) return null;
             // N'accepter la défausse que si aucun coup légal n'est possible
             const hasLegalMove = player.cards.some(card => findLegalMoveForCard(card, ctx) !== null);
             if (hasLegalMove) return null;
@@ -617,6 +637,17 @@ export class Game {
         const card = action.cardPlayed?.[0];
         if (!card) return null;
         if (!player.cards.some(c => c.id === card.id)) return null;
+
+        if (solidaire) {
+            // On respecte la carte d'entrée et le pion (case de réserve du
+            // coéquipier) choisis par le client, tant qu'ils sont valides.
+            if (!ENTER_CARDS.includes(card.value)) return null;
+            const teammate = ctx.teammateColor!;
+            const isTeammateReserve = HOME_POSITIONS[teammate].includes(action.from)
+                && ctx.marblesByColor[teammate].includes(action.from);
+            if (!isTeammateReserve) return null;
+            return { ...solidaire, from: action.from, cardPlayed: [card], playerColor: player.color };
+        }
 
         // Split 7 : le client envoie from/to pour le premier pion et splitFrom pour le second.
         if (card.value === '7' && action.splitFrom !== undefined && action.splitFrom !== 0) {
@@ -647,14 +678,7 @@ export class Game {
      * `pass` est réservé à la main vide, géré en amont dans playOneTurn.
      */
     private computeFallbackAction(player: Player): Action {
-        const marblesByColor = Object.fromEntries(this.players.map(p => [p.color, [...p.marblePositions]])) as Record<MarbleColor, number[]>;
-        const ctx: LegalMoveContext = {
-            ownMarbles: [...player.marblePositions],
-            allMarbles: Object.values(marblesByColor).flat(),
-            playerColor: player.color,
-            marblesByColor,
-            invincibleMarblesByColor: this.buildInvincibleMarblesByColor(),
-        };
+        const ctx = this.buildLegalMoveContext(player);
 
         for (const card of player.cards) {
             const action = findLegalMoveForCard(card, ctx);
@@ -664,15 +688,18 @@ export class Game {
             }
         }
 
+        // Mise en jeu solidaire (2v2) : obligatoire avant toute défausse.
+        const solidaire = findSolidaireEntry(player.cards, ctx);
+        if (solidaire) {
+            console.log(`⏰ Timeout — ${player.name} : entrée solidaire imposée (pion du coéquipier)`);
+            return { ...solidaire, playerColor: player.color };
+        }
+
         console.log(`⏰ Timeout — ${player.name} : défausse imposée (aucun coup légal)`);
         return { type: 'discard', from: 0, to: 0, cardPlayed: [...player.cards], playerColor: player.color };
     }
 
-    private waitForActionOrTimeout(
-        player: Player,
-        marblesByColor: Record<MarbleColor, number[]>,
-        invincibleMarblesByColor: Record<MarbleColor, number[]>,
-    ): Promise<Action> {
+    private waitForActionOrTimeout(player: Player): Promise<Action> {
         return new Promise<Action>((resolve) => {
             let settled = false;
 
@@ -688,7 +715,7 @@ export class Game {
                 resolve(fallback);
             }, TURN_DURATION_MS + TURN_TIMEOUT_OFFSET_MS);
 
-            player.getAction(marblesByColor, invincibleMarblesByColor).then((action) => {
+            player.getAction(this.buildLegalMoveContext(player)).then((action) => {
                 if (settled) return;
                 settled = true;
                 clearTimeout(timer);
@@ -734,15 +761,45 @@ export class Game {
     /** Vrai si le joueur courant n'a aucun coup légal (peut défausser). */
     private computeCanDiscard(player: Player): boolean {
         if (player.handEmpty()) return false;
+        const ctx = this.buildLegalMoveContext(player);
+        if (player.cards.some(card => findLegalMoveForCard(card, ctx) !== null)) return false;
+        // Mise en jeu solidaire (2v2) : tant qu'elle s'applique, la défausse est interdite.
+        return findSolidaireEntry(player.cards, ctx) === null;
+    }
+
+    /**
+     * Contexte de validation des coups pour un joueur — source unique, utilisée
+     * pour la stratégie (humain/IA), la validation serveur, le fallback timeout
+     * et le calcul de `canDiscard`.
+     *
+     * En 2v2, un joueur qui a rentré ses 4 pions contrôle ceux de son
+     * coéquipier : `ownMarbles`/`playerColor` désignent alors le coéquipier
+     * (ses pions, son start, ses arrivées), et `teammateColor` active les
+     * règles d'équipe du validateur (Valet libre, 7 partagé, solidaire).
+     */
+    private buildLegalMoveContext(player: Player): LegalMoveContext {
         const marblesByColor = Object.fromEntries(this.players.map(p => [p.color, [...p.marblePositions]])) as Record<MarbleColor, number[]>;
-        const ctx: LegalMoveContext = {
-            ownMarbles: [...player.marblePositions],
+        const base = {
             allMarbles: Object.values(marblesByColor).flat(),
-            playerColor: player.color,
             marblesByColor,
             invincibleMarblesByColor: this.buildInvincibleMarblesByColor(),
         };
-        return !player.cards.some(card => findLegalMoveForCard(card, ctx) !== null);
+
+        if (this.gameMode === '2v2') {
+            const controlled = getControlledColor(player.color, player.marblePositions);
+            return {
+                ...base,
+                ownMarbles: [...marblesByColor[controlled]],
+                playerColor: controlled,
+                teammateColor: getTeammateColor(controlled),
+            };
+        }
+
+        return {
+            ...base,
+            ownMarbles: [...marblesByColor[player.color]],
+            playerColor: player.color,
+        };
     }
 
     /**
@@ -759,11 +816,12 @@ export class Game {
     }
 
     /** Écrit une ligne de stats CSV pour cette partie (no-op hors TRAIN_MODE). */
-    private logStats(winner: MarbleColor | null, reason: string): void {
+    private logStats(winners: MarbleColor[], reason: string): void {
         logGameStats({
             gameId: this.id,
             durationMs: Date.now() - this.startTime,
-            winner,
+            // 1v3 : une couleur ; 2v2 : les deux couleurs jointes (ex: "red+blue").
+            winner: winners.length > 0 ? winners.join('+') : null,
             reason,
             rounds: this.round,
             turns: this.turn,
@@ -804,76 +862,55 @@ export class Game {
     }
 
     private updateMarblePositions(player: Player, move: Action): void {
+        // Le pion déplacé peut appartenir à un autre joueur que celui qui a joué
+        // la carte (2v2 : switch de fin de jeu, solidaire, 7 partagé, Valet libre).
+        const moverColor = move.marbleColor ?? move.playerColor;
+        const mover = this.players.find(p => p.color === moverColor) ?? player;
+
         switch (move.type) {
             case 'move':
             case 'enter':
             case 'promote':
             case 'capture': {
-                // 1. Déplacer l'attaquant
-                const index = player.marblePositions.indexOf(move.from);
+                // 1. Déplacer le pion
+                const index = mover.marblePositions.indexOf(move.from);
                 if (index !== -1) {
-                    player.marblePositions[index] = move.to;
+                    mover.marblePositions[index] = move.to;
                     // Entry via A/K → marble becomes invincible. Any other
                     // movement (including a re-landing on the start) clears it.
-                    player.marbleInvincible[index] = (move.type === 'enter');
+                    mover.marbleInvincible[index] = (move.type === 'enter');
                 }
 
-                // 2. Renvoyer le pion capturé à sa base
-                for (const victim of this.players) {
-                    if (victim === player) continue;
-                    const victimIndex = victim.marblePositions.indexOf(move.to);
-                    if (victimIndex !== -1) {
-                        const homePositions = getHomePositions(victim.color);
-                        const emptyHome = homePositions.find(pos => !victim.marblePositions.includes(pos));
-                        if (emptyHome !== undefined) {
-                            victim.marblePositions[victimIndex] = emptyHome;
-                            victim.marbleInvincible[victimIndex] = false;
-                            console.log(`💀 ${player.name} a capturé un pion de ${victim.name}! Retour à la base (${emptyHome}).`);
-                        }
-                    }
-                }
+                // 2. Renvoyer le pion capturé à sa base. Tout pion posé sur `to`
+                // est victime SAUF celui qui vient de bouger — y compris un pion
+                // du joueur actif ou de son coéquipier (pas d'immunité d'équipe).
+                this.sendVictimsHome(move.to, mover, index, player);
 
-                // 3. Split du 7 : appliquer aussi le second mouvement
+                // 3. Split du 7 : appliquer aussi le second mouvement (le second
+                // pion peut appartenir au coéquipier en 2v2)
                 if (move.splitFrom !== undefined && move.splitTo !== undefined) {
-                    const splitIdx = player.marblePositions.indexOf(move.splitFrom);
+                    const splitMover = this.players.find(p => p.color === (move.splitMarbleColor ?? moverColor)) ?? mover;
+                    const splitIdx = splitMover.marblePositions.indexOf(move.splitFrom);
                     if (splitIdx !== -1) {
-                        player.marblePositions[splitIdx] = move.splitTo;
-                        player.marbleInvincible[splitIdx] = false;
+                        splitMover.marblePositions[splitIdx] = move.splitTo;
+                        splitMover.marbleInvincible[splitIdx] = false;
                     }
-                    for (const victim of this.players) {
-                        if (victim === player) continue;
-                        const victimIndex = victim.marblePositions.indexOf(move.splitTo);
-                        if (victimIndex !== -1) {
-                            const homePositions = getHomePositions(victim.color);
-                            const emptyHome = homePositions.find(pos => !victim.marblePositions.includes(pos));
-                            if (emptyHome !== undefined) {
-                                victim.marblePositions[victimIndex] = emptyHome;
-                                victim.marbleInvincible[victimIndex] = false;
-                                console.log(`💀 Split 7 — ${player.name} a capturé un pion de ${victim.name}! Retour à la base (${emptyHome}).`);
-                            }
-                        }
-                    }
+                    this.sendVictimsHome(move.splitTo, splitMover, splitIdx, player);
                 }
                 break;
             }
 
             case 'swap': {
-                // Déplacer le pion du joueur courant de `from` vers `to`
-                const ownIdx = player.marblePositions.indexOf(move.from);
-                if (ownIdx !== -1) {
-                    player.marblePositions[ownIdx] = move.to;
-                    player.marbleInvincible[ownIdx] = false;
-                }
-                // Déplacer le pion adverse de `to` vers `from`
-                for (const other of this.players) {
-                    if (other === player) continue;
-                    const otherIdx = other.marblePositions.indexOf(move.to);
-                    if (otherIdx !== -1) {
-                        other.marblePositions[otherIdx] = move.from;
-                        other.marbleInvincible[otherIdx] = false;
-                        console.log(`🔄 ${player.name} a échangé avec ${other.name} (${move.from} ↔ ${move.to})`);
-                        break;
-                    }
+                // Les deux extrémités sont résolues par position : en 2v2 le
+                // Valet peut échanger deux pions n'appartenant pas au joueur actif.
+                const a = this.findMarbleAt(move.from);
+                const b = this.findMarbleAt(move.to);
+                if (a && b) {
+                    a.owner.marblePositions[a.index] = move.to;
+                    a.owner.marbleInvincible[a.index] = false;
+                    b.owner.marblePositions[b.index] = move.from;
+                    b.owner.marbleInvincible[b.index] = false;
+                    console.log(`🔄 ${player.name} a échangé ${a.owner.name} ↔ ${b.owner.name} (${move.from} ↔ ${move.to})`);
                 }
                 break;
             }
@@ -884,9 +921,41 @@ export class Game {
         }
     }
 
+    /** Localise le pion posé sur une case, toutes couleurs confondues. */
+    private findMarbleAt(pos: number): { owner: Player; index: number } | null {
+        for (const owner of this.players) {
+            const index = owner.marblePositions.indexOf(pos);
+            if (index !== -1) return { owner, index };
+        }
+        return null;
+    }
+
+    /**
+     * Renvoie à sa base tout pion posé sur `pos`, à l'exception du pion qui
+     * vient d'y être déplacé (`mover`/`moverIndex`). Contrairement à l'ancienne
+     * version qui excluait le joueur actif entier, on peut capturer un pion de
+     * n'importe quelle couleur — y compris celle du coéquipier ou du joueur
+     * actif (second pion d'un 7 partagé atterrissant sur le premier, etc.).
+     */
+    private sendVictimsHome(pos: number, mover: Player, moverIndex: number, activePlayer: Player): void {
+        for (const victim of this.players) {
+            for (let i = 0; i < victim.marblePositions.length; i++) {
+                if (victim === mover && i === moverIndex) continue;
+                if (victim.marblePositions[i] !== pos) continue;
+                const homePositions = getHomePositions(victim.color);
+                const emptyHome = homePositions.find(p => !victim.marblePositions.includes(p));
+                if (emptyHome !== undefined) {
+                    victim.marblePositions[i] = emptyHome;
+                    victim.marbleInvincible[i] = false;
+                    console.log(`💀 ${activePlayer.name} a capturé un pion de ${victim.name}! Retour à la base (${emptyHome}).`);
+                }
+            }
+        }
+    }
+
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
-    private async applyEndGamePoints(winnerColor: MarbleColor): Promise<void> {
+    private async applyEndGamePoints(winners: MarbleColor[]): Promise<void> {
         // Collect non-penalized human players with a userId.
         // Disconnect/abandon penalties are applied separately with a flat -2 (intentionally
         // not Elo-weighted: they are a behaviour penalty, not a match outcome).
@@ -900,7 +969,7 @@ export class Game {
         const currentStats = await Promise.all(
             participants.map(async p => {
                 const s = await getUserPointsAndRanking(p.userId);
-                return { ...p, points: s?.points ?? 1000, isWinner: p.color === winnerColor };
+                return { ...p, points: s?.points ?? 1000, isWinner: winners.includes(p.color) };
             })
         );
 
@@ -976,6 +1045,27 @@ export class Game {
     }
 
     private gameIsOver(): boolean {
+        if (this.gameMode === '2v2') {
+            // Victoire d'équipe : les DEUX coéquipiers ont rentré leurs 4 pions.
+            // Un joueur fini seul continue de jouer (il contrôle les pions de
+            // son coéquipier, voir buildLegalMoveContext).
+            const marblesByColor = Object.fromEntries(
+                this.players.map(p => [p.color, p.marblePositions])
+            ) as Record<MarbleColor, number[]>;
+            return this.players.some(p => hasTeamWon(marblesByColor, p.color));
+        }
         return this.players.some(p => hasWon(p.marblePositions, p.color));
+    }
+
+    /** Couleur(s) gagnante(s) à la fin naturelle : une en 1v3, les deux de l'équipe en 2v2. */
+    private computeWinners(): MarbleColor[] {
+        const finished = this.players
+            .filter(p => hasWon(p.marblePositions, p.color))
+            .map(p => p.color);
+        if (this.gameMode === '2v2') {
+            const winner = finished.find(color => finished.includes(getTeammateColor(color)));
+            return winner !== undefined ? [winner, getTeammateColor(winner)] : [];
+        }
+        return finished.length > 0 ? [finished[0]!] : [];
     }
 }

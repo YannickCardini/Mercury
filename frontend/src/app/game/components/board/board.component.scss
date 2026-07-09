@@ -81,6 +81,28 @@ $colors: (
     right: calc(var(--square-size) * 0.05);
 }
 
+/* Badges losange : à aire égale au cercle, leurs sommets débordent de la boîte
+   du badge (~7,7 % de son côté ≈ 0,21 case). On les rentre d'autant vers
+   l'intérieur du plateau, sinon le contain:paint du board-container rogne les
+   pointes tournées vers les bords. */
+.player-badge-slot--diamond.player-badge-slot--tl {
+    top: calc(var(--square-size) * 0.26);
+    left: calc(var(--square-size) * 0.26);
+}
+
+.player-badge-slot--diamond.player-badge-slot--tr {
+    top: calc(var(--square-size) * 0.26);
+    right: calc(var(--square-size) * 0.26);
+}
+
+.player-badge-slot--diamond.player-badge-slot--bl {
+    left: calc(var(--square-size) * 0.26);
+}
+
+.player-badge-slot--diamond.player-badge-slot--br {
+    right: calc(var(--square-size) * 0.26);
+}
+
 /* --- Grille Ionic Override --- */
 .tock-grid {
     padding: 0;

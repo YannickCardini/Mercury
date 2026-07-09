@@ -32,7 +32,8 @@ import {
   getPositionAfterMove,
   getLegalAction,
   getActionForSteps,
-  type LegalMoveContext,
+  buildMoveActionForMarble,
+  ENTER_CARDS,
 } from '@mercury/shared';
 
 /**
@@ -121,26 +122,20 @@ export class BoardComponent implements OnDestroy {
     const focusedMarble = this.hoveredMarble() ?? this.gameStateService.selectedMarblePosition();
     if (focusedMarble === null) return empty;
 
-    const data = this.gameStateService.data();
-    const myColor = this.gameStateService.myPlayerColor();
-    if (!data || !myColor) return empty;
+    const ctx = this.gameStateService.legalCtx();
+    if (!ctx) return empty;
 
-    const player = data.gameState.players.find(p => p.color === myColor);
-    if (!player) return empty;
-
-    const marblesByColor = Object.fromEntries(
-      data.gameState.players.map(p => [p.color, p.marblePositions])
-    ) as Record<MarbleColor, number[]>;
-    const invincibleMarblesByColor = Object.fromEntries(
-      data.gameState.players.map(p => [p.color, p.marblePositions.filter((_, i) => p.marbleInvincible[i])])
-    ) as Record<MarbleColor, number[]>;
-    const ctx: LegalMoveContext = {
-      ownMarbles: player.marblePositions,
-      allMarbles: data.gameState.players.flatMap(p => p.marblePositions),
-      playerColor: myColor,
-      marblesByColor,
-      invincibleMarblesByColor,
-    };
+    // Mise en jeu solidaire (2v2) : preview de l'entrée du pion du coéquipier.
+    const solidaire = this.gameStateService.forcedSolidaireEntry();
+    if (solidaire) {
+      if (!ENTER_CARDS.includes(card.value)) return empty;
+      const teammate = ctx.teammateColor!;
+      const isReserve = HOME_POSITIONS[teammate].includes(focusedMarble)
+        && ctx.marblesByColor[teammate].includes(focusedMarble);
+      return isReserve
+        ? { path: new Set<number>(), pathMarble2: new Set<number>(), destination: solidaire.to }
+        : empty;
+    }
 
     let action: Action | null = null;
 
@@ -151,9 +146,11 @@ export class BoardComponent implements OnDestroy {
         const marble2 = this.gameStateService.selectedSplit7MarblePosition();
         const dummyCard = { id: '__preview__', value: '7' as const, suit: '♠' as const };
         if (marble2 !== null) {
-          // Both marbles selected: show both paths simultaneously
+          // Both marbles selected: show both paths simultaneously.
+          // `ForMarble` : le second pion peut appartenir au coéquipier (2v2) —
+          // son trajet/promotion dépend de SON start et de SES arrivées.
           const action1 = getActionForSteps(dummyCard, marble1, steps1, ctx);
-          const action2 = getActionForSteps(dummyCard, marble2, 7 - steps1, ctx);
+          const action2 = buildMoveActionForMarble(dummyCard, marble2, 7 - steps1, ctx);
           const preview1 = action1 ? this.computePreviewFromAction(action1) : { path: new Set<number>(), destination: null };
           const preview2 = action2 ? this.computePreviewFromAction(action2) : { path: new Set<number>(), destination: null };
           const path1 = new Set(preview1.path);
@@ -168,7 +165,7 @@ export class BoardComponent implements OnDestroy {
 
         // If hovering over a candidate second marble, also show its preview
         if (focusedMarble !== null && focusedMarble !== marble1) {
-          const action2 = getActionForSteps(dummyCard, focusedMarble, 7 - steps1, ctx);
+          const action2 = buildMoveActionForMarble(dummyCard, focusedMarble, 7 - steps1, ctx);
           if (action2) {
             const preview2 = this.computePreviewFromAction(action2);
             const path1 = new Set(preview1.path);
@@ -374,10 +371,13 @@ export class BoardComponent implements OnDestroy {
 
     const animateSingleMove = async (a: Action) => {
       const t = a.type as ActionType;
+      // Propriétaire du pion animé — peut différer du joueur qui a joué la
+      // carte (2v2 : switch de fin de jeu, 7 partagé, Valet libre).
+      const owner = (a.marbleColor ?? a.playerColor) as MarbleColor;
       if (t === 'move') {
         for (const step of this.calculateActionsMove(a)) {
           this.soundService.playMove();
-          this.jostlePassedMarble(step.to, step.playerColor as MarbleColor);
+          this.jostlePassedMarble(step.to, owner);
           this.updateMarblePosition(step);
           await applyAndWait(step.to, { marbleClass: 'marble-moving' }, MARBLE_ANIMATION_DURATIONS.move);
         }
@@ -386,7 +386,7 @@ export class BoardComponent implements OnDestroy {
         for (let i = 0; i < captureSteps.length - 1; i++) {
           const step = captureSteps[i]!;
           this.soundService.playMove();
-          this.jostlePassedMarble(step.to, step.playerColor as MarbleColor);
+          this.jostlePassedMarble(step.to, owner);
           this.updateMarblePosition(step);
           await applyAndWait(step.to, { marbleClass: 'marble-moving' }, MARBLE_ANIMATION_DURATIONS.move);
         }
@@ -398,13 +398,13 @@ export class BoardComponent implements OnDestroy {
           applyAndWait(finalStep.to, { marbleClass: 'marble-captured-exit', squareClass: 'square-impact' }),
         ]);
       } else if (t === 'promote') {
-        const startPos = START_POSITIONS[a.playerColor as MarbleColor];
+        const startPos = START_POSITIONS[owner];
         const startPosIndex = MAIN_PATH.indexOf(startPos);
         const beforeStartPos = MAIN_PATH[(startPosIndex - 1 + MAIN_PATH.length) % MAIN_PATH.length];
         const mainPathAction: Action = { ...a, type: 'move', to: beforeStartPos };
         for (const step of this.calculateActionsMove(mainPathAction)) {
           this.soundService.playMove();
-          this.jostlePassedMarble(step.to, step.playerColor as MarbleColor);
+          this.jostlePassedMarble(step.to, owner);
           this.updateMarblePosition(step);
           await applyAndWait(step.to, { marbleClass: 'marble-moving' }, MARBLE_ANIMATION_DURATIONS.move);
         }
@@ -416,8 +416,9 @@ export class BoardComponent implements OnDestroy {
 
     switch (type) {
       case 'enter': {
+        const owner = (action.marbleColor ?? action.playerColor) as MarbleColor;
         const enemyColor = this.getMarbleOnSquare(action.to);
-        const isCapture = enemyColor !== null && enemyColor !== action.playerColor;
+        const isCapture = enemyColor !== null && enemyColor !== owner;
 
         this.soundService.playEnter();
         if (isCapture) {
@@ -442,16 +443,19 @@ export class BoardComponent implements OnDestroy {
       case 'promote':
         // Animer le premier pion
         await animateSingleMove(action);
-        // Split du 7 : animer aussi le second pion
+        // Split du 7 : animer aussi le second pion (qui peut appartenir au
+        // coéquipier en 2v2 → marbleColor = splitMarbleColor)
         if (action.splitFrom !== undefined && action.splitTo !== undefined) {
           const splitAction: Action = {
             ...action,
             type: action.splitType ?? 'move',
             from: action.splitFrom,
             to: action.splitTo,
+            marbleColor: action.splitMarbleColor ?? action.marbleColor ?? action.playerColor,
             splitFrom: undefined,
             splitTo: undefined,
             splitType: undefined,
+            splitMarbleColor: undefined,
           };
           await animateSingleMove(splitAction);
         }
@@ -459,12 +463,15 @@ export class BoardComponent implements OnDestroy {
 
       case 'swap': {
         this.soundService.playSwap();
+        // En 2v2 le Valet peut échanger deux pions étrangers : la source est
+        // identifiée par marbleColor, la cible par sa position (couleur ≠ source).
+        const sourceColor = (action.marbleColor ?? action.playerColor) as MarbleColor;
         const targetColor = this.displayedGameData()?.gameState.players.find(
-          p => p.color !== action.playerColor && (p.marblePositions ?? []).includes(action.to)
+          p => p.color !== sourceColor && (p.marblePositions ?? []).includes(action.to)
         )?.color;
-        this.updateMarblePosition(action);
+        this.updateMarblePosition({ ...action, marbleColor: sourceColor });
         if (targetColor) {
-          this.updateMarblePosition({ ...action, playerColor: targetColor, from: action.to, to: action.from });
+          this.updateMarblePosition({ ...action, marbleColor: targetColor, from: action.to, to: action.from });
         }
         await Promise.all([
           applyAndWait(action.to, { marbleClass: 'marble-swapping' }),
@@ -492,7 +499,7 @@ export class BoardComponent implements OnDestroy {
     }
 
     if (action.type === 'promote') {
-      const startPos = START_POSITIONS[action.playerColor as MarbleColor];
+      const startPos = START_POSITIONS[(action.marbleColor ?? action.playerColor) as MarbleColor];
       const startPosIndex = MAIN_PATH.indexOf(startPos);
       const beforeStartPos = MAIN_PATH[(startPosIndex - 1 + MAIN_PATH.length) % MAIN_PATH.length];
       const squares = this.getMainPathSquaresBetween(action.from, beforeStartPos);
@@ -546,10 +553,11 @@ export class BoardComponent implements OnDestroy {
     const isJackPhase2 = card?.value === 'J' && this.gameStateService.selectedMarblePosition() !== null;
 
     if (!isJackPhase2) {
-      const data = this.gameStateService.data();
-      const myColor = this.gameStateService.myPlayerColor();
-      const player = data?.gameState.players.find(p => p.color === myColor);
-      if (!player?.marblePositions.includes(index)) return;
+      // Survol autorisé sur les pions contrôlés, et sur tout pion actuellement
+      // sélectionnable (2v2 : second pion du coéquipier pour le 7, source
+      // étrangère pour le Valet, réserve du coéquipier pour la solidaire).
+      const ctx = this.gameStateService.legalCtx();
+      if (!ctx?.ownMarbles.includes(index) && !this.isSelectableMarble(index)) return;
     }
 
     this.hoveredMarble.set(index);
@@ -593,12 +601,15 @@ export class BoardComponent implements OnDestroy {
     return actions;
   }
   private updateMarblePosition(action: Action): void {
+    // Le pion déplacé appartient à `marbleColor` (2v2 : peut différer du
+    // joueur qui a joué la carte).
+    const owner = action.marbleColor ?? action.playerColor;
     this.displayedGameData.update(current => {
       if (!current) return current;
 
       // On crée une copie profonde de l'état pour déclencher la mise à jour
       const updatedPlayers = current.gameState.players.map(p => {
-        if (p.color === action.playerColor) {
+        if (p.color === owner) {
           // On remplace l'ancienne position par la nouvelle dans le tableau
           const marblePositions = [...p.marblePositions]; // Copie du tableau
           const idx = marblePositions.indexOf(action.from);
@@ -794,13 +805,22 @@ export class BoardComponent implements OnDestroy {
   /**
    * Sièges des pastilles joueur, mappés sur le coin physique de chaque couleur
    * (cf. HOME_POSITIONS / PLAYER_INFO_STARTS après la reconfiguration du plateau).
+   * En 2v2, la forme distingue les équipes : rouge/bleu en losange, orange/vert
+   * en cercle. En 1v3 (chacun pour soi), tous les badges sont circulaires.
    */
-  readonly cornerSlots: ReadonlyArray<{ color: MarbleColor; corner: 'tl' | 'tr' | 'bl' | 'br' }> = [
-    { color: 'orange', corner: 'tl' },
-    { color: 'red', corner: 'tr' },
-    { color: 'blue', corner: 'bl' },
-    { color: 'green', corner: 'br' },
-  ];
+  readonly cornerSlots = computed<ReadonlyArray<{
+    color: MarbleColor;
+    corner: 'tl' | 'tr' | 'bl' | 'br';
+    shape: 'circle' | 'diamond';
+  }>>(() => {
+    const teamMode = this.gameStateService.gameMode() === '2v2';
+    return [
+      { color: 'orange', corner: 'tl', shape: 'circle' },
+      { color: 'red', corner: 'tr', shape: teamMode ? 'diamond' : 'circle' },
+      { color: 'blue', corner: 'bl', shape: teamMode ? 'diamond' : 'circle' },
+      { color: 'green', corner: 'br', shape: 'circle' },
+    ];
+  });
 
   /** Rang au classement par couleur, alimenté à la demande via l'API profil. */
   playerRankings = signal<Partial<Record<MarbleColor, number>>>({});
@@ -843,9 +863,9 @@ export class BoardComponent implements OnDestroy {
     return this.gameStateService.isMyTurn() && this.gameStateService.selectedCard() !== null;
   }
 
-  /** Vrai si ce pion appartient au joueur local (pour le faire passer au-dessus de l'overlay). */
+  /** Vrai si ce pion est contrôlé par le joueur local (pour le faire passer au-dessus de l'overlay). */
   isMyMarble(index: number): boolean {
-    return this.getMarbleOnSquare(index) === this.gameStateService.myPlayerColor();
+    return this.getMarbleOnSquare(index) === this.gameStateService.controlledColor();
   }
 
   /** Vrai si ce pion peut être sélectionné (uniquement après avoir choisi une carte, et seulement si jouable). */
@@ -885,7 +905,7 @@ export class BoardComponent implements OnDestroy {
     // Un pion actuellement sélectionnable (ex. second pion valide d'un split 7
     // qui ne peut pas initier un coup seul) ne doit jamais être grisé.
     if (this.isSelectableMarble(index)) return false;
-    return this.getMarbleOnSquare(index) === this.gameStateService.myPlayerColor() && !playable.has(index);
+    return this.getMarbleOnSquare(index) === this.gameStateService.controlledColor() && !playable.has(index);
   }
 
   onMarbleClick(index: number): void {
@@ -900,14 +920,24 @@ export class BoardComponent implements OnDestroy {
       return;
     }
 
-    // 7 phase 2 : clic sur un second pion candidat
+    // 7 phase 2 : clic sur un second pion candidat (le sien ou celui du coéquipier en 2v2)
     if (card?.value === '7' && selected !== null && this.gameStateService.sevenFirstSteps() < 7 && this.isSelectableMarble(index)) {
       const currentSplit = this.gameStateService.selectedSplit7MarblePosition();
       this.gameStateService.selectedSplit7MarblePosition.set(currentSplit === index ? null : index);
       return;
     }
 
-    // Clic sur une autre bille propre jouable → changer le premier pion sélectionné
+    // Jack phase 2 : clic sur une cible échangeable → définir la cible du swap.
+    // Testé AVANT le changement de sélection : en 2v2 une cible valide peut
+    // aussi être une source valide (tout pion du plateau) — un clic en phase 2
+    // doit choisir la cible, pas re-sélectionner une source.
+    if (card?.value === 'J' && selected !== null && this.isSelectableMarble(index)) {
+      const currentTarget = this.gameStateService.selectedSwapTargetPosition();
+      this.gameStateService.selectedSwapTargetPosition.set(currentTarget === index ? null : index);
+      return;
+    }
+
+    // Clic sur une autre bille jouable → changer le premier pion sélectionné
     const playableOwn = this.gameStateService.playableOwnMarbles();
     if (playableOwn !== null && playableOwn.has(index)) {
       this.gameStateService.selectedMarblePosition.set(index);
@@ -915,12 +945,6 @@ export class BoardComponent implements OnDestroy {
       this.gameStateService.selectedSplit7MarblePosition.set(null);
       if (card?.value === '7') this.gameStateService.sevenFirstSteps.set(7);
       return;
-    }
-
-    // Jack phase 2 : clic sur une bille adverse échangeable → définir la cible
-    if (card?.value === 'J' && selected !== null && this.isSelectableMarble(index)) {
-      const currentTarget = this.gameStateService.selectedSwapTargetPosition();
-      this.gameStateService.selectedSwapTargetPosition.set(currentTarget === index ? null : index);
     }
   }
 

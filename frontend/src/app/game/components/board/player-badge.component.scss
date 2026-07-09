@@ -276,6 +276,68 @@
     }
 }
 
+/* ── Variante losange (pb--diamond) ───────────────────────────────────────────
+   Même badge, décliné en losange pour distinguer une paire de joueurs (rouge et
+   bleu, partenaires sur la diagonale). Principes :
+   • anneau = <rect> arrondi pivoté de 45° dans le SVG (le rotate(-90deg) du
+     cercle est annulé : le tracé du rect démarre déjà au sommet haut) ;
+   • avatar = carré arrondi pivoté de 45°, contenu contre-pivoté ;
+   • jeton cartes et plaque nominative : inchangés (mêmes formes que les
+     badges circulaires). */
+.pb--diamond .pb-ring {
+    /* Garde l'isolation de couche (cf. .pb-ring), sans la rotation du cercle. */
+    transform: translateZ(0);
+}
+
+.pb--diamond .pb-avatar {
+    /* Bords du carré pivoté parallèles à l'anneau agrandi (sommets à ≈57.7,
+       cf. diamondRadius côté TS), même respiration que le cercle : face interne
+       de l'anneau à 57.7/√2 − 2.75 ≈ 38, moins ~1.25 → demi-côté ≈ 36.75. */
+    inset: 13.25%;
+    border-radius: 18%;
+    transform: rotate(45deg);
+    /* Équivalents « lumière en haut » une fois l'élément pivoté de 45°. */
+    background: radial-gradient(circle at 39% 39%, #334155, #1e293b 70%);
+    box-shadow:
+        3px 3px 14px rgba(0, 0, 0, 0.45),
+        inset 0.7px 0.7px 3px rgba(255, 255, 255, 0.25);
+
+    img {
+        /* Contre-rotation + facteur √2 pour couvrir les coins du conteneur. */
+        transform: rotate(-45deg) scale(1.415);
+    }
+}
+
+.pb--diamond .pb-placeholder {
+    transform: rotate(-45deg);
+}
+
+/* Déconnexion : pastille → petit losange arrondi ; la pulsation embarque la
+   rotation (les keyframes remplacent tout le transform). */
+.pb--diamond .pb-disconnect {
+    border-radius: 25%;
+    transform: rotate(45deg);
+    animation-name: pbPulseDiamond;
+
+    svg {
+        transform: rotate(-45deg);
+    }
+}
+
+@keyframes pbPulseDiamond {
+
+    0%,
+    100% {
+        transform: rotate(45deg) scale(1);
+        opacity: 1;
+    }
+
+    50% {
+        transform: rotate(45deg) scale(1.08);
+        opacity: 0.78;
+    }
+}
+
 /* ── Mobile natif (WebView Android) ───────────────────────────────────────────
    Les filtres SVG (drop-shadow) sur l'anneau se re-rasterisent et font clignoter
    le badge au changement de tour. On retire la lueur — la couleur et l'opacité de

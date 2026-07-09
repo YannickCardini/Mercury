@@ -19,7 +19,19 @@
       <p class="rules-subtitle">Mercury — Old Dutch Board Game</p>
     </div>
 
+    <!-- Tabs : règles de base / mode équipes 2v2 -->
+    <div class="rules-tabs">
+      <button class="rules-tab" [class.active]="activeTab() === 'basics'" (click)="activeTab.set('basics')">
+        Basics
+      </button>
+      <button class="rules-tab" [class.active]="activeTab() === 'teams'" (click)="activeTab.set('teams')">
+        Teams 2v2
+      </button>
+    </div>
+
     <div class="rules-body">
+
+      @if (activeTab() === 'basics') {
 
       <!-- Goal -->
       <p class="rules-goal">
@@ -77,6 +89,58 @@
           </li>
         </ul>
       </div>
+
+      } @else {
+
+      <!-- Goal (teams) -->
+      <p class="rules-goal">
+        Two teams of two: <strong>Red &amp; Blue</strong> (diamond badges) vs
+        <strong>Green &amp; Orange</strong> (round badges), sitting across from each other.
+        Your team wins when <strong>both partners</strong> have all 4 marbles in their home lane.
+      </p>
+
+      <!-- Playing as a team -->
+      <div class="rules-section">
+        <h3 class="rules-heading">
+          <span class="rules-heading-icon">🤝</span>Playing as a Team
+        </h3>
+        <ol class="rules-steps">
+          <li>All 4 of your marbles home? You <strong>keep playing</strong>: your cards now control
+            <strong>your teammate's marbles</strong> — entering them on <em>their</em> start square and
+            promoting them into <em>their</em> home lane.</li>
+          <li><strong>Seven:</strong> move one of <em>your own</em> marbles first — the remaining steps
+            may move one of your teammate's marbles.</li>
+          <li><strong>Jack:</strong> swap <em>any two marbles of different colors</em> — your own marble
+            doesn't have to be involved.</li>
+          <li><strong>Blocked-hand rescue:</strong> if you have no legal move but hold an
+            <strong>Ace, King or Joker</strong>, your teammate still has marbles in reserve and their
+            start square is completely free, you <strong>must</strong> play that card to bring their
+            marble in — discarding is not allowed.</li>
+        </ol>
+      </div>
+
+      <div class="rules-divider"></div>
+
+      <!-- What doesn't change -->
+      <div class="rules-section">
+        <h3 class="rules-heading">
+          <span class="rules-heading-icon">⚠️</span>What Doesn't Change
+        </h3>
+        <ul class="rules-keys">
+          <li class="rules-key">
+            <span class="rules-key-dot rules-key-dot--orange"></span>
+            <div><strong>No team immunity:</strong> landing on your teammate's marble captures it and
+              sends it back to its starting box, just like an opponent's.</div>
+          </li>
+          <li class="rules-key">
+            <span class="rules-key-dot rules-key-dot--green"></span>
+            <div><strong>Freshly entered marble:</strong> still blocks everyone — including your
+              teammate — and stays protected from the Jack until it moves.</div>
+          </li>
+        </ul>
+      </div>
+
+      }
 
     </div>
   </div>

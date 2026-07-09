@@ -13,6 +13,7 @@ import { Game } from '../game/game.js';
 import { MultiWsMessenger, wsSend } from '../game/game-messenger.js';
 import { GameRegistry } from './game-registry.js';
 import { isTrainMode } from '../train-mode.js';
+import { getServerGameMode } from '../game-mode.js';
 import type { ReconnectRegistry } from './reconnect-registry.js';
 import type { GameConfig, MarbleColor } from '@mercury/shared';
 
@@ -121,10 +122,12 @@ export class MatchmakingManager {
             return;
         }
         try {
+            // Le mode de jeu est transmis pour que l'agent choisisse le modèle
+            // adapté (1v3 chacun-pour-soi vs 2v2 par équipes).
             const res = await fetch(`${url.replace(/\/$/, '')}/dispatch`, {
                 method: 'POST',
                 headers: { 'X-Bot-Secret': secret, 'Content-Type': 'application/json' },
-                body: '{}',
+                body: JSON.stringify({ gameMode: getServerGameMode() }),
             });
             if (res.ok) {
                 console.log('🤖 Bot agent dispatched');

@@ -151,11 +151,14 @@ export function computeMinAnimationDuration(action: Action): number {
     }
   }
 
+  // La durée dépend du pion déplacé (promote → distance jusqu'à SON start),
+  // qui peut appartenir au coéquipier en 2v2 — pas au joueur qui a joué la carte.
+  const marbleColor = action.marbleColor ?? action.playerColor;
   let marbleDuration = singleMarbleDuration(
     action.type,
     action.from,
     action.to,
-    action.playerColor,
+    marbleColor,
     action.capturedOnEnter,
   );
 
@@ -164,7 +167,7 @@ export function computeMinAnimationDuration(action: Action): number {
       action.splitType,
       action.splitFrom,
       action.splitTo,
-      action.playerColor,
+      action.splitMarbleColor ?? marbleColor,
     );
   }
 

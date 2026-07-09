@@ -29,6 +29,12 @@ import {
   getValidSevenStepsForMarble,
   canMarbleStartSeven,
   getPositionAfterMove,
+  getControlledColor,
+  getTeammateColor,
+  findSolidaireEntry,
+  ENTER_CARDS,
+  HOME_POSITIONS,
+  type GameMode,
   type LegalMoveContext,
 } from '@mercury/shared';
 
@@ -43,7 +49,8 @@ export class GameStateService {
   // ── État serveur ──────────────────────────────────────────────────────────
   data = signal<GameStateMessage | null>(null);
   isConnected = signal(false);
-  winner = signal<MarbleColor | null>(null);
+  /** Couleur(s) gagnante(s) : une en 1v3, les deux de l'équipe en 2v2. Vide = partie en cours. */
+  winners = signal<MarbleColor[]>([]);
   winReason = signal<'win' | 'win_by_default' | null>(null);
   /** Points stats received after game end. null until the server sends gameStats. */
   gameStats = signal<GameStatsMessage | null>(null);
@@ -82,6 +89,70 @@ export class GameStateService {
     return this.data()?.gameState.currentTurn === color;
   });
 
+  /** Mode de jeu de la partie (décidé par le serveur, voir GameState.gameMode). */
+  gameMode = computed<GameMode>(() => this.data()?.gameState.gameMode ?? '2v2');
+
+  /**
+   * Couleur des pions contrôlés par le joueur local. En 2v2, un joueur qui a
+   * rentré ses 4 pions contrôle ceux de son coéquipier (switch de fin de jeu).
+   */
+  controlledColor = computed<MarbleColor | null>(() => {
+    const myColor = this.myPlayerColor();
+    const data = this.data();
+    if (!myColor || !data) return myColor;
+    if (data.gameState.gameMode !== '2v2') return myColor;
+    const me = data.gameState.players.find(p => p.color === myColor);
+    if (!me) return myColor;
+    return getControlledColor(myColor, me.marblePositions);
+  });
+
+  /** Vrai quand le joueur local a fini et joue les pions de son coéquipier. */
+  isPlayingForTeammate = computed(() => {
+    const myColor = this.myPlayerColor();
+    return myColor !== null && this.controlledColor() !== myColor;
+  });
+
+  /**
+   * Contexte de validation local — miroir exact de `buildLegalMoveContext`
+   * côté serveur. Source unique pour tous les computeds de sélection et pour
+   * les previews de board/table (ne plus reconstruire de ctx ailleurs).
+   */
+  legalCtx = computed<LegalMoveContext | null>(() => {
+    const data = this.data();
+    const controlled = this.controlledColor();
+    if (!data || !controlled) return null;
+    const players = data.gameState.players;
+    const marblesByColor = Object.fromEntries(players.map(p => [p.color, p.marblePositions])) as Record<MarbleColor, number[]>;
+    const invincibleMarblesByColor = Object.fromEntries(
+      players.map(p => [p.color, p.marblePositions.filter((_, i) => p.marbleInvincible[i])])
+    ) as Record<MarbleColor, number[]>;
+    const ctx: LegalMoveContext = {
+      ownMarbles: marblesByColor[controlled] ?? [],
+      allMarbles: players.flatMap(p => p.marblePositions),
+      playerColor: controlled,
+      marblesByColor,
+      invincibleMarblesByColor,
+    };
+    if (data.gameState.gameMode === '2v2') {
+      ctx.teammateColor = getTeammateColor(controlled);
+    }
+    return ctx;
+  });
+
+  /**
+   * Mise en jeu solidaire (2v2) : action `enter` obligatoire du pion du
+   * coéquipier quand la main est bloquée avec un A/K/Joker, que le coéquipier
+   * a des pions en réserve et que sa case de départ est totalement libre.
+   * null si l'exception ne s'applique pas.
+   */
+  forcedSolidaireEntry = computed<Action | null>(() => {
+    if (!this.isMyTurn()) return null;
+    const ctx = this.legalCtx();
+    const hand = this.data()?.gameState.hand;
+    if (!ctx || !hand?.length) return null;
+    return findSolidaireEntry(hand, ctx);
+  });
+
   // ── Sélection en cours (carte + bille) ───────────────────────────────────
   selectedCard = signal<Card | null>(null);
   selectedMarblePosition = signal<number | null>(null);
@@ -102,24 +173,18 @@ export class GameStateService {
     const marblePos = this.selectedMarblePosition();
     if (!card || marblePos === null) return false;
 
-    const data = this.data();
-    const myColor = this.myPlayerColor();
-    if (!data || !myColor) return false;
+    const ctx = this.legalCtx();
+    if (!ctx) return false;
 
-    const player = data.gameState.players.find(p => p.color === myColor);
-    if (!player) return false;
-
-    const marblesByColor = Object.fromEntries(data.gameState.players.map(p => [p.color, p.marblePositions])) as Record<MarbleColor, number[]>;
-    const invincibleMarblesByColor = Object.fromEntries(
-      data.gameState.players.map(p => [p.color, p.marblePositions.filter((_, i) => p.marbleInvincible[i])])
-    ) as Record<MarbleColor, number[]>;
-    const ctx: LegalMoveContext = {
-      ownMarbles: player.marblePositions,
-      allMarbles: data.gameState.players.flatMap(p => p.marblePositions),
-      playerColor: myColor,
-      marblesByColor,
-      invincibleMarblesByColor,
-    };
+    // Mise en jeu solidaire : la seule action jouable est l'entrée d'un pion
+    // du coéquipier avec une carte A/K/Joker.
+    const solidaire = this.forcedSolidaireEntry();
+    if (solidaire) {
+      if (!ENTER_CARDS.includes(card.value)) return false;
+      const teammate = ctx.teammateColor!;
+      return HOME_POSITIONS[teammate].includes(marblePos)
+        && ctx.marblesByColor[teammate].includes(marblePos);
+    }
 
     if (card.value === 'J') {
       const swapTarget = this.selectedSwapTargetPosition();
@@ -150,41 +215,41 @@ export class GameStateService {
     const card = this.selectedCard();
     if (!card) return null;
 
-    const data = this.data();
-    const myColor = this.myPlayerColor();
-    if (!data || !myColor) return null;
+    const ctx = this.legalCtx();
+    if (!ctx) return null;
 
-    const player = data.gameState.players.find(p => p.color === myColor);
-    if (!player) return null;
-
-    const allMarbles = data.gameState.players.flatMap(p => p.marblePositions);
-    const marblesByColor = Object.fromEntries(data.gameState.players.map(p => [p.color, p.marblePositions])) as Record<MarbleColor, number[]>;
-    const invincibleMarblesByColor = Object.fromEntries(
-      data.gameState.players.map(p => [p.color, p.marblePositions.filter((_, i) => p.marbleInvincible[i])])
-    ) as Record<MarbleColor, number[]>;
-    const ctx: LegalMoveContext = {
-      ownMarbles: player.marblePositions,
-      allMarbles,
-      playerColor: myColor,
-      marblesByColor,
-      invincibleMarblesByColor,
-    };
+    // Mise en jeu solidaire : seuls les pions du coéquipier en réserve sont
+    // jouables, et uniquement avec une carte d'entrée (A/K/Joker).
+    const solidaire = this.forcedSolidaireEntry();
+    if (solidaire) {
+      const playable = new Set<number>();
+      if (ENTER_CARDS.includes(card.value)) {
+        const teammate = ctx.teammateColor!;
+        for (const pos of ctx.marblesByColor[teammate]) {
+          if (HOME_POSITIONS[teammate].includes(pos)) playable.add(pos);
+        }
+      }
+      return playable;
+    }
 
     if (card.value === 'J') {
-      const selectedOwn = this.selectedMarblePosition();
-      if (selectedOwn === null) {
-        // Phase 1 : montrer les billes propres qui peuvent initier un swap
+      const selectedSource = this.selectedMarblePosition();
+      if (selectedSource === null) {
+        // Phase 1 : sources possibles du swap. En 2v2 n'importe quel pion du
+        // plateau peut être échangé ; en 1v3 seulement les pions contrôlés.
+        const sources = ctx.teammateColor !== undefined ? ctx.allMarbles : ctx.ownMarbles;
         const playable = new Set<number>();
-        for (const pos of player.marblePositions) {
+        for (const pos of sources) {
           if (getLegalAction(card, pos, ctx) !== null) playable.add(pos);
         }
         return playable;
       } else {
-        // Phase 2 : montrer les billes adverses échangeables
-        const opponentMarbles = allMarbles.filter(pos => !player.marblePositions.includes(pos));
+        // Phase 2 : cibles échangeables avec la source choisie (le validateur
+        // impose une couleur différente de celle de la source)
         const playable = new Set<number>();
-        for (const pos of opponentMarbles) {
-          if (getLegalAction(card, selectedOwn, ctx, pos) !== null) playable.add(pos);
+        for (const pos of ctx.allMarbles) {
+          if (pos === selectedSource) continue;
+          if (getLegalAction(card, selectedSource, ctx, pos) !== null) playable.add(pos);
         }
         return playable;
       }
@@ -193,19 +258,23 @@ export class GameStateService {
     if (card.value === '7') {
       const marble1 = this.selectedMarblePosition();
       if (marble1 === null) {
-        // Phase 1 : billes propres pouvant initier un coup légal complet
+        // Phase 1 : billes contrôlées pouvant initier un coup légal complet
         // (déplacement simple de 7, ou première moitié d'un split jouable).
         const playable = new Set<number>();
-        for (const pos of player.marblePositions) {
+        for (const pos of ctx.ownMarbles) {
           if (canMarbleStartSeven(pos, ctx)) playable.add(pos);
         }
         return playable;
       }
       const steps1 = this.sevenFirstSteps();
       if (steps1 === 7) return null; // coup simple, pas de second pion
-      // Phase 2 : billes propres (hors premier pion) valides pour le second mouvement
+      // Phase 2 : second pion parmi les billes contrôlées + celles du
+      // coéquipier en 2v2 (hors premier pion)
+      const candidates = ctx.teammateColor !== undefined
+        ? [...ctx.ownMarbles, ...ctx.marblesByColor[ctx.teammateColor]]
+        : ctx.ownMarbles;
       const playable = new Set<number>();
-      for (const pos of player.marblePositions) {
+      for (const pos of candidates) {
         if (pos === marble1) continue;
         if (getLegalSplit7Action(card, marble1, steps1, pos, ctx) !== null) playable.add(pos);
       }
@@ -215,7 +284,7 @@ export class GameStateService {
     if (this.selectedMarblePosition() !== null) return null;
 
     const playable = new Set<number>();
-    for (const pos of player.marblePositions) {
+    for (const pos of ctx.ownMarbles) {
       if (getLegalAction(card, pos, ctx) !== null) playable.add(pos);
     }
     return playable;
@@ -232,27 +301,29 @@ export class GameStateService {
     const card = this.selectedCard();
     if (!card) return null;
 
-    const data = this.data();
-    const myColor = this.myPlayerColor();
-    if (!data || !myColor) return null;
+    const ctx = this.legalCtx();
+    if (!ctx) return null;
 
-    const player = data.gameState.players.find(p => p.color === myColor);
-    if (!player) return null;
+    // Mise en jeu solidaire : seuls les pions du coéquipier en réserve.
+    const solidaire = this.forcedSolidaireEntry();
+    if (solidaire) {
+      const playable = new Set<number>();
+      if (ENTER_CARDS.includes(card.value)) {
+        const teammate = ctx.teammateColor!;
+        for (const pos of ctx.marblesByColor[teammate]) {
+          if (HOME_POSITIONS[teammate].includes(pos)) playable.add(pos);
+        }
+      }
+      return playable;
+    }
 
-    const marblesByColor = Object.fromEntries(data.gameState.players.map(p => [p.color, p.marblePositions])) as Record<MarbleColor, number[]>;
-    const invincibleMarblesByColor = Object.fromEntries(
-      data.gameState.players.map(p => [p.color, p.marblePositions.filter((_, i) => p.marbleInvincible[i])])
-    ) as Record<MarbleColor, number[]>;
-    const ctx: LegalMoveContext = {
-      ownMarbles: player.marblePositions,
-      allMarbles: data.gameState.players.flatMap(p => p.marblePositions),
-      playerColor: myColor,
-      marblesByColor,
-      invincibleMarblesByColor,
-    };
+    // En 2v2, le Valet peut prendre n'importe quel pion du plateau comme source.
+    const candidates = card.value === 'J' && ctx.teammateColor !== undefined
+      ? ctx.allMarbles
+      : ctx.ownMarbles;
 
     const playable = new Set<number>();
-    for (const pos of player.marblePositions) {
+    for (const pos of candidates) {
       if (card.value === '7') {
         if (canMarbleStartSeven(pos, ctx)) playable.add(pos);
       } else if (getLegalAction(card, pos, ctx) !== null) {
@@ -267,28 +338,16 @@ export class GameStateService {
     if (!this.isMyTurn()) return false;
     const card = this.selectedCard();
     if (!card || card.value !== '7') return false;
-    const data = this.data();
-    const myColor = this.myPlayerColor();
-    if (!data || !myColor) return false;
-    const player = data.gameState.players.find(p => p.color === myColor);
-    if (!player) return false;
-    const marblesByColor = Object.fromEntries(
-      data.gameState.players.map(p => [p.color, p.marblePositions])
-    ) as Record<MarbleColor, number[]>;
-    const invincibleMarblesByColor = Object.fromEntries(
-      data.gameState.players.map(p => [p.color, p.marblePositions.filter((_, i) => p.marbleInvincible[i])])
-    ) as Record<MarbleColor, number[]>;
-    const ctx: LegalMoveContext = {
-      ownMarbles: player.marblePositions,
-      allMarbles: data.gameState.players.flatMap(p => p.marblePositions),
-      playerColor: myColor,
-      marblesByColor,
-      invincibleMarblesByColor,
-    };
-    for (const m1 of player.marblePositions) {
+    const ctx = this.legalCtx();
+    if (!ctx) return false;
+    // Second pion : billes contrôlées + celles du coéquipier en 2v2.
+    const candidates2 = ctx.teammateColor !== undefined
+      ? [...ctx.ownMarbles, ...ctx.marblesByColor[ctx.teammateColor]]
+      : ctx.ownMarbles;
+    for (const m1 of ctx.ownMarbles) {
       const steps = getValidSevenStepsForMarble(m1, ctx).filter(s => s !== 7);
       for (const s of steps) {
-        for (const m2 of player.marblePositions) {
+        for (const m2 of candidates2) {
           if (m2 === m1) continue;
           if (getLegalSplit7Action(card, m1, s, m2, ctx) !== null) return true;
         }
@@ -492,7 +551,7 @@ export class GameStateService {
             this.gameAbandoned$.next();
           } else {
             this.winReason.set(msg.reason === 'win_by_default' ? 'win_by_default' : 'win');
-            this.winner.set(msg.winner);
+            this.winners.set(msg.winners);
           }
           break;
         }
@@ -728,7 +787,7 @@ export class GameStateService {
   /** Reset all game state so navigation to home starts clean. */
   reset(): void {
     this.data.set(null);
-    this.winner.set(null);
+    this.winners.set([]);
     this.winReason.set(null);
     this.gameStats.set(null);
     this.myPlayerColor.set(null);

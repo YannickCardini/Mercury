@@ -22,16 +22,30 @@ export interface CardEffectTile {
   html: string;
 }
 
-export const CARD_EFFECT_TILES: CardEffectTile[] = [
-  { val: 'A', tileClass: 'ca-green', html: 'Enter or move +1' },
-  { val: 'K', tileClass: 'ca-green', html: 'Enter a marble' },
-  { val: 'Q', tileClass: 'ca-blue', html: 'Move forward +12' },
-  { val: 'J', tileClass: 'ca-orange', html: 'Swap with any opponent' },
-  { val: '7', tileClass: 'ca-purple', html: '7 steps — split across 2 marbles' },
-  { val: '4', tileClass: 'ca-red', html: 'Move backward −4' },
-  { val: '2–10', smallVal: true, tileClass: 'ca-muted ca-wide', html: 'Move one marble forward by face value' },
-  { val: '🤡', tileClass: 'ca-joker ca-wide', html: 'Enter a marble <em>or</em> move forward +18 — then <strong>play again</strong>' },
-];
+/**
+ * Tuiles de la grille « Card Actions » du modal des règles.
+ * `teamMode` (2v2) adapte les cartes dont l'effet change en équipe (J, 7).
+ */
+export function getCardEffectTiles(teamMode: boolean): CardEffectTile[] {
+  return [
+    { val: 'A', tileClass: 'ca-green', html: 'Enter or move +1' },
+    { val: 'K', tileClass: 'ca-green', html: 'Enter a marble' },
+    { val: 'Q', tileClass: 'ca-blue', html: 'Move forward +12' },
+    {
+      val: 'J', tileClass: 'ca-orange',
+      html: teamMode ? 'Swap any two marbles of different colors' : 'Swap with any opponent',
+    },
+    {
+      val: '7', tileClass: 'ca-purple',
+      html: teamMode
+        ? '7 steps — yours first, the rest may go to your teammate'
+        : '7 steps — split across 2 marbles',
+    },
+    { val: '4', tileClass: 'ca-red', html: 'Move backward −4' },
+    { val: '2–10', smallVal: true, tileClass: 'ca-muted ca-wide', html: 'Move one marble forward by face value' },
+    { val: '🤡', tileClass: 'ca-joker ca-wide', html: 'Enter a marble <em>or</em> move forward +18 — then <strong>play again</strong>' },
+  ];
+}
 
 /** Effet d'une carte précise, pour l'aide contextuelle en partie. */
 export interface CardEffect {
@@ -41,13 +55,17 @@ export interface CardEffect {
   text: string;
 }
 
-export function getCardEffect(value: CardValue): CardEffect {
+export function getCardEffect(value: CardValue, teamMode = false): CardEffect {
   switch (value) {
     case 'A': return { title: 'Ace', text: 'Enter a marble onto your start, or move one forward by 1.' };
     case 'K': return { title: 'King', text: 'Enter a marble onto your start square.' };
     case 'Q': return { title: 'Queen', text: 'Move one marble forward by 12.' };
-    case 'J': return { title: 'Jack', text: "Swap one of your marbles with any opponent's marble." };
-    case '7': return { title: 'Seven', text: 'Move 7 spaces — you may split them across two marbles.' };
+    case 'J': return teamMode
+      ? { title: 'Jack', text: 'Swap any two marbles of different colors — yours don\'t have to be involved.' }
+      : { title: 'Jack', text: "Swap one of your marbles with any opponent's marble." };
+    case '7': return teamMode
+      ? { title: 'Seven', text: 'Move 7 spaces — split them across two marbles: yours moves first, the remaining steps may go to your teammate\'s.' }
+      : { title: 'Seven', text: 'Move 7 spaces — you may split them across two marbles.' };
     case '4': return { title: 'Four', text: 'Move one marble backward by 4.' };
     case 'Joker': return { title: 'Joker', text: 'Enter a marble or move forward 18 — then play again.' };
     default: return { title: value, text: `Move one marble forward by ${value}.` };

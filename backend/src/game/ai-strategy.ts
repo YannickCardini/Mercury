@@ -1,4 +1,5 @@
-import type { Action, Card } from '@mercury/shared';
+import type { Action, Card, MarbleColor } from '@mercury/shared';
+import { colorAtPosition, findSolidaireEntry } from '@mercury/shared';
 import { findLegalMoveForCard, getLegalAction, sleep, type LegalMoveContext } from '../utils/utils.js';
 import { isTrainMode } from '../train-mode.js';
 import type { PlayerStrategy } from './player-strategy.js';
@@ -27,6 +28,24 @@ const AI_CARD_PRIORITY: Card['value'][] = [
     '10', '9', '8', '7', '6', '5', '4', '3', '2',
 ];
 
+/** Couleur alliée du point de vue du contexte : soi-même, plus le coéquipier en 2v2. */
+function isAllyColor(color: MarbleColor | null, ctx: LegalMoveContext): boolean {
+    return color !== null && (color === ctx.playerColor || color === ctx.teammateColor);
+}
+
+/**
+ * Vrai si l'action mange un pion allié (le sien ou celui du coéquipier en 2v2).
+ * L'IA évite ces coups tant qu'une alternative existe — mais ils restent
+ * légaux et sont joués en dernier recours (pas d'immunité d'équipe).
+ */
+function capturesAlly(action: Action, ctx: LegalMoveContext): boolean {
+    if (ctx.teammateColor === undefined) return false;
+    const victimPositions: number[] = [];
+    if (action.type === 'capture') victimPositions.push(action.to);
+    if (action.splitType === 'capture' && action.splitTo !== undefined) victimPositions.push(action.splitTo);
+    return victimPositions.some(pos => isAllyColor(colorAtPosition(pos, ctx.marblesByColor), ctx));
+}
+
 export class AiStrategy implements PlayerStrategy {
 
     async getAction(ctx: LegalMoveContext, hand: Card[]): Promise<Action> {
@@ -36,43 +55,67 @@ export class AiStrategy implements PlayerStrategy {
 
         if (process.env['DEBUG'] !== 'true' && !isTrainMode()) await sleep(500);
 
-        // 🔥 Pass 1 : priorité aux captures et promotions
+        // 🔥 Pass 1 : priorité aux captures et promotions (sans manger un allié)
         for (const targetValue of AI_CARD_PRIORITY) {
             const card = hand.find(c => c.value === targetValue);
             if (!card) continue;
 
             const action = findLegalMoveForCard(card, ctx);
-            if (action && (action.type === 'capture' || action.type === 'promote')) {
+            if (action && (action.type === 'capture' || action.type === 'promote') && !capturesAlly(action, ctx)) {
                 console.log(`💥 IA joue ${card.value}${card.suit} → ${action.type} [${action.from} → ${action.to}]`);
                 return action;
             }
         }
 
-        // 🔄 Pass 2 : J card swap
+        // 🔄 Pass 2 : J card swap — jamais contre un pion allié (casser la
+        // position du coéquipier n'apporte rien à l'équipe)
         const jCard = hand.find(c => c.value === 'J');
         if (jCard) {
-            const opponentMarbles = ctx.allMarbles.filter(pos => !ctx.ownMarbles.includes(pos));
+            const enemyMarbles = ctx.allMarbles.filter(
+                pos => !isAllyColor(colorAtPosition(pos, ctx.marblesByColor), ctx) && !ctx.ownMarbles.includes(pos),
+            );
             for (const ownMarble of ctx.ownMarbles) {
-                for (const opponentMarble of opponentMarbles) {
-                    const action = getLegalAction(jCard, ownMarble, ctx, opponentMarble);
+                for (const enemyMarble of enemyMarbles) {
+                    const action = getLegalAction(jCard, ownMarble, ctx, enemyMarble);
                     if (action) {
-                        console.log(`🔄 IA joue J${jCard.suit} → swap [${ownMarble} ↔ ${opponentMarble}]`);
+                        console.log(`🔄 IA joue J${jCard.suit} → swap [${ownMarble} ↔ ${enemyMarble}]`);
                         return action;
                     }
                 }
             }
         }
 
-        // 🚶 Pass 3 : coups normaux (enter, move)
+        // 🚶 Pass 3 : coups normaux (enter, move), en évitant de manger un allié
+        for (const targetValue of AI_CARD_PRIORITY) {
+            const card = hand.find(c => c.value === targetValue);
+            if (!card) continue;
+
+            const action = findLegalMoveForCard(card, ctx);
+            if (action && !capturesAlly(action, ctx)) {
+                console.log(`IA joue ${card.value}${card.suit} → ${action.type} [${action.from} → ${action.to}]`);
+                return action;
+            }
+        }
+
+        // 🩹 Pass 4 : si les seuls coups légaux mangent un allié, il faut quand
+        // même jouer (les collisions entre coéquipiers restent la règle).
         for (const targetValue of AI_CARD_PRIORITY) {
             const card = hand.find(c => c.value === targetValue);
             if (!card) continue;
 
             const action = findLegalMoveForCard(card, ctx);
             if (action) {
-                console.log(`IA joue ${card.value}${card.suit} → ${action.type} [${action.from} → ${action.to}]`);
+                console.log(`IA joue ${card.value}${card.suit} (capture alliée inévitable) → ${action.type} [${action.from} → ${action.to}]`);
                 return action;
             }
+        }
+
+        // 🤝 Mise en jeu solidaire (2v2) : main bloquée mais A/K/Joker en main,
+        // coéquipier en réserve et son start libre → entrée obligatoire.
+        const solidaire = findSolidaireEntry(hand, ctx);
+        if (solidaire) {
+            console.log(`🤝 IA joue ${solidaire.cardPlayed![0]!.value} → entrée solidaire du coéquipier`);
+            return solidaire;
         }
 
         // Aucun coup légal : défausse toute la main

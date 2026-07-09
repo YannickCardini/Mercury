@@ -171,6 +171,12 @@
   <!-- ===== INFOS CONTEXTUELLES (au-dessus du footer, cachées sur petits écrans et pendant l'overlay du 7) ===== -->
   @if (!showSevenSplitOverlay()) {
   <div class="context-info">
+    @if (gameStateService.isPlayingForTeammate()) {
+    <span class="turn-phase teammate-phase">
+      <span class="phase-dot"></span>
+      🤝 Playing for your teammate
+    </span>
+    }
     <span class="turn-phase">
       <span class="phase-dot"></span>
       {{ turnPhase() }}

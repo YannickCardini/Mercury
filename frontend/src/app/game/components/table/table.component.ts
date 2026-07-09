@@ -15,7 +15,7 @@ import { TockCardComponent } from 'src/app/shared/tock-card.component';
 import { getCardEffect } from 'src/app/shared/card-effects';
 import { EmojiReactionsComponent } from '../emoji-reactions/emoji-reactions.component';
 import type { Card, MarbleColor } from '@mercury/shared';
-import { getValidSevenStepsForMarble, getPositionAfterMove, getLegalSplit7Action, type LegalMoveContext } from '@mercury/shared';
+import { getValidSevenStepsForMarble, getPositionAfterMove, getLegalSplit7Action } from '@mercury/shared';
 import { Subscription } from 'rxjs';
 import { Router } from '@angular/router';
 import { SoundService } from '../../services/sound.service';
@@ -31,6 +31,7 @@ enum TURN_PHASE {
   SEVEN_SPLIT = "Choose a second marble",
   WAIT = "Wait for your turn",
   CONFIRM = "Confirm your move",
+  SOLIDAIRE = "Play an Ace, King or Joker to bring your teammate's marble in",
 }
 
 @Component({
@@ -114,54 +115,30 @@ enum TURN_PHASE {
   validSevenSteps = computed<number[]>(() => {
     const marble1 = this.gameStateService.selectedMarblePosition();
     if (marble1 === null) return [];
-    const myColor = this.gameStateService.myPlayerColor();
-    const data = this.gameStateService.data();
-    if (!myColor || !data) return [];
-    const player = data.gameState.players.find(p => p.color === myColor);
-    if (!player) return [];
-    const marblesByColor = Object.fromEntries(data.gameState.players.map(p => [p.color, p.marblePositions])) as Record<MarbleColor, number[]>;
-    const invincibleMarblesByColor = Object.fromEntries(
-      data.gameState.players.map(p => [p.color, p.marblePositions.filter((_, i) => p.marbleInvincible[i])])
-    ) as Record<MarbleColor, number[]>;
-    const ctx: LegalMoveContext = {
-      ownMarbles: player.marblePositions,
-      allMarbles: data.gameState.players.flatMap(p => p.marblePositions),
-      playerColor: myColor,
-      marblesByColor,
-      invincibleMarblesByColor,
-    };
+    const ctx = this.gameStateService.legalCtx();
+    if (!ctx) return [];
     return getValidSevenStepsForMarble(marble1, ctx);
   });
 
   /**
    * Pas valides pour un split (1–6) : le premier pion peut avancer de i pas
-   * ET il existe au moins un second pion pouvant avancer de 7-i pas.
+   * ET il existe au moins un second pion (contrôlé, ou du coéquipier en 2v2)
+   * pouvant avancer de 7-i pas.
    */
   validSplitSevenSteps = computed<number[]>(() => {
     const marble1 = this.gameStateService.selectedMarblePosition();
     if (marble1 === null) return [];
     const card = this.gameStateService.selectedCard();
     if (!card || card.value !== '7') return [];
-    const myColor = this.gameStateService.myPlayerColor();
-    const data = this.gameStateService.data();
-    if (!myColor || !data) return [];
-    const player = data.gameState.players.find(p => p.color === myColor);
-    if (!player) return [];
-    const marblesByColor = Object.fromEntries(data.gameState.players.map(p => [p.color, p.marblePositions])) as Record<MarbleColor, number[]>;
-    const invincibleMarblesByColor = Object.fromEntries(
-      data.gameState.players.map(p => [p.color, p.marblePositions.filter((_, i) => p.marbleInvincible[i])])
-    ) as Record<MarbleColor, number[]>;
-    const ctx: LegalMoveContext = {
-      ownMarbles: player.marblePositions,
-      allMarbles: data.gameState.players.flatMap(p => p.marblePositions),
-      playerColor: myColor,
-      marblesByColor,
-      invincibleMarblesByColor,
-    };
+    const ctx = this.gameStateService.legalCtx();
+    if (!ctx) return [];
+    const candidates2 = ctx.teammateColor !== undefined
+      ? [...ctx.ownMarbles, ...ctx.marblesByColor[ctx.teammateColor]]
+      : ctx.ownMarbles;
     const allValid = getValidSevenStepsForMarble(marble1, ctx);
     return allValid.filter(steps => {
       if (steps === 7) return false; // full move — not a split
-      return player.marblePositions.some(pos =>
+      return candidates2.some(pos =>
         pos !== marble1 && getLegalSplit7Action(card, marble1, steps, pos, ctx) !== null
       );
     });
@@ -293,6 +270,8 @@ enum TURN_PHASE {
       turnPhaseText = TURN_PHASE.WAIT;
     else if (this.isDiscardMode())
       turnPhaseText = TURN_PHASE.DISCARD;
+    else if (this.gameStateService.forcedSolidaireEntry() && this.selectedCardIndex() == null)
+      turnPhaseText = TURN_PHASE.SOLIDAIRE;
     else if (this.selectedCardIndex() == null)
       turnPhaseText = TURN_PHASE.CARD;
     else if (this.gameStateService.canPlay())
@@ -503,7 +482,7 @@ enum TURN_PHASE {
     const idx = this.selectedCardIndex();
     if (idx === null) return null;
     const card = this.getPlayerHand()[idx];
-    return card ? getCardEffect(card.value) : null;
+    return card ? getCardEffect(card.value, this.gameStateService.gameMode() === '2v2') : null;
   });
 
   toggleCardHelp(): void {
@@ -543,7 +522,7 @@ enum TURN_PHASE {
     const card = this.getPlayerHand()[index];
     if (!card) return;
 
-    const effect = getCardEffect(card.value);
+    const effect = getCardEffect(card.value, this.gameStateService.gameMode() === '2v2');
     const rect = el.getBoundingClientRect();
     // Ancrage horizontal clampé pour ne pas déborder de l'écran (≈ demi-largeur max).
     const HALF = 150;

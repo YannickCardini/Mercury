@@ -31,22 +31,12 @@ export class Player {
 
     /**
      * Demande à la strategy de choisir un coup.
-     * `allMarbles` = toutes les positions de pions sur le plateau (toutes couleurs),
-     * fourni par Game au moment du tour — plus besoin de propriété mutable.
+     * Le contexte est construit par Game (`buildLegalMoveContext`) : en 2v2 il
+     * porte les pions CONTRÔLÉS (ceux du coéquipier quand le joueur a fini) et
+     * la couleur du coéquipier — la strategy n'a pas à connaître le mode.
      */
-    getAction(
-        marblesByColor: Record<MarbleColor, number[]>,
-        invincibleMarblesByColor: Record<MarbleColor, number[]>,
-    ): Promise<Action> {
+    getAction(ctx: LegalMoveContext): Promise<Action> {
         console.log(`${this.name} (${this.isHuman ? 'humain' : 'IA'}) calcule son coup...`);
-
-        const ctx: LegalMoveContext = {
-            ownMarbles: [...this.marblePositions],
-            allMarbles: Object.values(marblesByColor).flat(),
-            playerColor: this.color,
-            marblesByColor,
-            invincibleMarblesByColor,
-        };
         return this.strategy.getAction(ctx, this.cards);
     }
 

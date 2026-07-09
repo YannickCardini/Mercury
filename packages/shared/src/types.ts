@@ -9,6 +9,14 @@
 
 export type MarbleColor = 'red' | 'green' | 'blue' | 'orange';
 
+/**
+ * Mode de jeu, choisi côté serveur (variable d'environnement GAME_MODE) :
+ *  - '1v3' : chacun pour soi — le premier joueur qui rentre ses 4 pions gagne.
+ *  - '2v2' : par équipes (red+blue vs green+orange) — l'équipe gagne quand ses
+ *    DEUX joueurs ont rentré leurs 4 pions. Voir teams.ts.
+ */
+export type GameMode = '1v3' | '2v2';
+
 export type ActionType =
   | 'move'     // déplacement simple sur le chemin
   | 'enter'    // entrée en jeu depuis la maison
@@ -73,14 +81,27 @@ export interface Action {
   to: number;
   /** Carte(s) jouée(s) pour effectuer cette action, null si timeout/pass forcé */
   cardPlayed: Card[] | null;
-  /** Couleur du joueur qui a effectué l'action */
+  /** Couleur du joueur qui a effectué l'action (= qui a joué la carte) */
   playerColor: MarbleColor;
+  /**
+   * Couleur du propriétaire du pion déplacé (from/to). Absent = playerColor.
+   * Diffère de `playerColor` en mode 2v2 : un joueur qui a fini joue les pions
+   * de son coéquipier, la mise en jeu solidaire fait entrer un pion du
+   * coéquipier, et le Valet peut échanger deux pions étrangers.
+   */
+  marbleColor?: MarbleColor;
   /** Pour un split du 7 : position de départ du second pion */
   splitFrom?: number;
   /** Pour un split du 7 : position d'arrivée du second pion */
   splitTo?: number;
   /** Pour un split du 7 : type de mouvement du second pion (move/capture/promote) */
   splitType?: ActionType;
+  /**
+   * Pour un split du 7 : couleur du propriétaire du second pion.
+   * Absent = marbleColor ?? playerColor. En 2v2 le second pion peut appartenir
+   * au coéquipier.
+   */
+  splitMarbleColor?: MarbleColor;
   /** Vrai quand un `enter` arrive sur une case de start occupée par un pion ennemi (capture). */
   capturedOnEnter?: boolean;
 }
@@ -97,6 +118,8 @@ export interface PlayerConfig {
 
 export interface GameConfig {
   players: PlayerConfig[];
+  /** Mode de jeu. Absent = '2v2' (défaut serveur, voir getServerGameMode). */
+  gameMode?: GameMode;
 }
 
 // ── État de jeu ───────────────────────────────────────────────────────────────
@@ -104,6 +127,8 @@ export interface GameConfig {
 export interface GameState {
   players: Player[];
   currentTurn: MarbleColor;
+  /** Mode de jeu de la partie — le front en a besoin pour la validation locale et l'affichage. */
+  gameMode: GameMode;
   /** Durée du tour en secondes (ex: 30) */
   timer: number;
   /**
@@ -176,10 +201,14 @@ export interface ActionRejectedMessage {
   reason: string;
 }
 
-/** Envoyé par le serveur quand la partie se termine (victoire ou abandon). */
+/**
+ * Envoyé par le serveur quand la partie se termine (victoire ou abandon).
+ * `winners` contient une couleur en 1v3, les deux couleurs de l'équipe
+ * gagnante en 2v2, et est vide en cas d'abandon sans vainqueur.
+ */
 export interface GameEndedMessage {
   type: 'gameEnded';
-  winner: MarbleColor | null;
+  winners: MarbleColor[];
   reason?: 'win' | 'win_by_default' | 'abandoned';
 }
 
