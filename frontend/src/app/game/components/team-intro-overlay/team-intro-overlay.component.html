@@ -1,0 +1,74 @@
+@if (playing()) {
+<div class="ti-overlay" [class.is-leaving]="leaving()">
+
+  <!-- Bandeau du HAUT — glisse depuis la gauche, avatars losange (comme les badges red/blue du plateau) -->
+  <div class="ti-band ti-band--top ti-band--a-{{ topTeam()[0]?.color }} ti-band--b-{{ topTeam()[1]?.color }}">
+    <div class="ti-speedlines" aria-hidden="true"></div>
+    <div class="ti-duo">
+      @for (player of topTeam(); track player.color) {
+      <div class="ti-player">
+        <div class="ti-avatar ti-avatar--diamond">
+          <div class="ti-avatar-inner">
+            @if (player.picture) {
+            <img [src]="player.picture" alt="" referrerpolicy="no-referrer" />
+            } @else {
+            <svg class="ti-avatar-placeholder" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-4.42 0-8 2.69-8 6v2h16v-2c0-3.31-3.58-6-8-6Z" />
+            </svg>
+            }
+          </div>
+        </div>
+        <div class="ti-name ti-name--{{ player.color }}">{{ player.name }}</div>
+      </div>
+      }
+    </div>
+  </div>
+
+  <!-- Bandeau du BAS — glisse depuis la droite, avatars ronds (comme les badges green/orange) -->
+  <div class="ti-band ti-band--bottom ti-band--a-{{ bottomTeam()[0]?.color }} ti-band--b-{{ bottomTeam()[1]?.color }}">
+    <div class="ti-speedlines" aria-hidden="true"></div>
+    <div class="ti-duo">
+      @for (player of bottomTeam(); track player.color) {
+      <div class="ti-player">
+        <div class="ti-avatar ti-avatar--circle">
+          <div class="ti-avatar-inner">
+            @if (player.picture) {
+            <img [src]="player.picture" alt="" referrerpolicy="no-referrer" />
+            } @else {
+            <svg class="ti-avatar-placeholder" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-4.42 0-8 2.69-8 6v2h16v-2c0-3.31-3.58-6-8-6Z" />
+            </svg>
+            }
+          </div>
+        </div>
+        <div class="ti-name ti-name--{{ player.color }}">{{ player.name }}</div>
+      </div>
+      }
+    </div>
+  </div>
+
+  <!-- Flash rapide sur la zone du plateau -->
+  <div class="ti-flash" aria-hidden="true"></div>
+
+  <!-- Impact « VS » — étoile comic au centre du plateau -->
+  <div class="ti-vs" aria-hidden="true">
+    <div class="ti-vs-inner">
+      <svg class="ti-vs-burst" viewBox="-110 -110 220 220" aria-hidden="true">
+        <!-- Étoile extérieure (rouge, contour sombre) -->
+        <polygon class="ti-burst-outer"
+          points="100,0 56,15 86.6,50 41,41 50,86.6 15,56 0,100 -15,56 -50,86.6 -41,41 -86.6,50 -56,15 -100,0 -56,-15 -86.6,-50 -41,-41 -50,-86.6 -15,-56 0,-100 15,-56 50,-86.6 41,-41 86.6,-50 56,-15" />
+        <!-- Étoile intérieure (dorée), légèrement tournée pour l'effet comic -->
+        <polygon class="ti-burst-inner" transform="rotate(8) scale(0.8)"
+          points="100,0 56,15 86.6,50 41,41 50,86.6 15,56 0,100 -15,56 -50,86.6 -41,41 -86.6,50 -56,15 -100,0 -56,-15 -86.6,-50 -41,-41 -50,-86.6 -15,-56 0,-100 15,-56 50,-86.6 41,-41 86.6,-50 56,-15" />
+      </svg>
+      <span class="ti-vs-text">VS</span>
+    </div>
+  </div>
+
+</div>
+} @else if(debug) {
+<!-- Bouton discret pour rejouer l'annonce des équipes -->
+<button class="ti-replay" type="button" (click)="play()" title="Replay team intro" aria-label="Replay team intro">
+  VS
+</button>
+}

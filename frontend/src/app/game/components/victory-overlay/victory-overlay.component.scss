@@ -33,9 +33,37 @@
           inset 0 1px 0 rgba(255, 255, 255, 0.12);
       }
 
-      .winner-name {
+      // Solo (1v3) uniquement — en 2v2 chaque membre est coloré via .tm-*.
+      .winner-row .winner-name {
         color: $hex;
         text-shadow: 0 0 16px rgba($hex, 0.8);
+      }
+    }
+
+    // Nom et halo de bille de chaque coéquipier dans SA couleur (2v2).
+    .team-member.tm-#{$name} .winner-name--team {
+      color: $hex;
+      text-shadow: 0 0 14px rgba($hex, 0.7);
+    }
+  }
+
+  // 2v2 : halo bicolore — bordure en dégradé + lueur de chaque côté de la
+  // carte aux couleurs des deux coéquipiers (la double contrainte d'attributs
+  // l'emporte sur la variante mono-couleur ci-dessus).
+  @each $a, $ahex in $winner-colors {
+    @each $b, $bhex in $winner-colors {
+      @if $a != $b {
+        &[data-color="#{$a}"][data-color2="#{$b}"] .victory-card {
+          border-color: transparent;
+          background:
+            linear-gradient(rgba(10, 18, 40, 0.94), rgba(10, 18, 40, 0.94)) padding-box,
+            linear-gradient(100deg, rgba($ahex, 0.85), rgba($bhex, 0.85)) border-box;
+          box-shadow:
+            -28px 0 80px rgba($ahex, 0.32),
+            28px 0 80px rgba($bhex, 0.32),
+            0 0 120px rgba(color.mix($ahex, $bhex), 0.12),
+            inset 0 1px 0 rgba(255, 255, 255, 0.12);
+        }
       }
     }
   }
@@ -85,7 +113,8 @@
   flex-direction: column;
   align-items: center;
   gap: 16px;
-  padding: 40px 60px;
+  padding: 40px clamp(24px, 8vw, 60px);
+  max-width: min(92vw, 480px);
   background: rgba(10, 18, 40, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 24px;
@@ -172,6 +201,78 @@
   font-weight: 800;
   color: white;
   letter-spacing: 0.04em;
+}
+
+// ── Duo d'équipe (2v2) ────────────────────────────────────────────
+
+.team-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 16px;
+}
+
+.team-member {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  min-width: 90px;
+  max-width: 150px;
+
+  .winner-marble {
+    width: 44px;
+    height: 44px;
+  }
+
+  // Pulsation décalée du second coéquipier : les billes « respirent »
+  // en alternance au lieu de battre à l'unisson.
+  &:last-child .winner-marble {
+    animation-delay: 0.9s;
+  }
+}
+
+.winner-name--team {
+  font-size: clamp(1.05rem, 3vw, 1.5rem);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// Connecteur « — & — » aligné sur la ligne des billes.
+.team-link {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 44px; // = hauteur des billes du duo
+  flex-shrink: 0;
+}
+
+.team-link-line {
+  width: 16px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.team-link-amp {
+  font-size: 1.15rem;
+  font-weight: 800;
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+// Badge « You » sous le joueur local.
+.team-you {
+  padding: 2px 10px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
 }
 
 // ── Sous-titre ────────────────────────────────────────────────────

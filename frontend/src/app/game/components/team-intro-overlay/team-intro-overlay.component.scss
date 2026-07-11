@@ -1,0 +1,368 @@
+@use "sass:color";
+@use "../../../styles/palette" as *; // palette « Système solaire » centralisée
+
+// ── Timeline (doit rester cohérente avec FADE_START_MS/TOTAL_MS du TS) ──
+$slide-duration: 0.65s;
+$flash-delay: 0.72s;
+$vs-delay: 0.85s;
+
+$ink: #0b1224; // encre sombre commune (contours, ombres)
+
+// ── Hôte : ancré sur la zone du plateau (board-wrapper est relative) ──
+// L'annonce ne couvre PAS tout l'écran : un carré centré sur le plateau,
+// transparent entre les bandeaux pour laisser le board visible.
+
+:host {
+  position: absolute;
+  inset: 0;
+  z-index: 40; // au-dessus du board, sous les overlays plein écran
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none; // ne bloque jamais le jeu (annonce purement visuelle)
+}
+
+.ti-overlay {
+  position: relative;
+  height: 100%;
+  max-width: 100%;
+  aspect-ratio: 1; // épouse le carré du plateau, centré par l'hôte
+  overflow: hidden; // clippe les bandeaux pendant leur glissade
+
+  &.is-leaving {
+    animation: tiFadeOut 0.6s ease forwards;
+  }
+}
+
+@keyframes tiFadeOut {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+// ── Bandeaux d'équipe ────────────────────────────────────────────
+
+$player-colors: (
+  "red": $c-red,
+  "green": $c-green,
+  "blue": $c-blue,
+  "orange": $c-orange,
+);
+
+.ti-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 27%;
+  border-top: 3px solid rgba(0, 0, 0, 0.55);
+  border-bottom: 3px solid rgba(0, 0, 0, 0.55);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+
+  // Couleurs des deux joueurs du bandeau : zone unie de chaque côté,
+  // fondu au centre.
+  @each $name, $hex in $player-colors {
+    &--a-#{$name} {
+      --band-a: #{$hex};
+    }
+
+    &--b-#{$name} {
+      --band-b: #{$hex};
+    }
+  }
+
+  background: linear-gradient(90deg,
+    var(--band-a) 0%,
+    var(--band-a) 36%,
+    var(--band-b) 64%,
+    var(--band-b) 100%);
+
+  &--top {
+    top: 3.5%;
+    transform: translateX(-105%);
+    animation: tiBandInLeft $slide-duration cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  &--bottom {
+    bottom: 3.5%;
+    transform: translateX(105%);
+    animation: tiBandInRight $slide-duration cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+}
+
+@keyframes tiBandInLeft {
+  from {
+    transform: translateX(-105%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes tiBandInRight {
+  from {
+    transform: translateX(105%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+// Traits diagonaux animés (effet vitesse) : marques sombres + fines lignes claires.
+.ti-speedlines {
+  position: absolute;
+  inset: -60%;
+  background:
+    repeating-linear-gradient(115deg, rgba(0, 0, 0, 0.16) 0 12px, transparent 12px 46px),
+    repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.10) 0 4px, transparent 4px 58px);
+  animation: tiSpeedDrift 1.2s linear infinite;
+}
+
+@keyframes tiSpeedDrift {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(46px);
+  }
+}
+
+// ── Duo de joueurs (avatar + nom en dessous, comme la maquette) ──
+
+.ti-duo {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6%;
+  padding: 3% 4%;
+}
+
+.ti-player {
+  height: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+// Hauteur FIXE (pas de flex-grow) : garantit que la pastille de nom tient
+// entièrement dans le bandeau au lieu d'être rognée par son overflow.
+.ti-avatar {
+  height: 64%;
+  aspect-ratio: 1;
+  flex: 0 0 auto;
+  background: rgba(6, 10, 24, 0.4);
+  border: 2px solid rgba(255, 255, 255, 0.92);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+
+  &--circle {
+    border-radius: 50%;
+  }
+
+  // Losange (équipe red+blue, comme leurs badges sur le plateau) : carré
+  // arrondi tourné à 45°, réduit pour que sa diagonale tienne dans la même
+  // emprise qu'un cercle ; contenu contre-tourné et agrandi pour couvrir.
+  &--diamond {
+    border-radius: 18%;
+    transform: rotate(45deg) scale(0.88);
+
+    .ti-avatar-inner {
+      transform: rotate(-45deg) scale(1.48);
+    }
+  }
+}
+
+.ti-avatar-inner {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.ti-avatar-placeholder {
+  width: 70%;
+  height: 70%;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.ti-name {
+  max-width: 82%;
+  padding: 3px 12px;
+  border-radius: 999px;
+  background: rgba(6, 10, 24, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  font-size: clamp(0.6rem, 1.7vw, 0.82rem);
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+
+  // Liseré lumineux à la couleur du joueur.
+  @each $name, $hex in $player-colors {
+    &--#{$name} {
+      border-color: rgba($hex, 0.85);
+      box-shadow: 0 0 10px rgba($hex, 0.4), 0 2px 6px rgba(0, 0, 0, 0.5);
+    }
+  }
+}
+
+// ── Flash blanc (limité à la zone du plateau) ─────────────────────
+
+.ti-flash {
+  position: absolute;
+  inset: 0;
+  background: white;
+  opacity: 0;
+  animation: tiFlash 0.35s ease-out $flash-delay forwards;
+}
+
+@keyframes tiFlash {
+  0% {
+    opacity: 0;
+  }
+
+  25% {
+    opacity: 0.7;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+// ── Impact « VS » — étoile comic ──────────────────────────────────
+
+// Le dimensionnement vit sur `.ti-vs` (absolu → % résolus contre l'overlay),
+// pas sur l'inner : un % de largeur sur l'enfant d'une boîte shrink-to-fit
+// donnait un centrage imprévisible.
+.ti-vs {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: clamp(110px, 40%, 190px);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+}
+
+.ti-vs-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: scale(0);
+  animation: tiVsPop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) $vs-delay forwards;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.55));
+}
+
+// Fin d'animation à plat (0°) : une inclinaison résiduelle donnait
+// l'impression d'un VS décentré.
+@keyframes tiVsPop {
+  0% {
+    transform: scale(0) rotate(-18deg);
+  }
+
+  60% {
+    transform: scale(1.22) rotate(5deg);
+  }
+
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+.ti-vs-burst {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  animation: tiBurstPulse 1.6s ease-in-out infinite;
+}
+
+@keyframes tiBurstPulse {
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.06);
+  }
+}
+
+.ti-burst-outer {
+  fill: $c-red;
+  stroke: color.mix($c-red, black, 55%);
+  stroke-width: 5;
+  stroke-linejoin: round;
+}
+
+.ti-burst-inner {
+  fill: $c-gold;
+}
+
+.ti-vs-text {
+  position: relative;
+  z-index: 1;
+  font-size: clamp(2rem, 8vw, 3.4rem);
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: 0.02em;
+  color: $c-blue;
+  -webkit-text-stroke: 2px white;
+  text-shadow:
+    0 3px 0 rgba(15, 23, 42, 0.55),
+    0 0 14px rgba(255, 255, 255, 0.45);
+}
+
+// ── Bouton replay discret (coin supérieur droit du plateau) ──────
+
+.ti-replay {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 45;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.58rem;
+  font-weight: 900;
+  font-style: italic;
+  cursor: pointer;
+  pointer-events: auto; // l'hôte est pointer-events:none
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.14);
+    border-color: rgba(255, 255, 255, 0.35);
+    color: rgba(255, 255, 255, 0.9);
+  }
+}

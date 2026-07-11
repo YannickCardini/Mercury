@@ -19,8 +19,8 @@ interface ConfettiPiece {
   imports: [],
 })
 export class VictoryOverlayComponent {
-  /** Gagnant(s) : un seul en 1v3, les deux coéquipiers en 2v2. */
-  winners = input.required<ReadonlyArray<{ color: MarbleColor; name: string }>>();
+  /** Gagnant(s) : un seul en 1v3, les deux coéquipiers en 2v2. `isMe` marque le joueur local. */
+  winners = input.required<ReadonlyArray<{ color: MarbleColor; name: string; isMe?: boolean }>>();
   isWinner = input.required<boolean>();
   byDefault = input<boolean>(false);
   isGuest = input<boolean>(false);

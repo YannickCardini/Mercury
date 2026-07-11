@@ -10,7 +10,6 @@ import { updateUserPoints, recomputeRankings, getUserPointsAndRanking } from '..
 import { computeEndGamePointsDeltas } from './points.js';
 import { isTrainMode } from '../train-mode.js';
 import { getServerGameMode } from '../game-mode.js';
-import { logGameStats } from './game-stats.js';
 import {
     getHomePositions,
     hasWon,
@@ -288,7 +287,6 @@ export class Game {
             this.gameFinished = true;
             const winners = this.computeWinners();
             this.messenger.send({ type: 'gameEnded', winners, reason: 'win' });
-            this.logStats(winners, 'win');
             GameRegistry.delete(this.id);
             this.onGameEnded?.(this.id);
             this.applyEndGamePoints(winners).catch(err =>
@@ -526,7 +524,6 @@ export class Game {
             ? [winner.color, getTeammateColor(winner.color)]
             : [winner.color];
         this.messenger.send({ type: 'gameEnded', winners, reason: 'win_by_default' });
-        this.logStats(winners, 'win_by_default');
 
         if (this.pendingHumanActionResolve) {
             const currentPlayer = this.players[this.currentPlayerIndex]!;
@@ -557,7 +554,6 @@ export class Game {
 
         // Notify any still-connected clients (unlikely but possible with bots-only race)
         this.messenger.send({ type: 'gameEnded', winners: [], reason: 'abandoned' });
-        this.logStats([], 'abandoned');
 
         // Unblock any pending promises so the game loop can exit
         if (this.pendingHumanActionResolve) {
@@ -813,19 +809,6 @@ export class Game {
                 p.marblePositions.filter((_, i) => p.marbleInvincible[i]),
             ])
         ) as Record<MarbleColor, number[]>;
-    }
-
-    /** Écrit une ligne de stats CSV pour cette partie (no-op hors TRAIN_MODE). */
-    private logStats(winners: MarbleColor[], reason: string): void {
-        logGameStats({
-            gameId: this.id,
-            durationMs: Date.now() - this.startTime,
-            // 1v3 : une couleur ; 2v2 : les deux couleurs jointes (ex: "red+blue").
-            winner: winners.length > 0 ? winners.join('+') : null,
-            reason,
-            rounds: this.round,
-            turns: this.turn,
-        });
     }
 
     private broadcastState(currentPlayer: Player, message = 'New turn'): void {

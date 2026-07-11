@@ -1,0 +1,14 @@
+- Since we implemented the mod 2v2:
+
+1. A player used J (swap) to swap 2 marble ennemy between them. It shouldn't be possible.
+It happened while this player (using the J) completed all his marble and played for his partner.
+
+2. No points (me and my teammate won) was displayed in the victory dialog. My teammate told me that she saw the number of points she won 
+in the victory dialog, but me I didn't see anything, no even an animation of loading, just the dialog of winning.
+
+
+
+
+- The custom game button in the main menu should have an option to select with player will play in which team.
+
+- Center the discard pile placeholder perfectly at the center of the board, now it'slightly offset to the right of the center

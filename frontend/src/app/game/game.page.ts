@@ -3,6 +3,7 @@ import {
   signal,
   computed,
   effect,
+  viewChild,
   OnDestroy,
   AfterViewInit,
   ChangeDetectionStrategy,
@@ -11,6 +12,7 @@ import { Router } from "@angular/router";
 import { BoardComponent } from "./components/board/board.component";
 import { TableComponent } from "./components/table/table.component";
 import { VictoryOverlayComponent } from "./components/victory-overlay/victory-overlay.component";
+import { TeamIntroOverlayComponent, type TeamIntroPlayer } from "./components/team-intro-overlay/team-intro-overlay.component";
 import { TutorialOverlayComponent } from "./components/tutorial-overlay/tutorial-overlay.component";
 import { GameRulesModalComponent } from "../shared/game-rules-modal.component";
 import { LoadingScreenComponent } from "../shared/loading-screen.component";
@@ -19,7 +21,8 @@ import { SoundService } from "./services/sound.service";
 import { ToastService } from "../shared/toast.service";
 import { environment } from "../../environments/environment";
 import { Subscription } from "rxjs";
-import { NEW_TURN_BANNER_DURATION_MS } from "@mercury/shared";
+import { NEW_TURN_BANNER_DURATION_MS, TEAMS } from "@mercury/shared";
+import type { MarbleColor } from "@mercury/shared";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { Capacitor } from "@capacitor/core";
 import { KeepAwake } from "@capacitor-community/keep-awake";
@@ -36,6 +39,7 @@ const LOAD_ERROR_REDIRECT_MS = 3000;
     BoardComponent,
     TableComponent,
     VictoryOverlayComponent,
+    TeamIntroOverlayComponent,
     TutorialOverlayComponent,
     GameRulesModalComponent,
     LoadingScreenComponent,
@@ -75,9 +79,11 @@ export class GamePage implements OnDestroy, AfterViewInit {
   /** Gagnant(s) avec leur nom : un en 1v3, les deux coéquipiers en 2v2. */
   winnersInfo = computed(() => {
     const players = this.gameStateService.data()?.gameState.players ?? [];
+    const myColor = this.gameStateService.myPlayerColor();
     return this.gameStateService.winners().map((color) => ({
       color,
       name: players.find((p) => p.color === color)?.name ?? color,
+      isMe: color === myColor,
     }));
   });
 
@@ -86,6 +92,28 @@ export class GamePage implements OnDestroy, AfterViewInit {
     const myColor = this.gameStateService.myPlayerColor();
     return myColor === null || this.gameStateService.winners().includes(myColor);
   });
+
+  // ── Annonce des équipes (2v2) ────────────────────────────────────
+
+  private teamIntro = viewChild(TeamIntroOverlayComponent);
+  /** Vrai une fois l'annonce auto-jouée (ou volontairement sautée) pour cette page. */
+  private teamIntroTriggered = false;
+
+  /** Équipe de la bande du HAUT de l'annonce (red+blue, avatars losange). */
+  introTopTeam = computed<TeamIntroPlayer[]>(() => TEAMS[0].map((c) => this.introPlayer(c)));
+  /** Équipe de la bande du BAS de l'annonce (green+orange, avatars ronds). */
+  introBottomTeam = computed<TeamIntroPlayer[]>(() => TEAMS[1].map((c) => this.introPlayer(c)));
+
+  private introPlayer(color: MarbleColor): TeamIntroPlayer {
+    const player = this.gameStateService
+      .data()
+      ?.gameState.players.find((p) => p.color === color);
+    return {
+      color,
+      name: player?.name ?? color,
+      ...(player?.picture ? { picture: player.picture } : {}),
+    };
+  }
 
   /** True when the local player has no userId (guest / not signed in). */
   isLocalPlayerGuest = computed(() => {
@@ -124,6 +152,23 @@ export class GamePage implements OnDestroy, AfterViewInit {
       }
     });
 
+    // Annonce des équipes au démarrage d'une partie 2v2 : jouée une seule
+    // fois, dès que le plateau est prêt — mais pas en revenant dans une
+    // partie déjà en cours (reconnexion).
+    effect(() => {
+      const intro = this.teamIntro();
+      if (!intro || this.teamIntroTriggered) return;
+      if (!this.boardReady()) return;
+      const data = this.gameStateService.data();
+      if (!data) return;
+      this.teamIntroTriggered = true;
+      if (data.message === "Reconnected") return;
+      // L'annonce occupe le plateau : on masque la bannière de tour qui
+      // aurait pu s'afficher pour le premier tour (pas de superposition).
+      this.showNewTurnBanner.set(false);
+      intro.play();
+    });
+
     // Empêche l'écran de se verrouiller pendant SON tour : sur Android le
     // verrouillage coupe le Wi-Fi (→ socket morte) au pire moment. On relâche
     // dès que le tour passe à un adversaire pour ne pas vider la batterie.
@@ -154,6 +199,9 @@ export class GamePage implements OnDestroy, AfterViewInit {
       this.newTurnName.set(player?.name ?? currentTurn);
       this.newTurnPicture.set(player?.picture ?? null);
       this.isReplayBanner.set(this.gameStateService.isReplayTurn());
+      // Pas de bannière de tour pendant l'annonce des équipes (2v2) : les
+      // deux occupent le plateau et se superposeraient.
+      if (this.teamIntro()?.playing()) return;
       if (player?.cardsLeft && player.cardsLeft > 0) {
         this.showNewTurnBanner.set(true);
         if (this.gameStateService.isMyTurn()) {

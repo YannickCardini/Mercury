@@ -66,6 +66,7 @@ jobs:
 
   deploy:
     runs-on: ubuntu-latest
+    environment: azure-production
     needs: build
     permissions:
       id-token: write

@@ -38,6 +38,11 @@
 
     <div class="board-wrapper">
       <app-board (ready)="boardReady.set(true)"></app-board>
+      <!-- Annonce des équipes en début de partie 2v2, ancrée sur le plateau
+           (+ bouton replay discret en haut à droite du plateau) -->
+      @if (gameStateService.gameMode() === '2v2') {
+      <app-team-intro-overlay [topTeam]="introTopTeam()" [bottomTeam]="introBottomTeam()" />
+      }
     </div>
     <div class="table-wrapper" [style.height.px]="gameStateService.boardContainerSize()"
       [style.width.px]="gameStateService.boardContainerSize()">
