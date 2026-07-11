@@ -26,7 +26,7 @@ import {
     computeMinAnimationDuration,
 } from '@mercury/shared';
 import { REACTION_EMOJIS } from "@mercury/shared";
-import type { Action, Card, ClientMessage, GameConfig, GameMode, GameState, MarbleColor, ReactionEmoji } from "@mercury/shared";
+import type { Action, Card, ClientMessage, GameConfig, GameMode, GameState, GameStatsMessage, MarbleColor, ReactionEmoji } from "@mercury/shared";
 
 const REACTION_COOLDOWN_MS = 2000;
 
@@ -78,6 +78,14 @@ export class Game {
 
     /** Timestamp de la dernière réaction emoji envoyée par chaque joueur (anti-spam). */
     private lastReactionAt = new Map<MarbleColor, number>();
+
+    /**
+     * Dernier `gameStats` calculé par joueur signed-in. Permet de le renvoyer
+     * si sa connexion était momentanément coupée au moment de l'envoi initial
+     * (voir resendStateToPlayer) — sans ça, un joueur qui rate la fenêtre de
+     * `sendTo` (socket pas encore rouverte) ne recevait jamais ses points.
+     */
+    private lastGameStats = new Map<MarbleColor, GameStatsMessage>();
 
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -199,6 +207,13 @@ export class Game {
             myColor: color,
         });
 
+        // La partie est peut-être déjà terminée (le joueur reconnecte pendant
+        // ou juste après le calcul des points) : renvoyer son dernier gameStats
+        // connu, sinon son écran de victoire reste bloqué sans jamais recevoir
+        // ses points (le premier envoi, fait pendant la coupure, a été perdu).
+        const stats = this.lastGameStats.get(color);
+        if (stats) this.messenger.sendTo(color, stats);
+
         // Notify other players that this player is connected again — they need to
         // update their UI (remove the "disconnected" indicator).
         if (wasDisconnected) {
@@ -287,11 +302,18 @@ export class Game {
             this.gameFinished = true;
             const winners = this.computeWinners();
             this.messenger.send({ type: 'gameEnded', winners, reason: 'win' });
-            GameRegistry.delete(this.id);
-            this.onGameEnded?.(this.id);
-            this.applyEndGamePoints(winners).catch(err =>
+            // Calculer et envoyer les points AVANT de libérer le slot de
+            // reconnexion et de retirer la partie du registre : sinon, un
+            // joueur dont la socket coupe juste au moment de la victoire (cas
+            // fréquent sur mobile) perd sa fenêtre de reconnexion pendant les
+            // allers-retours DB de applyEndGamePoints et ne reçoit jamais son
+            // gameStats — voir aussi lastGameStats pour le cas où la coupure
+            // dure plus longtemps que ce calcul.
+            await this.applyEndGamePoints(winners).catch(err =>
                 console.error('❌ Failed to update points after game end:', err)
             );
+            GameRegistry.delete(this.id);
+            this.onGameEnded?.(this.id);
         }
     }
 
@@ -507,12 +529,12 @@ export class Game {
             return;
         }
         if (connectedHumans.length === 1 && humanPlayers.length > 1) {
-            this.declareLastConnectedWinner(connectedHumans[0]!);
+            void this.declareLastConnectedWinner(connectedHumans[0]!);
         }
     }
 
     /** End the game with a win for the last remaining connected human player. */
-    private declareLastConnectedWinner(winner: Player): void {
+    private async declareLastConnectedWinner(winner: Player): Promise<void> {
         if (this.gameFinished) return;
         this.gameFinished = true;
         this.aborted = true;
@@ -536,12 +558,13 @@ export class Game {
         this.pendingAnimationResolve?.();
         this.pendingAnimationResolve = null;
 
-        GameRegistry.delete(this.id);
-        this.onGameEnded?.(this.id);
-
-        this.applyEndGamePoints(winners).catch(err =>
+        // Voir le commentaire équivalent dans startGame() : les points sont
+        // calculés et envoyés avant de libérer le slot de reconnexion.
+        await this.applyEndGamePoints(winners).catch(err =>
             console.error('❌ Failed to update points after game end:', err)
         );
+        GameRegistry.delete(this.id);
+        this.onGameEnded?.(this.id);
     }
 
     /** Stop the game immediately and clean up. Idempotent. */
@@ -965,19 +988,29 @@ export class Game {
         await Promise.all(deltas.map(({ userId, delta }) => updateUserPoints(userId, delta)));
         await recomputeRankings();
 
-        // Fetch updated stats and push a gameStats message to each player
-        await Promise.all(
+        // Fetch updated stats and push a gameStats message to each player.
+        // Promise.allSettled + try/catch per player: one player's fetch/send
+        // failure (e.g. a socket that closed right at the win moment, still
+        // present in the messenger's connections map but no longer writable)
+        // must not swallow the console logging for the other, unrelated players.
+        await Promise.allSettled(
             currentStats.map(async p => {
-                const updated = await getUserPointsAndRanking(p.userId);
-                if (!updated) return;
-                const delta = deltas.find(d => d.userId === p.userId)?.delta ?? 0;
-                this.messenger.sendTo(p.color, {
-                    type: 'gameStats',
-                    pointsDelta: delta,
-                    newPoints: updated.points,
-                    newRanking: updated.ranking,
-                });
-                console.log(`📊 gameStats → ${p.color}: delta=${delta}, total=${updated.points}, rank=#${updated.ranking}`);
+                try {
+                    const updated = await getUserPointsAndRanking(p.userId);
+                    if (!updated) return;
+                    const delta = deltas.find(d => d.userId === p.userId)?.delta ?? 0;
+                    const statsMsg: GameStatsMessage = {
+                        type: 'gameStats',
+                        pointsDelta: delta,
+                        newPoints: updated.points,
+                        newRanking: updated.ranking,
+                    };
+                    this.lastGameStats.set(p.color, statsMsg);
+                    this.messenger.sendTo(p.color, statsMsg);
+                    console.log(`📊 gameStats → ${p.color}: delta=${delta}, total=${updated.points}, rank=#${updated.ranking}`);
+                } catch (err) {
+                    console.error(`❌ Failed to send gameStats to ${p.color}:`, err);
+                }
             })
         );
 
@@ -988,17 +1021,23 @@ export class Game {
         const penalizedConnected = this.players.filter(
             p => p.isHuman && p.userId && p.isConnected && this.penalizedUserIds.has(p.userId),
         );
-        await Promise.all(
+        await Promise.allSettled(
             penalizedConnected.map(async p => {
-                const updated = await getUserPointsAndRanking(p.userId!);
-                if (!updated) return;
-                this.messenger.sendTo(p.color, {
-                    type: 'gameStats',
-                    pointsDelta: -2,
-                    newPoints: updated.points,
-                    newRanking: updated.ranking,
-                });
-                console.log(`📊 gameStats → ${p.color} (pénalisé): delta=-2, total=${updated.points}, rank=#${updated.ranking}`);
+                try {
+                    const updated = await getUserPointsAndRanking(p.userId!);
+                    if (!updated) return;
+                    const statsMsg: GameStatsMessage = {
+                        type: 'gameStats',
+                        pointsDelta: -2,
+                        newPoints: updated.points,
+                        newRanking: updated.ranking,
+                    };
+                    this.lastGameStats.set(p.color, statsMsg);
+                    this.messenger.sendTo(p.color, statsMsg);
+                    console.log(`📊 gameStats → ${p.color} (pénalisé): delta=-2, total=${updated.points}, rank=#${updated.ranking}`);
+                } catch (err) {
+                    console.error(`❌ Failed to send gameStats to ${p.color} (pénalisé):`, err);
+                }
             })
         );
     }

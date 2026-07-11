@@ -238,6 +238,8 @@ export interface MatchmakingStatusMessage {
   totalNeeded: number;
   myColor: MarbleColor;
   guestPlayerId: string;
+  /** Couleurs actuellement occupées dans la session (par un humain ou un bot). */
+  takenColors: MarbleColor[];
 }
 
 /** Envoyé au créateur d'une room multi-device */
@@ -489,6 +491,30 @@ export interface LeaveCustomRoomMessage {
 }
 
 /**
+ * Envoyé par un joueur dans une custom room, avant le lancement, pour changer
+ * de siège/couleur. La couleur détermine l'équipe en 2v2 (red+blue vs
+ * green+orange, voir teams.ts) : ce message permet de choisir son coéquipier
+ * au lieu de subir l'attribution automatique par ordre d'arrivée. Rejeté
+ * silencieusement si le siège est déjà pris ; sans effet une fois la partie
+ * lancée (plus aucun handler n'écoute les messages de la room à ce moment-là).
+ */
+export interface SelectCustomSlotMessage {
+  type: 'selectCustomSlot';
+  color: MarbleColor;
+}
+
+/**
+ * Équivalent de SelectCustomSlotMessage pour la file d'attente matchmaking
+ * publique : change de siège/couleur tant que la session n'a pas atteint 4
+ * joueurs. Rejeté (`actionRejected`) si le siège est déjà pris par un autre
+ * joueur (humain ou bot déjà dispatché).
+ */
+export interface SelectMatchmakingSlotMessage {
+  type: 'selectMatchmakingSlot';
+  color: MarbleColor;
+}
+
+/**
  * Ouvre une connexion "présence" pour un utilisateur signed-in sur la home page.
  * Permet au serveur de pousser des `gameInvite` en temps réel.
  */
@@ -559,6 +585,8 @@ export type ClientMessage =
   | JoinCustomRoomMessage
   | StartCustomRoomMessage
   | LeaveCustomRoomMessage
+  | SelectCustomSlotMessage
+  | SelectMatchmakingSlotMessage
   | RegisterPresenceMessage
   | InviteUserMessage
   | InviteResponseMessage

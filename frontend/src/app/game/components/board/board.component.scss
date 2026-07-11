@@ -11,6 +11,7 @@
     // Fallback pour le 1er paint avant que le JS mesure le conteneur.
     --square-size: min(6vw, 6vh);
 }
+
 /* --- Variables et Couleurs --- */
 $colors: (
     "red": #dc2626,
@@ -633,7 +634,7 @@ $colors: (
     position: absolute;
     left: 50%;
     top: 49%;
-    transform: translate(calc(-50% + 6px), -50%);
+    transform: translate(-50%, -50%);
     width: calc(var(--square-size) * 3);
     height: calc(var(--square-size) * 3);
     display: flex;
@@ -1361,6 +1362,7 @@ $colors: (
    Le rendu web/desktop reste inchangé ; on ne touche qu'au natif (.is-native).
    ========================================================================== */
 :host(.is-native) {
+
     /* Le flou « glass » du plateau est très coûteux à recomposer à chaque
        repaint sur WebView → fond mat équivalent, sans backdrop-filter. */
     .board-container {

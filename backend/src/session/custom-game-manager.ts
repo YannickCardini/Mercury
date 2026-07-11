@@ -103,7 +103,12 @@ export class CustomGameManager {
         const player = this.makePlayer(ws, 'red', info, guestPlayerId, code);
         room.players.push(player);
 
-        messenger.addConnection('red', ws);
+        // Note : on ne câble PAS `messenger.addConnection` ici. Rien ne lit ses
+        // connexions avant `launch()` (les messages de room passent par
+        // `wsSend(p.ws, …)` en direct, pas par le messenger) — et un joueur peut
+        // encore changer de couleur via `selectCustomSlot` avant le lancement.
+        // Le mapping couleur → ws n'est donc construit qu'une seule fois, au
+        // moment du lancement, avec la couleur finale de chacun.
         if (info.userId) this.presence.register(info.userId, ws);
 
         this.broadcastStatus(code);
@@ -152,7 +157,6 @@ export class CustomGameManager {
         };
         const player = this.makePlayer(ws, color, resolvedInfo, guestPlayerId, code);
         room.players.push(player);
-        room.messenger.addConnection(color, ws);
         if (info.userId) this.presence.register(info.userId, ws);
 
         this.bumpExpiry(room);
@@ -213,7 +217,6 @@ export class CustomGameManager {
         ws.addEventListener('message', newListener);
         ws.addEventListener('close', newCloseListener);
 
-        room.messenger.addConnection(existing.color, ws);
         if (info.userId) this.presence.register(info.userId, ws);
 
         this.bumpExpiry(room);
@@ -255,6 +258,8 @@ export class CustomGameManager {
                 this.startRoomFromCreator(ws);
             } else if (msg.type === 'leaveCustomRoom') {
                 this.handleLeave(ws, player.color);
+            } else if (msg.type === 'selectCustomSlot') {
+                this.handleSelectSlot(player, msg.color);
             } else if (msg.type === 'inviteUser') {
                 this.handleInviteUser(ws, msg.toUserId, msg.roomCode);
             } else if (msg.type === 'cancelInvite') {
@@ -267,6 +272,40 @@ export class CustomGameManager {
                 });
             }
         } catch { /* ignore */ }
+    }
+
+    /** Trouve la room contenant ce joueur (recherche par référence d'objet). */
+    private findRoomByPlayer(player: CustomPlayer): CustomRoom | undefined {
+        for (const room of this.rooms.values()) {
+            if (room.players.includes(player)) return room;
+        }
+        return undefined;
+    }
+
+    /**
+     * Change de siège/couleur avant le lancement de la partie — la couleur
+     * détermine l'équipe en 2v2 (red+blue vs green+orange, voir teams.ts).
+     * Si le joueur qui bouge est le créateur, `room.creatorColor` le suit pour
+     * que `isCreator` reste correct dans le prochain `customRoomStatus`.
+     *
+     * Ne touche PAS `room.messenger` : ses connexions ne sont câblées qu'au
+     * lancement (voir `launch`), donc aucun re-mapping n'est nécessaire ici.
+     */
+    private handleSelectSlot(player: CustomPlayer, color: MarbleColor): void {
+        if (!COLORS.includes(color) || player.color === color) return;
+        const room = this.findRoomByPlayer(player);
+        if (!room) return;
+        if (room.players.some(p => p.color === color)) {
+            wsSend(player.ws, { type: 'actionRejected', reason: 'This seat is already taken' });
+            return;
+        }
+
+        if (player.color === room.creatorColor) room.creatorColor = color;
+        player.color = color;
+
+        this.bumpExpiry(room);
+        this.broadcastStatus(room.code);
+        console.log(`🔀 ${player.name} moved to ${color} in room ${room.code}`);
     }
 
     /**
@@ -418,6 +457,15 @@ export class CustomGameManager {
         const messenger = room.messenger;
         const players = [...room.players];
         const reconnect = room.reconnect;
+
+        // Câblage unique du messenger, avec la couleur FINALE de chacun (les
+        // sièges ont pu changer via selectCustomSlot depuis le join). Les
+        // listeners in-room ont déjà été détachés par cleanupListeners juste
+        // avant cet appel (voir startRoomFromCreator), donc il n'y a pas de
+        // risque de double écoute sur ces sockets.
+        for (const p of players) {
+            messenger.addConnection(p.color, p.ws);
+        }
 
         console.log(`🚀 Custom room ${room.code} — launching with 4 players`);
         const game = new Game(config, messenger);

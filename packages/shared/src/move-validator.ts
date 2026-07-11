@@ -13,6 +13,7 @@ import {
 } from './board-config.js';
 import { JOKER_MOVE_DISTANCE } from './types.js';
 import type { Action, Card, MarbleColor } from './types.js';
+import { sameTeam } from './teams.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constantes
@@ -175,8 +176,10 @@ export function getLegalAction(
     if (card.value === 'J') {
         if (!isOnMainPath(marblePosition)) return null;
         // 1v3 : la source de l'échange doit être un pion du joueur actif.
-        // 2v2 : n'importe quelle paire de pions de couleurs différentes peut
-        // être échangée — le pion du joueur actif n'a pas besoin d'être impliqué.
+        // 2v2 : la source peut être n'importe quel pion (le sien, celui du
+        // coéquipier, ou un pion adverse) — mais l'échange doit impliquer au
+        // moins un pion de l'équipe active (voir filtre swappableTargets
+        // ci-dessous) : un échange adverse ↔ adverse est interdit.
         const sourceColor = ctx.teammateColor !== undefined
             ? colorAtPosition(marblePosition, ctx.marblesByColor)
             : (ownMarbles.includes(marblePosition) ? playerColor : null);
@@ -185,11 +188,15 @@ export function getLegalAction(
         // ni cible tant qu'il n'a pas bougé.
         if (isInvincible(marblePosition, sourceColor, ctx.invincibleMarblesByColor)) return null;
 
+        const sourceIsOwnTeam = sameTeam(sourceColor, playerColor);
         const swappableTargets = allMarbles.filter(pos => {
             if (pos === marblePosition) return false;
             const targetColor = colorAtPosition(pos, ctx.marblesByColor);
             if (targetColor === null || targetColor === sourceColor) return false;
             if (isInvincible(pos, targetColor, ctx.invincibleMarblesByColor)) return false;
+            // 2v2 : refuser un échange où ni la source ni la cible n'appartient
+            // à l'équipe active (échange adverse ↔ adverse).
+            if (ctx.teammateColor !== undefined && !sourceIsOwnTeam && !sameTeam(targetColor, playerColor)) return false;
             return !isOnAnyArrivalPosition(pos) && !isOnAnyHomePosition(pos);
         });
 
@@ -606,8 +613,11 @@ export function findLegalMoveForCard(
         const action = getLegalAction(card, marblePos, ctx);
         if (action !== null) return action;
     }
-    // 2v2 : le Valet peut échanger deux pions étrangers — un swap peut donc
-    // exister même quand aucun pion contrôlé ne peut être la source.
+    // 2v2 : un swap légal peut avoir une source qui n'est pas un pion contrôlé
+    // (pion du coéquipier échangé contre un adverse, ou pion adverse échangé
+    // contre un pion de l'équipe) — donc un swap peut exister même quand aucun
+    // pion contrôlé ne peut être la source. (L'échange adverse ↔ adverse reste
+    // interdit, filtré dans getLegalAction.)
     if (card.value === 'J' && ctx.teammateColor !== undefined) {
         for (const pos of ctx.allMarbles) {
             if (ctx.ownMarbles.includes(pos)) continue;

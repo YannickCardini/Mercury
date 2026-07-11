@@ -630,55 +630,76 @@
           <h2 class="modal-title">Finding a game…</h2>
         </div>
 
-        <!-- Player slots -->
-        <div class="mq-slots">
-          <div
-            class="mq-slot mq-slot-red"
-            [class.mq-filled]="matchmakingConnected >= 1"
-            [class.mq-mine]="myMatchmakingColor === 'red'"
-          >
-            @if (matchmakingConnected >= 1) {
-            <span class="mm mm-red"></span>
-            } @if (matchmakingConnected < 1) {
-            <span class="mq-empty"></span>
-            }
+        <!-- Player slots — grouped by team (red+blue vs green+orange). Tap an
+             empty seat to move there and pick your team while waiting. -->
+        <div class="custom-teams">
+          <div class="custom-team">
+            <span class="custom-team-label">Team 1</span>
+            <div class="mq-slots">
+              <div
+                class="mq-slot mq-slot-red"
+                [class.mq-filled]="matchmakingSlotTaken('red')"
+                [class.mq-mine]="myMatchmakingColor === 'red'"
+                [class.mq-clickable]="!matchmakingSlotTaken('red')"
+                (click)="selectMatchmakingSlot('red')"
+              >
+                @if (matchmakingSlotTaken('red')) {
+                <span class="mm mm-red"></span>
+                } @if (!matchmakingSlotTaken('red')) {
+                <span class="mq-empty"></span>
+                }
+              </div>
+              <div
+                class="mq-slot mq-slot-blue"
+                [class.mq-filled]="matchmakingSlotTaken('blue')"
+                [class.mq-mine]="myMatchmakingColor === 'blue'"
+                [class.mq-clickable]="!matchmakingSlotTaken('blue')"
+                (click)="selectMatchmakingSlot('blue')"
+              >
+                @if (matchmakingSlotTaken('blue')) {
+                <span class="mm mm-blue"></span>
+                } @if (!matchmakingSlotTaken('blue')) {
+                <span class="mq-empty"></span>
+                }
+              </div>
+            </div>
           </div>
-          <div
-            class="mq-slot mq-slot-green"
-            [class.mq-filled]="matchmakingConnected >= 2"
-            [class.mq-mine]="myMatchmakingColor === 'green'"
-          >
-            @if (matchmakingConnected >= 2) {
-            <span class="mm mm-green"></span>
-            } @if (matchmakingConnected < 2) {
-            <span class="mq-empty"></span>
-            }
-          </div>
-          <div
-            class="mq-slot mq-slot-blue"
-            [class.mq-filled]="matchmakingConnected >= 3"
-            [class.mq-mine]="myMatchmakingColor === 'blue'"
-          >
-            @if (matchmakingConnected >= 3) {
-            <span class="mm mm-blue"></span>
-            } @if (matchmakingConnected < 3) {
-            <span class="mq-empty"></span>
-            }
-          </div>
-          <div
-            class="mq-slot mq-slot-orange"
-            [class.mq-filled]="matchmakingConnected >= 4"
-            [class.mq-mine]="myMatchmakingColor === 'orange'"
-          >
-            @if (matchmakingConnected >= 4) {
-            <span class="mm mm-orange"></span>
-            } @if (matchmakingConnected < 4) {
-            <span class="mq-empty"></span>
-            }
+          <span class="custom-teams-vs">vs</span>
+          <div class="custom-team">
+            <span class="custom-team-label">Team 2</span>
+            <div class="mq-slots">
+              <div
+                class="mq-slot mq-slot-green"
+                [class.mq-filled]="matchmakingSlotTaken('green')"
+                [class.mq-mine]="myMatchmakingColor === 'green'"
+                [class.mq-clickable]="!matchmakingSlotTaken('green')"
+                (click)="selectMatchmakingSlot('green')"
+              >
+                @if (matchmakingSlotTaken('green')) {
+                <span class="mm mm-green"></span>
+                } @if (!matchmakingSlotTaken('green')) {
+                <span class="mq-empty"></span>
+                }
+              </div>
+              <div
+                class="mq-slot mq-slot-orange"
+                [class.mq-filled]="matchmakingSlotTaken('orange')"
+                [class.mq-mine]="myMatchmakingColor === 'orange'"
+                [class.mq-clickable]="!matchmakingSlotTaken('orange')"
+                (click)="selectMatchmakingSlot('orange')"
+              >
+                @if (matchmakingSlotTaken('orange')) {
+                <span class="mm mm-orange"></span>
+                } @if (!matchmakingSlotTaken('orange')) {
+                <span class="mq-empty"></span>
+                }
+              </div>
+            </div>
           </div>
         </div>
 
         <p class="mq-count">{{ matchmakingConnected }} / 4 players</p>
+        <p class="mq-hint">Tap an empty seat to choose your team</p>
 
         <div class="mq-dots"><span></span><span></span><span></span></div>
 
@@ -800,54 +821,75 @@
             </button>
           </div>
         </div>
-        <!-- Player slots -->
-        <div class="mq-slots custom-slots">
-          <div
-            class="mq-slot mq-slot-red"
-            [class.mq-filled]="customSlotPlayer('red')"
-            [class.mq-mine]="myCustomColor === 'red'"
-          >
-            @if (customSlotPlayer('red')) {
-            <span class="mm mm-red"></span>
-            } @if (!customSlotPlayer('red')) {
-            <span class="mq-empty"></span>
-            }
+        <!-- Player slots — grouped by team (red+blue vs green+orange). Tap an
+             empty seat to move there and pick your teammate before the game starts. -->
+        <div class="custom-teams">
+          <div class="custom-team">
+            <span class="custom-team-label">Team 1</span>
+            <div class="mq-slots custom-slots">
+              <div
+                class="mq-slot mq-slot-red"
+                [class.mq-filled]="customSlotPlayer('red')"
+                [class.mq-mine]="myCustomColor === 'red'"
+                [class.mq-clickable]="!customSlotPlayer('red') && !customStarting"
+                (click)="selectCustomSlot('red')"
+              >
+                @if (customSlotPlayer('red')) {
+                <span class="mm mm-red"></span>
+                } @if (!customSlotPlayer('red')) {
+                <span class="mq-empty"></span>
+                }
+              </div>
+              <div
+                class="mq-slot mq-slot-blue"
+                [class.mq-filled]="customSlotPlayer('blue')"
+                [class.mq-mine]="myCustomColor === 'blue'"
+                [class.mq-clickable]="!customSlotPlayer('blue') && !customStarting"
+                (click)="selectCustomSlot('blue')"
+              >
+                @if (customSlotPlayer('blue')) {
+                <span class="mm mm-blue"></span>
+                } @if (!customSlotPlayer('blue')) {
+                <span class="mq-empty"></span>
+                }
+              </div>
+            </div>
           </div>
-          <div
-            class="mq-slot mq-slot-green"
-            [class.mq-filled]="customSlotPlayer('green')"
-            [class.mq-mine]="myCustomColor === 'green'"
-          >
-            @if (customSlotPlayer('green')) {
-            <span class="mm mm-green"></span>
-            } @if (!customSlotPlayer('green')) {
-            <span class="mq-empty"></span>
-            }
-          </div>
-          <div
-            class="mq-slot mq-slot-blue"
-            [class.mq-filled]="customSlotPlayer('blue')"
-            [class.mq-mine]="myCustomColor === 'blue'"
-          >
-            @if (customSlotPlayer('blue')) {
-            <span class="mm mm-blue"></span>
-            } @if (!customSlotPlayer('blue')) {
-            <span class="mq-empty"></span>
-            }
-          </div>
-          <div
-            class="mq-slot mq-slot-orange"
-            [class.mq-filled]="customSlotPlayer('orange')"
-            [class.mq-mine]="myCustomColor === 'orange'"
-          >
-            @if (customSlotPlayer('orange')) {
-            <span class="mm mm-orange"></span>
-            } @if (!customSlotPlayer('orange')) {
-            <span class="mq-empty"></span>
-            }
+          <span class="custom-teams-vs">vs</span>
+          <div class="custom-team">
+            <span class="custom-team-label">Team 2</span>
+            <div class="mq-slots custom-slots">
+              <div
+                class="mq-slot mq-slot-green"
+                [class.mq-filled]="customSlotPlayer('green')"
+                [class.mq-mine]="myCustomColor === 'green'"
+                [class.mq-clickable]="!customSlotPlayer('green') && !customStarting"
+                (click)="selectCustomSlot('green')"
+              >
+                @if (customSlotPlayer('green')) {
+                <span class="mm mm-green"></span>
+                } @if (!customSlotPlayer('green')) {
+                <span class="mq-empty"></span>
+                }
+              </div>
+              <div
+                class="mq-slot mq-slot-orange"
+                [class.mq-filled]="customSlotPlayer('orange')"
+                [class.mq-mine]="myCustomColor === 'orange'"
+                [class.mq-clickable]="!customSlotPlayer('orange') && !customStarting"
+                (click)="selectCustomSlot('orange')"
+              >
+                @if (customSlotPlayer('orange')) {
+                <span class="mm mm-orange"></span>
+                } @if (!customSlotPlayer('orange')) {
+                <span class="mq-empty"></span>
+                }
+              </div>
+            </div>
           </div>
         </div>
         <p class="mq-count">{{ customRoomPlayers.length }} / 4 players</p>
+        <p class="mq-hint">Tap an empty seat to choose your team</p>
         <!-- Joined player names -->
         <ul class="custom-players">
           @for (p of customRoomPlayers; track p) {

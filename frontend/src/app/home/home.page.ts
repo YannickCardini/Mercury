@@ -25,6 +25,7 @@ import { AppResumeService } from "../services/app-resume.service";
 import { AuthService, type AuthUser } from "../services/auth.service";
 import { ActiveGameService } from "../services/active-game.service";
 import { PresenceService } from "../services/presence.service";
+import { TEAMS } from "@mercury/shared";
 import type {
   GameInviteMessage,
   MarbleColor,
@@ -86,6 +87,8 @@ interface InviteCandidate {
 export class HomePage implements OnInit, OnDestroy {
   readonly titleLetters = ["M", "E", "R", "C", "U", "R", "Y"];
   readonly appVersion = signal(version);
+  /** Paires d'équipes fixes (red+blue vs green+orange) — pour grouper les sièges dans le modal Custom Game. */
+  readonly TEAMS = TEAMS;
 
   showLogin = false;
   loginPromptReason: "custom-game" | null = null;
@@ -108,6 +111,7 @@ export class HomePage implements OnInit, OnDestroy {
   // ── Matchmaking state ──────────────────────────────────────────────────────
   matchmakingConnected = 0;
   myMatchmakingColor: MarbleColor | null = null;
+  matchmakingTakenColors: MarbleColor[] = [];
 
   private matchmakingSub: Subscription | null = null;
   private gameStartSub: Subscription | null = null;
@@ -511,6 +515,7 @@ export class HomePage implements OnInit, OnDestroy {
     this.showMatchmaking = !environment.debug;
     this.matchmakingConnected = 0;
     this.myMatchmakingColor = null;
+    this.matchmakingTakenColors = [];
 
     const user = this.auth.user$.getValue();
     const playerName = user?.name;
@@ -529,6 +534,7 @@ export class HomePage implements OnInit, OnDestroy {
       (status) => {
         this.matchmakingConnected = status.connectedCount;
         this.myMatchmakingColor = status.myColor;
+        this.matchmakingTakenColors = status.takenColors;
       }
     );
 
@@ -559,6 +565,22 @@ export class HomePage implements OnInit, OnDestroy {
     this.tabLock.releaseSession();
     this.showMatchmaking = false;
     this.reconnectPresenceIfPossible();
+  }
+
+  matchmakingSlotTaken(color: MarbleColor): boolean {
+    return this.matchmakingTakenColors.includes(color);
+  }
+
+  /**
+   * Clic sur un siège vide dans le modal matchmaking : même mécanique que
+   * selectCustomSlot pour les rooms privées — change de couleur, donc
+   * d'équipe en 2v2 (red+blue vs green+orange). No-op sur un siège déjà pris
+   * (par un humain ou un bot déjà dispatché) ou sur son propre siège.
+   */
+  selectMatchmakingSlot(color: MarbleColor): void {
+    if (this.myMatchmakingColor === color) return;
+    if (this.matchmakingSlotTaken(color)) return;
+    this.gameStateService.sendSelectMatchmakingSlot(color);
   }
 
   private reconnectPresenceIfPossible(): void {
@@ -828,6 +850,18 @@ export class HomePage implements OnInit, OnDestroy {
 
   customSlotPlayer(color: MarbleColor): CustomRoomPlayerInfo | undefined {
     return this.customRoomPlayers.find((p) => p.color === color);
+  }
+
+  /**
+   * Clic sur un siège vide dans la room : change de couleur, donc d'équipe en
+   * 2v2 (red+blue vs green+orange). No-op sur un siège déjà pris, sur son
+   * propre siège, ou une fois que le créateur a lancé la partie.
+   */
+  selectCustomSlot(color: MarbleColor): void {
+    if (this.customStarting) return;
+    if (this.myCustomColor === color) return;
+    if (this.customSlotPlayer(color)) return;
+    this.gameStateService.sendSelectCustomSlot(color);
   }
 
   // ── Invite toast (incoming) ───────────────────────────────────────────────

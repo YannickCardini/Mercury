@@ -209,14 +209,30 @@ export class MultiWsMessenger implements GameMessenger {
     /** Envoie à tous les clients connectés (broadcast). */
     send(msg: ServerMessage): void {
         const json = JSON.stringify(msg);
-        for (const ws of this.connections.values()) {
-            ws.send(json);
+        for (const [color, ws] of this.connections) {
+            this.safeSend(color, ws, json);
         }
     }
 
     /** Envoie uniquement au client du joueur `color`. No-op si non connecté. */
     sendTo(color: MarbleColor, msg: ServerMessage): void {
-        this.connections.get(color)?.send(JSON.stringify(msg));
+        const ws = this.connections.get(color);
+        if (ws) this.safeSend(color, ws, JSON.stringify(msg));
+    }
+
+    /**
+     * `ws.send()` peut lever une exception synchrone si la socket est fermée
+     * mais encore présente dans `connections` (fenêtre entre le `close` event
+     * et l'expiration du timer de reconnexion géré par registerCloseHandler).
+     * Sans ce garde-fou, un seul joueur déconnecté au mauvais moment peut faire
+     * échouer tout un `Promise.all` de sendTo pour les autres joueurs.
+     */
+    private safeSend(color: MarbleColor, ws: WebSocket, json: string): void {
+        try {
+            ws.send(json);
+        } catch (err) {
+            console.error(`❌ Échec d'envoi WS à ${color}:`, err);
+        }
     }
 
     onMessage(handler: MessageHandler): void {

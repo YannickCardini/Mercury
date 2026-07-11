@@ -91,6 +91,8 @@ export class SessionManager {
             totalNeeded: 4,
             myColor: 'red',
             guestPlayerId: crypto.randomUUID(),
+            // Partie instantanée : les 4 sièges sont déjà fixés (pas de file d'attente à afficher).
+            takenColors: ['red', 'green', 'blue', 'orange'],
         });
         this.startSingleDevice(ws, config);
         console.log(`🐛 DEBUG — partie instantanée vs 3 bots lancée pour ${humanName}`);

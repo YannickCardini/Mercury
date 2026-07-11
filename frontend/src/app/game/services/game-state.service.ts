@@ -720,6 +720,10 @@ export class GameStateService {
     this.send(JSON.stringify({ type: 'joinMatchmaking', playerName, browserId, picture, authToken, debug }));
   }
 
+  sendSelectMatchmakingSlot(color: MarbleColor): void {
+    this.send(JSON.stringify({ type: 'selectMatchmakingSlot', color }));
+  }
+
   private getOrCreateBrowserId(): string {
     let id = localStorage.getItem('browser_id');
     if (!id) {
@@ -756,6 +760,10 @@ export class GameStateService {
 
   sendLeaveCustomRoom(): void {
     this.send(JSON.stringify({ type: 'leaveCustomRoom' }));
+  }
+
+  sendSelectCustomSlot(color: MarbleColor): void {
+    this.send(JSON.stringify({ type: 'selectCustomSlot', color }));
   }
 
   sendInviteUser(toUserId: string, roomCode: string): void {

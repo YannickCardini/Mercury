@@ -15,7 +15,7 @@ import { GameRegistry } from './game-registry.js';
 import { isTrainMode } from '../train-mode.js';
 import { getServerGameMode } from '../game-mode.js';
 import type { ReconnectRegistry } from './reconnect-registry.js';
-import type { GameConfig, MarbleColor } from '@mercury/shared';
+import type { ClientMessage, GameConfig, MarbleColor } from '@mercury/shared';
 
 const COLORS: MarbleColor[] = ['red', 'green', 'blue', 'orange'];
 const BOT_USER_IDS = new Set(['1', '2', '3', '4']);
@@ -30,6 +30,9 @@ interface MatchPlayer {
     browserId?: string;
     picture?: string;
     userId?: string;
+    /** Kept so launch() can detach both listeners before wiring the game messenger. */
+    messageListener: (raw: MessageEvent) => void;
+    closeListener: () => void;
 }
 
 interface PendingMatchmaking {
@@ -75,11 +78,29 @@ export class MatchmakingManager {
         const finalName = playerName && playerName.length > 0
             ? playerName
             : `Guest #${COLORS.indexOf(color) + 1}`;
-        const player: MatchPlayer = { ws, color, name: finalName, guestPlayerId, ...(browserId ? { browserId } : {}), ...(picture ? { picture } : {}), ...(userId ? { userId } : {}) };
+        const player: MatchPlayer = {
+            ws, color, name: finalName, guestPlayerId,
+            ...(browserId ? { browserId } : {}),
+            ...(picture ? { picture } : {}),
+            ...(userId ? { userId } : {}),
+            messageListener: () => { /* replaced below */ },
+            closeListener: () => { /* replaced below */ },
+        };
         this.session.players.push(player);
-        this.session.messenger.addConnection(color, ws);
+        // Note : pas de messenger.addConnection ici — voir launch(). Un joueur
+        // peut encore changer de couleur via selectMatchmakingSlot avant que
+        // la session soit pleine, donc le mapping couleur → ws n'est câblé
+        // qu'une seule fois, au lancement, avec la couleur finale de chacun.
 
-        ws.addEventListener('close', () => this.handleDisconnect(color));
+        player.messageListener = (raw) => {
+            try {
+                const msg = JSON.parse(raw.data as string) as ClientMessage;
+                if (msg.type === 'selectMatchmakingSlot') this.handleSelectSlot(player, msg.color);
+            } catch { /* ignore */ }
+        };
+        player.closeListener = () => this.handleDisconnect(player);
+        ws.addEventListener('message', player.messageListener);
+        ws.addEventListener('close', player.closeListener);
 
         this.broadcastStatus();
         console.log(`🔍 Matchmaking — ${finalName} (${color}) rejoint (${this.session.players.length}/4)`);
@@ -141,11 +162,31 @@ export class MatchmakingManager {
         }
     }
 
-    private handleDisconnect(color: MarbleColor): void {
+    /**
+     * Change de siège/couleur tant que la session n'a pas atteint 4 joueurs.
+     * Ne touche pas au messenger : ses connexions ne sont câblées qu'au
+     * lancement (voir launch()), donc aucun re-mapping n'est nécessaire ici.
+     */
+    private handleSelectSlot(player: MatchPlayer, color: MarbleColor): void {
+        if (!this.session || !COLORS.includes(color) || player.color === color) return;
+        if (this.session.players.some(p => p.color === color)) {
+            wsSend(player.ws, { type: 'actionRejected', reason: 'This seat is already taken' });
+            return;
+        }
+        player.color = color;
+        this.broadcastStatus();
+        console.log(`🔀 ${player.name} moved to ${color} in matchmaking`);
+    }
+
+    private handleDisconnect(player: MatchPlayer): void {
         if (!this.session) return;
 
-        this.session.players = this.session.players.filter(p => p.color !== color);
-        console.log(`🔴 Matchmaking — ${color} déconnecté (${this.session.players.length} restant(s))`);
+        // Filtré par référence (pas par couleur) : la couleur du joueur a pu
+        // changer depuis la connexion via selectMatchmakingSlot — comparer par
+        // couleur capturée à l'ouverture de la socket retrouverait le mauvais
+        // (ou aucun) joueur et laisserait une entrée fantôme dans la session.
+        this.session.players = this.session.players.filter(p => p !== player);
+        console.log(`🔴 Matchmaking — ${player.color} déconnecté (${this.session.players.length} restant(s))`);
 
         if (this.session.players.length === 0) {
             if (this.session.botDispatchTimer) clearInterval(this.session.botDispatchTimer);
@@ -195,6 +236,16 @@ export class MatchmakingManager {
         const reconnect = this.session.reconnect;
         this.session = null;
 
+        // Détache les listeners de la phase de file d'attente (selectMatchmakingSlot
+        // + handleDisconnect) puis câble le messenger avec la couleur FINALE de
+        // chacun — une seule fois, ici, pour éviter tout mapping périmé ou toute
+        // double écoute (voir le commentaire équivalent dans joinQueue()).
+        for (const p of humanPlayers) {
+            p.ws.removeEventListener('message', p.messageListener);
+            p.ws.removeEventListener('close', p.closeListener);
+            messenger.addConnection(p.color, p.ws);
+        }
+
         console.log(`🚀 Matchmaking — lancement avec 4 joueurs`);
         const game = new Game(config, messenger);
         GameRegistry.register(game.id, game);
@@ -224,6 +275,7 @@ export class MatchmakingManager {
     private broadcastStatus(): void {
         if (!this.session) return;
         const connectedCount = this.session.players.length;
+        const takenColors = this.session.players.map(p => p.color);
         for (const player of this.session.players) {
             wsSend(player.ws, {
                 type: 'matchmakingStatus',
@@ -231,6 +283,7 @@ export class MatchmakingManager {
                 totalNeeded: 4,
                 myColor: player.color,
                 guestPlayerId: player.guestPlayerId,
+                takenColors,
             });
         }
     }

@@ -2108,6 +2108,46 @@
   margin: 6px 0;
 }
 
+.custom-teams {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin: 8px 0 0;
+}
+
+.custom-team {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.custom-team-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.custom-teams-vs {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.25);
+  text-transform: uppercase;
+  margin-top: 14px;
+}
+
+.mq-slot.mq-clickable {
+  cursor: pointer;
+
+  &:hover {
+    border-color: rgba(255, 255, 255, 0.4);
+    transform: scale(1.05);
+  }
+}
+
 .custom-players {
   list-style: none;
   margin: 6px 0 14px;
@@ -2478,7 +2518,9 @@
   .custom-card.custom-card--in-room {
 
     .modal-header,
-    .custom-slots {
+    .custom-teams,
+    .custom-slots,
+    .mq-hint {
       display: none;
     }
 
