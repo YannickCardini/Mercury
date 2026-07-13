@@ -82,6 +82,37 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   BOUTONS DEBUG — prévisualisation victoire/défaite (haut-gauche du
+   plateau, symétrique du bouton « VS » de team-intro-overlay)
+   ═══════════════════════════════════════════════════════════════ */
+.debug-result-buttons {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 45;
+    display: flex;
+    gap: 6px;
+}
+
+.debug-result-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    font-size: 0.85rem;
+    line-height: 1;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: background 0.15s, border-color 0.15s;
+
+    &:hover {
+        background: rgba(255, 255, 255, 0.14);
+        border-color: rgba(255, 255, 255, 0.35);
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════
    OVERLAY NOUVEAU TOUR
    ═══════════════════════════════════════════════════════════════ */
 $turn-colors: (

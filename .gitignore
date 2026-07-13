@@ -18,6 +18,7 @@ frontend/android/app/google-services.json
 .env
 *.log
 backend/.env
+scripts/
 
 # Cache
 frontend/.angular/

@@ -43,6 +43,13 @@
       @if (gameStateService.gameMode() === '2v2') {
       <app-team-intro-overlay [topTeam]="introTopTeam()" [bottomTeam]="introBottomTeam()" />
       }
+      <!-- Boutons discrets pour prévisualiser les écrans de fin de partie -->
+      @if (debug) {
+      <div class="debug-result-buttons">
+        <button class="debug-result-btn" type="button" (click)="debugShowVictory()" title="Debug: show victory overlay" aria-label="Debug: show victory overlay">🏆</button>
+        <button class="debug-result-btn" type="button" (click)="debugShowDefeat()" title="Debug: show defeat overlay" aria-label="Debug: show defeat overlay">💀</button>
+      </div>
+      }
     </div>
     <div class="table-wrapper" [style.height.px]="gameStateService.boardContainerSize()"
       [style.width.px]="gameStateService.boardContainerSize()">
@@ -62,6 +69,7 @@
   @if (gameStateService.winners().length > 0) {
   <app-victory-overlay
     [winners]="winnersInfo()"
+    [losers]="losersInfo()"
     [isWinner]="isLocalWinner()"
     [byDefault]="gameStateService.winReason() === 'win_by_default'"
     [isGuest]="isLocalPlayerGuest()"

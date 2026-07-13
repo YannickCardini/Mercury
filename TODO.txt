@@ -1,0 +1,2 @@
+- notif d'invitation
+- Redis/garder l'etat d'une partie lors d'une maj

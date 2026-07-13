@@ -11,7 +11,7 @@ import {
 import { Router } from "@angular/router";
 import { BoardComponent } from "./components/board/board.component";
 import { TableComponent } from "./components/table/table.component";
-import { VictoryOverlayComponent } from "./components/victory-overlay/victory-overlay.component";
+import { VictoryOverlayComponent, type VictoryPlayer } from "./components/victory-overlay/victory-overlay.component";
 import { TeamIntroOverlayComponent, type TeamIntroPlayer } from "./components/team-intro-overlay/team-intro-overlay.component";
 import { TutorialOverlayComponent } from "./components/tutorial-overlay/tutorial-overlay.component";
 import { GameRulesModalComponent } from "../shared/game-rules-modal.component";
@@ -21,7 +21,7 @@ import { SoundService } from "./services/sound.service";
 import { ToastService } from "../shared/toast.service";
 import { environment } from "../../environments/environment";
 import { Subscription } from "rxjs";
-import { NEW_TURN_BANNER_DURATION_MS, TEAMS } from "@mercury/shared";
+import { ARRIVAL_POSITIONS, NEW_TURN_BANNER_DURATION_MS, TEAMS } from "@mercury/shared";
 import type { MarbleColor } from "@mercury/shared";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { Capacitor } from "@capacitor/core";
@@ -50,6 +50,7 @@ const LOAD_ERROR_REDIRECT_MS = 3000;
 })
 export class GamePage implements OnDestroy, AfterViewInit {
   readonly isNative = Capacitor.isNativePlatform();
+  readonly debug = environment.debug;
   showNewTurnBanner = signal(false);
   showRules = signal(false);
   newTurnColor = signal<string>("");
@@ -76,16 +77,44 @@ export class GamePage implements OnDestroy, AfterViewInit {
       : "Connecting to the server...";
   });
 
-  /** Gagnant(s) avec leur nom : un en 1v3, les deux coéquipiers en 2v2. */
-  winnersInfo = computed(() => {
-    const players = this.gameStateService.data()?.gameState.players ?? [];
-    const myColor = this.gameStateService.myPlayerColor();
-    return this.gameStateService.winners().map((color) => ({
-      color,
-      name: players.find((p) => p.color === color)?.name ?? color,
-      isMe: color === myColor,
-    }));
+  /** Gagnant(s) avec avatar et pions rentrés : un en 1v3, les deux coéquipiers en 2v2. */
+  winnersInfo = computed<VictoryPlayer[]>(() => {
+    // Le serveur passe de `actionPlayed` (animation du coup gagnant, qui ne
+    // touche que la copie locale du board) directement à `gameEnded`, sans
+    // renvoyer un `gameState` avec la position finale : `data()` peut donc ne
+    // pas encore refléter le dernier pion rentré. Sur une VRAIE victoire (pas
+    // un forfait), la règle du jeu garantit que les 2 coéquipiers ont leurs 4
+    // pions à l'arrivée — on l'affiche donc sans dépendre de ce timing.
+    const realWin = this.gameStateService.winReason() === 'win';
+    return this.gameStateService.winners().map((color) => this.victoryPlayer(color, realWin));
   });
+
+  /** Perdant(s), dans l'ordre des sièges : trois en 1v3, les deux coéquipiers adverses en 2v2. */
+  losersInfo = computed<VictoryPlayer[]>(() => {
+    const winners = this.gameStateService.winners();
+    if (winners.length === 0) return [];
+    const players = this.gameStateService.data()?.gameState.players ?? [];
+    return players
+      .filter((p) => !winners.includes(p.color))
+      .map((p) => this.victoryPlayer(p.color, false));
+  });
+
+  /** Projette un joueur de la partie vers sa carte de l'écran de fin. */
+  private victoryPlayer(color: MarbleColor, forceFullArrival: boolean): VictoryPlayer {
+    const player = this.gameStateService
+      .data()
+      ?.gameState.players.find((p) => p.color === color);
+    const arrivals = ARRIVAL_POSITIONS[color];
+    return {
+      color,
+      name: player?.name ?? color,
+      ...(player?.picture ? { picture: player.picture } : {}),
+      isMe: color === this.gameStateService.myPlayerColor(),
+      arrivalCount: forceFullArrival
+        ? 4
+        : player?.marblePositions.filter((pos) => arrivals.includes(pos)).length ?? 0,
+    };
+  }
 
   /** Vrai si le joueur local fait partie des gagnants (spectateur → vue neutre gagnante). */
   isLocalWinner = computed(() => {
@@ -279,6 +308,34 @@ export class GamePage implements OnDestroy, AfterViewInit {
     this.gameStateService.clearActiveGameSession();
     this.gameStateService.reset();
     void this.router.navigate(["/home"]);
+  }
+
+  /** Debug only: preview the victory overlay without playing a full game. */
+  debugShowVictory(): void {
+    this.debugForceGameEnd(true);
+  }
+
+  /** Debug only: preview the defeat overlay without playing a full game. */
+  debugShowDefeat(): void {
+    this.debugForceGameEnd(false);
+  }
+
+  /** Fakes a `winners` result so the real victory/defeat overlay renders as-is. */
+  private debugForceGameEnd(iWin: boolean): void {
+    const players = this.gameStateService.data()?.gameState.players ?? [];
+    if (players.length === 0) return;
+    const myColor = this.gameStateService.myPlayerColor();
+    const fallback = players[0]!.color;
+    let winners: MarbleColor[];
+    if (this.gameStateService.gameMode() === "2v2") {
+      const myTeam = TEAMS.find((team) => !!myColor && team.includes(myColor)) ?? TEAMS[0];
+      const otherTeam = myTeam === TEAMS[0] ? TEAMS[1] : TEAMS[0];
+      winners = [...(iWin ? myTeam : otherTeam)];
+    } else {
+      winners = [iWin ? (myColor ?? fallback) : (players.find((p) => p.color !== myColor)?.color ?? fallback)];
+    }
+    this.gameStateService.winners.set(winners);
+    this.gameStateService.winReason.set("win");
   }
 
   ngOnDestroy(): void {

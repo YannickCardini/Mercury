@@ -10,6 +10,36 @@
     </div>
   }
 
+  <!-- Carte joueur : avatar (photo ou bille planète), nom, badge « You »,
+       et les 4 slots d'arrivée remplis selon les pions rentrés. -->
+  <ng-template #playerCard let-p>
+    <div [class]="'vp vp--' + p.color" [class.vp--me]="p.isMe">
+      <div class="vp-avatar-wrap">
+        <div class="vp-avatar">
+          @if (p.picture) {
+            <img [src]="p.picture" alt="" referrerpolicy="no-referrer" />
+          } @else {
+            <div [class]="'vp-marble vpm-' + p.color"></div>
+          }
+        </div>
+        @if (p.isMe) {
+          <div class="vp-you">You</div>
+        }
+      </div>
+      <div class="vp-name">{{ displayName(p.name) }}</div>
+      <div class="vp-slots" [attr.aria-label]="p.arrivalCount + ' of 4 marbles home'"
+        [attr.title]="p.arrivalCount + '/4 marbles home'">
+        @for (i of slotIndices; track i) {
+          <span [class]="'vp-slot ps-' + p.color" [class.vp-slot--filled]="i < p.arrivalCount">
+            @if (i < p.arrivalCount) {
+              <span [class]="'vp-slot-fill ps-' + p.color"></span>
+            }
+          </span>
+        }
+      </div>
+    </div>
+  </ng-template>
+
   <!-- Card centrale -->
   <div class="victory-card" [class.by-default]="byDefault()">
     <div class="trophy">{{ byDefault() ? '🏳️' : (isWinner() ? '🏆' : '💀') }}</div>
@@ -17,44 +47,32 @@
       {{ isWinner() ? (winners().length > 1 ? 'Team Victory!' : 'Victory!') : 'Defeat' }}
     </div>
 
-    @if (winners().length > 1) {
-    <!-- 2v2 : duo de coéquipiers, chacun dans sa couleur -->
-    <div class="team-row">
-      @for (winner of winners(); track winner.color; let i = $index) {
-        @if (i > 0) {
-        <div class="team-link" aria-hidden="true">
-          <span class="team-link-line"></span>
-          <span class="team-link-amp">&</span>
-          <span class="team-link-line"></span>
-        </div>
-        }
-        <div class="team-member" [class]="'tm-' + winner.color">
-          <div class="winner-marble" [class]="'wm-' + winner.color"></div>
-          <div class="winner-name winner-name--team">{{ winner.name }}</div>
-          @if (winner.isMe) {
-          <div class="team-you">You</div>
-          }
-        </div>
-      }
-    </div>
-    } @else {
-    @for (winner of winners(); track winner.color) {
-    <div class="winner-row">
-      <div class="winner-marble" [class]="'wm-' + winner.color"></div>
-      <div class="winner-name">{{ winner.name }}</div>
-    </div>
-    }
-    }
-
     <div class="winner-subtitle">
       @if (byDefault()) {
         All other players have left the game
       } @else if (winners().length > 1) {
-        {{ isWinner() ? 'brought all 8 marbles home!' : 'won the game.' }}
+        {{ isWinner() ? 'Your team brought all 8 marbles home!' : 'They brought all 8 marbles home.' }}
       } @else {
-        {{ isWinner() ? 'won the game!' : 'won the game.' }}
+        {{ isWinner() ? 'You brought all 4 marbles home!' : displayName(winners()[0]?.name ?? '') + ' won the game.' }}
       }
     </div>
+
+    <!-- Équipe gagnante — mise en lumière -->
+    <div class="squad squad--winners">
+      @for (p of winners(); track p.color) {
+        <ng-container *ngTemplateOutlet="playerCard; context: { $implicit: p }" />
+      }
+    </div>
+
+    <!-- Équipe perdante — atténuée -->
+    @if (losers().length > 0) {
+      <div class="squad-divider" aria-hidden="true"><span>Defeated</span></div>
+      <div class="squad squad--losers">
+        @for (p of losers(); track p.color) {
+          <ng-container *ngTemplateOutlet="playerCard; context: { $implicit: p }" />
+        }
+      </div>
+    }
 
     <!-- Points stats block — shown for signed-in players -->
     @if (!isGuest()) {

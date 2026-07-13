@@ -2,6 +2,23 @@
 @use "../../../styles/palette" as *; // palette « Système solaire » centralisée
 @use "../../../styles/planets" as *; // rendu billes « planètes » partagé
 
+// Couleurs joueur (sièges) — utilisées pour les anneaux d'avatar, les noms
+// et le halo de la card.
+$player-colors: (
+  "red": $c-red,
+  "green": $c-green,
+  "blue": $c-blue,
+  "orange": $c-orange,
+);
+
+// Halo « planète » par couleur, pour les slots d'arrivée remplis.
+$slot-glows: (
+  "red": $planet-mars-glow,
+  "green": $planet-earth-glow,
+  "blue": $planet-neptune-glow,
+  "orange": $planet-jupiter-glow,
+);
+
 // ── Overlay plein écran ──────────────────────────────────────────
 
 .victory-overlay {
@@ -11,47 +28,34 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+    max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
   background: rgba($bg-dark, 0.82);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   animation: overlayIn 0.5s ease forwards;
 
-  $winner-colors: (
-    "red": $c-red,
-    "green": $c-green,
-    "blue": $c-blue,
-    "orange": $c-orange,
-  );
+  // Pas de box-sizing border-box global dans l'app : indispensable ici pour
+  // que les blocs `width: 100%` + padding (plaques, stats) ne débordent pas
+  // de la card → scrollbar horizontale.
+  &, & * { box-sizing: border-box; }
 
-  @each $name, $hex in $winner-colors {
-    &[data-color="#{$name}"] {
-      .victory-card {
-        border-color: rgba($hex, 0.7);
-        box-shadow:
-          0 0 60px rgba($hex, 0.4),
-          0 0 120px rgba($hex, 0.15),
-          inset 0 1px 0 rgba(255, 255, 255, 0.12);
-      }
-
-      // Solo (1v3) uniquement — en 2v2 chaque membre est coloré via .tm-*.
-      .winner-row .winner-name {
-        color: $hex;
-        text-shadow: 0 0 16px rgba($hex, 0.8);
-      }
-    }
-
-    // Nom et halo de bille de chaque coéquipier dans SA couleur (2v2).
-    .team-member.tm-#{$name} .winner-name--team {
-      color: $hex;
-      text-shadow: 0 0 14px rgba($hex, 0.7);
+  @each $name, $hex in $player-colors {
+    &[data-color="#{$name}"] .victory-card {
+      border-color: rgba($hex, 0.7);
+      box-shadow:
+        0 0 60px rgba($hex, 0.4),
+        0 0 120px rgba($hex, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.12);
     }
   }
 
   // 2v2 : halo bicolore — bordure en dégradé + lueur de chaque côté de la
   // carte aux couleurs des deux coéquipiers (la double contrainte d'attributs
   // l'emporte sur la variante mono-couleur ci-dessus).
-  @each $a, $ahex in $winner-colors {
-    @each $b, $bhex in $winner-colors {
+  @each $a, $ahex in $player-colors {
+    @each $b, $bhex in $player-colors {
       @if $a != $b {
         &[data-color="#{$a}"][data-color2="#{$b}"] .victory-card {
           border-color: transparent;
@@ -112,9 +116,19 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
-  padding: 40px clamp(24px, 8vw, 60px);
-  max-width: min(92vw, 480px);
+  // Gaps et paddings en dvh : le layout se compacte en continu sur les écrans
+  // courts au lieu de déclencher un scroll.
+  gap: clamp(8px, 1.6dvh, 14px);
+  padding: clamp(14px, 3dvh, 28px) clamp(14px, 4.5vw, 28px) clamp(12px, 2.4dvh, 20px);
+  width: min(92vw, 460px);
+  max-height: calc(100dvh - 24px);
+  // Filet de sécurité uniquement : les media queries « écrans courts »
+  // ci-dessous retirent des éléments avant d'en arriver là.
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+  overscroll-behavior: contain;
   background: rgba(10, 18, 40, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 24px;
@@ -142,7 +156,8 @@
 // ── Trophy ────────────────────────────────────────────────────────
 
 .trophy {
-  font-size: clamp(3rem, 8vw, 5rem);
+  font-size: clamp(2rem, 5.5dvh, 3.4rem);
+  line-height: 1;
   animation: trophyPop 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
   animation-delay: 0.35s;
   transform: scale(0);
@@ -155,10 +170,10 @@
   100% { transform: scale(1) rotate(0); }
 }
 
-// ── Titre ─────────────────────────────────────────────────────────
+// ── Titre & sous-titre ────────────────────────────────────────────
 
 .victory-title {
-  font-size: clamp(1.8rem, 5vw, 3rem);
+  font-size: clamp(1.6rem, 5vw, 2.4rem);
   font-weight: 900;
   color: $c-gold;
   letter-spacing: 0.08em;
@@ -172,117 +187,276 @@
   50%       { text-shadow: 0 0 32px rgba($c-gold, 1.0), 0 0 60px rgba($c-gold, 0.4); }
 }
 
-// ── Rangée joueur ─────────────────────────────────────────────────
+.winner-subtitle {
+  font-size: clamp(0.78rem, 2vw, 0.95rem);
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.55);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
 
-.winner-row {
+// ── Plaques d'équipe (gagnants / perdants) ────────────────────────
+// Chaque équipe partage une même plaque : le fond commun dit « ensemble »,
+// la hiérarchie lumineux/atténué dit qui a gagné.
+
+.squad {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: clamp(6px, 2vw, 14px);
+  width: 100%;
+  padding: 14px 10px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 16px;
+  animation: squadIn 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+}
+
+@keyframes squadIn {
+  from {
+    transform: translateY(14px) scale(0.94);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+// Plaque des gagnants — écrin doré : dégradé chaud, halo qui respire et
+// traînée de brillance qui balaie la plaque.
+.squad--winners {
+  position: relative;
+  overflow: hidden; // clippe la traînée de brillance
+  padding: 16px 10px 14px;
+  background: linear-gradient(180deg, rgba($c-gold, 0.16), rgba($c-gold, 0.05) 55%, rgba(255, 255, 255, 0.03));
+  border-color: rgba($c-gold, 0.5);
+  animation:
+    squadIn 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s backwards,
+    squadGlowGold 2.8s ease-in-out 1.2s infinite;
+
+  &::after {
+    content: "";
+    position: absolute;
+    top: -20%;
+    bottom: -20%;
+    left: 0;
+    width: 36%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.14), transparent);
+    transform: translateX(-140%) skewX(-18deg);
+    animation: squadShine 3.4s ease-in-out 1.6s infinite;
+    pointer-events: none;
+  }
+
+  // Les vainqueurs prennent plus de place que les vaincus.
+  .vp .vp-avatar { width: clamp(56px, 15vw, 70px); }
+  .vp-name { font-size: clamp(0.95rem, 3.2vw, 1.15rem); }
+}
+
+@keyframes squadGlowGold {
+  0%, 100% { box-shadow: 0 0 18px rgba($c-gold, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.12); }
+  50%       { box-shadow: 0 0 36px rgba($c-gold, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.12); }
+}
+
+@keyframes squadShine {
+  0%        { transform: translateX(-140%) skewX(-18deg); }
+  45%, 100% { transform: translateX(420%) skewX(-18deg); }
+}
+
+// Plaque des perdants — nettement en retrait : plus sombre, désaturée,
+// avatars et billes réduits.
+.squad--losers {
+  animation-delay: 0.45s;
+  padding: 10px 10px 9px;
+  background: rgba(0, 0, 0, 0.24);
+  border-color: rgba(255, 255, 255, 0.06);
+  filter: grayscale(0.4) saturate(0.7) brightness(0.82);
+  opacity: 0.9;
+
+  .vp { gap: 5px; }
+  // Spécificité (0,3,0) : l'emporte sur les anneaux colorés du @each .vp--*.
+  .vp .vp-avatar {
+    width: clamp(38px, 10vw, 46px);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.45);
+  }
+  .vp .vp-name {
+    font-size: clamp(0.78rem, 2.4vw, 0.92rem);
+    font-weight: 700;
+    text-shadow: none;
+  }
+  .vp-slot { width: clamp(9px, 2.6vw, 12px); }
+}
+
+// Séparateur « — Defeated — » entre les deux plaques.
+.squad-divider {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
+  width: 100%;
+  margin: -2px 0;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.38);
+
+  &::before,
+  &::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.14);
+  }
 }
 
-.winner-marble {
-  width: 36px;
-  height: 36px;
-  flex-shrink: 0;
-  animation: marblePulse 1.8s ease-in-out infinite;
+// ── Carte joueur (dans une plaque) ────────────────────────────────
 
-  @include planet-base;
-  @include planet-variants("wm"); // red→Mars, green→Terre, blue→Neptune, orange→Jupiter
-  box-shadow: 0 0 20px 1px var(--planet-glow, transparent), 0 4px 10px rgba(0, 0, 0, 0.5);
-}
-
-@keyframes marblePulse {
-  0%, 100% { transform: scale(1); }
-  50%       { transform: scale(1.12); }
-}
-
-.winner-name {
-  font-size: clamp(1.4rem, 4vw, 2.2rem);
-  font-weight: 800;
-  color: white;
-  letter-spacing: 0.04em;
-}
-
-// ── Duo d'équipe (2v2) ────────────────────────────────────────────
-
-.team-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  gap: 16px;
-}
-
-.team-member {
+.vp {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
-  min-width: 90px;
+  gap: 7px;
+  flex: 1 1 0;
+  min-width: 0;
   max-width: 150px;
+}
 
-  .winner-marble {
-    width: 44px;
-    height: 44px;
-  }
+.vp-avatar-wrap {
+  position: relative;
+}
 
-  // Pulsation décalée du second coéquipier : les billes « respirent »
-  // en alternance au lieu de battre à l'unisson.
-  &:last-child .winner-marble {
-    animation-delay: 0.9s;
+.vp-avatar {
+  width: clamp(50px, 14vw, 64px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
   }
 }
 
-.winner-name--team {
-  font-size: clamp(1.05rem, 3vw, 1.5rem);
+// Fallback sans photo : bille planète animée de la couleur du joueur.
+.vp-marble {
+  width: 100%;
+  height: 100%;
+  @include planet-base;
+  @include planet-variants("vpm"); // red→Mars, green→Terre, blue→Neptune, orange→Jupiter
+}
+
+// Badge « You » — petit sceau en coin d'avatar, clin d'œil comic (cf. VS intro).
+.vp-you {
+  position: absolute;
+  top: -6px;
+  right: -10px;
+  padding: 2px 8px;
+  font-size: 0.56rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: $bg-dark;
+  background: $c-gold;
+  border-radius: 999px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+  transform: rotate(8deg);
+}
+
+.vp-name {
   max-width: 100%;
+  font-size: clamp(0.9rem, 3vw, 1.1rem);
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: white;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-// Connecteur « — & — » aligné sur la ligne des billes.
-.team-link {
+// Anneau, halo et nom aux couleurs du joueur.
+@each $name, $hex in $player-colors {
+  .vp--#{$name} {
+    .vp-avatar {
+      border-color: rgba($hex, 0.9);
+      box-shadow: 0 0 14px rgba($hex, 0.4), 0 4px 10px rgba(0, 0, 0, 0.45);
+    }
+
+    .vp-name {
+      color: $hex;
+      text-shadow: 0 0 12px rgba($hex, 0.6);
+    }
+  }
+}
+
+// ── Slots d'arrivée (4 par joueur) ────────────────────────────────
+// Un slot rempli = un pion rentré : mini-bille planète texturée.
+// Un slot vide = creux sombre, la « place manquante » se lit d'un coup d'œil.
+
+.vp-slots {
   display: flex;
+  // Sans ça, le stretch par défaut des flex-children écrase la hauteur
+  // "auto" que `.vp-slot` déduit de son `aspect-ratio` — les slots
+  // s'aplatissent et le border-radius:50% ne rend plus un cercle.
   align-items: center;
-  gap: 7px;
-  height: 44px; // = hauteur des billes du duo
-  flex-shrink: 0;
+  gap: clamp(4px, 1.2vw, 6px);
 }
 
-.team-link-line {
-  width: 16px;
-  height: 1px;
-  background: rgba(255, 255, 255, 0.28);
+.vp-slot {
+  position: relative;
+  flex: none;
+  width: clamp(11px, 3.2vw, 14px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
 }
 
-.team-link-amp {
-  font-size: 1.15rem;
-  font-weight: 800;
-  font-style: italic;
-  color: rgba(255, 255, 255, 0.5);
+.vp-slot--filled {
+  border-color: transparent;
+  animation: slotPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+
+  // Halo coloré — reste sur l'élément externe (non clippé) pour pouvoir
+  // déborder du cercle.
+  @each $name, $glow in $slot-glows {
+    &.ps-#{$name} {
+      box-shadow: 0 0 7px $glow;
+    }
+  }
 }
 
-// Badge « You » sous le joueur local.
-.team-you {
-  padding: 2px 10px;
-  font-size: 0.62rem;
-  font-weight: 800;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.9);
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: 999px;
+// Texture posée sur un calque enfant dédié plutôt que directement sur
+// `.vp-slot` : à cette taille (11-14px), un `border-radius` appliqué sur le
+// même élément qu'un `background-image` texturé peut laisser des coins non
+// clippés sur certains moteurs de rendu — même technique éprouvée que
+// `.vp-avatar` / `.vp-marble` (wrapper + overflow:hidden) plus haut.
+.vp-slot-fill {
+  position: absolute;
+  inset: 0;
+  display: block;
+  border-radius: 50%;
+  overflow: hidden;
+  @include planet-static-variants("ps");
+  // Modelé sphérique par-dessus la texture plate.
+  box-shadow:
+    inset -2px -3px 4px rgba(0, 0, 0, 0.35),
+    inset 2px 2px 3px rgba(255, 255, 255, 0.28);
 }
 
-// ── Sous-titre ────────────────────────────────────────────────────
+// Les billes « atterrissent » une par une après l'entrée de la plaque.
+@for $i from 1 through 4 {
+  .vp-slot--filled:nth-child(#{$i}) {
+    animation-delay: #{0.55 + $i * 0.1}s;
+  }
+}
 
-.winner-subtitle {
-  font-size: clamp(0.85rem, 2vw, 1.1rem);
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.55);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+@keyframes slotPop {
+  from { transform: scale(0); }
+  to   { transform: scale(1); }
 }
 
 // ── Stats block ───────────────────────────────────────────────────
@@ -291,8 +465,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 14px 24px;
+  gap: 4px;
+  padding: 10px 24px;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
@@ -301,7 +475,7 @@
 }
 
 .stats-delta {
-  font-size: clamp(1.4rem, 4vw, 2rem);
+  font-size: clamp(1.3rem, 4vw, 1.7rem);
   font-weight: 800;
   letter-spacing: 0.04em;
 
@@ -333,7 +507,7 @@
 // ── Back to menu button ───────────────────────────────────────────
 
 .back-btn {
-  margin-top: 4px;
+  margin-top: 2px;
   padding: 12px 32px;
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.25);
@@ -373,9 +547,53 @@ $c-silver: #cbd5e1;
     letter-spacing: 0.04em;
     font-style: italic;
   }
+
+  // Pas de célébration dorée pour un forfait : plaque neutre, sans halo
+  // pulsé ni traînée de brillance.
+  .squad--winners {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.14);
+    box-shadow: none;
+    animation: squadIn 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s backwards;
+
+    &::after { display: none; }
+  }
 }
 
 @keyframes titleGlowSilver {
   0%, 100% { text-shadow: 0 0 20px rgba($c-silver, 0.4), 0 0 40px rgba($c-silver, 0.15); }
   50%       { text-shadow: 0 0 28px rgba($c-silver, 0.7), 0 0 56px rgba($c-silver, 0.3); }
+}
+
+// ── Écrans courts — on retire le décorum plutôt que de scroller ───────────────
+// Les clamps en dvh compactent déjà le layout en continu ; en dessous de ces
+// seuils on sacrifie des éléments non essentiels, dans l'ordre.
+// (1366×768 avec le chrome du navigateur ≈ 600-660px de viewport utile.)
+
+// Palier 1 : plus de place pour le trophée — le titre suffit.
+@media (max-height: 620px) {
+  .trophy { display: none; }
+
+  .victory-title { font-size: clamp(1.35rem, 4vw, 1.7rem); }
+}
+
+// Palier 2 (mobile paysage, petites fenêtres) : sous-titre et séparateur
+// disparaissent, tout le reste se resserre.
+@media (max-height: 540px) {
+  .winner-subtitle,
+  .squad-divider {
+    display: none;
+  }
+
+  .squad--winners {
+    padding: 10px 8px 9px;
+
+    .vp .vp-avatar { width: 46px; }
+  }
+
+  .squad--losers .vp .vp-avatar { width: 34px; }
+
+  .stats-block { padding: 6px 16px; }
+
+  .back-btn { padding: 9px 26px; }
 }

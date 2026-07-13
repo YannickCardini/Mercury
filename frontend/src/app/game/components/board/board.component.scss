@@ -693,12 +693,13 @@ $colors: (
 /* ==========================================================================
    FLYING CARD — Animation directionnelle selon le joueur
    
-   Positions des joueurs sur le plateau 15×15 :
-     red    → haut-gauche  (row 0-3,  col 0-4)
-     green  → haut-droite  (row 0-3,  col 10-14)
-     blue   → bas-droite   (row 11-14, col 10-14)
-     orange → bas-gauche   (row 11-14, col 0-4)
-   
+   Positions des joueurs sur le plateau (doit rester synchronisé avec
+   `cornerSlots` dans board.component.ts) :
+     orange → haut-gauche  (tl)
+     red    → haut-droite  (tr)
+     blue   → bas-gauche   (bl)
+     green  → bas-droite   (br)
+
    La flying-card part du coin correspondant puis se pose au centre.
    ========================================================================== */
 
@@ -836,21 +837,21 @@ $colors: (
     }
 }
 
-/* Association couleur → animation */
-.flying-card.player-red {
+/* Association couleur → animation (doit suivre cornerSlots : orange=tl, red=tr, blue=bl, green=br) */
+.flying-card.player-orange {
     animation: cardFlyFromTopLeft var(--anim-card-fly) cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
-.flying-card.player-green {
+.flying-card.player-red {
     animation: cardFlyFromTopRight var(--anim-card-fly) cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 .flying-card.player-blue {
-    animation: cardFlyFromBottomRight var(--anim-card-fly) cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation: cardFlyFromBottomLeft var(--anim-card-fly) cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
-.flying-card.player-orange {
-    animation: cardFlyFromBottomLeft var(--anim-card-fly) cubic-bezier(0.22, 1, 0.36, 1) forwards;
+.flying-card.player-green {
+    animation: cardFlyFromBottomRight var(--anim-card-fly) cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 /* Fallback générique si couleur inconnue */
@@ -989,20 +990,20 @@ $colors: (
 }
 
 /* Association couleur → animation discard */
-.flying-card--discard.player-red {
+.flying-card--discard.player-orange {
     animation: cardDiscardFromTopLeft var(--anim-card-fly) cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
-.flying-card--discard.player-green {
+.flying-card--discard.player-red {
     animation: cardDiscardFromTopRight var(--anim-card-fly) cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 .flying-card--discard.player-blue {
-    animation: cardDiscardFromBottomRight var(--anim-card-fly) cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation: cardDiscardFromBottomLeft var(--anim-card-fly) cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
-.flying-card--discard.player-orange {
-    animation: cardDiscardFromBottomLeft var(--anim-card-fly) cubic-bezier(0.22, 1, 0.36, 1) forwards;
+.flying-card--discard.player-green {
+    animation: cardDiscardFromBottomRight var(--anim-card-fly) cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 .flying-card--discard:not(.player-red):not(.player-green):not(.player-blue):not(.player-orange) {
