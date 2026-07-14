@@ -55,12 +55,22 @@ export class AuthService {
     readonly updateError$ = new Subject<string>();
     readonly isLoading$ = new BehaviorSubject<boolean>(false);
 
+    // Capacitor charge l'implémentation web du plugin paresseusement et sans
+    // verrou : deux appels de méthode concurrents pendant ce chargement créent
+    // chacun leur propre instance GoogleSignInWeb, et la seconde écrase la
+    // première dans le cache. Au retour de la redirection Google, initialize()
+    // et handleRedirectCallback() partent en parallèle -> l'instance mise en
+    // cache est celle SANS clientId, et le signIn() suivant échoue avec
+    // "clientId must be provided". Toute méthode du plugin doit donc attendre
+    // cette promesse pour que le premier chargement soit exclusif.
+    private readonly googleSignInReady: Promise<void>;
+
     constructor() {
         const platform = Capacitor.getPlatform();
         console.log('[Auth] Platform:', platform);
         console.log('[Auth] Initializing GoogleSignIn with clientId:', environment.googleClientId);
 
-        void GoogleSignIn.initialize({
+        this.googleSignInReady = GoogleSignIn.initialize({
             clientId: environment.googleClientId,
             scopes: ['https://www.googleapis.com/auth/userinfo.profile'],
             redirectUrl: window.location.origin
@@ -81,6 +91,7 @@ export class AuthService {
         try {
             // // Clear any stale Credential Manager state (fixes GMS code 16 on Android)
             // try { await GoogleSignIn.signOut(); } catch (_) { }
+            await this.googleSignInReady;
             console.log('[Auth] Calling GoogleSignIn.signIn()...');
             const result = await GoogleSignIn.signIn();
             console.log('[Auth] GoogleSignIn.signIn() result:', JSON.stringify(result));
@@ -115,12 +126,12 @@ export class AuthService {
             );
             const { sessionToken, ...user } = response;
             console.log('[Auth] Server verification success, user:', user.email);
-            this.user$.next(user);
             // Stocker le session token long-lived plutôt que le Google ID token (1h).
             const tokenToStore = sessionToken ?? idToken;
             this.idToken = tokenToStore;
             localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
             localStorage.setItem(ID_TOKEN_KEY, tokenToStore);
+            this.user$.next(user);
         } catch (err) {
             console.error('[Auth] Server verification error:', err);
             if (err instanceof HttpErrorResponse) {
@@ -218,6 +229,7 @@ export class AuthService {
     }
 
     async logout(): Promise<void> {
+        await this.googleSignInReady;
         await GoogleSignIn.signOut();
         this.user$.next(null);
         this.idToken = null;
@@ -228,6 +240,7 @@ export class AuthService {
     private async handleRedirectCallback(): Promise<void> {
         this.isLoading$.next(true);
         try {
+            await this.googleSignInReady;
             const { idToken } = await GoogleSignIn.handleRedirectCallback();
             if (idToken) {
                 await this.verifyTokenWithServer(idToken);

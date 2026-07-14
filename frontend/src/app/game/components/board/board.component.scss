@@ -1242,6 +1242,101 @@ $colors: (
     box-shadow: 0 12px 24px rgba(0, 0, 0, 0.5), 0 0 16px rgba(251, 191, 36, 0.9);
 }
 
+/* --------------------------------------------------------------------------
+   ANCHORED — pion "ancré" : dans sa zone d'arrivée ET son propriétaire a fini
+   ses 4 pions (2v2). Lueur persistante argentée (« Vif-argent céleste »),
+   distincte du halo doré ponctuel de la promotion.
+   -------------------------------------------------------------------------- */
+@keyframes marbleAnchoredGlow {
+
+    0%,
+    100% {
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5), inset -2px -2px 6px rgba(0, 0, 0, 0.3),
+            0 0 10px 2px rgba($c-silver, 0.55);
+        filter: brightness(1.05) saturate(1.05);
+    }
+
+    50% {
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5), inset -2px -2px 6px rgba(0, 0, 0, 0.3),
+            0 0 18px 5px rgba($c-silver, 0.9);
+        filter: brightness(1.2) saturate(1.15);
+    }
+}
+
+.marble.marble-anchored {
+    border: 1.5px solid rgba(226, 232, 240, 0.85);
+    animation: marbleAnchoredGlow 2.6s ease-in-out infinite;
+}
+
+/* --------------------------------------------------------------------------
+   FINISH CELEBRATION — bannière one-shot (2v2) : un joueur vient de rentrer
+   ses 4 pions et bascule sur ceux de son coéquipier.
+   -------------------------------------------------------------------------- */
+.finish-celebration {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 45;
+    display: flex;
+    align-items: center;
+    gap: calc(var(--square-size) * 0.18);
+    max-width: 88%;
+    padding: calc(var(--square-size) * 0.22) calc(var(--square-size) * 0.4);
+    background: linear-gradient(145deg, rgba(20, 28, 46, 0.94), rgba(10, 16, 30, 0.94));
+    border: 1.5px solid rgba(255, 255, 255, 0.25);
+    border-radius: calc(var(--square-size) * 0.4);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 40px rgba($c-silver, 0.35);
+    pointer-events: none;
+    animation: fcPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both,
+        fcFadeOut 0.5s ease 2.1s forwards;
+
+    @each $name, $hex in $colors {
+        &.finish-celebration--#{$name} {
+            border-color: rgba($hex, 0.75);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 40px rgba($hex, 0.45);
+        }
+    }
+}
+
+.fc-icon {
+    flex-shrink: 0;
+    font-size: calc(var(--square-size) * 0.55);
+    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.6));
+}
+
+.fc-text {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 700;
+    font-size: calc(var(--square-size) * 0.22);
+    color: #f8fafc;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@keyframes fcPop {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.7);
+    }
+
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+@keyframes fcFadeOut {
+    from {
+        opacity: 1;
+    }
+
+    to {
+        opacity: 0;
+    }
+}
+
 /* =========================================
    7 SPLIT NUMPAD — marble-anchored, opens after first marble tap
    ========================================= */
@@ -1405,6 +1500,15 @@ $colors: (
        l'opacité → composé GPU, on le laisse.) */
     .case-path.square-preview-destination::before {
         animation: none;
+    }
+
+    /* Lueur des pions ancrés : statique au lieu d'un box-shadow animé en boucle
+       (repaint continu, coûteux sur WebView pour un état qui dure toute la
+       fin de partie). La couleur/luminosité restent visibles sans le pulse. */
+    .marble.marble-anchored {
+        animation: none;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5), inset -2px -2px 6px rgba(0, 0, 0, 0.3),
+            0 0 12px 3px rgba($c-silver, 0.7);
     }
 }
 

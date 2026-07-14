@@ -123,6 +123,7 @@ export class SessionManager {
                 gameState: null,
                 guestPlayerId: guestId,
                 gameId: game.id,
+                myColor: p.color,
             });
         }
 
@@ -235,6 +236,7 @@ export class SessionManager {
                     gameState: null,
                     guestPlayerId: guestId,
                     gameId: game.id,
+                    myColor: hc,
                 });
             }
         }

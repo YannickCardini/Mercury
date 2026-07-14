@@ -3,7 +3,7 @@
     <!-- ── Top navigation ─────────────────────────────── -->
     <nav class="home-nav">
       <div class="nav-brand">
-        @for (l of titleLetters; track l; let i = $index) {
+        @for (l of titleLetters; track i; let i = $index) {
         <span class="nav-letter" [style.--i]="i"> </span>
         }
       </div>
@@ -84,7 +84,7 @@
       <!-- Animated title -->
       <div class="hero-title-wrap">
         <h1 class="hero-title">
-          @for (l of titleLetters; track l; let i = $index) {
+          @for (l of titleLetters; track i; let i = $index) {
           <span class="hero-letter" [style.--i]="i">{{ l }}</span>
           }
         </h1>

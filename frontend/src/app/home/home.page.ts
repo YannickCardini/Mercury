@@ -189,7 +189,7 @@ export class HomePage implements OnInit, OnDestroy {
     private activeGame: ActiveGameService,
     readonly auth: AuthService,
     readonly appResume: AppResumeService
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android") {
@@ -541,7 +541,10 @@ export class HomePage implements OnInit, OnDestroy {
     this.gameStartSub = this.gameStateService.gameStarted$
       .pipe(take(1))
       .subscribe(() => {
-        this.gameStateService.myPlayerColor.set(this.myMatchmakingColor);
+        // myPlayerColor is already set authoritatively by the server's
+        // `welcome` message (see game-state.service.ts) — the seat color
+        // chosen here in the lobby can differ if the session fell back to
+        // matchmaking with a different color assignment. Do NOT overwrite it.
         this.cleanupMatchmaking();
         this.showMatchmaking = false;
         this.router.navigate(["/game"]);
@@ -661,7 +664,10 @@ export class HomePage implements OnInit, OnDestroy {
     this.customGameStartSub = this.gameStateService.gameStarted$
       .pipe(take(1))
       .subscribe(() => {
-        this.gameStateService.myPlayerColor.set(this.myCustomColor);
+        // myPlayerColor is already set authoritatively by the server's
+        // `welcome` message (see game-state.service.ts) — the seat color
+        // chosen here in the lobby can differ if the room fell back to
+        // matchmaking with a different color assignment. Do NOT overwrite it.
         this.cleanupCustomGame();
         this.showCustomGame = false;
         this.router.navigate(["/game"]);

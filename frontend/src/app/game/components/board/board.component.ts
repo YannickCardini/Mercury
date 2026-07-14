@@ -33,6 +33,7 @@ import {
   getLegalAction,
   getActionForSteps,
   buildMoveActionForMarble,
+  getTeammateColor,
   ENTER_CARDS,
 } from '@mercury/shared';
 
@@ -106,6 +107,14 @@ export class BoardComponent implements OnDestroy {
   /** Cartes en vol simultanées lors d'un discard (plusieurs cartes) */
   flyingCards = signal<Array<CardInfo & { flyIndex: number }>>([]);
   displayedGameData = signal<GameStateMessage | null>(null);
+
+  /**
+   * Bannière one-shot (2v2) affichée quand un joueur vient de rentrer son 4e
+   * pion et bascule sur les pions de son coéquipier. `null` = pas affichée.
+   */
+  finishCelebration = signal<{ color: MarbleColor; name: string; teammateName: string } | null>(null);
+  private finishCelebrationTimeout: ReturnType<typeof setTimeout> | null = null;
+  private static readonly FINISH_CELEBRATION_DURATION_MS = 2600;
 
   // ── Preview de mouvement ────────────────────────────────────────────────────
   /** Position de la bille survolée (pour la preview de trajet). */
@@ -224,6 +233,7 @@ export class BoardComponent implements OnDestroy {
   private flyingCardTimeout: ReturnType<typeof setTimeout> | null = null;
 
   private actionPlayedSub: Subscription | null = null;
+  private teammateFinishedSub: Subscription | null = null;
 
 
   constructor(protected gameStateService: GameStateService, private soundService: SoundService) {
@@ -251,6 +261,10 @@ export class BoardComponent implements OnDestroy {
 
     this.actionPlayedSub = this.gameStateService.actionPlayed$.subscribe((action: Action) => {
       this.runActionSequence(action);
+    });
+
+    this.teammateFinishedSub = this.gameStateService.teammateFinished$.subscribe((color: MarbleColor) => {
+      this.triggerFinishCelebration(color);
     });
 
     afterNextRender(() => {
@@ -719,7 +733,30 @@ export class BoardComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     this.actionPlayedSub?.unsubscribe();
+    this.teammateFinishedSub?.unsubscribe();
     if (this.flyingCardTimeout) clearTimeout(this.flyingCardTimeout);
+    if (this.finishCelebrationTimeout) clearTimeout(this.finishCelebrationTimeout);
+  }
+
+  /**
+   * Déclenche la bannière + le son de célébration quand un joueur (2v2) vient
+   * de rentrer son 4e pion. Appelé UNE FOIS par transition, voir
+   * `GameStateService.teammateFinished$` — jamais rejoué sur reconnexion.
+   */
+  private triggerFinishCelebration(color: MarbleColor): void {
+    const player = this.getPlayer(color);
+    const teammate = this.getPlayer(getTeammateColor(color));
+    this.soundService.playTeammateFinish();
+    this.finishCelebration.set({
+      color,
+      name: this.getDisplayName(player),
+      teammateName: this.getDisplayName(teammate),
+    });
+    if (this.finishCelebrationTimeout) clearTimeout(this.finishCelebrationTimeout);
+    this.finishCelebrationTimeout = setTimeout(() => {
+      this.finishCelebration.set(null);
+      this.finishCelebrationTimeout = null;
+    }, BoardComponent.FINISH_CELEBRATION_DURATION_MS);
   }
 
   private injectAnimationDurations(): void {
@@ -889,6 +926,18 @@ export class BoardComponent implements OnDestroy {
   /** Vrai si ce pion est le second pion choisi pour un split de 7 (halo doré distinct). */
   isSplit7SecondMarble(index: number): boolean {
     return this.gameStateService.selectedSplit7MarblePosition() === index;
+  }
+
+  /**
+   * Vrai si ce pion est "ancré" : dans sa zone d'arrivée ET son propriétaire a
+   * fini ses 4 pions (2v2). Persistant — dérivé de `finishedColors`, donc
+   * correct dès l'affichage après une reconnexion (pas seulement pendant la
+   * célébration one-shot).
+   */
+  isAnchoredMarble(index: number): boolean {
+    const color = this.getMarbleOnSquare(index);
+    if (!color) return false;
+    return this.gameStateService.finishedColors().has(color) && this.arrivals[color].includes(index);
   }
 
   /** Marble jouable avec la carte sélectionnée (à mettre en surbrillance). */

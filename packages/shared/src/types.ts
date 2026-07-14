@@ -160,6 +160,8 @@ export interface WelcomeMessage {
   gameState: GameState | null;
   guestPlayerId: string;
   gameId: string;
+  /** Couleur assignée par le serveur à ce joueur — source d'autorité pour le client. */
+  myColor: MarbleColor;
 }
 
 /** Message envoyé par le serveur à chaque changement d'état */

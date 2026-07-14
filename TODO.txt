@@ -1,2 +1,185 @@
-- notif d'invitation
-- Redis/garder l'etat d'une partie lors d'une maj
+# TODO — Mercury
+
+=====================================================================
+1. BUG — Custom room started with < 4 players: chosen colors are lost
+   and the affected player cannot play their first turn
+=====================================================================
+
+## Observed behavior (reported 2026-07)
+Two friends created a custom game. The creator picked the orange
+(Saturn) seat, the friend picked the green (Earth) seat, then the
+creator clicked "Start". When the game began:
+- The creator was red (Mars) instead of orange.
+- On his first turn he could neither play a card nor discard; the UI
+  never showed it was his turn. After the 60 s turn timeout
+  (TURN_DURATION_SECONDS in packages/shared/src/constants.ts:20) the
+  server auto-discarded for him. From the next round on he could play.
+
+## Root cause (confirmed by code reading — verify while fixing)
+Two combined problems, one backend and one frontend:
+
+a) Backend — colors are silently reassigned on matchmaking fallback.
+   When a custom room starts with fewer than 4 players,
+   `startRoomFromCreator` calls `fallbackToMatchmaking`
+   (backend/src/session/custom-game-manager.ts:490-508), which calls
+   `MatchmakingManager.joinQueue` WITHOUT passing each player's chosen
+   color. `joinQueue` assigns the first free color in order
+   red → green → blue → orange
+   (backend/src/session/matchmaking-manager.ts:69-70). So the creator
+   (orange in the room) became red.
+
+b) Frontend — the client keeps a stale local color and the server
+   never corrects it. In the custom-room flow, `home.page.ts` sets
+   `myPlayerColor` from `myCustomColor` (last `customRoomStatus`)
+   when the game starts (frontend/src/app/home/home.page.ts:661-668).
+   After the fallback, the server does send `matchmakingStatus`
+   messages with the new `myColor`, but the custom flow never
+   subscribes to `matchmakingStatus$`, so the update is dropped.
+   Regular `gameState` broadcasts do NOT include `myColor` — only the
+   'Reconnected' one does (backend/src/game/game.ts:202-208), which is
+   why the client eventually self-healed after a reconnect.
+   With a stale `myPlayerColor`, `isMyTurn()` in
+   frontend/src/app/game/services/game-state.service.ts:86 stays false
+   during the player's real turn → no card play, no discard.
+
+## Fix (both parts)
+1) Preserve chosen colors across the fallback: pass each player's
+   room color to the matchmaking queue and honor it there (add an
+   optional preferred-color parameter to `joinQueue`; fall back to
+   first-free-color only on conflict).
+2) Make the server authoritative on player identity: include
+   `myColor` in the per-player `welcome` sent at launch
+   (custom-game-manager.ts:477-487 and matchmaking-manager.ts:262-272)
+   — the field already exists as optional on the message type
+   (packages/shared/src/types.ts:172) — and set `myPlayerColor` from
+   it in the `welcome` handler of game-state.service.ts:465-478
+   instead of relying on colors captured pre-launch. Keep the
+   pre-launch UI colors for the lobby display only.
+
+## Acceptance criteria
+- Custom room, 2 humans with hand-picked colors + fallback to
+  matchmaking: both keep their colors OR (if product decides colors
+  can't be reserved in the public queue) the client reflects the new
+  color correctly — in all cases `myPlayerColor` on the client equals
+  the color the Game assigned to that socket.
+- The first turn is playable immediately; no 60 s auto-discard.
+- Existing 4-player custom launch and plain matchmaking still work
+  (colors, teams red+blue vs green+orange, reconnection).
+
+=====================================================================
+2. FEATURE — 2v2: visual celebration when a player finishes their 4
+   marbles and starts playing for their teammate
+=====================================================================
+
+## Context
+In 2v2, a player whose 4 marbles reached the arrival zone keeps
+playing but controls the teammate's marbles ("end-game switch",
+`getControlledColor` in packages/shared/src/teams.ts:57-59). The
+frontend already computes this: `controlledColor` and
+`isPlayingForTeammate` in
+frontend/src/app/game/services/game-state.service.ts:99-113. Today the
+only UI feedback is a small text badge "🤝 Playing for your teammate"
+(frontend/src/app/game/components/table/table.component.html:174-179),
+and it's only shown for the LOCAL player.
+
+## Goal
+Make the moment a player completes their 4 marbles clearly visible to
+ALL players, and keep a persistent visual state afterwards. Exact
+design is open (creative freedom explicitly granted), but must include:
+
+1) One-shot celebration animation at the moment of completion —
+   trigger when a player's marbles first satisfy `hasWon(...)`
+   (packages/shared/src/board-config.ts:126-129) for ANY player, not
+   just the local one. Detect the transition client-side by watching
+   game-state updates (e.g. per-color previous/current `hasWon`).
+
+2) Persistent "anchored" state on those 4 marbles: the marbles sitting
+   in the arrival squares (`ARRIVAL_POSITIONS`,
+   packages/shared/src/board-config.ts:73) get a distinct look —
+   glow / lighting / brightness / locked-in effect. Rendering entry
+   point: `.marble` elements in
+   frontend/src/app/game/components/board/board.component.html:48 and
+   styles in board.component.scss (existing @keyframes there to reuse
+   as style reference).
+
+3) A change on the finished player's avatar/badge around the board
+   (frontend/src/app/game/components/board/player-badge.component.scss)
+   — e.g. a checkmark/crown/glow — signaling "finished, now playing
+   for partner".
+
+Optional: a sound cue (SoundService,
+frontend/src/app/game/services/sound.service.ts; assets in
+frontend/src/assets/sounds/).
+
+## Constraints
+- 2v2 mode only (`gameState.gameMode === '2v2'`).
+- Must respect the "Vif-argent céleste" design identity and existing
+  overlay style (see team-intro-overlay, victory-overlay components
+  for tone and structure).
+- Must also render correctly for a player who reconnects mid-game
+  (state must be derivable from the current gameState, not only from
+  the transition event).
+
+=====================================================================
+3. INFRA — Backend deploys on Azure Web App kill all in-progress games
+=====================================================================
+
+## Problem
+Every backend deployment restarts the Azure Web App. All game state
+lives only in process memory (`GameRegistry`, an in-memory Map —
+backend/src/session/game-registry.ts:12 — plus `ReconnectRegistry`),
+so every in-progress game is destroyed and players are kicked.
+There is currently no SIGTERM/shutdown handler in
+backend/src/index.ts.
+
+## Hard constraint
+Zero (or near-zero) additional cost. Managed Redis was considered and
+rejected as paid.
+
+## Recommended approach: snapshot + rehydrate (no new services needed)
+The building blocks already exist:
+- Azure Blob Storage is already configured
+  (AZURE_STORAGE_CONNECTION_STRING, backend/src/storage/blob.ts) and
+  Cosmos DB too (backend/src/db.ts) — either can store snapshots at
+  effectively zero cost at current scale; Blob is simpler.
+- Clients already auto-reconnect: they persist `guest_player_id` +
+  `active_game_id` in localStorage and re-issue `joinGame` with
+  backoff (`scheduleRejoin`/`reconnectNow` in
+  frontend/src/app/game/services/game-state.service.ts:609-664), and
+  the server has a reconnection path (`ReconnectRegistry`, 180 s
+  window). If the server can restore games at boot, clients plug back
+  in with NO frontend changes.
+
+Steps:
+1) Make `Game` serializable: snapshot = players (colors, names,
+   userIds, hands, marble positions/invincibility), deck,
+   discardedCards, turn/round/currentPlayerIndex/firstPlayerOfRound,
+   gameMode, game id (fields listed at backend/src/game/game.ts:35-90).
+   Add `toSnapshot()` / `Game.fromSnapshot()`. Exclude transient state
+   (pending promises, timers, messenger).
+2) Persist: write the snapshot + the ReconnectRegistry entries for
+   that game to a Blob container ("games/<gameId>.json") at each end
+   of turn, and delete the blob at game end/abort. (SIGTERM-only
+   persistence is fragile — Azure's grace window is short and a crash
+   gets no signal at all; per-turn writes are tiny and rare.)
+3) Restore on boot: load all snapshots, rebuild Game instances in a
+   "paused, waiting for reconnections" state, re-register them in
+   GameRegistry and ReconnectRegistry, resume the turn loop once
+   players rejoin (or let the existing disconnect auto-play/timeout
+   logic take over). Discard snapshots older than the 180 s reconnect
+   window (or a slightly larger deploy-sized window, e.g. 5 min).
+4) Handle non-human seats: external bot agents (dispatched via
+   AGENT_URL, backend/src/session/matchmaking-manager.ts:138) will
+   not auto-rejoin — decide between re-dispatching an agent for the
+   seat at restore, or letting the existing
+   disconnected-player auto-play handle them.
+5) Verify locally: start a 4-player game, kill and restart the
+   backend, confirm all clients reconnect into the same game state.
+
+## Complementary (optional, nice UX)
+A pre-deploy notice is still worth having for long maintenance:
+a small authenticated admin endpoint that broadcasts "server restarts
+in X minutes" to all active games. Do NOT make it the primary
+solution — the user explicitly dislikes losing games; it only
+softens the edge cases snapshotting can't cover (e.g. schema-breaking
+changes where old snapshots must be discarded).

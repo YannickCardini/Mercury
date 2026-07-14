@@ -47,7 +47,13 @@ export class MatchmakingManager {
 
     private session: PendingMatchmaking | null = null;
 
-    joinQueue(ws: WebSocket, playerName?: string, reconnect?: ReconnectRegistry, browserId?: string, picture?: string, userId?: string): void {
+    /**
+     * @param preferredColor Couleur choisie par le joueur avant d'arriver ici
+     * (ex. siège pris dans une custom room repliée vers le matchmaking public,
+     * cf. CustomGameManager.fallbackToMatchmaking). Honorée si encore libre ;
+     * sinon on retombe sur la première couleur libre dans l'ordre habituel.
+     */
+    joinQueue(ws: WebSocket, playerName?: string, reconnect?: ReconnectRegistry, browserId?: string, picture?: string, userId?: string, preferredColor?: MarbleColor): void {
         if (!this.session) {
             this.session = {
                 messenger: new MultiWsMessenger(),
@@ -67,7 +73,9 @@ export class MatchmakingManager {
         }
 
         const takenColors = new Set(this.session.players.map(p => p.color));
-        const color = COLORS.find(c => !takenColors.has(c));
+        const color = (preferredColor && !takenColors.has(preferredColor))
+            ? preferredColor
+            : COLORS.find(c => !takenColors.has(c));
 
         if (!color) {
             wsSend(ws, { type: 'actionRejected', reason: 'Matchmaking session is full' });
@@ -268,6 +276,7 @@ export class MatchmakingManager {
                 gameState: null,
                 guestPlayerId: p.guestPlayerId,
                 gameId: game.id,
+                myColor: p.color,
             });
         }
     }

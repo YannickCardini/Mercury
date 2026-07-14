@@ -32,6 +32,7 @@ import {
   getControlledColor,
   getTeammateColor,
   findSolidaireEntry,
+  hasWon,
   ENTER_CARDS,
   HOME_POSITIONS,
   type GameMode,
@@ -111,6 +112,50 @@ export class GameStateService {
     const myColor = this.myPlayerColor();
     return myColor !== null && this.controlledColor() !== myColor;
   });
+
+  /**
+   * Couleurs (2v2 uniquement) dont les 4 pions sont actuellement dans leur
+   * zone d'arrivée — état persistant, entièrement dérivé du gameState courant
+   * (donc correct dès l'affichage après une reconnexion, pas seulement au
+   * moment de la transition). Sert à l'effet visuel "pions ancrés" sur le
+   * board et au badge du joueur concerné.
+   */
+  finishedColors = computed<Set<MarbleColor>>(() => {
+    const data = this.data();
+    const result = new Set<MarbleColor>();
+    if (!data || data.gameState.gameMode !== '2v2') return result;
+    for (const p of data.gameState.players) {
+      if (hasWon(p.marblePositions, p.color)) result.add(p.color);
+    }
+    return result;
+  });
+
+  /**
+   * Couleurs déjà vues comme terminées (mémorisation impérative, pas un signal)
+   * — sert uniquement à ne déclencher `teammateFinished$` qu'une fois par
+   * transition. Remise à zéro dans `reset()` (nouvelle partie). Un pion entré
+   * en zone d'arrivée n'en ressort jamais, donc pas besoin de gérer le retour
+   * en arrière.
+   */
+  private finishedColorsSeen = new Set<MarbleColor>();
+  /**
+   * Émet la couleur d'un joueur qui vient tout juste de rentrer son 4e pion
+   * (2v2 uniquement) — déclenche la célébration one-shot côté board. N'émet
+   * PAS lors d'une reconnexion à une partie où ce switch a déjà eu lieu avant
+   * la coupure (l'état persistant `finishedColors` suffit alors à l'affichage).
+   */
+  teammateFinished$ = new Subject<MarbleColor>();
+
+  /** Détecte les transitions "joueur vient de terminer" à chaque gameState reçu. */
+  private syncFinishedColors(state: GameStateMessage): void {
+    if (state.gameState.gameMode !== '2v2') return;
+    const isReconnect = state.message === 'Reconnected';
+    for (const p of state.gameState.players) {
+      if (!hasWon(p.marblePositions, p.color) || this.finishedColorsSeen.has(p.color)) continue;
+      this.finishedColorsSeen.add(p.color);
+      if (!isReconnect) this.teammateFinished$.next(p.color);
+    }
+  }
 
   /**
    * Contexte de validation local — miroir exact de `buildLegalMoveContext`
@@ -469,6 +514,11 @@ export class GameStateService {
           this.activeGameId.set(welcomeMsg.gameId);
           localStorage.setItem('guest_player_id', welcomeMsg.guestPlayerId);
           localStorage.setItem('active_game_id', welcomeMsg.gameId);
+          // Le serveur est la seule source d'autorité sur la couleur assignée
+          // (une couleur choisie en lobby — custom room / matchmaking — peut
+          // avoir été réattribuée, ex. repli d'une custom room incomplète vers
+          // le matchmaking public). On écrase toute couleur locale pré-lancement.
+          this.myPlayerColor.set(welcomeMsg.myColor);
           // welcome with gameState: null is just an identity message, don't update data
           if (welcomeMsg.gameState) {
             this.data.set(welcomeMsg as unknown as GameStateMessage);
@@ -481,6 +531,7 @@ export class GameStateService {
         case 'response': {
           const msg = parsed as GameStateMessage;
           this.data.set(msg);
+          this.syncFinishedColors(msg);
           // On reconnection, the server includes myColor so we restore the local player identity
           if (msg.myColor) {
             this.myPlayerColor.set(msg.myColor);
@@ -812,6 +863,7 @@ export class GameStateService {
     this.isReplayTurn.set(false);
     this.lastActionPlayed = null;
     this.tutorialHintId.set(null);
+    this.finishedColorsSeen.clear();
     this.intentionalClose = true;
     if (this.rejoinTimer) {
       clearTimeout(this.rejoinTimer);

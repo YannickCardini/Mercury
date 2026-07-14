@@ -31,8 +31,17 @@
     [class.player-badge-slot--diamond]="slot.shape === 'diamond'" [attr.data-player-color]="slot.color"
     [shape]="slot.shape" [player]="getPlayer(slot.color)" [color]="slot.color"
     [isCurrentTurn]="isCurrentTurn(slot.color)" [timeLeft]="gameStateService.timeLeft()"
-    [timer]="displayedGameData()?.gameState?.timer ?? 0" [rank]="playerRankings()[slot.color] ?? null">
+    [timer]="displayedGameData()?.gameState?.timer ?? 0" [rank]="playerRankings()[slot.color] ?? null"
+    [finished]="gameStateService.finishedColors().has(slot.color)">
   </app-player-badge>
+  }
+
+  <!-- Bannière one-shot (2v2) : un joueur vient de rentrer ses 4 pions. -->
+  @if (finishCelebration(); as fc) {
+  <div class="finish-celebration" [ngClass]="'finish-celebration--' + fc.color">
+    <span class="fc-icon">🏁</span>
+    <span class="fc-text">{{ fc.name }} is home! Now playing for {{ fc.teammateName }}.</span>
+  </div>
   }
 
   <!-- Rendu d'une bille -->
@@ -52,7 +61,8 @@
         isSelectedMarble(index)   ? 'marble-selected'   : '',
         isSplit7SecondMarble(index) ? 'marble-selected-split2' : '',
         isMyMarble(index)         ? 'marble-mine'        : '',
-        isDimmedMarble(index)     ? 'marble-dimmed'      : ''
+        isDimmedMarble(index)     ? 'marble-dimmed'      : '',
+        isAnchoredMarble(index)   ? 'marble-anchored'    : ''
       ]" (click)="onMarbleClick(index)" (mouseenter)="onMarbleMouseEnter(index)"
       (mouseleave)="onMarbleMouseLeave(index)">
       <div class="marble-highlight"></div>

@@ -483,6 +483,7 @@ export class CustomGameManager {
                 gameState: null,
                 guestPlayerId: p.guestPlayerId,
                 gameId: game.id,
+                myColor: p.color,
             });
         }
     }
@@ -499,6 +500,7 @@ export class CustomGameManager {
                 p.browserId,
                 p.picture,
                 p.userId,
+                p.color,
             );
         }
         // Les sockets appartiennent désormais au messenger du matchmaking ;

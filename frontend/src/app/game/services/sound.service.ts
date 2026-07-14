@@ -424,6 +424,48 @@ export class SoundService {
     });
   }
 
+  /**
+   * Bright two-note bell + sparkle — a player just brought all 4 marbles home
+   * in 2v2 and switches to playing for their teammate. Deliberately shorter
+   * and lighter than playVictory (full-game win), so it doesn't read as the
+   * game ending.
+   */
+  playTeammateFinish(): void {
+    if (this.muted()) return;
+    const ctx = this.getCtx();
+    const t = ctx.currentTime;
+
+    const notes = [784, 1175]; // G5, D6 — bright perfect fifth
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const start = t + i * 0.14;
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, start);
+      gain.gain.setValueAtTime(0.0, start);
+      gain.gain.linearRampToValueAtTime(0.3, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.01, start + 0.5);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + 0.5);
+    });
+
+    // Faint upward shimmer on top, like a sparkle.
+    const shimmer = ctx.createOscillator();
+    const shimmerGain = ctx.createGain();
+    shimmer.type = 'sine';
+    shimmer.frequency.setValueAtTime(2200, t + 0.1);
+    shimmer.frequency.exponentialRampToValueAtTime(3000, t + 0.4);
+    shimmerGain.gain.setValueAtTime(0.0, t + 0.1);
+    shimmerGain.gain.linearRampToValueAtTime(0.08, t + 0.15);
+    shimmerGain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+    shimmer.connect(shimmerGain);
+    shimmerGain.connect(ctx.destination);
+    shimmer.start(t + 0.1);
+    shimmer.stop(t + 0.5);
+  }
+
   /** Emoji reactions — one preloaded sample per emoji of the palette. */
   playReaction(emoji: ReactionEmoji): void {
     if (this.muted()) return;

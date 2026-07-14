@@ -114,6 +114,32 @@
     opacity: 0.5;
 }
 
+/* ── Fini, joue pour son coéquipier (2v2) ─────────────────────────────────── */
+.pb--finished .pb-avatar {
+    border-color: #ffd76b;
+    box-shadow:
+        0 4px 14px rgba(0, 0, 0, 0.45),
+        inset 0 1px 3px rgba(255, 255, 255, 0.25),
+        0 0 14px rgba(255, 215, 107, 0.65);
+}
+
+.pb-finished {
+    position: absolute;
+    bottom: 6%;
+    right: 2%;
+    z-index: 4;
+    width: calc(var(--pb-size) * 0.27);
+    height: calc(var(--pb-size) * 0.27);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: calc(var(--pb-size) * 0.17);
+    border-radius: 50%;
+    background: linear-gradient(145deg, #ffe793, #e0a72c);
+    border: 2px solid #fff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
 /* ── Jeton « nombre de cartes » (haut-droite) ─────────────────────────────── */
 .pb-cards {
     position: absolute;
