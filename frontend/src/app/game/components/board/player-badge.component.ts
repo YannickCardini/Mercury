@@ -76,7 +76,7 @@ export class PlayerBadgeComponent {
   arcColor = computed<string | null>(() => {
     if (!this.isCurrentTurn()) return null;
     const r = this.ratio();
-    if (r > 0.5) return '#34d399';
+    if (r > 0.5) return 'var(--pb-color)';
     if (r > 0.25) return '#fbbf24';
     return '#f87171';
   });

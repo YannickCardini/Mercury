@@ -171,18 +171,30 @@
   }
 
   <!-- ===== INFOS CONTEXTUELLES (au-dessus du footer, cachées sur petits écrans et pendant l'overlay du 7) ===== -->
+  <!-- Capsule unique : segment doré « coéquipier » (2v2) + phase courante.
+       Le @for re-crée le span quand la phase change, ce qui rejoue l'animation d'entrée. -->
   @if (!showSevenSplitOverlay()) {
   <div class="context-info">
-    @if (gameStateService.isPlayingForTeammate()) {
-    <span class="turn-phase teammate-phase">
-      <span class="phase-dot"></span>
-      🤝 Playing for your teammate
-    </span>
-    }
-    <span class="turn-phase">
-      <span class="phase-dot"></span>
-      {{ turnPhase() }}
-    </span>
+    <div class="phase-capsule">
+      @if (gameStateService.isPlayingForTeammate()) {
+      <span class="phase-capsule__teammate">
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+        For your teammate
+      </span>
+      }
+      @for (phase of [turnPhase()]; track phase) {
+      <span class="phase-capsule__phase">
+        <span class="phase-dot"></span>
+        {{ phase }}
+      </span>
+      }
+    </div>
   </div>
   }
 

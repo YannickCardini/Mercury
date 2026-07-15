@@ -262,17 +262,19 @@
 }
 
 /* =========================================
-   INFOS CONTEXTUELLES
+   INFOS CONTEXTUELLES — capsule de phase
+   Une seule capsule segmentée : contexte « coéquipier » (or, 2v2)
+   + phase courante (texte neutre, point accent unique).
    ========================================= */
 .context-info {
     position: absolute;
-    bottom: calc(var(--dashboard-height) + env(safe-area-inset-bottom) + 0.5rem);
+    bottom: calc(var(--dashboard-height) + env(safe-area-inset-bottom) + 0.7rem);
     left: 50%;
     transform: translateX(-50%);
     z-index: 15;
     display: flex;
-    align-items: center;
     justify-content: center;
+    max-width: min(92%, 560px);
 
     @media (max-aspect-ratio: 1/1) {
         @media (max-width: 780px) {
@@ -285,27 +287,71 @@
     }
 }
 
-.turn-phase {
+.phase-capsule {
+    display: inline-flex;
+    align-items: stretch;
+    border-radius: 99px;
+    background: rgba(10, 15, 30, 0.72);
+    border: 1px solid var(--border);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(10px);
+    overflow: hidden;
+}
+
+.phase-capsule__teammate {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 4px 12px;
-    border-radius: 99px;
-    background: rgba(192, 132, 252, 0.12);
-    border: 1px solid rgba(192, 132, 252, 0.25);
-    color: var(--accent);
-    font-size: 0.7rem;
-    font-weight: 500;
+    gap: 6px;
+    padding: 5px 12px 5px 14px;
+    background: rgba(251, 191, 36, 0.08);
+    border-right: 1px solid rgba(251, 191, 36, 0.22);
+    color: var(--gold);
+    font-size: 0.66rem;
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.09em;
-    backdrop-filter: blur(8px);
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+
+    svg {
+        flex-shrink: 0;
+        opacity: 0.9;
+    }
+}
+
+.phase-capsule__phase {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 14px;
+    color: rgba(226, 232, 240, 0.92);
+    font-size: 0.66rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    line-height: 1.5;
+    text-wrap: balance;
+    animation: phase-swap 0.3s ease;
 
     .phase-dot {
+        flex-shrink: 0;
         width: 5px;
         height: 5px;
         border-radius: 50%;
         background: var(--accent);
-        animation: blink 1.4s ease-in-out infinite;
+        box-shadow: 0 0 6px var(--accent-glow);
+        animation: blink 1.6s ease-in-out infinite;
+    }
+}
+
+@keyframes phase-swap {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }
 
@@ -1496,7 +1542,7 @@
 
     /* Indicateur de phase, toujours affiché : retire le flou (petit élément,
        le fond translucide suffit). */
-    .turn-phase {
+    .phase-capsule {
         backdrop-filter: none;
         -webkit-backdrop-filter: none;
     }

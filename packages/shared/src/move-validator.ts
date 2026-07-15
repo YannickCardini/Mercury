@@ -248,7 +248,14 @@ function buildMoveAction(
     if (to === null) return null;
 
     if (startPositionBtwFromAndTo(from, to, playerColor)) {
-        const arrivalCase = getArrivelCaseIfCanPromote(playerColor, allMarbles, from, steps);
+        const arrivalCase = getArrivelCaseIfCanPromote(
+            playerColor,
+            allMarbles,
+            from,
+            steps,
+            ctx.marblesByColor,
+            ctx.invincibleMarblesByColor,
+        );
         if (arrivalCase != null) {
             return {
                 type: 'promote',
@@ -409,7 +416,9 @@ function getArrivelCaseIfCanPromote(
     playerColor: MarbleColor,
     allMarbles: number[],
     from: number,
-    steps: number
+    steps: number,
+    marblesByColor: Record<MarbleColor, number[]>,
+    invincibleMarblesByColor: Record<MarbleColor, number[]>,
 ): number | null {
     let arrivalPositions = [...ARRIVAL_POSITIONS[playerColor]];
     const startPosition = START_POSITIONS[playerColor];
@@ -423,6 +432,14 @@ function getArrivelCaseIfCanPromote(
         stepsRequiredToPromote++;
         indexOfFrom++;
         if (indexOfFrom >= MAIN_PATH.length) indexOfFrom = 0;
+        // Un pion invincible sur le chemin (avant d'atteindre la case de
+        // départ) bloque la promotion, comme pour un déplacement normal —
+        // sinon ce chemin de code (promotion) contourne pathIsClear.
+        const pos = MAIN_PATH[indexOfFrom];
+        const owner = colorAtPosition(pos, marblesByColor);
+        if (owner !== null && isInvincible(pos, owner, invincibleMarblesByColor)) {
+            return null;
+        }
     }
     return stepsRequiredToPromote === steps ? arrivalPositions[arrivalPositions.length - 1] || null : null;
 }

@@ -26,7 +26,7 @@ import { Capacitor } from '@capacitor/core';
 enum TURN_PHASE {
   DISCARD = "No playable moves",
   CARD = "Choose a card",
-  MARBLE = "Choose a Marble",
+  MARBLE = "Choose a marble",
   SWAP_TARGET = "Choose a target marble",
   SEVEN_SPLIT = "Choose a second marble",
   WAIT = "Wait for your turn",
