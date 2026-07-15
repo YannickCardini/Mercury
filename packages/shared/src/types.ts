@@ -573,6 +573,27 @@ export interface EmojiReactionMessage {
   fromColor?: MarbleColor;
 }
 
+/**
+ * Debug uniquement (backend DEBUG=true) : suspend la partie en cours pour
+ * éditer l'état du plateau. La boucle de jeu se fige au prochain point sûr
+ * (immédiatement pendant un tour humain, sinon à la frontière du tour en
+ * cours) et les timeouts de tour sont ignorés jusqu'à la reprise.
+ */
+export interface DebugPauseMessage {
+  type: 'debugPause';
+}
+
+/**
+ * Debug uniquement : applique les positions éditées comme nouvel état
+ * autoritaire et reprend la partie. Toutes les invincibilités sont remises à
+ * zéro (état simple et prédictible pour un outil de debug).
+ */
+export interface DebugResumeMessage {
+  type: 'debugResume';
+  /** Positions des 4 pions de chaque couleur après édition (cases visibles, sans doublon). */
+  marblePositions: Record<MarbleColor, number[]>;
+}
+
 export type ClientMessage =
   | StartMessage
   | CreateRoomMessage
@@ -593,4 +614,6 @@ export type ClientMessage =
   | InviteUserMessage
   | InviteResponseMessage
   | CancelInviteMessage
-  | EmojiReactionMessage;
+  | EmojiReactionMessage
+  | DebugPauseMessage
+  | DebugResumeMessage;

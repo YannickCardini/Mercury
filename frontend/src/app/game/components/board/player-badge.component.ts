@@ -38,12 +38,6 @@ export class PlayerBadgeComponent {
   rank = input<number | null>(null);
   /** Forme du badge : cercle (défaut) ou losange (paire d'équipe). */
   shape = input<'circle' | 'diamond'>('circle');
-  /**
-   * Vrai quand ce joueur a rentré ses 4 pions (2v2) et joue désormais pour
-   * son coéquipier — anneau doré + médaille (persistant jusqu'à la fin de
-   * la partie).
-   */
-  finished = input<boolean>(false);
 
   /** Rayon SVG (viewBox 100×100) ; circonférence = 2πr. */
   readonly circumference = 2 * Math.PI * 46;

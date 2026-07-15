@@ -12,22 +12,24 @@
   }
 
   <!-- ===== BANNIÈRE TIMEOUT ===== -->
+  <!-- Le siège concerné est affiché avec sa couleur de représentation :
+       celle du coéquipier si le joueur a fini ses 4 pions (2v2). -->
   @if (timeoutBannerColor(); as color) {
-  <div class="timeout-banner" [ngClass]="'timeout-banner--' + color">
+  <div class="timeout-banner" [ngClass]="'timeout-banner--' + gameStateService.displayColor(color)">
     <span class="timeout-icon">⏰</span>
     @if (color === gameStateService.myPlayerColor()) {
     <span>Time's up — the computer played for you</span>
     } @else {
-    <span>Time's up — the computer played for {{ color }}</span>
+    <span>Time's up — the computer played for {{ gameStateService.displayColor(color) }}</span>
     }
   </div>
   }
 
   <!-- ===== BANNIÈRE AUTO-PLAY (joueur déconnecté) ===== -->
   @if (autoPlayBannerColor(); as color) {
-  <div class="timeout-banner" [ngClass]="'timeout-banner--' + color">
+  <div class="timeout-banner" [ngClass]="'timeout-banner--' + gameStateService.displayColor(color)">
     <span class="timeout-icon">🤖</span>
-    <span>{{ color }} disconnected — a bot played for them</span>
+    <span>{{ gameStateService.displayColor(color) }} disconnected — a bot played for them</span>
   </div>
   }
 
@@ -186,7 +188,7 @@
 
   <!-- ===== FOOTER ===== -->
   <div class="control-dashboard" [class.turn-inactive]="!gameStateService.isMyTurn()"
-    [class.turn-active]="gameStateService.isMyTurn()" [style.border-top-color]="gameStateService.myPlayerColor() ?? ''"
+    [class.turn-active]="gameStateService.isMyTurn()" [style.border-top-color]="myDisplayColor() ?? ''"
     [style.--turn-glow]="getMyColorGlow()">
 
     <!-- Tactile : tant qu'une carte est sélectionnée sans bille choisie, le footer

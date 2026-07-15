@@ -110,6 +110,13 @@
         background: rgba(255, 255, 255, 0.14);
         border-color: rgba(255, 255, 255, 0.35);
     }
+
+    // Mode édition du plateau actif : le bouton ✏️/▶️ reste mis en évidence.
+    &--active {
+        background: rgba($c-gold, 0.22);
+        border-color: rgba($c-gold, 0.8);
+        box-shadow: 0 0 10px rgba($c-gold, 0.45);
+    }
 }
 
 /* ═══════════════════════════════════════════════════════════════

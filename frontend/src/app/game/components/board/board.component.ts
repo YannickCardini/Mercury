@@ -116,6 +116,16 @@ export class BoardComponent implements OnDestroy {
   private finishCelebrationTimeout: ReturnType<typeof setTimeout> | null = null;
   private static readonly FINISH_CELEBRATION_DURATION_MS = 2600;
 
+  /**
+   * Cases d'arrivée dont la bille joue la séquence de verrouillage (2v2) :
+   * clac de blindage + étoiles de capture. One-shot — l'état persistant qui
+   * suit est `marble-anchored` (dérivé de `finishedColors`).
+   */
+  lockingSquares = signal<ReadonlySet<number>>(new Set());
+  private lockTimeouts: ReturnType<typeof setTimeout>[] = [];
+  /** Durée totale des keyframes `marbleLockIn` — doit rester alignée au SCSS. */
+  private static readonly LOCK_TOTAL_MS = 900;
+
   // ── Preview de mouvement ────────────────────────────────────────────────────
   /** Position de la bille survolée (pour la preview de trajet). */
   hoveredMarble = signal<number | null>(null);
@@ -224,6 +234,12 @@ export class BoardComponent implements OnDestroy {
   private squareClassCache = new Map<number, string>();
 
   readonly debug = environment.debug;
+
+  // ── Debug : édition du plateau ──────────────────────────────────────────────
+  /** Vrai quand le plateau est en mode édition (partie suspendue côté serveur). */
+  readonly editMode = this.gameStateService.boardEditMode;
+  /** Case du pion « en main » pendant l'édition (null = aucun pion saisi). */
+  editSelectedSquare = signal<number | null>(null);
 
   // ── Profile panel (API) ──────────────────────────────────────────────────────
   private http = inject(HttpClient);
@@ -736,27 +752,50 @@ export class BoardComponent implements OnDestroy {
     this.teammateFinishedSub?.unsubscribe();
     if (this.flyingCardTimeout) clearTimeout(this.flyingCardTimeout);
     if (this.finishCelebrationTimeout) clearTimeout(this.finishCelebrationTimeout);
+    for (const t of this.lockTimeouts) clearTimeout(t);
   }
 
   /**
-   * Déclenche la bannière + le son de célébration quand un joueur (2v2) vient
-   * de rentrer son 4e pion. Appelé UNE FOIS par transition, voir
+   * Séquence de verrouillage quand un joueur (2v2) vient de rentrer son 4e
+   * pion. Appelé UNE FOIS par transition, voir
    * `GameStateService.teammateFinished$` — jamais rejoué sur reconnexion.
+   *
+   * Façon capture Pokéball : lock.wav part immédiatement, le clac déclenche
+   * un glint + de petites étoiles sur les 4 billes de la zone d'arrivée qui
+   * s'assombrissent légèrement en se blindant (marble-anchored). La bannière
+   * + le carillon arrivent juste après le clac.
    */
   private triggerFinishCelebration(color: MarbleColor): void {
-    const player = this.getPlayer(color);
-    const teammate = this.getPlayer(getTeammateColor(color));
-    this.soundService.playTeammateFinish();
-    this.finishCelebration.set({
-      color,
-      name: this.getDisplayName(player),
-      teammateName: this.getDisplayName(teammate),
-    });
-    if (this.finishCelebrationTimeout) clearTimeout(this.finishCelebrationTimeout);
-    this.finishCelebrationTimeout = setTimeout(() => {
-      this.finishCelebration.set(null);
-      this.finishCelebrationTimeout = null;
-    }, BoardComponent.FINISH_CELEBRATION_DURATION_MS);
+    const squares = this.arrivals[color];
+    this.lockingSquares.update(prev => new Set([...prev, ...squares]));
+    this.soundService.playLock();
+
+    // +150ms de marge : la classe reste posée un peu après la fin réelle des
+    // keyframes (fill-mode forwards) pour éviter tout saut si le timer dévie.
+    this.lockTimeouts.push(setTimeout(() => {
+      this.lockingSquares.update(prev => {
+        const next = new Set(prev);
+        for (const s of squares) next.delete(s);
+        return next;
+      });
+    }, BoardComponent.LOCK_TOTAL_MS + 150));
+
+    this.lockTimeouts.push(setTimeout(() => {
+      const player = this.getPlayer(color);
+      const teammate = this.getPlayer(getTeammateColor(color));
+      this.finishCelebration.set({
+        // Teinte de la bannière = couleur de représentation du finisseur,
+        // c.-à-d. celle du coéquipier pour qui il joue désormais.
+        color: this.gameStateService.displayColor(color),
+        name: this.getDisplayName(player),
+        teammateName: this.getDisplayName(teammate),
+      });
+      if (this.finishCelebrationTimeout) clearTimeout(this.finishCelebrationTimeout);
+      this.finishCelebrationTimeout = setTimeout(() => {
+        this.finishCelebration.set(null);
+        this.finishCelebrationTimeout = null;
+      }, BoardComponent.FINISH_CELEBRATION_DURATION_MS);
+    }, 400));
   }
 
   private injectAnimationDurations(): void {
@@ -893,6 +932,80 @@ export class BoardComponent implements OnDestroy {
     return this.marbleByPosition().get(index) ?? null;
   }
 
+  // ── Debug : édition du plateau ──────────────────────────────────────────────
+
+  /**
+   * Suspend la partie côté serveur et passe le plateau en mode édition : tout
+   * pion devient saisissable (clic pion → clic case de destination). L'édition
+   * ne modifie que la copie locale `displayedGameData` — l'état ne devient
+   * autoritaire qu'à la reprise (exitEditMode).
+   */
+  enterEditMode(): void {
+    if (!this.debug || this.editMode() || !this.displayedGameData()) return;
+    this.gameStateService.sendDebugPause();
+    // Une sélection de carte/pion en cours n'a plus de sens pendant l'édition.
+    this.gameStateService.selectedCard.set(null);
+    this.gameStateService.selectedMarblePosition.set(null);
+    this.gameStateService.selectedSwapTargetPosition.set(null);
+    this.gameStateService.selectedSplit7MarblePosition.set(null);
+    this.editSelectedSquare.set(null);
+    this.gameStateService.boardEditMode.set(true);
+  }
+
+  /**
+   * Envoie l'état édité au serveur (qui l'applique comme nouvel état
+   * autoritaire) et reprend la partie. Si le serveur rejette l'état, la partie
+   * reste en pause et un toast s'affiche (actionRejected) — recliquer ✏️
+   * permet de corriger puis de retenter.
+   */
+  exitEditMode(): void {
+    if (!this.editMode()) return;
+    const data = this.displayedGameData();
+    if (!data) return;
+    const positions = Object.fromEntries(
+      data.gameState.players.map(p => [p.color, [...p.marblePositions]])
+    ) as Record<MarbleColor, number[]>;
+    // Un pion à 0 est un transitoire d'animation (jostle/capture) : on ne peut
+    // pas en faire un état autoritaire. Très improbable pendant une pause.
+    if (Object.values(positions).some(list => list.includes(0))) {
+      console.warn('🛠️ Édition : une animation est encore en cours, réessayez dans un instant');
+      return;
+    }
+    this.gameStateService.sendDebugResume(positions);
+    this.editSelectedSquare.set(null);
+    this.gameStateService.boardEditMode.set(false);
+  }
+
+  /**
+   * Clic sur une case en mode édition. Les clics sur pion arrivent aussi ici
+   * (bulle depuis le div du pion) : premier clic = saisir le pion, second =
+   * le déposer sur une case libre (ou changer de pion si la case est occupée).
+   */
+  onSquareClick(index: number): void {
+    if (!this.editMode()) return;
+    if (!this.squareToDisplay.includes(index)) return;
+
+    const selected = this.editSelectedSquare();
+    const occupant = this.getMarbleOnSquare(index);
+
+    if (selected === null || occupant !== null) {
+      // Saisir un pion (ou re-cliquer le pion saisi pour le reposer).
+      this.editSelectedSquare.set(selected === index ? null : (occupant ? index : null));
+      return;
+    }
+
+    const color = this.getMarbleOnSquare(selected);
+    if (color === null) {
+      this.editSelectedSquare.set(null);
+      return;
+    }
+    this.updateMarblePosition({
+      type: 'move', from: selected, to: index,
+      cardPlayed: null, playerColor: color, marbleColor: color,
+    });
+    this.editSelectedSquare.set(null);
+  }
+
   // ── Interaction humain ────────────────────────────────────────────────────
 
   /** Vrai si une carte est sélectionnée (pour assombrir le board). */
@@ -907,6 +1020,7 @@ export class BoardComponent implements OnDestroy {
 
   /** Vrai si ce pion peut être sélectionné (uniquement après avoir choisi une carte, et seulement si jouable). */
   isSelectableMarble(index: number): boolean {
+    if (this.editMode()) return true; // édition debug : tout pion est déplaçable
     if (!this.gameStateService.isMyTurn()) return false;
     if (!this.gameStateService.selectedCard()) return false;
     const playable = this.gameStateService.playableMarblePositions();
@@ -918,6 +1032,7 @@ export class BoardComponent implements OnDestroy {
   }
 
   isSelectedMarble(index: number): boolean {
+    if (this.editMode()) return this.editSelectedSquare() === index;
     return this.gameStateService.selectedMarblePosition() === index
       || this.gameStateService.selectedSwapTargetPosition() === index
       || this.gameStateService.selectedSplit7MarblePosition() === index;
@@ -940,6 +1055,11 @@ export class BoardComponent implements OnDestroy {
     return this.gameStateService.finishedColors().has(color) && this.arrivals[color].includes(index);
   }
 
+  /** Bille en pleine séquence de verrouillage « Pokéball » (one-shot, 2v2). */
+  isLockingMarble(index: number): boolean {
+    return this.lockingSquares().has(index);
+  }
+
   /** Marble jouable avec la carte sélectionnée (à mettre en surbrillance). */
   isPlayableMarble(index: number): boolean {
     const playable = this.gameStateService.playableMarblePositions();
@@ -958,6 +1078,9 @@ export class BoardComponent implements OnDestroy {
   }
 
   onMarbleClick(index: number): void {
+    // Édition debug : le clic bulle jusqu'à la case, gérée par onSquareClick.
+    if (this.editMode()) return;
+
     const selected = this.gameStateService.selectedMarblePosition();
     const card = this.gameStateService.selectedCard();
 

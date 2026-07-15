@@ -296,6 +296,10 @@ enum TURN_PHASE {
     this.clearTimer();
     this.timeLeft.set(this.gameStateService.data()?.gameState?.timer ?? 0);
     this.timerInterval = setInterval(() => {
+      // Édition du plateau (debug) : la partie est en pause côté serveur, on
+      // gèle le compte à rebours local. Le serveur rebroadcaste « New turn »
+      // à la reprise, ce qui relance un timer complet.
+      if (this.gameStateService.boardEditMode()) return;
       const current = this.timeLeft();
       if (current <= 1) {
         this.timeLeft.set(0);
@@ -681,8 +685,15 @@ enum TURN_PHASE {
   }
 
   getPlayerColor(): string {
-    const gameData = this.gameStateService.data();
-    return gameData?.gameState.currentTurn || '#7c3aed';
+    const currentTurn = this.gameStateService.data()?.gameState.currentTurn ?? null;
+    // Couleur d'affichage : un joueur fini (2v2) est montré aux couleurs de
+    // son coéquipier, pour qui il joue désormais.
+    return this.gameStateService.displayColor(currentTurn) || '#7c3aed';
+  }
+
+  /** Couleur d'affichage du joueur local (2v2 : celle du coéquipier s'il a fini). */
+  myDisplayColor(): MarbleColor | null {
+    return this.gameStateService.displayColor(this.gameStateService.myPlayerColor());
   }
 
   getMyColorGlow(): string {
@@ -692,7 +703,7 @@ enum TURN_PHASE {
       green: 'rgba(34, 197, 94, 0.6)',
       orange: 'rgba(251, 146, 60, 0.6)',
     };
-    return colorMap[this.gameStateService.myPlayerColor() ?? ''] ?? 'transparent';
+    return colorMap[this.myDisplayColor() ?? ''] ?? 'transparent';
   }
 
   getDiscardedCards(): Card[] {

@@ -1244,28 +1244,154 @@ $colors: (
 
 /* --------------------------------------------------------------------------
    ANCHORED — pion "ancré" : dans sa zone d'arrivée ET son propriétaire a fini
-   ses 4 pions (2v2). Lueur persistante argentée (« Vif-argent céleste »),
-   distincte du halo doré ponctuel de la promotion.
+   ses 4 pions (2v2). État persistant « blindé » : texture LÉGÈREMENT assombrie,
+   plus d'ombre portée (la bille paraît encastrée dans la case, pas posée
+   dessus) et collier sombre assorti au liseré de la case d'arrivée. Entièrement
+   statique (aucun repaint en boucle — la lueur pulsée argentée a été retirée).
    -------------------------------------------------------------------------- */
-@keyframes marbleAnchoredGlow {
-
-    0%,
-    100% {
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5), inset -2px -2px 6px rgba(0, 0, 0, 0.3),
-            0 0 10px 2px rgba($c-silver, 0.55);
-        filter: brightness(1.05) saturate(1.05);
+.marble.marble-anchored {
+    // Collier « douille » par couleur : même teinte que le border des cases
+    // arrival-* (hex assombri), pour fondre la bille dans sa case.
+    @each $name, $hex in $colors {
+        &.marble-#{$name} {
+            --anchor-collar: #{color.adjust($hex, $lightness: -22%)};
+        }
     }
 
-    50% {
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5), inset -2px -2px 6px rgba(0, 0, 0, 0.3),
-            0 0 18px 5px rgba($c-silver, 0.9);
-        filter: brightness(1.2) saturate(1.15);
+    filter: brightness(0.82) saturate(0.8);
+    // Ombre interne en haut = léger creux ; on garde le modelé de base mais
+    // sans l'ombre portée externe (0 4px 8px) qui faisait « flotter » la bille.
+    box-shadow:
+        0 0 0 calc(var(--square-size) * 0.05) var(--anchor-collar, rgba(0, 0, 0, 0.4)),
+        inset 0 3px 6px rgba(0, 0, 0, 0.35),
+        inset -2px -2px 6px rgba(0, 0, 0, 0.3);
+
+    // Reflet atténué : surface matie par le blindage.
+    .marble-highlight {
+        opacity: 0.35;
     }
 }
 
-.marble.marble-anchored {
-    border: 1.5px solid rgba(226, 232, 240, 0.85);
-    animation: marbleAnchoredGlow 2.6s ease-in-out infinite;
+/* --------------------------------------------------------------------------
+   LOCK-IN — séquence one-shot façon « capture Pokéball » quand un joueur
+   rentre son 4e pion (2v2) : le clac de lock.wav part immédiatement, un bref
+   glint + deux petites étoiles jaillissent de chaque bille, puis la bille
+   s'assombrit légèrement et se fond dans l'état marble-anchored ci-dessus.
+   Aucun mouvement de la bille elle-même (pas de secousses).
+
+   ⚠️ Synchronisation son : le composant joue lock.wav à t=0 (transitoires du
+   « ka-chunk » à ~0 et ~70 ms — les délais des étoiles calent dessus) et
+   retire la classe après LOCK_TOTAL_MS (= 900 ms). Toute retouche de durée
+   doit être répercutée dans board.component.ts. La keyframe 100 % doit rester
+   STRICTEMENT identique à l'état statique .marble-anchored (fin sans raccord).
+   -------------------------------------------------------------------------- */
+@keyframes marbleLockIn {
+
+    0% {
+        filter: brightness(1) saturate(1);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5), inset -2px -2px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Glint bref sur le 2e transitoire du clac (~100 ms) : le collier apparaît */
+    12% {
+        filter: brightness(1.3) saturate(1.05);
+        box-shadow:
+            0 0 0 calc(var(--square-size) * 0.05) var(--anchor-collar, rgba(0, 0, 0, 0.4)),
+            0 0 14px 3px rgba(255, 255, 255, 0.35),
+            inset -2px -2px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    /* État final = copie exacte de .marble-anchored */
+    100% {
+        filter: brightness(0.82) saturate(0.8);
+        box-shadow:
+            0 0 0 calc(var(--square-size) * 0.05) var(--anchor-collar, rgba(0, 0, 0, 0.4)),
+            inset 0 3px 6px rgba(0, 0, 0, 0.35),
+            inset -2px -2px 6px rgba(0, 0, 0, 0.3);
+    }
+}
+
+/* Le reflet reste vif pendant le clac puis se matit avec le blindage */
+@keyframes marbleLockHighlight {
+
+    0%,
+    20% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0.35;
+    }
+}
+
+/* Petites étoiles de capture : jaillissent en diagonale au-dessus de la bille */
+@keyframes marbleLockStarL {
+    0% {
+        opacity: 0;
+        transform: translate(0, 0) scale(0.3) rotate(0deg);
+    }
+
+    25% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
+        transform: translate(-90%, -130%) scale(1.05) rotate(-40deg);
+    }
+}
+
+@keyframes marbleLockStarR {
+    0% {
+        opacity: 0;
+        transform: translate(0, 0) scale(0.3) rotate(0deg);
+    }
+
+    25% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
+        transform: translate(90%, -150%) scale(1.1) rotate(45deg);
+    }
+}
+
+.marble.marble-locking {
+    animation: marbleLockIn 0.9s ease-out forwards;
+    pointer-events: none;
+    z-index: 15;
+
+    .marble-highlight {
+        animation: marbleLockHighlight 0.9s ease-out forwards;
+    }
+
+    // Étoiles : pseudo-éléments libres sur les billes du plateau (la texture
+    // planète y est un simple background, ::before/::after inutilisés).
+    &::before,
+    &::after {
+        content: "✦";
+        position: absolute;
+        top: -10%;
+        font-size: calc(var(--square-size) * 0.32);
+        line-height: 1;
+        color: #fff7cc;
+        text-shadow: 0 0 6px rgba(255, 240, 160, 0.9);
+        opacity: 0;
+        pointer-events: none;
+        z-index: 2;
+    }
+
+    // Délais calés sur les deux transitoires du « ka-chunk » (~0 / ~70 ms)
+    &::before {
+        left: -12%;
+        animation: marbleLockStarL 0.65s ease-out 0.05s;
+    }
+
+    &::after {
+        right: -12%;
+        animation: marbleLockStarR 0.65s ease-out 0.12s;
+    }
 }
 
 /* --------------------------------------------------------------------------
@@ -1502,14 +1628,8 @@ $colors: (
         animation: none;
     }
 
-    /* Lueur des pions ancrés : statique au lieu d'un box-shadow animé en boucle
-       (repaint continu, coûteux sur WebView pour un état qui dure toute la
-       fin de partie). La couleur/luminosité restent visibles sans le pulse. */
-    .marble.marble-anchored {
-        animation: none;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5), inset -2px -2px 6px rgba(0, 0, 0, 0.3),
-            0 0 12px 3px rgba($c-silver, 0.7);
-    }
+    /* Pions ancrés : rien à alléger — l'état « blindé » est statique par
+       construction (aucune animation en boucle), voir .marble-anchored. */
 }
 
 @keyframes marblePulseRing {
@@ -1522,4 +1642,44 @@ $colors: (
         transform: scale(1.4);
         opacity: 0;
     }
+}
+/* --------------------------------------------------------------------------
+   MODE ÉDITION (DEBUG) — partie en pause, tout pion déplaçable au clic.
+   -------------------------------------------------------------------------- */
+.board-container.edit-mode {
+
+    // Toute case visible est une cible de dépôt potentielle.
+    .case-path {
+        cursor: pointer;
+
+        &:hover {
+            filter: brightness(1.25);
+        }
+    }
+
+    // En édition, les pions restent cliquables même pendant l'assombrissement
+    // éventuel et par-dessus tout overlay.
+    .marble {
+        cursor: grab;
+    }
+}
+
+.edit-mode-banner {
+    position: absolute;
+    top: calc(var(--square-size) * 0.35);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 45;
+    padding: calc(var(--square-size) * 0.12) calc(var(--square-size) * 0.3);
+    background: linear-gradient(145deg, rgba(20, 28, 46, 0.94), rgba(10, 16, 30, 0.94));
+    border: 1.5px solid rgba($c-gold, 0.75);
+    border-radius: calc(var(--square-size) * 0.3);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 24px rgba($c-gold, 0.35);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 700;
+    font-size: calc(var(--square-size) * 0.18);
+    color: #f8fafc;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+    white-space: nowrap;
+    pointer-events: none;
 }

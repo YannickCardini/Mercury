@@ -24,11 +24,22 @@ import {
     TURN_TIMEOUT_OFFSET_MS,
     CARDS_PER_HAND,
     computeMinAnimationDuration,
+    SQUARES_TO_DISPLAY,
 } from '@mercury/shared';
 import { REACTION_EMOJIS } from "@mercury/shared";
 import type { Action, Card, ClientMessage, GameConfig, GameMode, GameState, GameStatsMessage, MarbleColor, ReactionEmoji } from "@mercury/shared";
 
 const REACTION_COOLDOWN_MS = 2000;
+
+/**
+ * Même sémantique que le DEBUG d'index.ts : active les messages
+ * debugPause/debugResume. Fonction (et non `const` figé à l'import) car
+ * dotenv.config() est appelé dans index.ts APRÈS l'évaluation des imports —
+ * même piège que isTrainMode(), voir train-mode.ts.
+ */
+function isDebugEnabled(): boolean {
+    return process.env['DEBUG'] === 'true';
+}
 
 export class Game {
 
@@ -63,6 +74,19 @@ export class Game {
 
     /** Vrai quand la partie a été annulée (plus aucun humain connecté). */
     private aborted = false;
+
+    // ── Pause debug (édition du plateau) ─────────────────────────────────────
+
+    /**
+     * Vrai quand la partie est suspendue par un `debugPause` (DEBUG uniquement).
+     * Pendant la pause : la boucle se fige au prochain début de tour, le timer
+     * de sécurité se réarme sans imposer de coup, et les `turnTimeout` /
+     * `playAction` entrants sont ignorés.
+     */
+    private debugPaused = false;
+
+    /** Resolve du blocage de la boucle quand la pause survient à une frontière de tour. */
+    private debugResumeResolve: (() => void) | null = null;
 
     /** Vrai quand la partie est terminée (victoire naturelle ou abandon). */
     private gameFinished = false;
@@ -330,6 +354,11 @@ export class Game {
      * cas la boucle principale ne passe pas au joueur suivant.
      */
     private async playOneTurn(): Promise<boolean> {
+        // Pause debug demandée pendant le tour précédent (bot ou animation) :
+        // on se fige ICI, avant le broadcast, pour que la reprise rebroadcaste
+        // un « New turn » cohérent avec l'état édité.
+        await this.waitWhileDebugPaused();
+
         const player = this.players[this.currentPlayerIndex]!;
 
         console.log(`🔄 Tour ${this.turn} (Manche ${this.round}) — ${player.name} (${player.color})`);
@@ -424,6 +453,12 @@ export class Game {
             case 'reaction':
                 this.handleReaction(msg.emoji, senderColor, msg.fromColor);
                 break;
+            case 'debugPause':
+                this.handleDebugPause();
+                break;
+            case 'debugResume':
+                this.handleDebugResume(msg.marblePositions, senderColor);
+                break;
             // start / createRoom / joinRoom sont gérés par SessionManager avant
             // que la Game soit créée — on les ignore silencieusement ici.
             default:
@@ -460,6 +495,82 @@ export class Game {
         });
     }
 
+    // ─── Pause debug : édition du plateau ────────────────────────────────────
+
+    /**
+     * Suspend la partie pour édition (DEBUG uniquement). Idempotent. Pendant un
+     * tour humain la partie est déjà en attente : la pause est effective tout de
+     * suite. Pendant un tour bot/animation, elle prend effet au prochain début
+     * de tour (voir playOneTurn).
+     */
+    private handleDebugPause(): void {
+        if (!isDebugEnabled() || this.gameFinished || this.aborted) return;
+        if (this.debugPaused) return;
+        this.debugPaused = true;
+        console.log(`🛠️ Partie ${this.id} suspendue pour édition du plateau (debug)`);
+    }
+
+    /**
+     * Applique les positions éditées comme nouvel état autoritaire puis reprend
+     * la partie. Rejette (sans reprendre) si l'état reçu est invalide : chaque
+     * couleur doit fournir 4 cases visibles du plateau, sans doublon global.
+     */
+    private handleDebugResume(marblePositions: Record<MarbleColor, number[]>, senderColor: MarbleColor | null): void {
+        if (!isDebugEnabled() || !this.debugPaused || this.gameFinished || this.aborted) return;
+
+        const reject = (reason: string) => {
+            console.warn(`⚠️ debugResume rejeté (partie ${this.id}) : ${reason}`);
+            const msg = { type: 'actionRejected' as const, reason: `Debug: ${reason}` };
+            if (senderColor !== null) this.messenger.sendTo(senderColor, msg);
+            else this.messenger.send(msg);
+        };
+
+        for (const p of this.players) {
+            const next = marblePositions?.[p.color];
+            if (!Array.isArray(next) || next.length !== 4) {
+                return reject(`positions manquantes ou incomplètes pour ${p.color}`);
+            }
+            if (next.some(pos => !Number.isInteger(pos) || !SQUARES_TO_DISPLAY.includes(pos))) {
+                return reject(`case hors plateau pour ${p.color}`);
+            }
+        }
+        const all = this.players.flatMap(p => marblePositions[p.color]);
+        if (new Set(all).size !== all.length) {
+            return reject('deux pions sur la même case');
+        }
+
+        for (const p of this.players) {
+            p.marblePositions = [...marblePositions[p.color]];
+            // Remise à zéro volontaire : l'invincibilité (entrée A/K non encore
+            // déplacée) n'est pas éditable — état simple et prédictible.
+            p.marbleInvincible = [false, false, false, false];
+        }
+
+        this.debugPaused = false;
+        console.log(`▶️ Partie ${this.id} : plateau édité appliqué, reprise de la partie`);
+
+        if (this.debugResumeResolve) {
+            // La boucle était figée à une frontière de tour : playOneTurn va
+            // rebroadcaster « New turn » lui-même avec l'état édité.
+            const resume = this.debugResumeResolve;
+            this.debugResumeResolve = null;
+            resume();
+        } else {
+            // Pause en plein tour humain : le serveur attend toujours l'action.
+            // On rebroadcaste l'état pour resynchroniser tous les clients
+            // (positions éditées, coups légaux recalculés, timers relancés).
+            this.broadcastState(this.players[this.currentPlayerIndex]!, 'New turn');
+        }
+    }
+
+    /** Bloque la boucle de jeu tant qu'une pause debug est active. */
+    private waitWhileDebugPaused(): Promise<void> {
+        if (!this.debugPaused) return Promise.resolve();
+        return new Promise(resolve => {
+            this.debugResumeResolve = resolve;
+        });
+    }
+
     // ─── Gestion des actions humaines ────────────────────────────────────────
 
     /**
@@ -473,6 +584,9 @@ export class Game {
     }
 
     private handleTurnTimeout(senderColor: MarbleColor | null): void {
+        // Pause debug : le timer d'un client peut expirer pendant l'édition —
+        // aucun coup ne doit être imposé tant que la partie est suspendue.
+        if (this.debugPaused) return;
         if (!this.pendingHumanActionResolve) return;
 
         const currentPlayer = this.players[this.currentPlayerIndex]!;
@@ -557,6 +671,8 @@ export class Game {
         }
         this.pendingAnimationResolve?.();
         this.pendingAnimationResolve = null;
+        this.debugResumeResolve?.();
+        this.debugResumeResolve = null;
 
         // Voir le commentaire équivalent dans startGame() : les points sont
         // calculés et envoyés avant de libérer le slot de reconnexion.
@@ -589,6 +705,8 @@ export class Game {
         }
         this.pendingAnimationResolve?.();
         this.pendingAnimationResolve = null;
+        this.debugResumeResolve?.();
+        this.debugResumeResolve = null;
 
         GameRegistry.delete(this.id);
         this.onGameEnded?.(this.id);
@@ -597,6 +715,7 @@ export class Game {
     // ─── Gestion des actions humaines ────────────────────────────────────────
 
     private handlePlayAction(action: Action, senderColor: MarbleColor | null): void {
+        if (this.debugPaused) return; // partie suspendue pour édition (debug)
         if (!this.pendingHumanActionResolve) return; // pas de tour humain en cours
 
         const currentPlayer = this.players[this.currentPlayerIndex]!;
@@ -721,18 +840,25 @@ export class Game {
     private waitForActionOrTimeout(player: Player): Promise<Action> {
         return new Promise<Action>((resolve) => {
             let settled = false;
+            let timer: ReturnType<typeof setTimeout>;
 
             // Timer de sécurité : se déclenche si le frontend ne répond pas
             // (déconnexion, crash). En temps normal, c'est le `turnTimeout` du front
             // qui résout la promesse en premier (via handleTurnTimeout).
-            const timer = setTimeout(() => {
-                if (settled) return;
-                settled = true;
-                this.pendingHumanActionResolve = null;
-                const fallback = this.computeFallbackAction(player);
-                this.pendingTimeoutAction = fallback;
-                resolve(fallback);
-            }, TURN_DURATION_MS + TURN_TIMEOUT_OFFSET_MS);
+            // Pendant une pause debug, il se réarme sans imposer de coup — le
+            // joueur retrouve un tour complet à la reprise.
+            const arm = () => {
+                timer = setTimeout(() => {
+                    if (settled) return;
+                    if (this.debugPaused) { arm(); return; }
+                    settled = true;
+                    this.pendingHumanActionResolve = null;
+                    const fallback = this.computeFallbackAction(player);
+                    this.pendingTimeoutAction = fallback;
+                    resolve(fallback);
+                }, TURN_DURATION_MS + TURN_TIMEOUT_OFFSET_MS);
+            };
+            arm();
 
             player.getAction(this.buildLegalMoveContext(player)).then((action) => {
                 if (settled) return;

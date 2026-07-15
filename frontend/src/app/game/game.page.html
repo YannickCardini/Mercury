@@ -48,6 +48,12 @@
       <div class="debug-result-buttons">
         <button class="debug-result-btn" type="button" (click)="debugShowVictory()" title="Debug: show victory overlay" aria-label="Debug: show victory overlay">🏆</button>
         <button class="debug-result-btn" type="button" (click)="debugShowDefeat()" title="Debug: show defeat overlay" aria-label="Debug: show defeat overlay">💀</button>
+        <button class="debug-result-btn" type="button" [class.debug-result-btn--active]="gameStateService.boardEditMode()"
+          (click)="debugToggleBoardEdit()"
+          [title]="gameStateService.boardEditMode() ? 'Debug: apply edited board and resume' : 'Debug: pause and edit board'"
+          [attr.aria-label]="gameStateService.boardEditMode() ? 'Debug: apply edited board and resume' : 'Debug: pause and edit board'">
+          {{ gameStateService.boardEditMode() ? '▶️' : '✏️' }}
+        </button>
       </div>
       }
     </div>

@@ -1,4 +1,5 @@
-<div class="board-container" [style.--square-size.px]="squareSize() || null" [class.card-selected]="isCardSelected()">
+<div class="board-container" [style.--square-size.px]="squareSize() || null" [class.card-selected]="isCardSelected()"
+  [class.edit-mode]="editMode()">
   <ion-grid class="tock-grid">
     @for (row of rows; track row) {
     <ion-row class="tock-row">
@@ -10,7 +11,8 @@
         <div [class]="getSquareClass(index)" [ngClass]="getSquareAnimClass(index)"
           [class.square-preview-path]="isPreviewPath(index)"
           [class.square-preview-path-marble2]="isPreviewPathMarble2(index)"
-          [class.square-preview-destination]="isPreviewDestination(index)">
+          [class.square-preview-destination]="isPreviewDestination(index)"
+          (click)="onSquareClick(index)">
           <ng-container *ngTemplateOutlet="marbleCell; context: { $implicit: index }"></ng-container>
           <span class="square-number">
             {{ debug ? index : '' }}<div style="font-size: medium;color:white">{{ debug ? '' : (getArrivalNumber(index)
@@ -25,15 +27,24 @@
     }
   </ion-grid>
 
-  <!-- Pastilles joueur dans les quatre coins du plateau -->
+  <!-- Pastilles joueur dans les quatre coins du plateau. Un joueur qui a fini
+       ses 4 pions (2v2) est teinté de la couleur de son coéquipier — il joue
+       désormais pour lui (data-player-color reste la couleur du siège : c'est
+       l'ancre positionnelle des réactions emoji). -->
   @for (slot of cornerSlots(); track slot.color) {
   <app-player-badge class="player-badge-slot" [ngClass]="'player-badge-slot--' + slot.corner"
     [class.player-badge-slot--diamond]="slot.shape === 'diamond'" [attr.data-player-color]="slot.color"
-    [shape]="slot.shape" [player]="getPlayer(slot.color)" [color]="slot.color"
+    [shape]="slot.shape" [player]="getPlayer(slot.color)" [color]="gameStateService.displayColor(slot.color)"
     [isCurrentTurn]="isCurrentTurn(slot.color)" [timeLeft]="gameStateService.timeLeft()"
-    [timer]="displayedGameData()?.gameState?.timer ?? 0" [rank]="playerRankings()[slot.color] ?? null"
-    [finished]="gameStateService.finishedColors().has(slot.color)">
+    [timer]="displayedGameData()?.gameState?.timer ?? 0" [rank]="playerRankings()[slot.color] ?? null">
   </app-player-badge>
+  }
+
+  <!-- Bannière du mode édition (debug) : partie en pause, plateau éditable. -->
+  @if (editMode()) {
+  <div class="edit-mode-banner">
+    🛠️ Edit mode — tap a marble, then a square. Tap ✏️ again to resume.
+  </div>
   }
 
   <!-- Bannière one-shot (2v2) : un joueur vient de rentrer ses 4 pions. -->
@@ -62,7 +73,8 @@
         isSplit7SecondMarble(index) ? 'marble-selected-split2' : '',
         isMyMarble(index)         ? 'marble-mine'        : '',
         isDimmedMarble(index)     ? 'marble-dimmed'      : '',
-        isAnchoredMarble(index)   ? 'marble-anchored'    : ''
+        isAnchoredMarble(index)   ? 'marble-anchored'    : '',
+        isLockingMarble(index)    ? 'marble-locking'     : ''
       ]" (click)="onMarbleClick(index)" (mouseenter)="onMarbleMouseEnter(index)"
       (mouseleave)="onMarbleMouseLeave(index)">
       <div class="marble-highlight"></div>

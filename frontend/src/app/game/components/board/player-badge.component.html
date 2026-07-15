@@ -1,6 +1,6 @@
 <div class="pb" [ngClass]="'pb--' + color()" [class.pb--diamond]="shape() === 'diamond'"
   [class.pb--current]="isCurrentTurn()" [class.pb--urgent]="isUrgent()" [class.pb--disconnected]="!isConnected()"
-  [class.pb--empty]="!player()" [class.pb--finished]="finished()">
+  [class.pb--empty]="!player()">
 
   <!-- Anneau-timer : se vide depuis le haut quand c'est le tour du joueur.
        Variante losange : carré à coins arrondis pivoté de 45° (le tracé d'un
@@ -53,11 +53,6 @@
     <span class="pb-rank" [ngClass]="'pb-rank--' + rankTier()">Rank #{{ rank() }}</span>
     }
   </div>
-  }
-
-  <!-- Médaille « fini, joue pour son coéquipier » (bas-droite de l'avatar) -->
-  @if (finished()) {
-  <div class="pb-finished" title="Finished — now playing for their teammate">🏅</div>
   }
 
   <!-- Indicateur de déconnexion (haut-gauche) -->

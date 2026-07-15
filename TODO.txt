@@ -183,3 +183,7 @@ in X minutes" to all active games. Do NOT make it the primary
 solution — the user explicitly dislikes losing games; it only
 softens the edge cases snapshotting can't cover (e.g. schema-breaking
 changes where old snapshots must be discarded).
+
+=====================================================================
+4. BUG — Joker permet de passer a travers un marble en mode invincibility
+=====================================================================

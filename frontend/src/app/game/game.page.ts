@@ -125,6 +125,8 @@ export class GamePage implements OnDestroy, AfterViewInit {
   // ── Annonce des équipes (2v2) ────────────────────────────────────
 
   private teamIntro = viewChild(TeamIntroOverlayComponent);
+  /** Accès au plateau pour le mode édition debug (pause + édition + reprise). */
+  private boardCmp = viewChild(BoardComponent);
   /** Vrai une fois l'annonce auto-jouée (ou volontairement sautée) pour cette page. */
   private teamIntroTriggered = false;
 
@@ -224,7 +226,9 @@ export class GamePage implements OnDestroy, AfterViewInit {
       const player = gameData.gameState.players.find(
         (p) => p.color === currentTurn
       );
-      this.newTurnColor.set(currentTurn);
+      // Un joueur qui a fini ses 4 pions (2v2) est annoncé avec la couleur de
+      // son coéquipier : c'est pour lui qu'il joue ce tour.
+      this.newTurnColor.set(this.gameStateService.displayColor(currentTurn));
       this.newTurnName.set(player?.name ?? currentTurn);
       this.newTurnPicture.set(player?.picture ?? null);
       this.isReplayBanner.set(this.gameStateService.isReplayTurn());
@@ -308,6 +312,18 @@ export class GamePage implements OnDestroy, AfterViewInit {
     this.gameStateService.clearActiveGameSession();
     this.gameStateService.reset();
     void this.router.navigate(["/home"]);
+  }
+
+  /**
+   * Debug only: toggle the board edit mode. First click pauses the game
+   * server-side and lets you freely move every marble on the board; second
+   * click sends the edited board as the new authoritative state and resumes.
+   */
+  debugToggleBoardEdit(): void {
+    const board = this.boardCmp();
+    if (!board) return;
+    if (this.gameStateService.boardEditMode()) board.exitEditMode();
+    else board.enterEditMode();
   }
 
   /** Debug only: preview the victory overlay without playing a full game. */

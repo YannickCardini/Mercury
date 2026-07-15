@@ -83,6 +83,13 @@ export class GameStateService {
    */
   tutorialHintId = signal<string | null>(null);
 
+  /**
+   * Debug uniquement : vrai quand le plateau est en mode édition (la partie est
+   * suspendue côté serveur via `debugPause`). Piloté par le bouton ✏️ de la
+   * page de jeu ; le board et le timer local s'y adaptent.
+   */
+  boardEditMode = signal(false);
+
   /** Vrai quand c'est le tour du joueur local. */
   isMyTurn = computed(() => {
     const color = this.myPlayerColor();
@@ -129,6 +136,21 @@ export class GameStateService {
     }
     return result;
   });
+
+  /**
+   * Couleur de REPRÉSENTATION d'un joueur hors plateau (badge, bannière de
+   * tour, footer, bannières timeout/auto-play…) : en 2v2, un joueur qui a
+   * rentré ses 4 pions est affiché avec la couleur de son coéquipier — il
+   * joue désormais pour lui. Les billes du board, elles, gardent leur couleur
+   * réelle (état « ancré »), et l'écran de victoire les couleurs d'origine.
+   * Dérivé de `finishedColors` (réactif, correct après reconnexion).
+   */
+  displayColor(color: MarbleColor): MarbleColor;
+  displayColor(color: MarbleColor | null): MarbleColor | null;
+  displayColor(color: MarbleColor | null): MarbleColor | null {
+    if (!color) return null;
+    return this.finishedColors().has(color) ? getTeammateColor(color) : color;
+  }
 
   /**
    * Couleurs déjà vues comme terminées (mémorisation impérative, pas un signal)
@@ -762,6 +784,16 @@ export class GameStateService {
     this.send(JSON.stringify(msg));
   }
 
+  /** Debug uniquement : suspend la partie côté serveur pour éditer le plateau. */
+  sendDebugPause(): void {
+    this.send(JSON.stringify({ type: 'debugPause' }));
+  }
+
+  /** Debug uniquement : applique l'état édité comme nouvel état autoritaire et reprend la partie. */
+  sendDebugResume(marblePositions: Record<MarbleColor, number[]>): void {
+    this.send(JSON.stringify({ type: 'debugResume', marblePositions }));
+  }
+
   sendJoinMatchmaking(playerName?: string, picture?: string, authToken?: string, debug?: boolean): void {
     let browserId = localStorage.getItem('browser_id');
     if (!browserId) {
@@ -863,6 +895,7 @@ export class GameStateService {
     this.isReplayTurn.set(false);
     this.lastActionPlayed = null;
     this.tutorialHintId.set(null);
+    this.boardEditMode.set(false);
     this.finishedColorsSeen.clear();
     this.intentionalClose = true;
     if (this.rejoinTimer) {
