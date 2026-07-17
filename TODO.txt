@@ -1,3 +1,67 @@
-- Lorsqu'on lance l'application android, d'aboard le fond (l'espace) se charge, puis les bouttons apparaisent d'un coup (Play now/custom game/leaderboard...). Ca fait un peu sale. Il y a d'ailleurs le meme probleme lorsqu'on arrive sur la route /game (toujours sur android). Est ce possible de corriger ca ? Ou cela dépend trop des performences/vtiesse de connection de chaque utilisateur ?
+════════════════════════════════════════════════════════════════════════
+TODO — Mercury (frontend)
+════════════════════════════════════════════════════════════════════════
 
-- Sur tablette 960*540, "Time's up, computer play for you" est rogné sur le bord droit. Est ce qu'il y aurait moyen que ce message soit bien afficher sur tous les écrans ? Ou peut etre pas afficher sur certains écran qui ne peuvent pas l'afficher correctement ?
+──────────────────────────────────────────────────────────────────────────
+TÂCHE 1 — [FAIT] Android : apparition brutale ("pop-in") de l'UI au
+          démarrage et à l'arrivée sur /game
+──────────────────────────────────────────────────────────────────────────
+
+Implémenté :
+1. @capacitor/splash-screen installé + configuré (launchAutoHide: false
+   dans frontend/capacitor.config.ts). AppComponent
+   (frontend/src/app/app.component.ts) garde le splash natif affiché
+   jusqu'au premier NavigationEnd/Cancel/Error, avec un double
+   requestAnimationFrame avant SplashScreen.hide() pour laisser le temps
+   au DOM de la route d'être peint.
+2. Animations d'entrée (fondu + slide) ajoutées sur la home
+   (frontend/src/app/home/home.page.scss) : .home-nav, .hero-title-wrap,
+   .home-orbit et chaque .action-btn (stagger via nth-child), avec repli
+   `prefers-reduced-motion`.
+3. Option a) retenue : overlay de chargement au niveau du shell
+   (<app-loading-screen [visible]="navigating()"> dans
+   frontend/src/app/app.component.html), piloté par un signal `navigating`
+   qui suit NavigationStart → NavigationEnd/Cancel/Error dans
+   AppComponent. Couvre toute transition de route, y compris /game,
+   pendant le chargement du chunk lazy + construction du composant.
+
+Reste à faire (nécessite un appareil/émulateur — pas vérifiable en CI) :
+- `npx cap sync android` a été exécuté (plugin ajouté au projet Android).
+  Vérifier concrètement sur appareil/émulateur avec CPU throttling qu'aucun
+  état "fond seul" n'est plus visible, au démarrage à froid et lors de la
+  navigation vers /game (y compris le parcours de reconnexion
+  app.component.ts syncSignedInActiveGame()/gameStarted$).
+- Vérifier visuellement le rendu des animations d'entrée sur la home
+  (timing, absence de flash).
+
+──────────────────────────────────────────────────────────────────────────
+TÂCHE 2 — [FAIT] Bannière "Time's up" rognée sur petits écrans paysage
+          (960×540)
+──────────────────────────────────────────────────────────────────────────
+
+Implémenté (frontend/src/app/game/components/table/table.component.scss,
+règle .timeout-banner) :
+- Suppression de `white-space: nowrap`, ajout de `max-width: calc(100% -
+  2rem)` + `text-align: center` → le message passe sur 2 lignes centrées
+  au lieu d'être rogné. Couvre les deux bannières partageant la classe
+  (timeout ⏰ et déconnexion 🤖).
+- Container query `@container game-board (max-width: 560px)` : resserre
+  padding/font-size/border-radius du pill quand le panneau est étroit
+  (cas 960×540), pour un rendu propre sur 2 lignes plutôt qu'un pill trop
+  étiré.
+- Collision avec .table-timer (barre en haut du panneau) vérifiée dans le
+  code : les deux ne peuvent pas être visibles simultanément pour le même
+  joueur (isMyTurn() devient faux dès qu'un timeout le concernant survient),
+  et en cas de chevauchement résiduel le z-index de la bannière (100) la
+  fait déjà passer au-dessus du timer (30) — aucun ajustement nécessaire.
+
+Reste à faire (vérification visuelle manuelle) :
+- Tester les deux bannières avec le texte le plus long ("Time's up — the
+  computer played for orange") sur 960×540, mobile portrait ~360×740, et
+  desktop, pour confirmer visuellement l'absence de rognage/chevauchement.
+
+──────────────────────────────────────────────────────────────────────────
+Build/typecheck : `npx tsc -p frontend/tsconfig.app.json --noEmit` et
+`npx ng build --configuration production` (dans frontend/) passent tous
+les deux après ces changements.
+──────────────────────────────────────────────────────────────────────────

@@ -435,7 +435,11 @@ function getArrivelCaseIfCanPromote(
         // Un pion invincible sur le chemin (avant d'atteindre la case de
         // départ) bloque la promotion, comme pour un déplacement normal —
         // sinon ce chemin de code (promotion) contourne pathIsClear.
+        // La case de départ elle-même est exclue : le pion promu bifurque
+        // dans le couloir d'arrivée sans l'occuper, donc un pion invincible
+        // de sa propre couleur posé dessus ne le bloque pas.
         const pos = MAIN_PATH[indexOfFrom];
+        if (pos === startPosition) continue;
         const owner = colorAtPosition(pos, marblesByColor);
         if (owner !== null && isInvincible(pos, owner, invincibleMarblesByColor)) {
             return null;

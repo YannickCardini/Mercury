@@ -70,6 +70,22 @@ test('7 (2v2) — le pion du coéquipier promeut dans SES arrivées, pas celles 
     assert.equal(action!.splitMarbleColor, 'blue');
 });
 
+test('7 (2v2) — le second pion promeut même si un pion invincible de sa couleur occupe son start', () => {
+    // Scénario du bug : un pion blue vient d'entrer (invincible sur 217), un
+    // autre pion blue en 220 doit quand même pouvoir promouvoir (3 pas
+    // jusqu'au start + 3 arrivées = 6 pas) — le start est le point de
+    // bifurcation vers les arrivées, il n'est pas traversé.
+    const marbles = { ...emptyByColor(), red: [10], blue: [220, 217] };
+    const ctx: LegalMoveContext = {
+        ...buildTeamCtx('red', marbles),
+        invincibleMarblesByColor: { ...emptyByColor(), blue: [217] },
+    };
+    const action = getLegalSplit7Action(SEVEN, 10, 1, 220, ctx);
+    assert.notEqual(action, null, 'le pion invincible sur son propre start ne doit pas bloquer la promotion');
+    assert.equal(action!.splitType, 'promote');
+    assert.equal(action!.splitTo, 143);
+});
+
 test('7 (2v2) — le second pion peut capturer un pion de sa propre équipe (pas d\'immunité)', () => {
     // Red bouge 10→55 (3 pas), puis blue 86 avance de 4 → 90, occupé par l'autre pion red.
     const marbles = { ...emptyByColor(), red: [10, 90], blue: [86] };

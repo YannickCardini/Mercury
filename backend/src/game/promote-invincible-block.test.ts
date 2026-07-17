@@ -41,6 +41,27 @@ test('Joker (+18) — un pion invincible sur le trajet bloque la promotion', () 
     assert.equal(getLegalAction(JOKER, 8, ctx), null, 'le pion invincible doit bloquer la promotion');
 });
 
+test('Joker (+18) — un pion invincible de SA couleur sur SON start ne bloque PAS la promotion', () => {
+    // Même géométrie que ci-dessus, mais le pion « bloquant » est un pion
+    // GREEN fraîchement entré (invincible) sur le start green (135). Le pion
+    // promu bifurque dans le couloir d'arrivée sans occuper le start : la
+    // promotion doit rester légale (bug observé en 2v2 avec le 7 partagé).
+    const marblesByColor = { ...emptyByColor(), green: [8, 135] };
+    const invincibleMarblesByColor = { ...emptyByColor(), green: [135] };
+    const ctx: LegalMoveContext = {
+        ownMarbles: [8, 135],
+        allMarbles: [8, 135],
+        playerColor: 'green',
+        marblesByColor,
+        invincibleMarblesByColor,
+    };
+
+    const action = getLegalAction(JOKER, 8, ctx);
+    assert.notEqual(action, null, 'le pion invincible sur son propre start ne doit pas bloquer la promotion');
+    assert.equal(action!.type, 'promote');
+    assert.equal(action!.to, 115);
+});
+
 test('Joker (+18) — sans pion invincible sur le trajet, la promotion reste légale', () => {
     // Même géométrie que ci-dessus, mais sans pion bloquant : la promotion
     // doit rester autorisée (non-régression du comportement normal).
