@@ -6,6 +6,8 @@ import { CustomGameManager } from './custom-game-manager.js';
 import { PresenceManager } from './presence-manager.js';
 import { GameRegistry } from './game-registry.js';
 import { ReconnectRegistry } from './reconnect-registry.js';
+import { isBotUserId } from './bot-dispatch.js';
+import { trySeatBotInRestoredGame } from './game-restore.js';
 import { generateRoomCode } from '../utils/utils.js';
 import type { ClientMessage, GameConfig, MarbleColor } from '@mercury/shared';
 
@@ -248,6 +250,14 @@ export class SessionManager {
      * (ou remplit avec des bots après 60 s).
      */
     joinMatchmaking(ws: WebSocket, playerName?: string, browserId?: string, picture?: string, userId?: string): void {
+        // Un agent IA re-dispatché après un redéploiement suit son flux normal
+        // (joinMatchmaking) : s'il reste un siège bot vacant dans une partie
+        // restaurée, il y est redirigé au lieu de la file d'attente. AVANT
+        // rejectIfInActiveGame : si le pool renvoie le même botId, l'entrée
+        // byUser restaurée enverrait sinon un `alreadyInActiveGame` que
+        // l'agent ne sait pas interpréter.
+        if (userId && isBotUserId(userId)
+            && trySeatBotInRestoredGame(ws, userId, this)) return;
         if (userId && this.rejectIfInActiveGame(ws, userId)) return;
         this.matchmaking.joinQueue(ws, playerName, this.reconnect, browserId, picture, userId);
     }

@@ -12,13 +12,14 @@ import crypto from 'node:crypto';
 import { Game } from '../game/game.js';
 import { MultiWsMessenger, wsSend } from '../game/game-messenger.js';
 import { GameRegistry } from './game-registry.js';
+import { isBotUserId, dispatchBotAgent } from './bot-dispatch.js';
 import { isTrainMode } from '../train-mode.js';
 import { getServerGameMode } from '../game-mode.js';
+import { queueSaveSnapshot, queueDeleteSnapshot, isSnapshotStorageConfigured } from '../storage/snapshot-store.js';
 import type { ReconnectRegistry } from './reconnect-registry.js';
 import type { ClientMessage, GameConfig, MarbleColor } from '@mercury/shared';
 
 const COLORS: MarbleColor[] = ['red', 'green', 'blue', 'orange'];
-const BOT_USER_IDS = new Set(['1', '2', '3', '4']);
 const BOT_DISPATCH_TICK_MS = 1_000;
 const BOT_DISPATCH_CHANCE_STEP = 0.01;
 
@@ -131,7 +132,7 @@ export class MatchmakingManager {
         if (!this.session) return;
 
         const hasHuman = this.session.players.some(
-            p => !p.userId || !BOT_USER_IDS.has(p.userId),
+            p => !isBotUserId(p.userId),
         );
         if (!hasHuman) return;
         if (this.session.players.length >= 4) return;
@@ -140,34 +141,7 @@ export class MatchmakingManager {
         if (Math.random() >= this.session.botDispatchChance) return;
 
         this.session.botDispatchChance /= 2;
-        void this.dispatchBotAgent();
-    }
-
-    private async dispatchBotAgent(): Promise<void> {
-        const url = process.env['AGENT_URL'];
-        const secret = process.env['BOT_SECRET'];
-        if (!url || !secret) {
-            console.warn('🤖 AGENT_URL or BOT_SECRET non configuré — dispatch ignoré');
-            return;
-        }
-        try {
-            // Le mode de jeu est transmis pour que l'agent choisisse le modèle
-            // adapté (1v3 chacun-pour-soi vs 2v2 par équipes).
-            const res = await fetch(`${url.replace(/\/$/, '')}/dispatch`, {
-                method: 'POST',
-                headers: { 'X-Bot-Secret': secret, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ gameMode: getServerGameMode() }),
-            });
-            if (res.ok) {
-                console.log('🤖 Bot agent dispatched');
-            } else if (res.status === 503) {
-                console.log('🤖 Agent service occupé (tous les bots sont actifs)');
-            } else {
-                console.warn(`🤖 Dispatch agent a retourné ${res.status}`);
-            }
-        } catch (err) {
-            console.warn('🤖 Dispatch agent a échoué:', err);
-        }
+        void dispatchBotAgent(getServerGameMode());
     }
 
     /**
@@ -262,9 +236,22 @@ export class MatchmakingManager {
         messenger.setOnTempDisconnect((color) => game.markTempDisconnected(color));
         messenger.setOnPermanentDisconnect((color) => game.markDisconnected(color));
 
+        // Persistance blob à chaque fin de tour (survie aux redéploiements) —
+        // jamais en TRAIN_MODE (self-play jetable, souvent sans storage configuré).
+        const persistToBlob = !isTrainMode() && reconnect !== null && isSnapshotStorageConfigured();
+        if (persistToBlob) {
+            game.setOnSnapshot(g => queueSaveSnapshot({
+                ...g.toSnapshotData(),
+                reconnectSlots: reconnect!.getSlotsForGame(g.id),
+            }));
+        }
+
         // Wire up reconnection-slot cleanup (single resign + whole game end)
         game.setOnPlayerAbandoned((gameId, color) => reconnect?.releaseSlot(gameId, color));
-        game.setOnGameEnded((gameId) => reconnect?.releaseGame(gameId));
+        game.setOnGameEnded((gameId) => {
+            reconnect?.releaseGame(gameId);
+            if (persistToBlob) queueDeleteSnapshot(gameId);
+        });
 
         // Register guest player identities and send welcome messages
         for (const p of humanPlayers) {

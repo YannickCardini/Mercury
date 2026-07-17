@@ -50,6 +50,18 @@ export class ReconnectRegistry {
         return this.byUser.get(userId);
     }
 
+    /** Tous les slots d'une partie — persistés dans son snapshot pour que les
+     *  clients puissent rejouer le chemin `joinGame` après un restart serveur. */
+    getSlotsForGame(gameId: string): { guestPlayerId: string; color: MarbleColor; userId?: string }[] {
+        const slots: { guestPlayerId: string; color: MarbleColor; userId?: string }[] = [];
+        for (const [guestPlayerId, identity] of this.byGuest) {
+            if (identity.gameId === gameId) {
+                slots.push({ guestPlayerId, color: identity.color, ...(identity.userId ? { userId: identity.userId } : {}) });
+            }
+        }
+        return slots;
+    }
+
     /**
      * Libère un slot unique — abandon d'un invité ou resign d'un signed-in.
      * Retire le slot des deux index pour que le compte soit délivré et puisse

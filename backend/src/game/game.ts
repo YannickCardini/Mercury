@@ -6,6 +6,7 @@ import { HumanStrategy } from "./human-strategy.js";
 import { getLegalAction, findLegalMoveForCard, getLegalSplit7Action, MAIN_PATH, type LegalMoveContext } from '../utils/utils.js';
 import { MultiWsMessenger, type GameMessenger } from './game-messenger.js';
 import { GameRegistry } from '../session/game-registry.js';
+import { isBotUserId } from '../session/bot-dispatch.js';
 import { updateUserPoints, recomputeRankings, getUserPointsAndRanking } from '../db.js';
 import { computeEndGamePointsDeltas } from './points.js';
 import { isTrainMode } from '../train-mode.js';
@@ -27,9 +28,18 @@ import {
     SQUARES_TO_DISPLAY,
 } from '@mercury/shared';
 import { REACTION_EMOJIS } from "@mercury/shared";
+import { SNAPSHOT_SCHEMA_VERSION, type GameSnapshot } from './game-snapshot.js';
 import type { Action, Card, ClientMessage, GameConfig, GameMode, GameState, GameStatsMessage, MarbleColor, ReactionEmoji } from "@mercury/shared";
 
 const REACTION_COOLDOWN_MS = 2000;
+
+/**
+ * Période de grâce au boot d'une partie restaurée : la boucle attend que les
+ * joueurs se reconnectent avant de rejouer le tour courant. Au-delà, les
+ * absents sont auto-joués (même mécanique que la déconnexion en cours de
+ * partie) et la fenêtre de 180s armée par game-restore fait le ménage.
+ */
+const RESTORED_RECONNECT_GRACE_MS = 30_000;
 
 /**
  * Même sémantique que le DEBUG d'index.ts : active les messages
@@ -43,16 +53,26 @@ function isDebugEnabled(): boolean {
 
 export class Game {
 
-    readonly id: string = crypto.randomUUID();
+    readonly id: string;
 
     private players: Player[];
     /** Mode de jeu de la partie — fixé à la création (voir getServerGameMode). */
     private readonly gameMode: GameMode;
     private turn: number = 0;
     private round: number = 0;
-    private readonly startTime: number = Date.now();
+    private readonly startTime: number;
     private firstPlayerOfRound: number = 0;
     private currentPlayerIndex: number = 0;
+    /** Vrai pour une partie réhydratée depuis un snapshot (voir fromSnapshot). */
+    private readonly restored: boolean;
+
+    /**
+     * Couleurs des sièges tenus par un agent IA externe, reportées du snapshot.
+     * Un agent d'une partie restaurée peut n'avoir pas encore ré-authentifié
+     * son compte dans CE process (auto-play en attendant) : sans ce report, le
+     * prochain snapshot le reclasserait en humain (voir isBotSeat).
+     */
+    private readonly botSeatColors = new Set<MarbleColor>();
     private deck: Deck;
     private messenger: GameMessenger;
     private discardedCards: Card[] = [];
@@ -100,6 +120,10 @@ export class Game {
     /** Callback appelé quand la partie se termine/annule (libère tous les slots). */
     private onGameEnded: ((gameId: string) => void) | null = null;
 
+    /** Callback appelé à chaque point de sauvegarde (fin de tour, distribution).
+     *  Jamais câblé pour les parties DEBUG single-device et TRAIN_MODE. */
+    private onSnapshot: ((game: Game) => void) | null = null;
+
     /** Timestamp de la dernière réaction emoji envoyée par chaque joueur (anti-spam). */
     private lastReactionAt = new Map<MarbleColor, number>();
 
@@ -113,10 +137,14 @@ export class Game {
 
     // ─────────────────────────────────────────────────────────────────────────
 
-    constructor(config: GameConfig, messenger: GameMessenger) {
+    constructor(config: GameConfig, messenger: GameMessenger, snapshot?: GameSnapshot) {
         this.messenger = messenger;
-        // Le mode vient de la config (tests) ou de l'env serveur (GAME_MODE).
-        this.gameMode = config.gameMode ?? getServerGameMode();
+        this.id = snapshot?.gameId ?? crypto.randomUUID();
+        this.startTime = snapshot?.startTime ?? Date.now();
+        this.restored = snapshot !== undefined;
+        // Le mode vient du snapshot (restauration — l'env a pu changer entre
+        // deux déploiements), de la config (tests) ou de l'env serveur (GAME_MODE).
+        this.gameMode = snapshot?.gameMode ?? config.gameMode ?? getServerGameMode();
 
         this.players = config.players.map(cfg => {
             const player = new Player(
@@ -133,6 +161,10 @@ export class Game {
         });
 
         this.deck = new Deck();
+
+        if (snapshot) {
+            this.applySnapshot(snapshot);
+        }
 
         // Handler centralisé : toute la logique WS passe par ici
         messenger.onMessage((msg, senderColor) => this.handleClientMessage(msg, senderColor));
@@ -172,6 +204,120 @@ export class Game {
 
     setOnGameEnded(cb: (gameId: string) => void): void {
         this.onGameEnded = cb;
+    }
+
+    setOnSnapshot(cb: (game: Game) => void): void {
+        this.onSnapshot = cb;
+    }
+
+    // ─── Persistance (survie aux redéploiements) ─────────────────────────────
+
+    /**
+     * Reconstruit une partie depuis un snapshot persisté. L'état transient
+     * (messenger, stratégies, promesses, timers) est recréé par le constructeur ;
+     * les joueurs humains repartent déconnectés et la boucle attend leurs
+     * reconnexions (voir waitForRestoredReconnections). Les callbacks
+     * (setOnGameEnded, setOnSnapshot…) restent à câbler par l'appelant, comme
+     * aux sites de lancement normaux.
+     */
+    static fromSnapshot(snapshot: GameSnapshot, messenger: GameMessenger): Game {
+        const config: GameConfig = {
+            gameMode: snapshot.gameMode,
+            // L'ordre de players[] doit être celui du snapshot : les index
+            // currentPlayerIndex/firstPlayerOfRound s'y réfèrent.
+            players: snapshot.players.map(p => ({
+                color: p.color,
+                name: p.name,
+                isHuman: p.isHuman,
+                ...(p.picture !== undefined ? { picture: p.picture } : {}),
+                ...(p.userId !== undefined ? { userId: p.userId } : {}),
+            })),
+        };
+        return new Game(config, messenger, snapshot);
+    }
+
+    /** Applique l'état persisté (appelé par le constructeur, joueurs déjà créés). */
+    private applySnapshot(snapshot: GameSnapshot): void {
+        this.turn = snapshot.turn;
+        this.round = snapshot.round;
+        this.firstPlayerOfRound = snapshot.firstPlayerOfRound;
+        this.currentPlayerIndex = snapshot.currentPlayerIndex;
+        this.deck.setCards(snapshot.deckCards);
+        this.discardedCards = [...snapshot.discardedCards];
+        this.penalizedUserIds = new Set(snapshot.penalizedUserIds);
+        snapshot.players.forEach((ps, i) => {
+            if (ps.isBot) this.botSeatColors.add(ps.color);
+            const player = this.players[i]!;
+            player.cards = [...ps.cards];
+            player.marblePositions = [...ps.marblePositions];
+            player.marbleInvincible = [...ps.marbleInvincible];
+            // Personne n'est encore reconnecté ; resendStateToPlayer remettra
+            // le flag à true au fil des `joinGame`. Les sièges IA internes
+            // (AiStrategy) restent connectés — ils ne dépendent d'aucune socket.
+            if (player.isHuman) player.isConnected = false;
+        });
+    }
+
+    /**
+     * État complet sérialisable de la partie, hors slots de reconnexion —
+     * l'appelant (site de lancement) les ajoute depuis le ReconnectRegistry.
+     */
+    toSnapshotData(): Omit<GameSnapshot, 'reconnectSlots'> {
+        return {
+            schemaVersion: SNAPSHOT_SCHEMA_VERSION,
+            savedAt: Date.now(),
+            gameId: this.id,
+            gameMode: this.gameMode,
+            turn: this.turn,
+            round: this.round,
+            firstPlayerOfRound: this.firstPlayerOfRound,
+            currentPlayerIndex: this.currentPlayerIndex,
+            startTime: this.startTime,
+            deckCards: this.deck.getCards(),
+            discardedCards: [...this.discardedCards],
+            penalizedUserIds: [...this.penalizedUserIds],
+            players: this.players.map(p => ({
+                name: p.name,
+                color: p.color,
+                isHuman: p.isHuman,
+                ...(this.isBotSeat(p) ? { isBot: true } : {}),
+                marblePositions: [...p.marblePositions],
+                marbleInvincible: [...p.marbleInvincible],
+                cards: [...p.cards],
+                ...(p.picture !== undefined ? { picture: p.picture } : {}),
+                ...(p.userId !== undefined ? { userId: p.userId } : {}),
+            })),
+        };
+    }
+
+    /** Siège tenu par un agent IA externe : compte authentifié comme bot dans
+     *  ce process, ou siège déjà marqué bot dans le snapshot d'origine. */
+    private isBotSeat(player: Player): boolean {
+        return isBotUserId(player.userId) || this.botSeatColors.has(player.color);
+    }
+
+    /**
+     * Point de sauvegarde. Jamais après la victoire : un snapshot d'une partie
+     * gagnée serait rejoué au restore et réattribuerait les points de fin de
+     * partie une seconde fois.
+     */
+    private persist(): void {
+        if (this.gameFinished || this.aborted || this.gameIsOver()) return;
+        this.onSnapshot?.(this);
+    }
+
+    /** Force une sauvegarde immédiate (flush SIGTERM). No-op si non câblé/terminé. */
+    persistNow(): void {
+        this.persist();
+    }
+
+    /**
+     * Réassigne le compte d'un siège — un agent IA re-dispatché après un
+     * redéploiement peut recevoir un botId différent de celui d'origine.
+     */
+    updatePlayerUserId(color: MarbleColor, userId: string): void {
+        const player = this.players.find(p => p.color === color);
+        if (player) player.userId = userId;
     }
 
     /**
@@ -297,11 +443,18 @@ export class Game {
     // ─── Boucle principale ────────────────────────────────────────────────────
 
     private async startGame() {
-        console.log("🎮 Game started");
-
-        this.firstPlayerOfRound = 0;
-        this.currentPlayerIndex = 0;
-        this.dealCards();
+        if (this.restored) {
+            // Partie réhydratée : l'état (mains, pioche, index de tour) vient du
+            // snapshot — surtout ne pas redistribuer. On laisse aux joueurs le
+            // temps de se reconnecter avant de rejouer le tour courant.
+            await this.waitForRestoredReconnections();
+            if (this.aborted || this.gameFinished) return;
+        } else {
+            console.log("🎮 Game started");
+            this.firstPlayerOfRound = 0;
+            this.currentPlayerIndex = 0;
+            this.dealCards();
+        }
 
         while (!this.aborted && !this.gameIsOver()) {
             if (this.allHandsEmpty()) {
@@ -319,6 +472,7 @@ export class Game {
                 this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
             }
             this.turn++;
+            this.persist();
         }
 
         if (!this.aborted) {
@@ -346,6 +500,28 @@ export class Game {
         this.currentPlayerIndex = this.firstPlayerOfRound;
         console.log(`📦 Nouvelle manche ${this.round} - Premier joueur: ${this.players[this.firstPlayerOfRound]!.name}`);
         this.dealCards();
+    }
+
+    /**
+     * Attend le retour des joueurs d'une partie restaurée (grâce de 30s, sortie
+     * anticipée dès que tous les sièges humains sont reconnectés). Au-delà, la
+     * boucle reprend : les absents passent par l'auto-play « déconnecté »
+     * existant de playOneTurn, et les fenêtres de 180s armées par game-restore
+     * finissent par aborter une partie que personne ne rejoint.
+     */
+    private async waitForRestoredReconnections(): Promise<void> {
+        console.log(`⏸️ Partie ${this.id} restaurée — attente des reconnexions (max ${RESTORED_RECONNECT_GRACE_MS / 1000}s)`);
+        const deadline = Date.now() + RESTORED_RECONNECT_GRACE_MS;
+        while (Date.now() < deadline && !this.aborted && !this.gameFinished) {
+            if (this.players.every(p => !p.isHuman || p.isConnected)) {
+                console.log(`▶️ Partie ${this.id} — tous les joueurs sont revenus, reprise`);
+                return;
+            }
+            await new Promise(resolve => setTimeout(resolve, 1_000));
+        }
+        if (!this.aborted && !this.gameFinished) {
+            console.log(`▶️ Partie ${this.id} — reprise après la période de grâce (sièges absents auto-joués)`);
+        }
     }
 
     /**
@@ -1190,6 +1366,10 @@ export class Game {
             player.cards = this.deck.drawCards(cardsPerHand);
         }
         console.log(`🃏 Distribution - Manche ${this.round} (${cardsPerHand} cartes/joueur, réserve: ${this.deck.remainingCards()})`);
+        // Point de sauvegarde juste après la distribution : un crash entre la
+        // distribution et la première fin de tour ne doit pas redistribuer des
+        // mains différentes au restore.
+        this.persist();
     }
 
     private gameIsOver(): boolean {

@@ -10,6 +10,7 @@ import { createServer, type IncomingMessage } from 'http';
 import { WebSocketServer } from 'ws';
 import { SessionManager } from './session/session-manager.js';
 import { GameRegistry } from './session/game-registry.js';
+import { rehydrateGames, flushAllSnapshots } from './session/game-restore.js';
 import type { ClientMessage } from '@mercury/shared';
 import { MultiWsMessenger, wsSend } from './game/game-messenger.js';
 import authRouter, { verifyAuth } from './auth/auth-router.js';
@@ -272,7 +273,47 @@ async function handleSetupMessage(ws: WebSocket, msg: ClientMessage): Promise<vo
     }
 }
 
-server.listen(PORT, () => {
-    console.log(`🚀 Serveur hybride (HTTP + WS) prêt sur le port ${PORT}`);
-    console.log(`🔐 Origines autorisées: ${allowedOrigins.join(', ')}${DEBUG ? ' (DEBUG actif)' : ''}`);
-});
+// ─── Boot & shutdown ──────────────────────────────────────────────────────────
+// Réhydrater AVANT listen : un `joinGame` accepté sur un registre encore vide
+// recevrait "Session expired" — que le frontend traite comme définitif (purge
+// du localStorage, retour à l'accueil). Avant listen, la connexion TCP du
+// client échoue simplement et son backoff de rejoin réessaie.
+
+async function boot(): Promise<void> {
+    try {
+        const restored = await Promise.race([
+            rehydrateGames(sessionManager),
+            new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error('rehydrate timeout')), 15_000).unref()),
+        ]);
+        if (restored > 0) console.log(`💾 ${restored} partie(s) en cours restaurée(s) depuis le blob storage`);
+    } catch (err) {
+        console.error('💾 Réhydratation échouée — démarrage avec un registre vide:', err);
+    }
+
+    server.listen(PORT, () => {
+        console.log(`🚀 Serveur hybride (HTTP + WS) prêt sur le port ${PORT}`);
+        console.log(`🔐 Origines autorisées: ${allowedOrigins.join(', ')}${DEBUG ? ' (DEBUG actif)' : ''}`);
+    });
+}
+void boot();
+
+// Flush best-effort au shutdown (redéploiement/restart App Service). La
+// persistance par tour reste le mécanisme principal : un crash brutal ne
+// reçoit aucun signal et la fenêtre de grâce d'Azure est courte.
+let shuttingDown = false;
+async function flushAndExit(signal: string): Promise<void> {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    console.log(`🛑 ${signal} reçu — flush des snapshots de parties en cours`);
+    try {
+        await Promise.race([
+            flushAllSnapshots(),
+            new Promise<void>(resolve => setTimeout(resolve, 5_000).unref()),
+        ]);
+    } finally {
+        process.exit(0);
+    }
+}
+process.on('SIGTERM', () => void flushAndExit('SIGTERM'));
+process.on('SIGINT', () => void flushAndExit('SIGINT'));

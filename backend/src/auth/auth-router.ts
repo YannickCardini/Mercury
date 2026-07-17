@@ -5,6 +5,7 @@ import multer, { MulterError } from 'multer';
 import { getUsersContainer } from '../db.js';
 import { processToWebp, uploadAvatarWebp } from '../storage/blob.js';
 import { signSessionToken, verifySessionToken } from './session-token.js';
+import { registerBotUserId } from '../session/bot-dispatch.js';
 
 const router = Router();
 
@@ -326,6 +327,10 @@ router.post('/bot', async (req: Request, res: Response) => {
         }
         resource.lastLogin = new Date().toISOString();
         await container.item(botId, botId).replace(resource);
+        // Mémorise ce compte comme bot : la détection des sièges d'agents
+        // (matchmaking, re-seat post-restauration) ne peut pas reposer sur une
+        // liste statique, les botIds du pool étant arbitraires.
+        registerBotUserId(resource.id);
         // sessionToken : nécessaire depuis que le WebSocket authentifie les
         // joueurs — l'agent IA doit l'inclure (authToken) dans son joinMatchmaking.
         res.json({

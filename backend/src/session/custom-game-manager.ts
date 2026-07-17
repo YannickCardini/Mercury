@@ -18,6 +18,8 @@ import crypto from 'node:crypto';
 import { Game } from '../game/game.js';
 import { MultiWsMessenger, wsSend } from '../game/game-messenger.js';
 import { GameRegistry } from './game-registry.js';
+import { isTrainMode } from '../train-mode.js';
+import { queueSaveSnapshot, queueDeleteSnapshot, isSnapshotStorageConfigured } from '../storage/snapshot-store.js';
 import type { GameConfig, MarbleColor, ClientMessage, CustomRoomPlayerInfo } from '@mercury/shared';
 import type { MatchmakingManager } from './matchmaking-manager.js';
 import type { PresenceManager } from './presence-manager.js';
@@ -472,8 +474,21 @@ export class CustomGameManager {
         GameRegistry.register(game.id, game);
         messenger.setOnTempDisconnect((color) => game.markTempDisconnected(color));
         messenger.setOnPermanentDisconnect((color) => game.markDisconnected(color));
+
+        // Persistance blob à chaque fin de tour (survie aux redéploiements).
+        const persistToBlob = !isTrainMode() && isSnapshotStorageConfigured();
+        if (persistToBlob) {
+            game.setOnSnapshot(g => queueSaveSnapshot({
+                ...g.toSnapshotData(),
+                reconnectSlots: reconnect.getSlotsForGame(g.id),
+            }));
+        }
+
         game.setOnPlayerAbandoned((gameId, color) => reconnect.releaseSlot(gameId, color));
-        game.setOnGameEnded((gameId) => reconnect.releaseGame(gameId));
+        game.setOnGameEnded((gameId) => {
+            reconnect.releaseGame(gameId);
+            if (persistToBlob) queueDeleteSnapshot(gameId);
+        });
         for (const p of players) {
             reconnect.register(p.guestPlayerId, game.id, p.color, p.userId);
             messenger.sendTo(p.color, {

@@ -159,15 +159,37 @@ export class MultiWsMessenger implements GameMessenger {
             // close, so production disconnects can be attributed reliably.
             const reason = event.reason ? ` "${event.reason}"` : '';
             console.log(`⏳ ${color} disconnected (code=${event.code}${reason}) — 180s reconnection window started`);
-            const timer = setTimeout(() => {
-                this.disconnectTimers.delete(color);
-                this.connections.delete(color);
-                console.log(`❌ ${color} reconnection window expired — permanently disconnected`);
-                this.onPermanentDisconnect?.(color);
-            }, RECONNECT_WINDOW_MS);
-
-            this.disconnectTimers.set(color, timer);
+            this.startDisconnectTimer(color);
         });
+    }
+
+    private startDisconnectTimer(color: MarbleColor): void {
+        const timer = setTimeout(() => {
+            this.disconnectTimers.delete(color);
+            this.connections.delete(color);
+            console.log(`❌ ${color} reconnection window expired — permanently disconnected`);
+            this.onPermanentDisconnect?.(color);
+        }, RECONNECT_WINDOW_MS);
+
+        this.disconnectTimers.set(color, timer);
+    }
+
+    /**
+     * Démarre la fenêtre de 180s pour un siège sans socket vivante — cas d'une
+     * partie restaurée après redéploiement, où personne ne s'est encore
+     * reconnecté. Permet aux invités de repasser par le cas 1 de `reconnect()`
+     * (timer en attente), et à l'expiration de déclencher le nettoyage habituel
+     * via onPermanentDisconnect. N'émet PAS onTempDisconnect : les joueurs sont
+     * déjà marqués déconnectés par la restauration. Idempotent.
+     */
+    armReconnectWindow(color: MarbleColor): void {
+        if (this.connections.has(color) || this.disconnectTimers.has(color)) return;
+        this.startDisconnectTimer(color);
+    }
+
+    /** Vrai si une socket est actuellement liée à cette couleur. */
+    hasConnection(color: MarbleColor): boolean {
+        return this.connections.has(color);
     }
 
     /**

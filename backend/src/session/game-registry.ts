@@ -25,6 +25,11 @@ class GameRegistryImpl {
         this.games.delete(gameId);
     }
 
+    /** Toutes les parties vivantes (flush des snapshots au shutdown). */
+    all(): Game[] {
+        return [...this.games.values()];
+    }
+
     private ensureSweeper(): void {
         if (this.sweepTimer) return;
         this.sweepTimer = setInterval(() => this.sweep(), SWEEP_INTERVAL_MS);

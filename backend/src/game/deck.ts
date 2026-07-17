@@ -140,5 +140,13 @@ export class Deck {
         return this.cards.length;
     }
 
+    /** Pioche restante, dans l'ordre (snapshot de persistance). */
+    getCards(): Card[] {
+        return [...this.cards];
+    }
 
+    /** Restaure la pioche depuis un snapshot, en préservant l'ordre. */
+    setCards(cards: Card[]): void {
+        this.cards = [...cards];
+    }
 }
