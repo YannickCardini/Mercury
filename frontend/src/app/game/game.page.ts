@@ -197,7 +197,14 @@ export class GamePage implements OnDestroy, AfterViewInit {
       // L'annonce occupe le plateau : on masque la bannière de tour qui
       // aurait pu s'afficher pour le premier tour (pas de superposition).
       this.showNewTurnBanner.set(false);
-      intro.play();
+      // Attend la fin du fondu de sortie de l'écran de chargement (transition
+      // CSS de 0.25s, voir loading-screen.component.scss) avant de lancer
+      // l'annonce : son glissement (cubic-bezier très ease-out, cf.
+      // team-intro-overlay.component.scss) est presque entièrement joué dès
+      // les premières ~250ms, donc le démarrer PENDANT le fondu le fait
+      // apparaître déjà en place ("pop") au lieu de le voir glisser depuis
+      // le bord une fois l'écran de chargement effacé.
+      setTimeout(() => intro.play(), 300);
     });
 
     // Empêche l'écran de se verrouiller pendant SON tour : sur Android le

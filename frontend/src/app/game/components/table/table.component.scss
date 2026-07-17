@@ -853,15 +853,22 @@
     left: 50%;
     transform: translateX(-50%);
     z-index: 100;
+    // Empêche le message (ex. "Time's up — the computer played for orange")
+    // d'être rogné sur les petits panneaux (ex. tablette 960×540 paysage) :
+    // on autorise le retour à la ligne au lieu de nowrap, borné par le
+    // conteneur du plateau (.game-board a overflow: hidden). Pas de flex ici
+    // — icône + texte restent dans le même flux inline pour se centrer comme
+    // un seul paragraphe une fois passés sur 2 lignes (une mise en page en
+    // colonnes façon flex déséquilibre visuellement le rendu multi-lignes).
+    max-width: calc(100% - 2rem);
+    box-sizing: border-box;
+    text-align: center;
 
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
     padding: 0.6rem 1.2rem;
-    border-radius: 999px;
+    border-radius: 20px;
     font-size: 0.85rem;
     font-weight: 600;
-    white-space: nowrap;
+    line-height: 1.35;
     pointer-events: none;
 
     background: rgba(248, 113, 113, 0.15);
@@ -876,6 +883,8 @@
 
     .timeout-icon {
         font-size: 1rem;
+        margin-right: 0.4rem;
+        vertical-align: -0.1em;
     }
 
     // Teinte spécifique par couleur de joueur (optionnel)

@@ -2,10 +2,17 @@ import {
   Component,
   OnInit,
   inject,
+  signal,
   ChangeDetectionStrategy,
 } from "@angular/core";
-import { Router, RouterOutlet } from "@angular/router";
-import { take } from "rxjs";
+import {
+  NavigationCancel,
+  NavigationEnd,
+  NavigationError,
+  Router,
+  RouterOutlet,
+} from "@angular/router";
+import { filter, take } from "rxjs";
 import { GameStateService } from "./game/services/game-state.service";
 import { TabLockService } from "./game/services/tab-lock.service";
 import { AppResumeService } from "./services/app-resume.service";
@@ -15,8 +22,10 @@ import { ActiveGameService } from "./services/active-game.service";
 import { ToastService } from "./shared/toast.service";
 import { UpdateAvailableModalComponent } from "./shared/update-available-modal.component";
 import { SpaceBackgroundComponent } from "./shared/space-background.component";
+import { LoadingScreenComponent } from "./shared/loading-screen.component";
 import { environment } from "../environments/environment";
 import { StatusBar } from "@capacitor/status-bar";
+import { SplashScreen } from "@capacitor/splash-screen";
 
 @Component({
   selector: "app-root",
@@ -26,6 +35,7 @@ import { StatusBar } from "@capacitor/status-bar";
     RouterOutlet,
     UpdateAvailableModalComponent,
     SpaceBackgroundComponent,
+    LoadingScreenComponent,
   ],
 })
 export class AppComponent implements OnInit {
@@ -39,8 +49,48 @@ export class AppComponent implements OnInit {
   protected appUpdate = inject(AppUpdateService);
   protected toast = inject(ToastService);
 
+  /**
+   * True until the very first route has finished resolving (cold-start
+   * navigation only). Drives a shell-level `<app-loading-screen>` so the
+   * bare space background is never exposed before the first route paints.
+   *
+   * Deliberately scoped to that first navigation only — re-arming it on
+   * every subsequent in-app navigation (e.g. Play Now → /game) caused a
+   * jarring extra flash: routes like GamePage already own a loading UI
+   * synced to real readiness (data + board size), which also times the
+   * team-intro-overlay reveal, and layering this generic overlay on top of
+   * that carefully-timed sequence broke it instead of smoothing it out.
+   */
+  protected readonly navigating = signal(true);
+
   async ngOnInit(): Promise<void> {
     StatusBar.setOverlaysWebView({ overlay: false }).catch(() => {});
+
+    // Ne couvre que le tout premier routage (démarrage à froid) : le splash
+    // natif Android (launchAutoHide: false, voir capacitor.config.ts) et
+    // l'overlay du shell restent affichés jusqu'à ce que cette première
+    // route ait fini de se peindre — sans ça, le splash/overlay disparaît
+    // dès la 1re frame du WebView et expose le fond spatial nu pendant le
+    // chargement du chunk lazy. Double rAF : laisse le navigateur peindre le
+    // DOM déjà mis à jour par NavigationEnd avant de révéler la WebView.
+    this.router.events
+      .pipe(
+        filter(
+          (e): e is NavigationEnd | NavigationCancel | NavigationError =>
+            e instanceof NavigationEnd ||
+            e instanceof NavigationCancel ||
+            e instanceof NavigationError
+        ),
+        take(1)
+      )
+      .subscribe(() => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            this.navigating.set(false);
+            SplashScreen.hide().catch(() => {});
+          });
+        });
+      });
 
     // Vérifie la disponibilité d'une mise à jour au démarrage à froid, puis à
     // chaque reprise de l'app (resumed$ est déjà débouncé côté AppResumeService).

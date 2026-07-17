@@ -70,6 +70,48 @@
   }
 }
 
+// ─── Entrance animations ────────────────────────────────────────────────────
+// Fait apparaître les éléments principaux en fondu + léger déplacement plutôt
+// que d'un bloc : sur Android, le rendu de la route (chunk lazy) peut arriver
+// tard après le fond spatial déjà visible, et un "pop" brutal de toute l'UI
+// paraît alors cassé. `animation-fill-mode: both` garde l'élément invisible
+// avant le déclenchement pour éviter un flash de contenu non stylé.
+@keyframes entranceUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes entranceDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  .home-nav,
+  .hero-title-wrap,
+  .home-orbit,
+  .hero-actions .action-btn {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
 // ─── Top navigation ───────────────────────────────────────────────────────────
 .home-nav {
   position: relative;
@@ -79,6 +121,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px;
+  animation: entranceDown 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .nav-brand {
@@ -152,6 +195,7 @@
 // ─── Animated title ───────────────────────────────────────────────────────────
 .hero-title-wrap {
   text-align: center;
+  animation: entranceUp 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.05s both;
 }
 
 .hero-title {
@@ -205,6 +249,7 @@
 // ─── Marble orbit decoration ──────────────────────────────────────────────────
 .home-orbit {
   flex-shrink: 0;
+  animation: entranceUp 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both;
 
   @media (orientation: landscape) {
     display: none;
@@ -286,6 +331,14 @@
   transition: transform 0.18s, box-shadow 0.18s, background 0.18s;
   position: relative;
   overflow: hidden;
+  animation: entranceUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+
+  // Stagger : chaque bouton apparaît un peu après le précédent.
+  @for $i from 1 through 3 {
+    &:nth-child(#{$i}) {
+      animation-delay: #{0.22 + ($i - 1) * 0.08}s;
+    }
+  }
 
   // Shine on hover
   &::before {

@@ -3,6 +3,10 @@
 
 <router-outlet></router-outlet>
 
+<!-- Overlay affiché pendant les transitions de route (chargement du chunk lazy +
+     construction du composant) : masque le fond spatial nu entre deux pages. -->
+<app-loading-screen [visible]="navigating()"></app-loading-screen>
+
 <!-- Toast global : feedback transitoire (action rejetée, reconnexion, partie annulée…) -->
 @if (toast.message(); as toastMsg) {
 <div class="app-toast" [class.error]="toast.kind() === 'error'" role="status" aria-live="polite">
