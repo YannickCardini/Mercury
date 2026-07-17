@@ -1,0 +1,96 @@
+// ═══════════════════════════════════════════════════════════════════════════
+//  Ruban « bannière » — titres de modales
+// ───────────────────────────────────────────────────────────────────────────
+//  Transforme un titre (h2 / div) en bannière à pans repliés, façon écrans
+//  de jeu (Victory / Defeat), déclinée aux teintes de la palette
+//  « Système solaire » :
+//
+//        ╭──────────────────╮
+//     ◄──┤   GAME  RULES    ├──►      bande bombée + pans en queue d'aronde
+//        ╰──────────────────╯
+//
+//  Usage :
+//      @use "../styles/ribbon" as *;
+//
+//      .modal-header { @include ribbon-host; }          // conteneur du titre
+//      .modal-title  { @include ribbon-title($c-blue); }
+//
+//  ribbon-host isole le contexte d'empilement : les pans latéraux (z-index -1)
+//  passent derrière la bande centrale sans plonger sous le fond de la card.
+//  Pour décliner un état (.defeat, .by-default…), ré-inclure uniquement
+//  ribbon-colors($autre-teinte) — la géométrie est déjà en place.
+//
+//  Toutes les cotes sont en em : la bannière suit le font-size du titre.
+// ═══════════════════════════════════════════════════════════════════════════
+@use "sass:color";
+
+@mixin ribbon-host {
+  isolation: isolate;
+}
+
+// ─── Couleurs seules (bande + pans) — pour les variantes d'état ───────────────
+@mixin ribbon-colors($hue, $ink: #fff) {
+  $band-hi: color.scale($hue, $lightness: 26%, $saturation: 8%);
+  $band-lo: color.scale($hue, $lightness: -20%);
+  $tail: color.scale($hue, $lightness: -32%, $saturation: -14%);
+  $tail-lo: color.scale($hue, $lightness: -48%, $saturation: -18%);
+
+  color: $ink;
+  background: linear-gradient(180deg, $band-hi, $hue 52%, $band-lo);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),      // liseré lumineux en crête
+    inset 0 -0.14em 0.3em rgba(0, 0, 0, 0.28),   // creux sous la bande
+    0 0.18em 0.5em rgba(0, 0, 0, 0.45),          // ombre portée
+    0 0 1.1em rgba($hue, 0.32);                  // halo céleste
+
+  &::before,
+  &::after {
+    // Voile sombre en haut du pan (pli sous la bande) + dégradé du pan.
+    background:
+      linear-gradient(180deg, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0) 55%),
+      linear-gradient(180deg, $tail, $tail-lo);
+  }
+}
+
+// ─── Bannière complète (géométrie + couleurs) ─────────────────────────────────
+@mixin ribbon-title($hue, $ink: #fff) {
+  position: relative;
+  display: inline-block;
+  margin: 0;
+  padding: 0.42em 1.1em 0.5em;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35), 0 2px 6px rgba(0, 0, 0, 0.3);
+  // Bombé léger : rayons verticaux plus amples que les horizontaux.
+  border-radius: 0.45em 0.45em 0.55em 0.55em / 0.9em 0.9em 1.1em 1.1em;
+
+  &::before,
+  &::after {
+    content: "";
+    position: absolute;
+    z-index: -1; // derrière la bande, devant le fond de la card (cf. ribbon-host)
+    top: 0.34em;
+    width: 1.5em;
+    height: 100%;
+    box-shadow: 0 0.2em 0.45em rgba(0, 0, 0, 0.4);
+  }
+
+  // Pan gauche — encoche en queue d'aronde, légère plongée vers l'extérieur.
+  &::before {
+    left: -0.85em;
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 30% 50%);
+    transform: rotate(-4deg);
+    transform-origin: 100% 30%;
+  }
+
+  // Pan droit — miroir.
+  &::after {
+    right: -0.85em;
+    clip-path: polygon(0 0, 100% 0, 70% 50%, 100% 100%, 0 100%);
+    transform: rotate(4deg);
+    transform-origin: 0 30%;
+  }
+
+  @include ribbon-colors($hue, $ink);
+}
