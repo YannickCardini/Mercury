@@ -49,6 +49,16 @@ export class MatchmakingManager {
     private session: PendingMatchmaking | null = null;
 
     /**
+     * Couleurs déjà occupées dans la session publique en attente (vide si
+     * aucune session). Utilisé par CustomGameManager.fallbackToMatchmaking
+     * pour décider, AVANT d'y inscrire le groupe d'une room privée repliée,
+     * si la paire d'équipe 2v2 formée dans cette room reste disponible.
+     */
+    getTakenColors(): ReadonlySet<MarbleColor> {
+        return new Set(this.session?.players.map(p => p.color) ?? []);
+    }
+
+    /**
      * @param preferredColor Couleur choisie par le joueur avant d'arriver ici
      * (ex. siège pris dans une custom room repliée vers le matchmaking public,
      * cf. CustomGameManager.fallbackToMatchmaking). Honorée si encore libre ;

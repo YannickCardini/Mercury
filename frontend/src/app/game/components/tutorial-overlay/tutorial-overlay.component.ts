@@ -103,6 +103,7 @@ export class TutorialOverlayComponent implements OnDestroy {
   hint = computed<Hint | null>(() => {
     const gs = this.gameState;
     if (this.isBannerVisible()) return null;
+    if (gs.teamIntroPlaying()) return null; // pas de hint pendant l'annonce des équipes (2v2)
     if (!gs.isMyTurn()) return null;
 
     // No legal move this turn — guide the player to the discard button.

@@ -84,6 +84,14 @@ export class GameStateService {
   tutorialHintId = signal<string | null>(null);
 
   /**
+   * Vrai tant que l'annonce des équipes (2v2, TeamIntroOverlayComponent) est
+   * à l'écran. Publié par GamePage (source de vérité : `playing()` du
+   * composant) pour que d'autres endroits (scrim de blocage des inputs,
+   * tutoriel) évitent de superposer/débloquer trop tôt.
+   */
+  teamIntroPlaying = signal(false);
+
+  /**
    * Debug uniquement : vrai quand le plateau est en mode édition (la partie est
    * suspendue côté serveur via `debugPause`). Piloté par le bouton ✏️ de la
    * page de jeu ; le board et le timer local s'y adaptent.
@@ -895,6 +903,7 @@ export class GameStateService {
     this.isReplayTurn.set(false);
     this.lastActionPlayed = null;
     this.tutorialHintId.set(null);
+    this.teamIntroPlaying.set(false);
     this.boardEditMode.set(false);
     this.finishedColorsSeen.clear();
     this.intentionalClose = true;

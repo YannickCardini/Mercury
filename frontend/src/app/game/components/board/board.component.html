@@ -1,5 +1,12 @@
 <div class="board-container" [style.--square-size.px]="squareSize() || null" [class.card-selected]="isCardSelected()"
   [class.edit-mode]="editMode()">
+  <!-- TODO(perf): la grille rend les 225 cases (15×15) alors que seules 88
+       sont réellement affichées (MAIN_PATH+HOME_POSITIONS+ARRIVAL_POSITIONS),
+       le reste étant du remplissage invisible (.case-hidden). Optimisation
+       différée : passer d'un layout flexbox ion-row/ion-col (qui dépend de
+       l'ordre du DOM pour remplir 15 colonnes/ligne) à une CSS Grid avec
+       grid-column/grid-row explicites, pour ne monter que les 88 cases
+       réelles sans casser l'alignement des cases dispersées irrégulièrement. -->
   <ion-grid class="tock-grid">
     @for (row of rows; track row) {
     <ion-row class="tock-row">

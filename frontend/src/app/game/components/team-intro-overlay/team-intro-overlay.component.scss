@@ -1,21 +1,26 @@
 @use "sass:color";
 @use "../../../styles/palette" as *; // palette « Système solaire » centralisée
 
-// ── Timeline (doit rester cohérente avec FADE_START_MS/TOTAL_MS du TS) ──
+// ── Timeline (doit rester cohérente avec MIN_DISPLAY_MS/LEAVE_DURATION_MS
+//    et ENTRANCE_SETTLE_MS côté TS — voir team-intro-overlay.component.ts
+//    et game.page.ts) ──
 $slide-duration: 0.65s;
 $flash-delay: 0.72s;
 $vs-delay: 0.85s;
 
 $ink: #0b1224; // encre sombre commune (contours, ombres)
 
-// ── Hôte : ancré sur la zone du plateau (board-wrapper est relative) ──
-// L'annonce ne couvre PAS tout l'écran : un carré centré sur le plateau,
-// transparent entre les bandeaux pour laisser le board visible.
+// ── Hôte : masque PLEIN ÉCRAN, indépendant du board-wrapper ──
+// Sert de rideau opaque pendant que board/table (coûteux) sont montés
+// derrière lui : z-index au-dessus des overlays en jeu (new-turn-overlay:100,
+// tutorial-overlay:300) mais sous le spinner de chargement et l'écran de
+// victoire (loading-screen/victory-overlay: 9999), pour que le crossfade
+// spinner→masque s'empile correctement.
 
 :host {
-  position: absolute;
+  position: fixed;
   inset: 0;
-  z-index: 40; // au-dessus du board, sous les overlays plein écran
+  z-index: 500;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -24,14 +29,24 @@ $ink: #0b1224; // encre sombre commune (contours, ombres)
 
 .ti-overlay {
   position: relative;
+  width: 100%;
   height: 100%;
-  max-width: 100%;
-  aspect-ratio: 1; // épouse le carré du plateau, centré par l'hôte
   overflow: hidden; // clippe les bandeaux pendant leur glissade
 
   &.is-leaving {
     animation: tiFadeOut 0.6s ease forwards;
   }
+}
+
+// Fond opaque plein écran derrière les bandeaux (qui ne couvrent que ~20%
+// de la hauteur chacun) : sans lui, board/table seraient visibles entre les
+// deux pendant qu'ils sont montés. Même dégradé que loading-screen.component
+// .scss (.loading-screen) pour un handoff visuel sans coupure au crossfade —
+// si l'un est retouché, reporter le changement sur l'autre.
+.ti-backdrop {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 40%, #1e3a5f 0%, #0a1628 100%);
 }
 
 @keyframes tiFadeOut {
@@ -57,7 +72,10 @@ $player-colors: (
   position: absolute;
   left: 0;
   right: 0;
-  height: 27%;
+  // clamp()/vh au lieu d'un % calé sur un conteneur carré : reste lisible
+  // aussi bien en portrait-téléphone qu'en paysage/desktop maintenant que
+  // l'hôte est plein écran.
+  height: clamp(96px, 20vh, 200px);
   border-top: 3px solid rgba(0, 0, 0, 0.55);
   border-bottom: 3px solid rgba(0, 0, 0, 0.55);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
@@ -82,15 +100,26 @@ $player-colors: (
     var(--band-b) 100%);
 
   &--top {
-    top: 3.5%;
+    top: 18%;
     transform: translateX(-105%);
     animation: tiBandInLeft $slide-duration cubic-bezier(0.22, 1, 0.36, 1) forwards;
+
+    // Repart par où il est arrivé (glisse vers la gauche) au lieu de
+    // simplement s'estomper sur place.
+    .ti-overlay.is-leaving & {
+      animation: tiBandOutLeft $slide-duration cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
   }
 
   &--bottom {
-    bottom: 3.5%;
+    bottom: 18%;
     transform: translateX(105%);
     animation: tiBandInRight $slide-duration cubic-bezier(0.22, 1, 0.36, 1) forwards;
+
+    // Repart par où il est arrivé (glisse vers la droite).
+    .ti-overlay.is-leaving & {
+      animation: tiBandOutRight $slide-duration cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
   }
 }
 
@@ -114,23 +143,23 @@ $player-colors: (
   }
 }
 
-// Traits diagonaux animés (effet vitesse) : marques sombres + fines lignes claires.
-.ti-speedlines {
-  position: absolute;
-  inset: -60%;
-  background:
-    repeating-linear-gradient(115deg, rgba(0, 0, 0, 0.16) 0 12px, transparent 12px 46px),
-    repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.10) 0 4px, transparent 4px 58px);
-  animation: tiSpeedDrift 1.2s linear infinite;
-}
-
-@keyframes tiSpeedDrift {
+@keyframes tiBandOutLeft {
   from {
     transform: translateX(0);
   }
 
   to {
-    transform: translateX(46px);
+    transform: translateX(-105%);
+  }
+}
+
+@keyframes tiBandOutRight {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(105%);
   }
 }
 
@@ -143,7 +172,12 @@ $player-colors: (
   align-items: center;
   justify-content: center;
   gap: 6%;
-  padding: 3% 4%;
+  // Horizontal seulement : un padding-top/bottom en % se résout contre la
+  // LARGEUR du containing block (quirk CSS), pas sa hauteur — inoffensif
+  // tant que l'hôte était un carré (largeur=hauteur), ça mangeait quasi
+  // toute la hauteur du bandeau maintenant qu'il est plein écran (bien plus
+  // large que haut). Le centrage vertical de .ti-player s'en charge déjà.
+  padding: 0 4%;
 }
 
 .ti-player {
@@ -206,12 +240,15 @@ $player-colors: (
 
 .ti-name {
   max-width: 82%;
-  padding: 3px 12px;
+  padding: 5px 16px;
   border-radius: 999px;
   background: rgba(6, 10, 24, 0.8);
   border: 1px solid rgba(255, 255, 255, 0.2);
   color: white;
-  font-size: clamp(0.6rem, 1.7vw, 0.82rem);
+  // Plus grand qu'avant : l'hôte plein écran laisse largement la place, et
+  // le pill se noyait à l'échelle précédente (calée sur le petit carré du
+  // plateau).
+  font-size: clamp(0.85rem, 1.6vw, 1.15rem);
   font-weight: 800;
   letter-spacing: 0.05em;
   white-space: nowrap;
@@ -262,7 +299,9 @@ $player-colors: (
   position: absolute;
   top: 50%;
   left: 50%;
-  width: clamp(110px, 40%, 190px);
+  // vmin plutôt que % : sur un hôte plein écran, un % de largeur ferait
+  // dominer le burst sur un viewport large (desktop/paysage).
+  width: clamp(120px, 32vmin, 220px);
   aspect-ratio: 1;
   transform: translate(-50%, -50%);
 }
@@ -300,19 +339,6 @@ $player-colors: (
   inset: 0;
   width: 100%;
   height: 100%;
-  animation: tiBurstPulse 1.6s ease-in-out infinite;
-}
-
-@keyframes tiBurstPulse {
-
-  0%,
-  100% {
-    transform: scale(1);
-  }
-
-  50% {
-    transform: scale(1.06);
-  }
 }
 
 .ti-burst-outer {
@@ -344,8 +370,8 @@ $player-colors: (
 
 .ti-replay {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: max(8px, env(safe-area-inset-top));
+  right: max(8px, env(safe-area-inset-right));
   z-index: 45;
   width: 30px;
   height: 30px;

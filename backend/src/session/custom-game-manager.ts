@@ -20,6 +20,7 @@ import { MultiWsMessenger, wsSend } from '../game/game-messenger.js';
 import { GameRegistry } from './game-registry.js';
 import { isTrainMode } from '../train-mode.js';
 import { queueSaveSnapshot, queueDeleteSnapshot, isSnapshotStorageConfigured } from '../storage/snapshot-store.js';
+import { TEAMS } from '@mercury/shared';
 import type { GameConfig, MarbleColor, ClientMessage, CustomRoomPlayerInfo } from '@mercury/shared';
 import type { MatchmakingManager } from './matchmaking-manager.js';
 import type { PresenceManager } from './presence-manager.js';
@@ -507,7 +508,8 @@ export class CustomGameManager {
         console.log(`⤵️ Custom room ${room.code} starting with ${room.players.length} player(s) — moving to matchmaking`);
         // Snapshot players before iterating; joinQueue may close/replace state.
         const players = [...room.players];
-        for (const p of players) {
+        const colors = this.resolveFallbackColors(players.map(p => p.color));
+        players.forEach((p, i) => {
             this.matchmaking.joinQueue(
                 p.ws,
                 p.name,
@@ -515,13 +517,80 @@ export class CustomGameManager {
                 p.browserId,
                 p.picture,
                 p.userId,
-                p.color,
+                colors[i],
             );
-        }
+        });
         // Les sockets appartiennent désormais au messenger du matchmaking ;
         // on neutralise l'ancien messenger de la room (timers 180s + handlers
         // close orphelins) pour éviter un faux "permanently disconnected".
         room.messenger.dispose();
+    }
+
+    /**
+     * Résout les couleurs finales d'un groupe de joueurs de room privée
+     * repliés vers le matchmaking public.
+     *
+     * Bug corrigé : les couleurs choisies dans la room forment déjà des
+     * équipes 2v2 valides entre elles (un siège par couleur), mais si un
+     * inconnu est DÉJÀ présent dans la file publique sur une des deux
+     * couleurs d'une paire d'équipe formée par deux coéquipiers de la room
+     * (ex. la room a "green"+"orange" et la file publique a déjà "green"),
+     * chacun résolvant sa couleur indépendamment via joinQueue() les aurait
+     * scindés entre les deux équipes sans qu'ils s'en rendent compte (l'un
+     * garde son siège, l'autre retombe sur la première couleur libre —
+     * potentiellement dans l'équipe adverse). Ici, un vrai duo de
+     * coéquipiers formé dans la room est basculé EN BLOC sur l'autre paire
+     * d'équipe si la sienne n'est plus entièrement libre, plutôt que de
+     * risquer de les séparer.
+     */
+    private resolveFallbackColors(customColors: MarbleColor[]): MarbleColor[] {
+        const taken = new Set(this.matchmaking.getTakenColors());
+        const result: MarbleColor[] = new Array(customColors.length);
+
+        const byTeamIndex = new Map<0 | 1, number[]>();
+        customColors.forEach((color, i) => {
+            const teamIndex = TEAMS[0].includes(color) ? 0 : 1;
+            const indices = byTeamIndex.get(teamIndex) ?? [];
+            indices.push(i);
+            byTeamIndex.set(teamIndex, indices);
+        });
+
+        for (const [teamIndex, indices] of byTeamIndex) {
+            const originalPair = TEAMS[teamIndex];
+            const otherPair = TEAMS[teamIndex === 0 ? 1 : 0];
+            const pairFree = (pair: readonly [MarbleColor, MarbleColor]) => pair.every(c => !taken.has(c));
+
+            // Un vrai duo d'équipiers formé dans la room : le garder groupé
+            // prime sur la couleur exacte choisie par chacun.
+            const pair = indices.length === 2
+                ? (pairFree(originalPair) ? originalPair : (pairFree(otherPair) ? otherPair : null))
+                : null;
+
+            if (pair) {
+                for (const idx of indices) {
+                    const preferred = customColors[idx]!;
+                    const posInOriginal = originalPair.indexOf(preferred) as 0 | 1;
+                    const color = pair[posInOriginal];
+                    result[idx] = color;
+                    taken.add(color);
+                }
+                continue;
+            }
+
+            // Joueur seul dans son équipe d'origine, ou duo impossible à
+            // garder groupé (les deux paires ont déjà un siège pris) : au
+            // mieux, couleur préférée sinon première libre.
+            for (const idx of indices) {
+                const preferred = customColors[idx]!;
+                const color = !taken.has(preferred) ? preferred : COLORS.find(c => !taken.has(c));
+                if (color) {
+                    result[idx] = color;
+                    taken.add(color);
+                }
+            }
+        }
+
+        return result;
     }
 
     /**

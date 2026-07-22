@@ -30,6 +30,21 @@ import { KeepAwake } from "@capacitor-community/keep-awake";
 /** How long the load-failure message stays on the loading screen before redirecting home. */
 const LOAD_ERROR_REDIRECT_MS = 3000;
 
+/** Tampon avant de démarrer l'annonce d'équipe, aligné sur le fondu CSS du
+ * spinner (loading-screen.component.scss, 0.25s) : laisse le glissement des
+ * bandeaux, très ease-out, déjà bien entamé au moment où le spinner a fini
+ * de s'effacer, au lieu de le voir glisser depuis le bord à découvert. */
+const ANNOUNCE_START_BUFFER_MS = 300;
+/** Borne du préchargement des avatars d'équipe avant de lancer l'annonce —
+ * une URL lente/cassée ne doit jamais bloquer la transition. */
+const AVATAR_PRELOAD_TIMEOUT_MS = 700;
+/** Durée de l'animation d'entrée du masque (bandeaux + flash + VS) — doit
+ * rester synchronisée avec $slide-duration/$flash-delay/$vs-delay dans
+ * team-intro-overlay.component.scss (le pop VS, le plus tardif, se termine
+ * à 0.85s + 0.55s = 1.4s). Board/table ne sont montés derrière le masque
+ * qu'une fois ce délai écoulé, quand plus rien n'anime à l'écran. */
+const ENTRANCE_SETTLE_MS = 1400;
+
 @Component({
   selector: "app-game",
   templateUrl: "game.page.html",
@@ -67,6 +82,41 @@ export class GamePage implements OnDestroy, AfterViewInit {
    */
   loadError = signal<string | null>(null);
   boardReady = signal(false);
+  /** Vrai une fois qu'un vrai paint navigateur a été confirmé après
+   * boardReady() (qui se déclenche depuis un afterNextRender dans
+   * BoardComponent, donc AVANT le paint réel) — condition nécessaire avant
+   * de laisser l'annonce d'équipe se rétracter. */
+  boardPainted = signal(false);
+
+  /** Machine à états du chargement : spinner → (annonce d'équipe plein
+   * écran, 2v2 uniquement) → partie révélée. Remplace l'ancien gate
+   * implicite data()+boardReady() : tant que la phase reste 'loading', ni
+   * l'annonce ni board/table (coûteux, ~2000+ nœuds DOM) ne sont montés. */
+  phase = signal<"loading" | "announcing" | "revealed">("loading");
+  /** Vrai une fois l'animation d'entrée du masque (bandeaux + flash + VS)
+   * entièrement terminée — c'est seulement à partir de là que board/table
+   * peuvent être montés derrière le masque désormais figé, sans risque de
+   * saccade visible pendant le montage. */
+  private entranceSettled = signal(false);
+  /** Vrai pour un vrai démarrage de partie 2v2 (annonce nécessaire) — faux
+   * pour les autres modes ou une reconnexion mi-partie (comportement
+   * identique à aujourd'hui : spinner jusqu'à boardReady(), pas d'annonce). */
+  private needsAnnounce = computed(
+    () =>
+      this.gameStateService.gameMode() === "2v2" &&
+      this.gameStateService.data()?.message !== "Reconnected"
+  );
+  /** Pilote le montage d'app-board/app-table. */
+  mountBoard = computed(() => {
+    switch (this.phase()) {
+      case "revealed":
+        return true;
+      case "announcing":
+        return this.entranceSettled();
+      case "loading":
+        return !!this.gameStateService.data() && !this.needsAnnounce();
+    }
+  });
 
   /** Status line for the initial-load loading screen. */
   loadingStatus = computed(() => {
@@ -127,8 +177,12 @@ export class GamePage implements OnDestroy, AfterViewInit {
   private teamIntro = viewChild(TeamIntroOverlayComponent);
   /** Accès au plateau pour le mode édition debug (pause + édition + reprise). */
   private boardCmp = viewChild(BoardComponent);
-  /** Vrai une fois l'annonce auto-jouée (ou volontairement sautée) pour cette page. */
-  private teamIntroTriggered = false;
+  /** Vrai une fois le préchargement des avatars lancé (garde de ré-entrance). */
+  private avatarsPreloading = false;
+  /** Vrai une fois intro.play() appelé pour cette annonce (garde de ré-entrance). */
+  private introStarted = false;
+  private announceTimer: ReturnType<typeof setTimeout> | null = null;
+  private entranceTimer: ReturnType<typeof setTimeout> | null = null;
 
   /** Équipe de la bande du HAUT de l'annonce (red+blue, avatars losange). */
   introTopTeam = computed<TeamIntroPlayer[]>(() => TEAMS[0].map((c) => this.introPlayer(c)));
@@ -144,6 +198,35 @@ export class GamePage implements OnDestroy, AfterViewInit {
       name: player?.name ?? color,
       ...(player?.picture ? { picture: player.picture } : {}),
     };
+  }
+
+  /**
+   * Précharge/décode les avatars d'équipe pendant que le spinner est encore
+   * affiché, pour que l'annonce n'ait pas à attendre un décodage d'image une
+   * fois déjà en train d'animer. Ne bloque jamais plus de
+   * AVATAR_PRELOAD_TIMEOUT_MS, même si une URL est lente ou cassée.
+   */
+  private preloadAvatars(): Promise<void> {
+    const urls = [...this.introTopTeam(), ...this.introBottomTeam()]
+      .map((p) => p.picture)
+      .filter((url): url is string => !!url);
+    if (urls.length === 0) return Promise.resolve();
+    const loaders = urls.map(
+      (url) =>
+        new Promise<void>((resolve) => {
+          const img = new Image();
+          img.referrerPolicy = "no-referrer";
+          img.src = url;
+          img.decode().then(
+            () => resolve(),
+            () => resolve() // URL cassée/lente : ne bloque jamais la transition
+          );
+        })
+    );
+    const timeout = new Promise<void>((resolve) =>
+      setTimeout(resolve, AVATAR_PRELOAD_TIMEOUT_MS)
+    );
+    return Promise.race([Promise.all(loaders).then(() => undefined), timeout]);
   }
 
   /** True when the local player has no userId (guest / not signed in). */
@@ -183,28 +266,83 @@ export class GamePage implements OnDestroy, AfterViewInit {
       }
     });
 
-    // Annonce des équipes au démarrage d'une partie 2v2 : jouée une seule
-    // fois, dès que le plateau est prêt — mais pas en revenant dans une
-    // partie déjà en cours (reconnexion).
+    // Transition hors du spinner : soit vers l'annonce d'équipe plein écran
+    // (vrai démarrage 2v2 — précharge les avatars, laisse le fondu du
+    // spinner s'entamer, puis passe en 'announcing'), soit directement vers
+    // la partie révélée (autres modes, ou reconnexion mi-partie —
+    // comportement identique à avant : spinner jusqu'à boardReady()).
     effect(() => {
-      const intro = this.teamIntro();
-      if (!intro || this.teamIntroTriggered) return;
-      if (!this.boardReady()) return;
+      if (this.phase() !== "loading") return;
       const data = this.gameStateService.data();
       if (!data) return;
-      this.teamIntroTriggered = true;
-      if (data.message === "Reconnected") return;
-      // L'annonce occupe le plateau : on masque la bannière de tour qui
-      // aurait pu s'afficher pour le premier tour (pas de superposition).
-      this.showNewTurnBanner.set(false);
-      // Attend la fin du fondu de sortie de l'écran de chargement (transition
-      // CSS de 0.25s, voir loading-screen.component.scss) avant de lancer
-      // l'annonce : son glissement (cubic-bezier très ease-out, cf.
-      // team-intro-overlay.component.scss) est presque entièrement joué dès
-      // les premières ~250ms, donc le démarrer PENDANT le fondu le fait
-      // apparaître déjà en place ("pop") au lieu de le voir glisser depuis
-      // le bord une fois l'écran de chargement effacé.
-      setTimeout(() => intro.play(), 300);
+
+      if (!this.needsAnnounce()) {
+        if (!this.boardReady()) return;
+        this.phase.set("revealed");
+        return;
+      }
+
+      if (this.avatarsPreloading) return;
+      this.avatarsPreloading = true;
+      this.preloadAvatars().finally(() => {
+        if (this.phase() !== "loading") return;
+        // Attend la fin du fondu de sortie de l'écran de chargement
+        // (transition CSS de 0.25s, voir loading-screen.component.scss)
+        // avant de lancer l'annonce : son glissement (cubic-bezier très
+        // ease-out, cf. team-intro-overlay.component.scss) est presque
+        // entièrement joué dès les premières ~250ms, donc le démarrer
+        // PENDANT le fondu le fait apparaître déjà en place ("pop") au lieu
+        // de le voir glisser depuis le bord une fois l'écran de chargement
+        // effacé.
+        this.announceTimer = setTimeout(() => {
+          if (this.phase() !== "loading") return;
+          // L'annonce occupe le plateau : on masque la bannière de tour qui
+          // aurait pu s'afficher pour le premier tour (pas de superposition).
+          this.showNewTurnBanner.set(false);
+          this.phase.set("announcing");
+        }, ANNOUNCE_START_BUFFER_MS);
+      });
+    });
+
+    // Entrée/sortie de l'annonce : démarre l'animation d'entrée, attend
+    // qu'elle soit ENTIÈREMENT figée (ENTRANCE_SETTLE_MS) avant de laisser
+    // mountBoard() monter board/table derrière le masque désormais statique
+    // — c'est le pic de ~3400 nœuds DOM, mais rien n'anime pendant qu'il a
+    // lieu, donc rien ne peut visuellement saccader. Repasse en 'revealed'
+    // une fois que l'overlay a fini de se rétracter (intro.playing()
+    // redevient faux — déclenché par le composant lui-même une fois
+    // boardPainted() et son plancher d'affichage tous deux vrais, voir
+    // team-intro-overlay.component.ts).
+    effect(() => {
+      if (this.phase() !== "announcing") return;
+      const intro = this.teamIntro();
+      if (!intro) return;
+
+      if (!this.introStarted) {
+        this.introStarted = true;
+        this.gameStateService.teamIntroPlaying.set(true);
+        intro.play();
+        this.entranceTimer = setTimeout(
+          () => this.entranceSettled.set(true),
+          ENTRANCE_SETTLE_MS
+        );
+        return;
+      }
+      if (intro.playing()) return; // toujours affichée / en train de se rétracter
+      this.phase.set("revealed");
+      this.gameStateService.teamIntroPlaying.set(false);
+      this.introStarted = false;
+      this.entranceSettled.set(false);
+    });
+
+    // Confirme un vrai paint navigateur après boardReady() (qui se déclenche
+    // depuis un afterNextRender dans BoardComponent, donc AVANT le paint) —
+    // condition nécessaire avant de laisser l'annonce se rétracter.
+    effect(() => {
+      if (!this.boardReady()) return;
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => this.boardPainted.set(true))
+      );
     });
 
     // Empêche l'écran de se verrouiller pendant SON tour : sur Android le
@@ -241,7 +379,7 @@ export class GamePage implements OnDestroy, AfterViewInit {
       this.isReplayBanner.set(this.gameStateService.isReplayTurn());
       // Pas de bannière de tour pendant l'annonce des équipes (2v2) : les
       // deux occupent le plateau et se superposeraient.
-      if (this.teamIntro()?.playing()) return;
+      if (this.phase() === "announcing") return;
       if (player?.cardsLeft && player.cardsLeft > 0) {
         this.showNewTurnBanner.set(true);
         if (this.gameStateService.isMyTurn()) {
@@ -368,6 +506,11 @@ export class GamePage implements OnDestroy, AfterViewInit {
     this.uiSubs.forEach((sub) => sub.unsubscribe());
     if (this.newTurnTimeout) clearTimeout(this.newTurnTimeout);
     if (this.loadFailRedirect) clearTimeout(this.loadFailRedirect);
+    if (this.announceTimer) clearTimeout(this.announceTimer);
+    if (this.entranceTimer) clearTimeout(this.entranceTimer);
+    // Évite de laisser le flag partagé bloqué à true si la page est détruite
+    // pendant l'annonce (ex. navigation arrière) sans passer par reset().
+    this.gameStateService.teamIntroPlaying.set(false);
     // Quitter la partie : on relâche le verrou écran.
     if (Capacitor.isNativePlatform()) {
       void KeepAwake.allowSleep().catch(() => { /* ignore */ });

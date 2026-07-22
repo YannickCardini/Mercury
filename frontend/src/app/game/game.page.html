@@ -1,12 +1,13 @@
 <div class="grid-container">
 
   <!-- ═══════════════════════════════════════════════════════════
-       ÉCRAN DE CHARGEMENT — visible jusqu'à ce que les données soient
-       reçues ET que le board ait calculé sa taille (fondu en sortie)
+       ÉCRAN DE CHARGEMENT — visible tant que phase() === 'loading', c'est-
+       à-dire jusqu'à ce que les données soient reçues et (pour une annonce
+       2v2) que les avatars soient préchargés (fondu en sortie)
        ═══════════════════════════════════════════════════════════ -->
   <app-loading-screen
     [status]="loadingStatus()"
-    [visible]="!gameStateService.data() || !boardReady()"
+    [visible]="phase() === 'loading'"
   ></app-loading-screen>
 
   <!-- ═══════════════════════════════════════════════════════════
@@ -37,11 +38,8 @@
     }
 
     <div class="board-wrapper">
+      @if (mountBoard()) {
       <app-board (ready)="boardReady.set(true)"></app-board>
-      <!-- Annonce des équipes en début de partie 2v2, ancrée sur le plateau
-           (+ bouton replay discret en haut à droite du plateau) -->
-      @if (gameStateService.gameMode() === '2v2') {
-      <app-team-intro-overlay [topTeam]="introTopTeam()" [bottomTeam]="introBottomTeam()" />
       }
       <!-- Boutons discrets pour prévisualiser les écrans de fin de partie -->
       @if (debug) {
@@ -59,10 +57,21 @@
     </div>
     <div class="table-wrapper" [style.height.px]="gameStateService.boardContainerSize()"
       [style.width.px]="gameStateService.boardContainerSize()">
+      @if (mountBoard()) {
       <app-table (rulesRequested)="showRules.set(true)"></app-table>
+      }
     </div>
 
     <app-tutorial-overlay />
+
+    <!-- Annonce des équipes en début de partie 2v2 : masque PLEIN ÉCRAN
+         (indépendant du board-wrapper), derrière lequel board/table sont
+         montés une fois son animation d'entrée entièrement figée — voir
+         mountBoard() dans game.page.ts. + bouton replay discret (debug). -->
+    @if (gameStateService.gameMode() === '2v2') {
+    <app-team-intro-overlay [topTeam]="introTopTeam()" [bottomTeam]="introBottomTeam()"
+      [contentReady]="boardPainted()" />
+    }
   </div>
   }
 

@@ -1,9 +1,13 @@
 @if (playing()) {
 <div class="ti-overlay" [class.is-leaving]="leaving()">
 
+  <!-- Fond opaque plein écran : le masque doit couvrir intégralement le
+       board-wrapper/table-wrapper en dessous, sans aucune zone transparente,
+       pendant qu'ils sont montés (voir doc du composant). -->
+  <div class="ti-backdrop" aria-hidden="true"></div>
+
   <!-- Bandeau du HAUT — glisse depuis la gauche, avatars losange (comme les badges red/blue du plateau) -->
   <div class="ti-band ti-band--top ti-band--a-{{ topTeam()[0]?.color }} ti-band--b-{{ topTeam()[1]?.color }}">
-    <div class="ti-speedlines" aria-hidden="true"></div>
     <div class="ti-duo">
       @for (player of topTeam(); track player.color) {
       <div class="ti-player">
@@ -26,7 +30,6 @@
 
   <!-- Bandeau du BAS — glisse depuis la droite, avatars ronds (comme les badges green/orange) -->
   <div class="ti-band ti-band--bottom ti-band--a-{{ bottomTeam()[0]?.color }} ti-band--b-{{ bottomTeam()[1]?.color }}">
-    <div class="ti-speedlines" aria-hidden="true"></div>
     <div class="ti-duo">
       @for (player of bottomTeam(); track player.color) {
       <div class="ti-player">
