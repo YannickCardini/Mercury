@@ -90,14 +90,14 @@
       </button>
       }
       <!-- Card Help toggle -->
-      <button class="menu-item" [class.menu-item--muted]="!cardHelpEnabled()" (click)="toggleCardHelp()">
+      <button class="menu-item" [class.menu-item--muted]="!gameStateService.cardHelpEnabled()" (click)="gameStateService.toggleCardHelp()">
         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="10" />
           <line x1="12" y1="16" x2="12" y2="12" />
           <line x1="12" y1="8" x2="12.01" y2="8" />
         </svg>
-        Card Help {{ cardHelpEnabled() ? 'On' : 'Off' }}
+        Card Help {{ gameStateService.cardHelpEnabled() ? 'On' : 'Off' }}
       </button>
       <!-- Game Rules -->
       <button class="menu-item" (click)="rulesRequested.emit(); showMenu.set(false)">

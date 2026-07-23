@@ -7,8 +7,8 @@
     [style.transform]="rect.rotation ? 'rotate(' + rect.rotation + 'deg)' : null"></div>
   }
 
-  @if (pillPosition(); as pos) {
-  <div class="hint-pill" [class]="'anchor-' + h.anchor"
+  @for (pos of pillPositions(); track $index) {
+  <div class="hint-pill" [class]="'anchor-' + h.anchor" [class.pill-below]="pos.side === 'below'"
     [style.left.px]="pos.left" [style.top.px]="pos.top"
     [style.--arrow-shift]="pos.arrowShift + 'px'">
     <span class="hint-text">{{ h.text }}</span>

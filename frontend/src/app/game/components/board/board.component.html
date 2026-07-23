@@ -54,14 +54,6 @@
   </div>
   }
 
-  <!-- Bannière one-shot (2v2) : un joueur vient de rentrer ses 4 pions. -->
-  @if (finishCelebration(); as fc) {
-  <div class="finish-celebration" [ngClass]="'finish-celebration--' + fc.color">
-    <span class="fc-icon">🏁</span>
-    <span class="fc-text">{{ fc.name }} is home! Now playing for {{ fc.teammateName }}.</span>
-  </div>
-  }
-
   <!-- Rendu d'une bille -->
   <ng-template #marbleCell let-index>
     <!-- Pion éphémère « bousculé » : rendu en plus du pion du modèle pour qu'ils

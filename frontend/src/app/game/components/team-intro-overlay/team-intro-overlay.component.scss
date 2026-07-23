@@ -75,7 +75,13 @@ $player-colors: (
   // clamp()/vh au lieu d'un % calé sur un conteneur carré : reste lisible
   // aussi bien en portrait-téléphone qu'en paysage/desktop maintenant que
   // l'hôte est plein écran.
-  height: clamp(96px, 20vh, 200px);
+  // Le préféré/max (28vh/240px, avant 20vh/200px) donnent la marge verticale
+  // nécessaire pour que le losange (rotate45+scale(0.88), qui déborde de
+  // ~24% de sa case) ne se fasse plus rogner par l'overflow:hidden ci-dessous
+  // sur les écrans de hauteur moyenne (ex. 768px) — le plancher ne bouge
+  // pas pour ne pas faire se chevaucher les deux bandeaux sur les écrans
+  // très bas (paysage téléphone).
+  height: clamp(96px, 28vh, 240px);
   border-top: 3px solid rgba(0, 0, 0, 0.55);
   border-bottom: 3px solid rgba(0, 0, 0, 0.55);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
@@ -208,6 +214,10 @@ $player-colors: (
   // Losange (équipe red+blue, comme leurs badges sur le plateau) : carré
   // arrondi tourné à 45°, réduit pour que sa diagonale tienne dans la même
   // emprise qu'un cercle ; contenu contre-tourné et agrandi pour couvrir.
+  // Note : à 45°+scale(0.88), la boîte tournée déborde légèrement de sa case
+  // d'origine (~24%) — voir le calcul de hauteur mini sur `.ti-band` plus
+  // bas, qui garantit assez de marge pour ne pas la faire rogner par
+  // l'overflow:hidden du bandeau.
   &--diamond {
     border-radius: 18%;
     transform: rotate(45deg) scale(0.88);

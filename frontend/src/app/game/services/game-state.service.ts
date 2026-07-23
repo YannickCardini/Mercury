@@ -32,12 +32,16 @@ import {
   getControlledColor,
   getTeammateColor,
   findSolidaireEntry,
+  findLegalMoveForCard,
   hasWon,
   ENTER_CARDS,
   HOME_POSITIONS,
   type GameMode,
   type LegalMoveContext,
 } from '@mercury/shared';
+
+/** Toutes les positions « maison », tous joueurs confondus. */
+const ALL_HOME_POSITIONS = new Set(Object.values(HOME_POSITIONS).flat());
 
 @Injectable({
   providedIn: 'root',
@@ -77,11 +81,27 @@ export class GameStateService {
 
   /**
    * Identifiant du hint du tutoriel actuellement affiché (ex. 'card', 'marble',
-   * 'confirm', 'discard'), ou null si aucun. Publié par TutorialOverlayComponent
-   * pour que d'autres composants (ex. l'aide sur les cartes) évitent de se
+   * 'confirm', 'discard', 'jack', 'jack-source', 'jack-target'), ou null si
+   * aucun. Publié par TutorialOverlayComponent pour que d'autres composants
+   * (ex. l'aide sur les cartes) évitent de se
    * superposer au tutoriel.
    */
   tutorialHintId = signal<string | null>(null);
+
+  /**
+   * Active/désactive les hints du tutoriel qui apparaissent après un délai
+   * d'inactivité (bouton menu « Card Help »). Persisté en localStorage.
+   * Ne contrôle plus le popup d'effet de carte (toujours actif désormais).
+   */
+  readonly cardHelpEnabled = signal<boolean>(
+    typeof localStorage === 'undefined' || localStorage.getItem('card_help_enabled') !== '0'
+  );
+
+  toggleCardHelp(): void {
+    const next = !this.cardHelpEnabled();
+    this.cardHelpEnabled.set(next);
+    try { localStorage.setItem('card_help_enabled', next ? '1' : '0'); } catch { /* ignore */ }
+  }
 
   /**
    * Vrai tant que l'annonce des équipes (2v2, TeamIntroOverlayComponent) est
@@ -226,6 +246,68 @@ export class GameStateService {
     const hand = this.data()?.gameState.hand;
     if (!ctx || !hand?.length) return null;
     return findSolidaireEntry(hand, ctx);
+  });
+
+  /**
+   * Vrai quand le joueur tient un A/K/Joker jouable pour faire entrer un
+   * pion en jeu — le sien depuis sa maison, ou celui du coéquipier en cas
+   * de mise en jeu solidaire forcée (2v2).
+   */
+  canEnterMarble = computed(() => {
+    if (!this.isMyTurn()) return false;
+    if (this.forcedSolidaireEntry()) return true;
+    const ctx = this.legalCtx();
+    const hand = this.data()?.gameState.hand;
+    if (!ctx || !hand?.length) return false;
+    const homePositions = HOME_POSITIONS[ctx.playerColor];
+    const ownHomeMarbles = ctx.ownMarbles.filter(pos => homePositions.includes(pos));
+    if (!ownHomeMarbles.length) return false;
+    return hand.some(card =>
+      ENTER_CARDS.includes(card.value)
+      && ownHomeMarbles.some(pos => getLegalAction(card, pos, ctx) !== null)
+    );
+  });
+
+  /**
+   * Vrai quand aucun pion du joueur contrôlé n'est encore en jeu (tous en
+   * réserve) — sert à raccourcir le délai du hint « Play a King, Ace or
+   * Joker to start » dans ce cas évident (rien d'autre à envisager).
+   */
+  allOwnMarblesAtHome = computed(() => {
+    const ctx = this.legalCtx();
+    if (!ctx) return false;
+    const homePositions = HOME_POSITIONS[ctx.playerColor];
+    return ctx.ownMarbles.every(pos => homePositions.includes(pos));
+  });
+
+  /**
+   * Vrai quand le joueur tient un Valet jouable pour échanger une bille —
+   * au moins une source (la sienne, ou n'importe quelle bille en 2v2) a une
+   * cible de couleur différente valide sur le chemin principal.
+   */
+  canSwapWithJack = computed(() => {
+    if (!this.isMyTurn()) return false;
+    if (this.forcedSolidaireEntry()) return false; // seule l'entrée solidaire est jouable
+    const ctx = this.legalCtx();
+    const hand = this.data()?.gameState.hand;
+    if (!ctx || !hand?.length) return false;
+    return hand.some(card => card.value === 'J' && findLegalMoveForCard(card, ctx) !== null);
+  });
+
+  /**
+   * Vrai quand au moins une position jouable avec la carte sélectionnée est
+   * une case « maison » (la sienne, ou celle du coéquipier en mise en jeu
+   * solidaire) — sert à limiter le hint « Select a marble to move » au cas
+   * de mise en jeu, les autres billes déjà en piste n'étant pas encore mises
+   * en avant par le tutoriel.
+   */
+  hasPlayableHomeMarble = computed(() => {
+    const positions = this.playableMarblePositions();
+    if (!positions?.size) return false;
+    for (const pos of positions) {
+      if (ALL_HOME_POSITIONS.has(pos)) return true;
+    }
+    return false;
   });
 
   // ── Sélection en cours (carte + bille) ───────────────────────────────────

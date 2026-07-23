@@ -459,7 +459,9 @@ enum TURN_PHASE {
   //   qu'elle est sélectionnée sans bille choisie. Piloté par `footerCardHelp`.
   // - Souris (appareils hover) : survol → popover flottant, fermé au mouseleave.
   // Texte = source unique `getCardEffect()` (partagée avec le modal des règles).
-  // L'option `cardHelpEnabled` (menu) désactive les deux comportements.
+  // Toujours actif — n'est plus contrôlé par une option utilisateur (le bouton
+  // menu « Card Help » pilote désormais les hints d'inactivité de
+  // GameStateService.cardHelpEnabled, voir TutorialOverlayComponent).
 
   /** Popover d'aide courant, ou null.
    *  x          = position horizontale clampée du centre du popover
@@ -469,17 +471,12 @@ enum TURN_PHASE {
    *                popover a été clampé près d'un bord. */
   cardHelp = signal<{ index: number; title: string; text: string; x: number; y: number; arrowOffset: number } | null>(null);
 
-  /** Active/désactive l'aide contextuelle (mobile + desktop). Persisté en localStorage. */
-  readonly cardHelpEnabled = signal<boolean>(
-    typeof localStorage === 'undefined' || localStorage.getItem('card_help_enabled') !== '0'
-  );
-
   /** Effet de la carte à afficher À LA PLACE du footer (titre + texte) sur tactile.
    *  Visible tant qu'une carte est sélectionnée sans bille choisie ; disparaît dès
    *  qu'une bille est sélectionnée (le bouton Confirmer redevient pertinent) ou que
-   *  la carte est désélectionnée. null sur desktop / aide off / indice tuto. */
+   *  la carte est désélectionnée. null sur desktop / indice tuto. */
   readonly footerCardHelp = computed(() => {
-    if (this.canHover || !this.cardHelpEnabled()) return null;
+    if (this.canHover) return null;
     if (this.gameStateService.tutorialHintId() === 'card') return null;
     if (this.isDiscardMode() || this.showSevenSplitOverlay()) return null;
     if (this.gameStateService.selectedMarblePosition() !== null) return null;
@@ -488,13 +485,6 @@ enum TURN_PHASE {
     const card = this.getPlayerHand()[idx];
     return card ? getCardEffect(card.value, this.gameStateService.gameMode() === '2v2') : null;
   });
-
-  toggleCardHelp(): void {
-    const next = !this.cardHelpEnabled();
-    this.cardHelpEnabled.set(next);
-    try { localStorage.setItem('card_help_enabled', next ? '1' : '0'); } catch { /* ignore */ }
-    if (!next) this.closeCardHelp();
-  }
 
   /** Appareil capable de survol réel (souris desktop) → active l'aide au survol.
    *  Exclut explicitement les apps natives : la WebView Android rapporte
@@ -509,7 +499,7 @@ enum TURN_PHASE {
     window.matchMedia('(pointer: fine)').matches;
 
   onCardHover(index: number, event: MouseEvent): void {
-    if (!this.canHover || !this.cardHelpEnabled()) return;
+    if (!this.canHover) return;
     this.openCardHelp(index, event.currentTarget as HTMLElement);
   }
 

@@ -25,8 +25,11 @@
 
 // Playable marbles are round and small — a thinner ring than the button/card
 // highlights, which sit around much larger targets and can carry a heavier
-// stroke without looking chunky.
-.highlight-board {
+// stroke without looking chunky. Shared by the marble-entry hint ('board')
+// and the Jack swap hints ('swap-board' — same round marble targets, just
+// unrestricted to the home reserve).
+.highlight-board,
+.highlight-swap-board {
   border-radius: 50%;
   box-shadow:
     0 0 0 2px rgba(255, 211, 77, 0.95),
@@ -34,7 +37,9 @@
   animation: highlightPulseMarble 1.3s ease-in-out infinite;
 }
 
-// Card fan — a crisp ring per card, matching the marble/button highlight style.
+// Card fan — a crisp ring per card, matching the marble/button highlight
+// style. Not currently drawn on any card (see 'hand'/'jack' in
+// recompute()), kept for a possible future hint that does.
 .highlight-hand {
   border-radius: 10px;
   box-shadow:
@@ -82,21 +87,28 @@
   }
 }
 
-// ── Anchor: card hand ── pill just above the card fan, arrow points down.
-.anchor-hand {
-  --arrow-rot: 0deg;
-  transform: translate(-50%, calc(-100% - 12px));
-}
-
-// ── Anchor: confirm/discard button ── pill centred on the button, just above
-// it, arrow points down.
-.anchor-confirm {
+// ── Anchors: card hand / confirm-discard button / single Jack card / Jack
+// swap marbles ── pill just above the target, arrow points down. Jack swap
+// pills are positioned per-marble by the component (one pill per target).
+.anchor-hand,
+.anchor-confirm,
+.anchor-jack,
+.anchor-swap-board {
   --arrow-rot: 0deg;
   transform: translate(-50%, calc(-100% - 12px));
 }
 
 // ── Anchor: board ── pill just below the home cluster, arrow points up.
 .anchor-board {
+  --arrow-rot: 180deg;
+  flex-direction: column-reverse;
+  transform: translate(-50%, 12px);
+}
+
+// Jack swap pills default to sitting above their marble; recompute() flips
+// individual pills below (arrow points up) when a marble is too close to the
+// top of the viewport for the default placement to fit.
+.anchor-swap-board.pill-below {
   --arrow-rot: 180deg;
   flex-direction: column-reverse;
   transform: translate(-50%, 12px);
