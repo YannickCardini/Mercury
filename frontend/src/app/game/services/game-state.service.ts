@@ -42,6 +42,9 @@ import {
 
 /** Toutes les positions « maison », tous joueurs confondus. */
 const ALL_HOME_POSITIONS = new Set(Object.values(HOME_POSITIONS).flat());
+/** Délai avant le tour suivant quand un joueur vient de terminer, pour laisser
+ *  le temps à l'animation de lock de s'afficher avant la bannière. */
+const TEAMMATE_FINISHED_TURN_DELAY_MS = 1500;
 
 @Injectable({
   providedIn: 'root',
@@ -196,15 +199,24 @@ export class GameStateService {
    */
   teammateFinished$ = new Subject<MarbleColor>();
 
-  /** Détecte les transitions "joueur vient de terminer" à chaque gameState reçu. */
-  private syncFinishedColors(state: GameStateMessage): void {
-    if (state.gameState.gameMode !== '2v2') return;
+  /**
+   * Détecte les transitions "joueur vient de terminer" à chaque gameState reçu.
+   * Retourne `true` si au moins une couleur vient réellement de terminer
+   * (hors reconnexion), pour permettre à l'appelant de réagir à cette transition.
+   */
+  private syncFinishedColors(state: GameStateMessage): boolean {
+    if (state.gameState.gameMode !== '2v2') return false;
     const isReconnect = state.message === 'Reconnected';
+    let justFinished = false;
     for (const p of state.gameState.players) {
       if (!hasWon(p.marblePositions, p.color) || this.finishedColorsSeen.has(p.color)) continue;
       this.finishedColorsSeen.add(p.color);
-      if (!isReconnect) this.teammateFinished$.next(p.color);
+      if (!isReconnect) {
+        this.teammateFinished$.next(p.color);
+        justFinished = true;
+      }
     }
+    return justFinished;
   }
 
   /**
@@ -568,6 +580,8 @@ export class GameStateService {
   private rejoinTimer: ReturnType<typeof setTimeout> | null = null;
   private rejoinDelayMs = 1000;
   private readonly maxRejoinDelayMs = 15_000;
+  /** Timer du délai avant "New turn" après qu'un coéquipier vient de terminer. */
+  private teammateFinishedTurnTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     // Réinitialise la sélection à chaque changement de tour
@@ -643,7 +657,7 @@ export class GameStateService {
         case 'response': {
           const msg = parsed as GameStateMessage;
           this.data.set(msg);
-          this.syncFinishedColors(msg);
+          const teammateJustFinished = this.syncFinishedColors(msg);
           // On reconnection, the server includes myColor so we restore the local player identity
           if (msg.myColor) {
             this.myPlayerColor.set(msg.myColor);
@@ -662,7 +676,20 @@ export class GameStateService {
                 && a.cardPlayed?.length === 1 && a.cardPlayed[0]?.value === 'Joker'
                 && a.playerColor === msg.gameState.currentTurn,
             );
-            this.newTurn.next(new Date());
+            if (this.teammateFinishedTurnTimer) {
+              clearTimeout(this.teammateFinishedTurnTimer);
+              this.teammateFinishedTurnTimer = null;
+            }
+            // Si un joueur vient de terminer, on laisse le temps à l'animation de
+            // lock de s'afficher avant de déclencher le tour suivant (bannière + jeu).
+            if (teammateJustFinished) {
+              this.teammateFinishedTurnTimer = setTimeout(() => {
+                this.teammateFinishedTurnTimer = null;
+                this.newTurn.next(new Date());
+              }, TEAMMATE_FINISHED_TURN_DELAY_MS);
+            } else {
+              this.newTurn.next(new Date());
+            }
           }
           break;
         }
@@ -992,6 +1019,10 @@ export class GameStateService {
     if (this.rejoinTimer) {
       clearTimeout(this.rejoinTimer);
       this.rejoinTimer = null;
+    }
+    if (this.teammateFinishedTurnTimer) {
+      clearTimeout(this.teammateFinishedTurnTimer);
+      this.teammateFinishedTurnTimer = null;
     }
     this.rejoinDelayMs = 1000;
     this.ws?.close();

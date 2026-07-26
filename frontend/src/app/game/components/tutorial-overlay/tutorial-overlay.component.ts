@@ -26,11 +26,20 @@ const EMPTY_BOARD_HINT_DELAY_MS = 8_000;
  *  entry hints: swapping is a secondary option, entering a marble always
  *  takes priority when both are possible (see the `hint` computed). */
 const JACK_HINT_DELAY_MS = 20_000;
+/** Delay for the generic 'select-card' fallback hint: shown only once none
+ *  of the more specific pre-selection hints apply, so it has the longest
+ *  delay of the bunch (lowest priority). */
+const SELECT_CARD_HINT_DELAY_MS = 21_000;
 
 /** Minimum space (px) a pill needs above its target to sit 'above' it without
  *  its top edge getting clipped by the viewport — a rough estimate of pill
  *  height + arrow + gap, since the real height isn't known until it renders. */
 const MIN_PILL_TOP_MARGIN = 100;
+
+/** How close two marbles' centres can be (in multiples of the marble's own
+ *  width) before their individual pills would visually collide — beyond
+ *  this, they share a single pill instead of one each. */
+const PILL_CLUSTER_RADIUS_FACTOR = 6.5;
 
 /** Which game element a hint refers to. */
 type HintAnchor = 'hand' | 'board' | 'confirm' | 'jack' | 'swap-board';
@@ -79,7 +88,7 @@ class InactivityTimer {
   readonly elapsed = signal(false);
   private timeout: ReturnType<typeof setTimeout> | null = null;
 
-  constructor(private readonly delayMs: number) {}
+  constructor(private readonly delayMs: number) { }
 
   arm(): void {
     if (this.timeout) clearTimeout(this.timeout);
@@ -111,21 +120,29 @@ class InactivityTimer {
  * rotation. Positions are measured from the real DOM so they track the
  * live layout.
  *
- * Timing models per hint (all gated by the Card Help toggle,
- * GameStateService.cardHelpEnabled):
- * - 'card' (no legal move selected yet, holding a playable A/K/Joker):
- *   appears on any turn, after CARD_HINT_DELAY_MS of inactivity — or the
- *   shorter EMPTY_BOARD_HINT_DELAY_MS when the player has no marble in
- *   play at all yet (nothing else to consider, the obvious move).
- * - 'discard' (no legal move at all): shorter DISCARD_HINT_DELAY_MS delay —
- *   there's nothing to weigh, so nudge sooner.
- * - 'jack' (holding a playable Jack, no better option): longer
- *   JACK_HINT_DELAY_MS delay — entering a marble ('card' above) always
- *   takes priority over swapping when both are possible, since it has the
- *   shorter delay (see the `hint` computed for how that's enforced).
- * - 'marble' / 'jack-source' / 'jack-target' / 'confirm' (a card is already
- *   selected): shown immediately, every turn, no delay — the player is
- *   already mid-move and needs the next-step affordance right away.
+ * Every hint belongs to one of three flows — entry (K/A/Joker), swap
+ * (Jack), or the generic fallback (any other card) — plus 'discard', which
+ * stands on its own. Each flow is gated behind a SINGLE inactivity timer
+ * (armed at turn start) covering all of its steps, from the pre-selection
+ * hint through to 'confirm': a fast player who picks a card before that
+ * timer elapses doesn't get a hint suddenly interrupting them mid-move —
+ * every later step of that flow stays silent until the same delay is up.
+ * All hints are also gated by the Card Help toggle
+ * (GameStateService.cardHelpEnabled):
+ * - Entry ('card' → 'marble' → 'confirm'): CARD_HINT_DELAY_MS, or the
+ *   shorter EMPTY_BOARD_HINT_DELAY_MS when the player has no marble in play
+ *   at all yet (nothing else to consider, the obvious move).
+ * - Discard ('discard'): shorter DISCARD_HINT_DELAY_MS — there's nothing to
+ *   weigh, the only legal action is to discard.
+ * - Swap ('jack' → 'jack-source' → 'jack-target' → 'confirm'):
+ *   JACK_HINT_DELAY_MS — entry always takes priority over swap when both
+ *   are possible, since it has the shorter delay (see the `hint` computed
+ *   for how that's enforced).
+ * - Generic fallback ('select-card' → 'select-marble' → 'confirm'):
+ *   SELECT_CARD_HINT_DELAY_MS, the longest — lowest priority of the
+ *   pre-selection hints. Exception: a 7 that can be split across two
+ *   marbles has its own dedicated overlay/hints (table.component.ts) —
+ *   'select-marble' stays silent for it.
  *
  * To add a hint step: add one entry to the `hint` state machine and a
  * matching branch in `recompute`.
@@ -157,6 +174,8 @@ export class TutorialOverlayComponent implements OnDestroy {
   private discardHintDelay = new InactivityTimer(DISCARD_HINT_DELAY_MS);
   /** Gates the 'jack' hint. */
   private jackHintDelay = new InactivityTimer(JACK_HINT_DELAY_MS);
+  /** Gates the generic 'select-card' fallback hint. */
+  private selectCardHintDelay = new InactivityTimer(SELECT_CARD_HINT_DELAY_MS);
 
   /** True when the server says the player has no legal move and must discard. */
   private isDiscardMode = computed(
@@ -181,41 +200,67 @@ export class TutorialOverlayComponent implements OnDestroy {
       return { id: 'discard', text: 'No playable cards — tap to discard', anchor: 'confirm' };
     }
 
-    if (!gs.selectedCard()) {
+    // Each flow (entry / swap / generic) is gated behind ONE inactivity
+    // timer that covers every one of its steps, not just the first. If a
+    // fast player selects a card before that timer elapses, later steps
+    // (marble, confirm) stay just as silent as the pre-selection hint would
+    // have been — instead of suddenly popping up mid-move the instant a
+    // card is picked.
+    const entryDelayElapsed = gs.allOwnMarblesAtHome()
+      ? this.emptyBoardHintDelay.elapsed()
+      : this.cardHintDelay.elapsed();
+
+    const card = gs.selectedCard();
+    if (!card) {
       // Priority: entering a marble always wins over swapping when both are
       // possible — it has the shorter delay (8s/15s vs 20s), so once its
       // condition holds we never fall through to the 'jack' hint below, even
       // if the entry delay itself hasn't elapsed yet.
       if (gs.canEnterMarble()) {
-        const delayElapsed = gs.allOwnMarblesAtHome()
-          ? this.emptyBoardHintDelay.elapsed()
-          : this.cardHintDelay.elapsed();
-        if (delayElapsed) {
-          return { id: 'card', text: 'Play a King, Ace or Joker to start', anchor: 'hand' };
-        }
-        return null;
+        return entryDelayElapsed
+          ? { id: 'card', text: 'Play a King, Ace or Joker to start', anchor: 'hand' }
+          : null;
       }
       // Holding a playable Jack — guide the player to swap a marble, once
-      // inactive for longer (secondary option vs. entering a marble).
-      if (gs.canSwapWithJack() && this.jackHintDelay.elapsed()) {
-        return { id: 'jack', text: 'Play Jack to swap a marble', anchor: 'jack' };
+      // inactive for longer (secondary option vs. entering a marble). Same
+      // priority rule: blocks the generic 'select-card' fallback below while
+      // this condition holds, even before its own delay has elapsed.
+      if (gs.canSwapWithJack()) {
+        return this.jackHintDelay.elapsed()
+          ? { id: 'jack', text: 'Play Jack to swap a marble', anchor: 'jack' }
+          : null;
       }
-      return null;
+      // Fallback: no specific hint applies — just point at the hand, once
+      // inactive for even longer (lowest priority of the pre-selection hints).
+      return this.selectCardHintDelay.elapsed()
+        ? { id: 'select-card', text: 'Select a card', anchor: 'hand' }
+        : null;
     }
-    // A card is selected — these steps are shown immediately (no delay).
-    if (gs.selectedCard()?.value === 'J') {
-      // Jack swap flow: pick the source marble, then the target marble.
+
+    // A card is already selected — figure out which flow it belongs to, and
+    // gate every remaining step (including 'confirm' below) behind that
+    // same flow's timer.
+    if (card.value === 'J') {
+      if (!this.jackHintDelay.elapsed()) return null;
       if (gs.selectedMarblePosition() === null) {
         return { id: 'jack-source', text: 'Pick a marble', anchor: 'swap-board' };
       }
       if (gs.selectedSwapTargetPosition() === null) {
         return { id: 'jack-target', text: 'Pick a second marble', anchor: 'swap-board' };
       }
-    } else if (gs.selectedMarblePosition() === null) {
-      // Marble-entry flow only, for now: other playable marbles (already in
-      // play) aren't highlighted yet, that's a later evolution.
-      if (!gs.hasPlayableHomeMarble()) return null;
-      return { id: 'marble', text: 'Select a marble to move', anchor: 'board' };
+    } else if (gs.hasPlayableHomeMarble()) {
+      if (!entryDelayElapsed) return null;
+      if (gs.selectedMarblePosition() === null) {
+        return { id: 'marble', text: 'Select a marble to move', anchor: 'board' };
+      }
+    } else {
+      if (!this.selectCardHintDelay.elapsed()) return null;
+      if (gs.selectedMarblePosition() === null) {
+        // A splittable 7 has its own dedicated overlay and hint text
+        // (table.component.ts) — don't compete with it.
+        if (card.value === '7' && gs.canSplit7Anywhere()) return null;
+        return { id: 'select-marble', text: 'Select a marble', anchor: 'swap-board' };
+      }
     }
     if (gs.canPlay()) {
       return { id: 'confirm', text: 'Tap the button to confirm', anchor: 'confirm' };
@@ -329,6 +374,7 @@ export class TutorialOverlayComponent implements OnDestroy {
     this.emptyBoardHintDelay.arm();
     this.discardHintDelay.arm();
     this.jackHintDelay.arm();
+    this.selectCardHintDelay.arm();
   }
 
   /** Cancels all inactivity countdowns once it's no longer the local player's turn. */
@@ -337,6 +383,7 @@ export class TutorialOverlayComponent implements OnDestroy {
     this.emptyBoardHintDelay.disarm();
     this.discardHintDelay.disarm();
     this.jackHintDelay.disarm();
+    this.selectCardHintDelay.disarm();
   }
 
   private recompute(anchor: HintAnchor): void {
@@ -377,23 +424,18 @@ export class TutorialOverlayComponent implements OnDestroy {
       this.highlights.set([box]);
       this.pills.set([{ left: box.cx, top: box.cy - box.height / 2, side: 'above', arrowShift: 0 }]);
     } else if (anchor === 'swap-board') {
-      // Jack swap flow (source or target step) — outline every selectable
-      // marble, unrestricted (unlike 'board' below, marbles already in play
-      // are exactly what's relevant here), with one pill per marble. Marbles
-      // can sit anywhere on the board, including near the very top edge, so
-      // each pill individually flips below its marble (arrow pointing up)
-      // instead of above whenever there isn't enough headroom — a fixed
-      // 'above' would otherwise get clipped by the top of the viewport.
+      // Jack swap flow (source or target step) or the generic fallback —
+      // outline every selectable marble, unrestricted (unlike 'board' below,
+      // marbles already in play are exactly what's relevant here). Normally
+      // one pill per marble, but marbles sitting close together (adjacent
+      // squares) get a single shared pill instead — one per marble there
+      // would stack right on top of each other, hiding the marbles entirely
+      // instead of helping (see clusterBoxes()).
       const marbles = Array.from(document.querySelectorAll<HTMLElement>('.marble-selectable'));
       if (!marbles.length) return this.clear();
       const boxes = marbles.map(el => this.orientedBox(el, 'marble'));
       this.highlights.set(boxes);
-      this.pills.set(boxes.map(box => {
-        const top = box.cy - box.height / 2;
-        return top >= MIN_PILL_TOP_MARGIN
-          ? { left: box.cx, top, side: 'above' as const, arrowShift: 0 }
-          : { left: box.cx, top: box.cy + box.height / 2, side: 'below' as const, arrowShift: 0 };
-      }));
+      this.pills.set(this.clusterBoxes(boxes).map(cluster => this.pillAboveOrBelow(cluster)));
     } else {
       // 'board' — outline the selectable marble(s) still in the home reserve;
       // place the pill just outside the player's home corner. Only the entry
@@ -450,6 +492,42 @@ export class TutorialOverlayComponent implements OnDestroy {
       rotation,
       shape,
     };
+  }
+
+  /**
+   * Groups highlight boxes whose centres are close enough that separate
+   * pills would visually collide (adjacent marbles), so they can share one
+   * pill instead. Greedy: a box joins the first cluster containing a box
+   * within its own radius — transitively correct, since later boxes are
+   * tested against every member already in the cluster, not just the first.
+   */
+  private clusterBoxes(boxes: HighlightBox[]): HighlightBox[][] {
+    const clusters: HighlightBox[][] = [];
+    for (const box of boxes) {
+      const maxDist = box.width * PILL_CLUSTER_RADIUS_FACTOR;
+      const cluster = clusters.find(c =>
+        c.some(b => Math.hypot(b.cx - box.cx, b.cy - box.cy) <= maxDist)
+      );
+      if (cluster) cluster.push(box);
+      else clusters.push([box]);
+    }
+    return clusters;
+  }
+
+  /**
+   * Pill placement for a box or cluster of boxes: above their combined
+   * bounding box, or below it (arrow pointing up) when too close to the top
+   * of the viewport for 'above' to fit without getting clipped.
+   */
+  private pillAboveOrBelow(cluster: HighlightBox[]): PillPlacement {
+    const left = Math.min(...cluster.map(b => b.cx - b.width / 2));
+    const right = Math.max(...cluster.map(b => b.cx + b.width / 2));
+    const top = Math.min(...cluster.map(b => b.cy - b.height / 2));
+    const bottom = Math.max(...cluster.map(b => b.cy + b.height / 2));
+    const cx = (left + right) / 2;
+    return top >= MIN_PILL_TOP_MARGIN
+      ? { left: cx, top, side: 'above', arrowShift: 0 }
+      : { left: cx, top: bottom, side: 'below', arrowShift: 0 };
   }
 
   private unionRect(els: HTMLElement[]): UnionRect {

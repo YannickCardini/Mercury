@@ -1214,6 +1214,85 @@ $colors: (
     }
 }
 
+/* --------------------------------------------------------------------------
+   INVINCIBLE — pion « fraîchement entré », invincible jusqu'à son premier
+   déplacement (voir `marbleInvincible` dans Player, aligné 1:1 sur
+   `marblePositions`). Effet propre à la CASE, pas au pion : le pion semble
+   enfermé dans un dôme de verre traversé par un rayon lumineux tournant.
+   Dès que le joueur joue une carte pour déplacer ce pion, le backend repasse
+   `marbleInvincible` à `false` ⇒ la classe disparaît avec le state suivant,
+   AVANT que l'animation de déplacement de la bille ne parte (pas de conflit
+   visuel entre le dôme et le mouvement). Rien à désactiver manuellement
+   côté front.
+   -------------------------------------------------------------------------- */
+.case-path.square-invincible {
+    &::before {
+        content: '';
+        position: absolute;
+        inset: calc(var(--square-size) * -0.08);
+        border-radius: 50%;
+        background: radial-gradient(circle at 35% 28%,
+                rgba(210, 240, 255, 0.32),
+                rgba(110, 210, 255, 0.08) 55%,
+                transparent 75%);
+        border: 2px solid rgba(150, 225, 255, 0.7);
+        box-shadow:
+            0 0 0 2px rgba(255, 255, 255, 0.25) inset,
+            0 0 14px 2px rgba(120, 220, 255, 0.55),
+            0 0 28px 6px rgba(80, 190, 255, 0.35);
+        pointer-events: none;
+        z-index: 6;
+        animation: invincibleShieldPulse 2.2s ease-in-out infinite;
+    }
+
+    &::after {
+        content: '';
+        position: absolute;
+        inset: calc(var(--square-size) * 0.02);
+        border-radius: 50%;
+        background: conic-gradient(from 0deg,
+                rgba(255, 255, 255, 0) 0%,
+                rgba(210, 245, 255, 0.6) 6%,
+                rgba(255, 255, 255, 0) 16%,
+                rgba(255, 255, 255, 0) 50%,
+                rgba(210, 245, 255, 0.45) 56%,
+                rgba(255, 255, 255, 0) 66%,
+                rgba(255, 255, 255, 0) 100%);
+        mix-blend-mode: screen;
+        pointer-events: none;
+        z-index: 7;
+        animation: invincibleShieldSpin 4s linear infinite;
+    }
+}
+
+@keyframes invincibleShieldPulse {
+
+    0%,
+    100% {
+        box-shadow:
+            0 0 0 2px rgba(255, 255, 255, 0.25) inset,
+            0 0 14px 2px rgba(120, 220, 255, 0.55),
+            0 0 28px 6px rgba(80, 190, 255, 0.35);
+    }
+
+    50% {
+        box-shadow:
+            0 0 0 2px rgba(255, 255, 255, 0.4) inset,
+            0 0 20px 4px rgba(120, 220, 255, 0.8),
+            0 0 38px 10px rgba(80, 190, 255, 0.55);
+    }
+}
+
+@keyframes invincibleShieldSpin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 /* Lévitation et halo lumineux quand le pion est sélectionné */
 @keyframes levitateSelected {
 

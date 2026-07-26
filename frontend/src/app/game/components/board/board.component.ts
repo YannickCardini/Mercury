@@ -230,6 +230,28 @@ export class BoardComponent implements OnDestroy {
     return m;
   });
 
+  /**
+   * Cases contenant actuellement un pion invincible (entre son entrée en jeu
+   * et son premier déplacement). Dérivé de `marbleInvincible` (aligné 1:1 sur
+   * `marblePositions`), propre à la CASE et non au pion : dès que le backend
+   * déplace ce pion, `marbleInvincible` repasse à `false` et le halo
+   * disparaît avec le state suivant, avant que l'animation de déplacement
+   * ne parte — aucune désactivation manuelle nécessaire côté front.
+   */
+  private invincibleSquares = computed<Set<number>>(() => {
+    const s = new Set<number>();
+    const gameData = this.displayedGameData();
+    if (!gameData) return s;
+    for (const player of gameData.gameState.players) {
+      const positions = player.marblePositions ?? [];
+      const invincible = player.marbleInvincible ?? [];
+      positions.forEach((pos, i) => {
+        if (pos !== 0 && invincible[i]) s.add(pos);
+      });
+    }
+    return s;
+  });
+
   /** Cache statique des classes de case (dépend uniquement de l'index). */
   private squareClassCache = new Map<number, string>();
 
@@ -648,7 +670,19 @@ export class BoardComponent implements OnDestroy {
             marblePositions[idx] = action.to;
           }
 
-          return { ...p, marblePositions }; // Retourne le joueur mis à jour
+          // Mirroir optimiste de la règle backend (game.ts) : un pion n'est
+          // invincible qu'entre son entrée en jeu et son premier déplacement.
+          // Sans ça, le halo restait affiché (sur la nouvelle case) pendant
+          // toute l'animation de déplacement, le temps que le state serveur
+          // arrive en fin de tour — il doit disparaître dès que l'animation
+          // de mouvement démarre.
+          let marbleInvincible = p.marbleInvincible;
+          if (idx !== -1) {
+            marbleInvincible = [...p.marbleInvincible];
+            marbleInvincible[idx] = action.type === 'enter';
+          }
+
+          return { ...p, marblePositions, marbleInvincible }; // Retourne le joueur mis à jour
         }
         return p;
       });
@@ -1058,6 +1092,15 @@ export class BoardComponent implements OnDestroy {
   /** Bille en pleine séquence de verrouillage « Pokéball » (one-shot, 2v2). */
   isLockingMarble(index: number): boolean {
     return this.lockingSquares().has(index);
+  }
+
+  /**
+   * Vrai si cette case contient un pion invincible : affiche un dôme/bouclier
+   * lumineux autour de la case (propre à la case, pas au pion — voir
+   * `invincibleSquares`).
+   */
+  isInvincibleSquare(index: number): boolean {
+    return this.invincibleSquares().has(index);
   }
 
   /** Marble jouable avec la carte sélectionnée (à mettre en surbrillance). */

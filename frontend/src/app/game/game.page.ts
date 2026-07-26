@@ -321,7 +321,8 @@ export class GamePage implements OnDestroy, AfterViewInit {
       if (!this.introStarted) {
         this.introStarted = true;
         this.gameStateService.teamIntroPlaying.set(true);
-        intro.play();
+        if (!this.debug)
+          intro.play();
         this.entranceTimer = setTimeout(
           () => this.entranceSettled.set(true),
           ENTRANCE_SETTLE_MS

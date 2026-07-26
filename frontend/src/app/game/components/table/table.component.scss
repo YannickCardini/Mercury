@@ -676,6 +676,7 @@
     cursor: pointer;
     text-align: left;
     transition: all 0.15s ease;
+    touch-action: manipulation;
 
     svg {
         flex-shrink: 0;
@@ -1312,6 +1313,7 @@
     align-items: center;
     justify-content: center;
     animation: overlayFadeIn 0.2s ease;
+    touch-action: manipulation;
 }
 
 @keyframes overlayFadeIn {
@@ -1559,7 +1561,8 @@
     /* Overlays à la demande (fonds déjà quasi opaques) : on retire juste le
        flou coûteux. */
     .menu-dropdown,
-    .card-help-popover {
+    .card-help-popover,
+    .resign-overlay {
         backdrop-filter: none;
         -webkit-backdrop-filter: none;
     }
