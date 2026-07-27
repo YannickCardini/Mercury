@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { pairwise } from 'rxjs';
-import { NEW_TURN_BANNER_DURATION_MS } from '@mercury/shared';
+import { ENTER_CARDS, NEW_TURN_BANNER_DURATION_MS } from '@mercury/shared';
 import { GameStateService } from '../../services/game-state.service';
 
 /** Delay of player inactivity, with no card selected, before the card-usage hint appears. */
@@ -31,15 +31,9 @@ const JACK_HINT_DELAY_MS = 20_000;
  *  delay of the bunch (lowest priority). */
 const SELECT_CARD_HINT_DELAY_MS = 21_000;
 
-/** Minimum space (px) a pill needs above its target to sit 'above' it without
- *  its top edge getting clipped by the viewport — a rough estimate of pill
- *  height + arrow + gap, since the real height isn't known until it renders. */
-const MIN_PILL_TOP_MARGIN = 100;
-
-/** How close two marbles' centres can be (in multiples of the marble's own
- *  width) before their individual pills would visually collide — beyond
- *  this, they share a single pill instead of one each. */
-const PILL_CLUSTER_RADIUS_FACTOR = 6.5;
+/** Gap (px) between a marble's highlight ring and the standalone arrow
+ *  pointing down at it (see 'swap-board' in `recompute`). */
+const MARBLE_ARROW_GAP = 10;
 
 /** Which game element a hint refers to. */
 type HintAnchor = 'hand' | 'board' | 'confirm' | 'jack' | 'swap-board';
@@ -66,12 +60,22 @@ interface HighlightBox {
 interface PillPlacement {
   /** Clamped centre X of the pill. */
   left: number;
-  /** Y of the target edge the pill attaches to. */
+  /** Y of the target edge the pill attaches to ('above'/'below'), or the Y
+   *  it's centred on ('center'). */
   top: number;
-  /** Which side of `top` the pill body sits on. */
-  side: 'above' | 'below';
+  /** Which side of `top` the pill body sits on, or 'center' to sit right on
+   *  the point (used for the single board-centred pill). */
+  side: 'above' | 'below' | 'center';
   /** Horizontal arrow offset that re-aims it at the target after clamping. */
   arrowShift: number;
+}
+
+/** Position of a small standalone arrow pointing down at one marble — used
+ *  instead of a per-marble pill when several marbles share a single,
+ *  board-centred text pill (see 'swap-board' in `recompute`). */
+interface MarbleArrow {
+  left: number;
+  top: number;
 }
 
 /** Axis-aligned union of several elements' bounding rects. */
@@ -114,11 +118,15 @@ class InactivityTimer {
  * game state changes.
  *
  * Each hint shows highlight rings around its targets — every card in hand,
- * every playable marble, or the confirm/discard button — plus one text pill
- * with a pointer arrow per target (usually one pill; the Jack swap hints
- * place one per selectable marble). The card rings follow each card's fan
- * rotation. Positions are measured from the real DOM so they track the
- * live layout.
+ * every playable marble, or the confirm/discard button — plus a single text
+ * pill with a pointer arrow. Hints that target multiple marbles at once (the
+ * Jack swap steps, the generic marble-selection fallback) still ring every
+ * one of them, but the pill itself appears only once, centred on the board,
+ * rather than once per marble — a pill pointing at nothing in particular
+ * would be confusing, so it drops its own arrow and each ringed marble gets
+ * a small standalone arrow instead (see `marbleArrows`). The card rings
+ * follow each card's fan rotation. Positions are measured from the real DOM
+ * so they track the live layout.
  *
  * Every hint belongs to one of three flows — entry (K/A/Joker), swap
  * (Jack), or the generic fallback (any other card) — plus 'discard', which
@@ -248,7 +256,15 @@ export class TutorialOverlayComponent implements OnDestroy {
       if (gs.selectedSwapTargetPosition() === null) {
         return { id: 'jack-target', text: 'Pick a second marble', anchor: 'swap-board' };
       }
-    } else if (gs.hasPlayableHomeMarble()) {
+    } else if (
+      gs.hasPlayableHomeMarble()
+      // hasPlayableHomeMarble() flips back to false the instant a marble is
+      // picked (playableMarblePositions() empties out once selected) — once
+      // already committed to the entry flow, stay on it by card type instead,
+      // so 'confirm' keeps using this flow's (already-elapsed) entryDelayElapsed
+      // instead of falling through to the generic fallback's much longer delay.
+      || (gs.selectedMarblePosition() !== null && ENTER_CARDS.includes(card.value))
+    ) {
       if (!entryDelayElapsed) return null;
       if (gs.selectedMarblePosition() === null) {
         return { id: 'marble', text: 'Select a marble to move', anchor: 'board' };
@@ -269,13 +285,19 @@ export class TutorialOverlayComponent implements OnDestroy {
   });
 
   /** Placement of the text pill(s), recomputed whenever the hint changes.
-   *  Usually one pill; the Jack swap hints place one per selectable marble. */
+   *  Always a single pill. */
   pills = signal<PillPlacement[]>([]);
   /** Highlight rings to draw around the hint's targets. */
   highlights = signal<HighlightBox[]>([]);
+  /** Standalone arrows, one per marble — used only for 'swap-board' (see
+   *  `recompute`), where the single text pill has no arrow of its own since
+   *  it isn't pointing at any one target. */
+  marbleArrows = signal<MarbleArrow[]>([]);
 
   /** Pill placements exposed to the template. */
   pillPositions = this.pills.asReadonly();
+  /** Marble arrow placements exposed to the template. */
+  marbleArrowPositions = this.marbleArrows.asReadonly();
 
   /** Highlight rects in template-friendly form. */
   highlightRects = computed(() =>
@@ -366,6 +388,7 @@ export class TutorialOverlayComponent implements OnDestroy {
   private clear(): void {
     this.pills.set([]);
     this.highlights.set([]);
+    this.marbleArrows.set([]);
   }
 
   /** (Re)starts all inactivity countdowns for a freshly-started local turn. */
@@ -387,6 +410,9 @@ export class TutorialOverlayComponent implements OnDestroy {
   }
 
   private recompute(anchor: HintAnchor): void {
+    // Only 'swap-board' uses standalone per-marble arrows; every other
+    // anchor's pill points at its own single target.
+    this.marbleArrows.set([]);
     if (anchor === 'hand') {
       // No highlight on cards — just position the pill above the center card.
       const cards = Array.from(document.querySelectorAll<HTMLElement>('.playable-card'));
@@ -426,16 +452,22 @@ export class TutorialOverlayComponent implements OnDestroy {
     } else if (anchor === 'swap-board') {
       // Jack swap flow (source or target step) or the generic fallback —
       // outline every selectable marble, unrestricted (unlike 'board' below,
-      // marbles already in play are exactly what's relevant here). Normally
-      // one pill per marble, but marbles sitting close together (adjacent
-      // squares) get a single shared pill instead — one per marble there
-      // would stack right on top of each other, hiding the marbles entirely
-      // instead of helping (see clusterBoxes()).
+      // marbles already in play are exactly what's relevant here). A single
+      // pill, centred on the board, carries the text — one per marble would
+      // clutter the board once several marbles are selectable at once. A
+      // pill pointing nowhere in particular is confusing though, so instead
+      // each marble gets its own small standalone arrow (no pill/text).
       const marbles = Array.from(document.querySelectorAll<HTMLElement>('.marble-selectable'));
       if (!marbles.length) return this.clear();
       const boxes = marbles.map(el => this.orientedBox(el, 'marble'));
       this.highlights.set(boxes);
-      this.pills.set(this.clusterBoxes(boxes).map(cluster => this.pillAboveOrBelow(cluster)));
+      this.marbleArrows.set(boxes.map(b => ({
+        left: b.cx,
+        top: b.cy - b.height / 2 - MARBLE_ARROW_GAP,
+      })));
+      const board = document.querySelector<HTMLElement>('.board-container');
+      const ref = board ? this.unionRect([board]) : this.unionRect(marbles);
+      this.pills.set([{ left: ref.cx, top: ref.cy, side: 'center', arrowShift: 0 }]);
     } else {
       // 'board' — outline the selectable marble(s) still in the home reserve;
       // place the pill just outside the player's home corner. Only the entry
@@ -492,42 +524,6 @@ export class TutorialOverlayComponent implements OnDestroy {
       rotation,
       shape,
     };
-  }
-
-  /**
-   * Groups highlight boxes whose centres are close enough that separate
-   * pills would visually collide (adjacent marbles), so they can share one
-   * pill instead. Greedy: a box joins the first cluster containing a box
-   * within its own radius — transitively correct, since later boxes are
-   * tested against every member already in the cluster, not just the first.
-   */
-  private clusterBoxes(boxes: HighlightBox[]): HighlightBox[][] {
-    const clusters: HighlightBox[][] = [];
-    for (const box of boxes) {
-      const maxDist = box.width * PILL_CLUSTER_RADIUS_FACTOR;
-      const cluster = clusters.find(c =>
-        c.some(b => Math.hypot(b.cx - box.cx, b.cy - box.cy) <= maxDist)
-      );
-      if (cluster) cluster.push(box);
-      else clusters.push([box]);
-    }
-    return clusters;
-  }
-
-  /**
-   * Pill placement for a box or cluster of boxes: above their combined
-   * bounding box, or below it (arrow pointing up) when too close to the top
-   * of the viewport for 'above' to fit without getting clipped.
-   */
-  private pillAboveOrBelow(cluster: HighlightBox[]): PillPlacement {
-    const left = Math.min(...cluster.map(b => b.cx - b.width / 2));
-    const right = Math.max(...cluster.map(b => b.cx + b.width / 2));
-    const top = Math.min(...cluster.map(b => b.cy - b.height / 2));
-    const bottom = Math.max(...cluster.map(b => b.cy + b.height / 2));
-    const cx = (left + right) / 2;
-    return top >= MIN_PILL_TOP_MARGIN
-      ? { left: cx, top, side: 'above', arrowShift: 0 }
-      : { left: cx, top: bottom, side: 'below', arrowShift: 0 };
   }
 
   private unionRect(els: HTMLElement[]): UnionRect {

@@ -87,13 +87,11 @@
   }
 }
 
-// ── Anchors: card hand / confirm-discard button / single Jack card / Jack
-// swap marbles ── pill just above the target, arrow points down. Jack swap
-// pills are positioned per-marble by the component (one pill per target).
+// ── Anchors: card hand / confirm-discard button / single Jack card ── pill
+// just above the target, arrow points down.
 .anchor-hand,
 .anchor-confirm,
-.anchor-jack,
-.anchor-swap-board {
+.anchor-jack {
   --arrow-rot: 0deg;
   transform: translate(-50%, calc(-100% - 12px));
 }
@@ -105,13 +103,30 @@
   transform: translate(-50%, 12px);
 }
 
-// Jack swap pills default to sitting above their marble; recompute() flips
-// individual pills below (arrow points up) when a marble is too close to the
-// top of the viewport for the default placement to fit.
-.anchor-swap-board.pill-below {
-  --arrow-rot: 180deg;
-  flex-direction: column-reverse;
-  transform: translate(-50%, 12px);
+// ── Anchor: swap-board (Jack swap steps, generic marble-selection fallback)
+// ── a single pill sitting right in the middle of the board, regardless of
+// how many marbles are highlighted. No arrow of its own (see .marble-arrow
+// below) since it isn't pointing at any one target.
+.anchor-swap-board.pill-center {
+  --arrow-rot: 0deg;
+  transform: translate(-50%, -50%);
+}
+
+// ── Standalone per-marble arrow ───────────────────────────────────────────
+// Used only alongside the 'swap-board' centred pill (which has no arrow of
+// its own): one small arrow per highlighted marble, sitting just above its
+// ring and pointing straight down at it.
+.marble-arrow {
+  position: fixed;
+  display: flex;
+  color: #ffd34d;
+  pointer-events: none;
+  transform: translate(-50%, -100%);
+
+  svg {
+    display: block;
+    animation: hintArrowBob 1.1s ease-in-out infinite;
+  }
 }
 
 @keyframes hintFadeIn {

@@ -320,9 +320,19 @@ export class GamePage implements OnDestroy, AfterViewInit {
 
       if (!this.introStarted) {
         this.introStarted = true;
+        if (this.debug) {
+          // Saute l'anim en debug (itération plus rapide) — mais il faut
+          // quand même clore l'état comme une annonce terminée : sans
+          // intro.play(), intro.playing() ne passe jamais à vrai, donc le
+          // second passage de cet effect (plus bas) ne se déclencherait
+          // jamais et teamIntroPlaying resterait bloqué à true pour toute
+          // la partie, coupant le tutoriel en permanence.
+          this.phase.set("revealed");
+          this.introStarted = false;
+          return;
+        }
         this.gameStateService.teamIntroPlaying.set(true);
-        if (!this.debug)
-          intro.play();
+        intro.play();
         this.entranceTimer = setTimeout(
           () => this.entranceSettled.set(true),
           ENTRANCE_SETTLE_MS
