@@ -14,6 +14,8 @@ import {
 import { TockCardComponent } from 'src/app/shared/tock-card.component';
 import { getCardEffect } from 'src/app/shared/card-effects';
 import { EmojiReactionsComponent } from '../emoji-reactions/emoji-reactions.component';
+import { TableTimerBarComponent } from './table-timer-bar.component';
+import { TimerRingComponent } from './timer-ring.component';
 import type { Card, MarbleColor } from '@mercury/shared';
 import { getValidSevenStepsForMarble, getPositionAfterMove, getLegalSplit7Action } from '@mercury/shared';
 import { Subscription } from 'rxjs';
@@ -40,15 +42,13 @@ enum TURN_PHASE {
   styleUrl: 'table.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, TockCardComponent, EmojiReactionsComponent],
+  imports: [CommonModule, TockCardComponent, EmojiReactionsComponent, TableTimerBarComponent, TimerRingComponent],
   // `is-native` : allège en CSS les effets coûteux (backdrop-filter, box-shadow
   // animée) sur WebView Android. Le rendu web/desktop reste inchangé.
   host: { '[class.is-native]': 'isNative' }
 }) export class TableComponent implements OnInit, OnDestroy {
 
 
-  /** Circonférence du cercle SVG (rayon = 27.5) */
-  readonly timerCircumference = 2 * Math.PI * 27.5; // ≈ 172.79
   timeLeft = this.gameStateService.timeLeft;
   timerInterval?: any; // Type 'any' pour setInterval --- IGNORE ---
 
@@ -204,24 +204,6 @@ enum TURN_PHASE {
   confirmOrDiscardEnabled = computed(() => {
     if (!this.gameStateService.isMyTurn()) return false;
     return this.isDiscardMode() || this.gameStateService.canPlay();
-  });
-
-  /** Couleur de l'arc : vert → orange → rouge */
-  timerColor = computed(() => {
-    const r = this.timeRatio();
-    if (r > 0.5) return '#34d399'; // vert émeraude
-    if (r > 0.25) return '#fbbf24'; // ambre
-    return '#f87171'; // rouge
-  });
-
-  timerDashOffset = computed(() => {
-    const ratio = this.timeRatio();
-    return this.timerCircumference * (1 - ratio);
-  });
-
-  timeRatio = computed(() => {
-    const timer = this.gameStateService.data()?.gameState?.timer ?? 0;
-    return timer > 0 ? this.timeLeft() / timer : 0;
   });
 
   constructor(protected gameStateService: GameStateService, protected soundService: SoundService, private router: Router, protected authService: AuthService) {

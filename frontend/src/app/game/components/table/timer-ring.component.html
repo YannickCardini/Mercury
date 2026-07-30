@@ -1,0 +1,9 @@
+<svg viewBox="0 0 64 64" width="64" height="64">
+  <circle class="timer-bg" cx="32" cy="32" r="27.5" />
+  <circle class="timer-arc" cx="32" cy="32" r="27.5" [style.stroke]="timerColor()"
+    [style.stroke-dasharray]="timerCircumference" [style.stroke-dashoffset]="timerDashOffset()" />
+</svg>
+<div class="timer-display">
+  <span class="timer-number" [class.urgent]="timeLeft() <= 10">{{ timeLeft() }}</span>
+  <span class="timer-label">sec</span>
+</div>

@@ -1,0 +1,4 @@
+<div class="table-timer__track"></div>
+<div class="table-timer__fill" [style.transform]="'scaleX(' + timeRatio() + ')'"
+  [style.background-color]="timerColor()"></div>
+<span class="table-timer__count" [style.color]="timerColor()">{{ timeLeft() }}s</span>

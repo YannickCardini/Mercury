@@ -103,6 +103,8 @@ export class BoardComponent implements OnDestroy {
    */
   overlayMarbles = signal<Record<number, { color: MarbleColor; animClass: string }>>({});
   discardPile = signal<CardInfo[]>([]);
+  /** 5 cartes visibles en haut de la pile — seule tranche réellement affichée. */
+  readonly topDiscard = computed(() => this.discardPile().slice(0, 5));
   flyingCard = signal<CardInfo | null>(null);
   /** Cartes en vol simultanées lors d'un discard (plusieurs cartes) */
   flyingCards = signal<Array<CardInfo & { flyIndex: number }>>([]);
@@ -257,6 +259,18 @@ export class BoardComponent implements OnDestroy {
 
   readonly debug = environment.debug;
 
+  /**
+   * Compteur de ré-exécutions du template racine du board (Phase 0 de l'audit perf).
+   * Gated sur environment.debug : ne doit jamais tourner en prod.
+   */
+  countBoardRender(): true {
+    if (environment.debug) {
+      (window as unknown as { __boardRenders: number }).__boardRenders =
+        ((window as unknown as { __boardRenders?: number }).__boardRenders ?? 0) + 1;
+    }
+    return true;
+  }
+
   // ── Debug : édition du plateau ──────────────────────────────────────────────
   /** Vrai quand le plateau est en mode édition (partie suspendue côté serveur). */
   readonly editMode = this.gameStateService.boardEditMode;
@@ -365,7 +379,7 @@ export class BoardComponent implements OnDestroy {
           // Au moment de l'atterrissage, alimenter la pile et retirer du vol
           setTimeout(() => {
             const ci: CardInfo = { value: c.value, suit: c.suit, color };
-            this.discardPile.update(pile => [ci, ...pile]);
+            this.discardPile.update(pile => [ci, ...pile].slice(0, 8));
             this.flyingCards.update(prev => prev.filter(fc => fc.flyIndex !== i));
 
             // Résoudre la promesse quand la dernière carte est posée
@@ -393,7 +407,7 @@ export class BoardComponent implements OnDestroy {
       this.soundService.playCard();
       this.flyingCard.set(card);
       setTimeout(() => {
-        this.discardPile.update(pile => [card, ...pile]);
+        this.discardPile.update(pile => [card, ...pile].slice(0, 8));
         this.flyingCard.set(null);
         resolve();
       }, CARD_LAND_DELAY_MS);
@@ -760,10 +774,6 @@ export class BoardComponent implements OnDestroy {
 
   // ── Getters ─────────────────────────────────────────────────────────────────
 
-  get topDiscardCard(): CardInfo | null {
-    return this.discardPile()[0] ?? null;
-  }
-
   getMarbleAnimClass(index: number): string {
     return this.squareAnimations()[index]?.marbleClass ?? '';
   }
@@ -775,9 +785,6 @@ export class BoardComponent implements OnDestroy {
   getSquareAnimClass(index: number): string {
     return this.squareAnimations()[index]?.squareClass ?? '';
   }
-
-  get rows(): number[] { return Array(this.gridSize).fill(0).map((_, i) => i); }
-  get cols(): number[] { return Array(this.gridSize).fill(0).map((_, i) => i); }
 
   // ── Lifecycle ───────────────────────────────────────────────────────────────
 
@@ -965,6 +972,9 @@ export class BoardComponent implements OnDestroy {
   getMarbleOnSquare(index: number): MarbleColor | null {
     return this.marbleByPosition().get(index) ?? null;
   }
+
+  get rows(): number[] { return Array(this.gridSize).fill(0).map((_, i) => i); }
+  get cols(): number[] { return Array(this.gridSize).fill(0).map((_, i) => i); }
 
   // ── Debug : édition du plateau ──────────────────────────────────────────────
 

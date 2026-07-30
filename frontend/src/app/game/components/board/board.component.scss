@@ -1217,8 +1217,8 @@ $colors: (
 /* --------------------------------------------------------------------------
    INVINCIBLE — pion « fraîchement entré », invincible jusqu'à son premier
    déplacement (voir `marbleInvincible` dans Player, aligné 1:1 sur
-   `marblePositions`). Effet propre à la CASE, pas au pion : le pion semble
-   enfermé dans un dôme de verre traversé par un rayon lumineux tournant.
+   `marblePositions`). Effet propre à la CASE, pas au pion : aucune animation 
+   pour le moment, a y réflechir.
    Dès que le joueur joue une carte pour déplacer ce pion, le backend repasse
    `marbleInvincible` à `false` ⇒ la classe disparaît avec le state suivant,
    AVANT que l'animation de déplacement de la bille ne parte (pas de conflit
@@ -1242,7 +1242,7 @@ $colors: (
             0 0 28px 6px rgba(80, 190, 255, 0.35);
         pointer-events: none;
         z-index: 6;
-        animation: invincibleShieldPulse 2.2s ease-in-out infinite;
+        // animation: invincibleShieldPulse 2.2s ease-in-out infinite;
     }
 
     &::after {
@@ -1261,7 +1261,7 @@ $colors: (
         mix-blend-mode: screen;
         pointer-events: none;
         z-index: 7;
-        animation: invincibleShieldSpin 4s linear infinite;
+        // animation: invincibleShieldSpin 4s linear infinite;
     }
 }
 
@@ -1329,6 +1329,7 @@ $colors: (
    statique (aucun repaint en boucle — la lueur pulsée argentée a été retirée).
    -------------------------------------------------------------------------- */
 .marble.marble-anchored {
+
     // Collier « douille » par couleur : même teinte que le border des cases
     // arrival-* (hex assombri), pour fondre la bille dans sa case.
     @each $name, $hex in $colors {
@@ -1340,10 +1341,9 @@ $colors: (
     filter: brightness(0.82) saturate(0.8);
     // Ombre interne en haut = léger creux ; on garde le modelé de base mais
     // sans l'ombre portée externe (0 4px 8px) qui faisait « flotter » la bille.
-    box-shadow:
-        0 0 0 calc(var(--square-size) * 0.05) var(--anchor-collar, rgba(0, 0, 0, 0.4)),
-        inset 0 3px 6px rgba(0, 0, 0, 0.35),
-        inset -2px -2px 6px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 0 0 calc(var(--square-size) * 0.05) var(--anchor-collar, rgba(0, 0, 0, 0.4)),
+    inset 0 3px 6px rgba(0, 0, 0, 0.35),
+    inset -2px -2px 6px rgba(0, 0, 0, 0.3);
 
     // Reflet atténué : surface matie par le blindage.
     .marble-highlight {
@@ -1707,6 +1707,16 @@ $colors: (
         animation: none;
     }
 
+    /* Halo « bouclier d'invincibilité » : pulse via box-shadow (repaint à
+       chaque frame), sur potentiellement plusieurs cases en simultané. Même
+       traitement que previewDestPulse ci-dessus : on stoppe l'animation, le
+       dôme + halo statique définis sur la règle de base restent visibles. Le
+       rayon tournant (::after, invincibleShieldSpin) n'anime que transform,
+       déjà composé GPU — on le laisse. */
+    .case-path.square-invincible::before {
+        animation: none;
+    }
+
     /* Pions ancrés : rien à alléger — l'état « blindé » est statique par
        construction (aucune animation en boucle), voir .marble-anchored. */
 }
@@ -1722,6 +1732,7 @@ $colors: (
         opacity: 0;
     }
 }
+
 /* --------------------------------------------------------------------------
    MODE ÉDITION (DEBUG) — partie en pause, tout pion déplaçable au clic.
    -------------------------------------------------------------------------- */

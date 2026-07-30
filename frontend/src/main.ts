@@ -13,7 +13,7 @@ import { AppComponent } from "./app/app.component";
 
 bootstrapApplication(AppComponent, {
   providers: [
-    provideZoneChangeDetection(),
+    provideZoneChangeDetection({ eventCoalescing: true }),
     provideIonicAngular(),
     provideHttpClient(withXhr()),
     provideRouter(routes, withPreloading(PreloadAllModules)),

@@ -32,53 +32,6 @@
     --pb-color: #fb923c;
 }
 
-/* ── Anneau-timer ─────────────────────────────────────────────────────────── */
-.pb-ring {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    /* Démarre le vidage depuis le haut. translateZ(0) isole l'anneau sur SA propre
-       couche de composition : l'anneau du joueur courant se repeint en continu
-       (dashoffset/couleur/filtre chaque seconde, et fortement au handover). Sans
-       cette isolation, ces repaints salissent toute la couche du badge →
-       l'avatar + la plaque clignotent sur mobile au changement de tour. */
-    transform: rotate(-90deg) translateZ(0);
-    backface-visibility: hidden;
-    -webkit-backface-visibility: hidden;
-    overflow: visible;
-    z-index: 1;
-}
-
-.pb-ring-bg {
-    fill: none;
-    stroke: rgba(15, 23, 42, 0.55);
-    stroke-width: 5.5;
-}
-
-.pb-ring-arc {
-    fill: none;
-    stroke: var(--pb-color);
-    stroke-width: 5.5;
-    stroke-linecap: round;
-    opacity: 0.5;
-    /* Filtre TOUJOURS présent (transparent au repos) : passer le tour ne fait
-       alors que changer la *valeur* du drop-shadow, et non basculer le filtre de
-       absent→présent — bascule qui créait/détruisait une couche et faisait
-       clignoter le badge. (Sur natif, le filtre est retiré tout court, cf. plus bas.) */
-    filter: drop-shadow(0 0 4px transparent);
-    transition: stroke-dashoffset 1s linear, stroke 0.4s ease, opacity 0.4s ease, filter 0.4s ease;
-}
-
-.pb--current .pb-ring-arc {
-    opacity: 1;
-    filter: drop-shadow(0 0 4px currentColor);
-}
-
-.pb--urgent .pb-ring-arc {
-    animation: pbRingPulse 1s ease-in-out infinite;
-}
-
 /* ── Avatar ───────────────────────────────────────────────────────────────── */
 .pb-avatar {
     position: absolute;
@@ -262,20 +215,6 @@
     }
 }
 
-@keyframes pbRingPulse {
-
-    0%,
-    100% {
-        opacity: 1;
-        filter: drop-shadow(0 0 3px currentColor);
-    }
-
-    50% {
-        opacity: 0.7;
-        filter: drop-shadow(0 0 8px currentColor);
-    }
-}
-
 /* ── Variante losange (pb--diamond) ───────────────────────────────────────────
    Même badge, décliné en losange pour distinguer une paire de joueurs (rouge et
    bleu, partenaires sur la diagonale). Principes :
@@ -284,11 +223,6 @@
    • avatar = carré arrondi pivoté de 45°, contenu contre-pivoté ;
    • jeton cartes et plaque nominative : inchangés (mêmes formes que les
      badges circulaires). */
-.pb--diamond .pb-ring {
-    /* Garde l'isolation de couche (cf. .pb-ring), sans la rotation du cercle. */
-    transform: translateZ(0);
-}
-
 .pb--diamond .pb-avatar {
     /* Bords du carré pivoté parallèles à l'anneau agrandi (sommets à ≈57.7,
        cf. diamondRadius côté TS), même respiration que le cercle : face interne
@@ -335,38 +269,5 @@
     50% {
         transform: rotate(45deg) scale(1.08);
         opacity: 0.78;
-    }
-}
-
-/* ── Mobile natif (WebView Android) ───────────────────────────────────────────
-   Les filtres SVG (drop-shadow) sur l'anneau se re-rasterisent et font clignoter
-   le badge au changement de tour. On retire la lueur — la couleur et l'opacité de
-   l'anneau marquent déjà clairement le tour courant — et la pulsation d'urgence
-   se réduit à une variation d'opacité, gérée 100 % par le compositeur (zéro
-   repaint). `is-native` est posé sur l'hôte <app-board>, ancêtre du badge. */
-:host-context(.is-native) {
-
-    .pb-ring-arc {
-        filter: none;
-    }
-
-    .pb--current .pb-ring-arc {
-        filter: none;
-    }
-
-    .pb--urgent .pb-ring-arc {
-        animation-name: pbRingPulseFlat;
-    }
-}
-
-@keyframes pbRingPulseFlat {
-
-    0%,
-    100% {
-        opacity: 1;
-    }
-
-    50% {
-        opacity: 0.6;
     }
 }

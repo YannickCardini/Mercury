@@ -1,8 +1,3 @@
-- tout le monde commence avec leur pions sur la case de départ
 - peut reculer depuis sa case de départ
 - K can be use as 13
-- Animation/affichage spéciale pour les billes invincibles
 - la fenetre de fin ram sur les appareils les moins performant, peut etre optimisé ou réduire sa lourdeur ?
-- Quand le timer arrive vers sa fin, un son se produit pour informer l'utilisateur qu'il est bientot a court de temps pour jouer son tour.
-Le probleme, est qu'apres que la partie se termine (victoire d'un joueur), si on attend un peu, on entend le meme bruit du timer, 
-le timer ne s'est pas arreté, et a déclenché le son quand il arrivait bientot vers la fin des 60secondes.

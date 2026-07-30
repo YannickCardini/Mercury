@@ -1,5 +1,5 @@
 import type { Action, Card, MarbleColor } from '@mercury/shared';
-import { getHomePositions } from '@mercury/shared';
+import { getHomePositions, getStartPosition } from '@mercury/shared';
 import type { LegalMoveContext } from '../utils/utils.js';
 import type { PlayerStrategy } from './player-strategy.js';
 
@@ -23,8 +23,8 @@ export class Player {
         public readonly isHuman: boolean,
         private readonly strategy: PlayerStrategy,
     ) {
-        this.marblePositions = [...getHomePositions(color)];
-        this.marbleInvincible = this.marblePositions.map(() => false);
+        this.marblePositions = [...getHomePositions(color).toSpliced(0, 1), getStartPosition(color)];
+        this.marbleInvincible = this.marblePositions.map((marble) => marble === getStartPosition(color));
     }
 
     // ── Interface principale ─────────────────────────────────────────────────

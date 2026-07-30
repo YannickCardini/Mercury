@@ -1,12 +1,15 @@
 <div class="board-container" [style.--square-size.px]="squareSize() || null" [class.card-selected]="isCardSelected()"
-  [class.edit-mode]="editMode()">
+  [class.edit-mode]="editMode()" [attr.data-render-tick]="debug ? countBoardRender() : null">
   <!-- TODO(perf): la grille rend les 225 cases (15×15) alors que seules 88
        sont réellement affichées (MAIN_PATH+HOME_POSITIONS+ARRIVAL_POSITIONS),
        le reste étant du remplissage invisible (.case-hidden). Optimisation
        différée : passer d'un layout flexbox ion-row/ion-col (qui dépend de
        l'ordre du DOM pour remplir 15 colonnes/ligne) à une CSS Grid avec
        grid-column/grid-row explicites, pour ne monter que les 88 cases
-       réelles sans casser l'alignement des cases dispersées irrégulièrement. -->
+       réelles sans casser l'alignement des cases dispersées irrégulièrement.
+       ⚠️ Tenté 3 fois — casse systématiquement l'animation marble-moving,
+       cause non identifiée. Voir mémoire "mercury-ionic-grid-migration-breaks-move-anim"
+       avant de retenter. -->
   <ion-grid class="tock-grid">
     @for (row of rows; track row) {
     <ion-row class="tock-row">
@@ -43,7 +46,7 @@
   <app-player-badge class="player-badge-slot" [ngClass]="'player-badge-slot--' + slot.corner"
     [class.player-badge-slot--diamond]="slot.shape === 'diamond'" [attr.data-player-color]="slot.color"
     [shape]="slot.shape" [player]="getPlayer(slot.color)" [color]="gameStateService.displayColor(slot.color)"
-    [isCurrentTurn]="isCurrentTurn(slot.color)" [timeLeft]="gameStateService.timeLeft()"
+    [isCurrentTurn]="isCurrentTurn(slot.color)"
     [timer]="displayedGameData()?.gameState?.timer ?? 0" [rank]="playerRankings()[slot.color] ?? null">
   </app-player-badge>
   }
@@ -86,19 +89,19 @@
   <div class="discard-zone">
     <div class="discard-vortex"></div>
     <div class="discard-pile">
-      @for (card of discardPile(); track $index) {
-      @if ($index < 5) { <div class="discard-card" [class.discard-card--top]="$index === 0"
-        [style.--stack-offset]="$index" [style.z-index]="5 - $index">
+      @for (card of topDiscard(); track $index) {
+      <div class="discard-card" [class.discard-card--top]="$index === 0" [style.--stack-offset]="$index"
+        [style.z-index]="5 - $index">
         <app-tock-card [value]="card.value" [suit]="card.suit">
         </app-tock-card>
+      </div>
+      }
+      @if (topDiscard().length === 0) {
+      <div class="discard-empty">
+        <span>Discard</span>
+      </div>
+      }
     </div>
-    }
-    }
-    @if (discardPile().length === 0) {
-    <div class="discard-empty">
-      <span>Discard</span>
-    </div>
-    }
   </div>
 
   <!-- Carte en vol : part du coin du joueur et se pose sur la pile -->
@@ -120,5 +123,4 @@
     </app-tock-card>
   </div>
   }
-</div>
 </div>

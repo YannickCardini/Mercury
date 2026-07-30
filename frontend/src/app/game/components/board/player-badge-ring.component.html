@@ -1,0 +1,19 @@
+<!-- Anneau-timer : se vide depuis le haut quand c'est le tour du joueur.
+     Variante losange : carré à coins arrondis pivoté de 45° (le tracé d'un
+     <rect> démarre juste après son coin haut-gauche, donc au sommet haut une
+     fois pivoté — même départ visuel que le cercle). -->
+<svg viewBox="0 0 100 100">
+  @if (shape() === 'diamond') {
+  <rect class="pb-ring-bg" [attr.x]="50 - diamondSide / 2" [attr.y]="50 - diamondSide / 2"
+    [attr.width]="diamondSide" [attr.height]="diamondSide" [attr.rx]="diamondCornerRadius"
+    transform="rotate(45 50 50)" />
+  <rect class="pb-ring-arc" [attr.x]="50 - diamondSide / 2" [attr.y]="50 - diamondSide / 2"
+    [attr.width]="diamondSide" [attr.height]="diamondSide" [attr.rx]="diamondCornerRadius"
+    transform="rotate(45 50 50)" [style.stroke]="arcColor()"
+    [style.stroke-dasharray]="perimeter()" [style.stroke-dashoffset]="dashOffset()" />
+  } @else {
+  <circle class="pb-ring-bg" cx="50" cy="50" r="46" />
+  <circle class="pb-ring-arc" cx="50" cy="50" r="46" [style.stroke]="arcColor()"
+    [style.stroke-dasharray]="perimeter()" [style.stroke-dashoffset]="dashOffset()" />
+  }
+</svg>
