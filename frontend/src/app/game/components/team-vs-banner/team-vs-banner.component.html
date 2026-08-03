@@ -1,0 +1,35 @@
+<div class="tvb">
+  <div class="tvb-team tvb-team--left">
+    @for (player of leftTeam(); track player.color) {
+    <div class="tvb-avatar tvb-avatar--diamond tvb-avatar--{{ player.color }}">
+      <div class="tvb-avatar-inner">
+        @if (player.picture) {
+        <img [src]="player.picture" alt="" referrerpolicy="no-referrer" />
+        } @else {
+        <svg class="tvb-avatar-placeholder" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-4.42 0-8 2.69-8 6v2h16v-2c0-3.31-3.58-6-8-6Z" />
+        </svg>
+        }
+      </div>
+    </div>
+    }
+  </div>
+
+  <span class="tvb-vs" aria-hidden="true">VS</span>
+
+  <div class="tvb-team tvb-team--right">
+    @for (player of rightTeam(); track player.color) {
+    <div class="tvb-avatar tvb-avatar--circle tvb-avatar--{{ player.color }}">
+      <div class="tvb-avatar-inner">
+        @if (player.picture) {
+        <img [src]="player.picture" alt="" referrerpolicy="no-referrer" />
+        } @else {
+        <svg class="tvb-avatar-placeholder" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-4.42 0-8 2.69-8 6v2h16v-2c0-3.31-3.58-6-8-6Z" />
+        </svg>
+        }
+      </div>
+    </div>
+    }
+  </div>
+</div>

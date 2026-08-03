@@ -41,6 +41,12 @@
       @if (mountBoard()) {
       <app-board (ready)="boardReady.set(true)"></app-board>
       }
+      <!-- Bandeau "équipe vs équipe" au-dessus du plateau (mode 2v2 uniquement,
+           masqué en CSS sur les écrans trop bas/larges — voir
+           team-vs-banner.component.scss). -->
+      @if (gameStateService.gameMode() === '2v2') {
+      <app-team-vs-banner [leftTeam]="introTopTeam()" [rightTeam]="introBottomTeam()" />
+      }
       <!-- Boutons discrets pour prévisualiser les écrans de fin de partie -->
       @if (debug) {
       <div class="debug-result-buttons">

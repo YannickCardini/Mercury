@@ -13,6 +13,7 @@ import { BoardComponent } from "./components/board/board.component";
 import { TableComponent } from "./components/table/table.component";
 import { VictoryOverlayComponent, type VictoryPlayer } from "./components/victory-overlay/victory-overlay.component";
 import { TeamIntroOverlayComponent, type TeamIntroPlayer } from "./components/team-intro-overlay/team-intro-overlay.component";
+import { TeamVsBannerComponent } from "./components/team-vs-banner/team-vs-banner.component";
 import { TutorialOverlayComponent } from "./components/tutorial-overlay/tutorial-overlay.component";
 import { GameRulesModalComponent } from "../shared/game-rules-modal.component";
 import { LoadingScreenComponent } from "../shared/loading-screen.component";
@@ -55,6 +56,7 @@ const ENTRANCE_SETTLE_MS = 1400;
     TableComponent,
     VictoryOverlayComponent,
     TeamIntroOverlayComponent,
+    TeamVsBannerComponent,
     TutorialOverlayComponent,
     GameRulesModalComponent,
     LoadingScreenComponent,

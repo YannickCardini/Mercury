@@ -1,0 +1,126 @@
+@use "../../../styles/palette" as *; // palette « Système solaire » centralisée
+
+$player-colors: (
+  "red": $c-red,
+  "green": $c-green,
+  "blue": $c-blue,
+  "orange": $c-orange,
+);
+
+// ── Hôte : positionné dans la zone vide au-dessus du plateau, à l'intérieur
+// de `.board-wrapper` (position:relative) — jamais dans le flux, pour ne
+// JAMAIS influencer `.board-wrapper.getBoundingClientRect()` dont dépend
+// `BoardComponent.calculateSquareSize()` (voir game.page.scss). ──
+:host {
+  position: absolute;
+  top: -2%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40; // sous les boutons debug (45) et l'annonce d'équipe (500)
+  pointer-events: none; // purement décoratif
+  display: block;
+
+  // N'affiche le bandeau que sur les écrans où le plateau (carré, centré
+  // dans .board-wrapper) laisse une vraie marge verticale libre au-dessus de
+  // lui — en pratique les téléphones en portrait. Au-delà de ce ratio
+  // (tablette, paysage…) le plateau occupe quasi toute la hauteur du
+  // wrapper : pas de place, donc pas de bandeau plutôt qu'un chevauchement.
+  display: none;
+
+  @media (max-aspect-ratio: 12/25) {
+    display: block;
+  }
+}
+
+.tvb {
+  --tvb-size: clamp(28px, 6.2vw, 40px);
+  display: flex;
+  align-items: center;
+  gap: clamp(10px, 2.6vw, 18px);
+  padding: clamp(6px, 1.4vw, 10px) clamp(14px, 3vw, 20px);
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  box-shadow:
+    0 6px 20px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+// ── Duo de pastilles (léger chevauchement pour lire comme une seule unité
+// « équipe ») ──
+.tvb-team {
+  display: flex;
+  align-items: center;
+}
+
+.tvb-avatar {
+  width: var(--tvb-size);
+  height: var(--tvb-size);
+  flex: 0 0 auto;
+  background: rgba(6, 10, 24, 0.55);
+  border: 2px solid rgba(255, 255, 255, 0.92);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+
+  &:not(:first-child) {
+    margin-left: calc(var(--tvb-size) * -0.32);
+    z-index: 2;
+  }
+
+  &--circle {
+    border-radius: 50%;
+  }
+
+  // Losange : mêmes proportions que les pastilles du plateau et l'annonce
+  // d'équipe (rotate45 + contenu contre-tourné et agrandi pour couvrir).
+  &--diamond {
+    border-radius: 20%;
+    transform: rotate(45deg) scale(0.86);
+
+    .tvb-avatar-inner {
+      transform: rotate(-45deg) scale(1.5);
+    }
+  }
+
+  @each $name, $hex in $player-colors {
+    &--#{$name} {
+      border-color: rgba($hex, 0.95);
+      box-shadow: 0 0 8px rgba($hex, 0.55), 0 3px 8px rgba(0, 0, 0, 0.45);
+    }
+  }
+}
+
+.tvb-avatar-inner {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.tvb-avatar-placeholder {
+  width: 60%;
+  height: 60%;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+// ── VS central ──
+.tvb-vs {
+  flex: 0 0 auto;
+  font-size: clamp(0.8rem, 2.4vw, 1.05rem);
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: 0.03em;
+  color: $c-gold;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
