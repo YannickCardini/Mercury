@@ -132,7 +132,7 @@
     <div class="cards-fan">
       @for (card of getPlayerHand(); track card.id; let i = $index) {
       <button class="tock-card-btn playable-card" [class.selected]="selectedCardIndex() === i"
-        [class.card-flying-away]="flyingCardIndex() === i" [class.is-red]="card.suit === '♥' || card.suit === '♦'"
+        [class.card-flying-away]="flyingCardIndex() === i"
         [style]="getCardStyle(i, getPlayerHand().length)" (click)="onCardSelected(i)"
         (mouseenter)="onCardHover(i, $event)" (mouseleave)="onCardHoverLeave()"
         (contextmenu)="$event.preventDefault()">

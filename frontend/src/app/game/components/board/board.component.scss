@@ -647,7 +647,7 @@ $colors: (
 .discard-pile {
     position: relative;
     width: calc(var(--square-size) * 1.6);
-    height: calc(var(--square-size) * 2.2);
+    aspect-ratio: 2.5 / 3.5;
 }
 
 /* État vide */
@@ -673,10 +673,10 @@ $colors: (
     left: 0;
     width: 100%;
     height: 100%;
-    border-radius: calc(var(--square-size) * 0.2);
+    /* = rx/ry (12) du cadre dessiné dans le SVG, rapporté au viewBox 240×334 */
+    border-radius: 5% / 3.6%;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25), 0 1px 3px rgba(0, 0, 0, 0.15);
     overflow: hidden;
-    container-type: inline-size;
 
     /* Décalage en cascade pour l'effet de pile */
     transform: translate(calc(var(--stack-offset, 0) * -3px),
@@ -706,12 +706,20 @@ $colors: (
 /* Wrapper de la carte en vol */
 .flying-card {
     position: absolute;
+    /* Ancrée exactement sur le centre de .discard-zone (50%, 49% — pas le centre géométrique
+       du board) via margin négatif, plutôt qu'un transform: translate(-50%,-50%) qui serait
+       écrasé par le transform animé ci-dessous. Sans ça, la carte atterrit 1% plus bas que la
+       pile réelle et « saute » visiblement vers le haut à la bascule flying-card → pile. */
+    left: 50%;
+    top: 49%;
     width: calc(var(--square-size) * 1.6);
-    height: calc(var(--square-size) * 2.2);
-    border-radius: calc(var(--square-size) * 0.2);
+    aspect-ratio: 2.5 / 3.5;
+    margin-left: calc(var(--square-size) * -0.8);
+    margin-top: calc(var(--square-size) * -1.12);
+    /* = rx/ry (12) du cadre dessiné dans le SVG, rapporté au viewBox 240×334 */
+    border-radius: 5% / 3.6%;
     box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45), 0 4px 10px rgba(0, 0, 0, 0.25);
     overflow: hidden;
-    container-type: inline-size;
     z-index: 50;
     pointer-events: none;
     /* Toujours animée pendant son existence — promotion GPU + isolation des repaints */

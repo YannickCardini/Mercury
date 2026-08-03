@@ -1,53 +1,18 @@
-import { Component, Input, ChangeDetectionStrategy } from "@angular/core";
-
-export type CardSuit = "♥" | "♦" | "♠" | "♣";
+import { ChangeDetectionStrategy, Component, computed, input } from "@angular/core";
+import { JOKER_VALUE } from "@mercury/shared";
+import { cardSvgUrl, toCardId } from "./cards/card-svg";
 
 @Component({
   selector: "app-tock-card",
   standalone: true,
-  imports: [],
-  template: `
-    <div
-      class="tock-card-face"
-      [class.is-red]="isRed"
-      [class.is-joker]="isJoker"
-    >
-      <div class="card-inner">
-        @if (isJoker) {
-        <div class="joker-face">
-          <span class="joker-mark">🤡</span>
-          <span class="joker-label">
-            <span class="jl-red">J</span><span class="jl-black">O</span>
-            <span class="jl-red">K</span><span class="jl-black">E</span>
-            <span class="jl-red">R</span>
-          </span>
-        </div>
-        } @else {
-        <div class="card-corner top-left">
-          <span class="card-corner-value">{{ value }}</span>
-          <span class="card-corner-suit">{{ suit }}</span>
-        </div>
-        <div class="card-center-suit">{{ suit }}</div>
-        <div class="card-corner bottom-right">
-          <span class="card-corner-value">{{ value }}</span>
-          <span class="card-corner-suit">{{ suit }}</span>
-        </div>
-        }
-      </div>
-    </div>
-  `,
-  changeDetection: ChangeDetectionStrategy.Eager,
+  template: `<img class="card-img" [src]="src()" [alt]="alt()" draggable="false" decoding="sync" />`,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: "tock-card.component.scss",
 })
 export class TockCardComponent {
-  @Input() value: string = "";
-  @Input() suit: string = "";
+  readonly value = input("");
+  readonly suit = input("");
 
-  get isRed(): boolean {
-    return this.suit === "♥" || this.suit === "♦";
-  }
-
-  get isJoker(): boolean {
-    return this.value === "Joker";
-  }
+  protected readonly src = computed(() => cardSvgUrl(toCardId(this.value(), this.suit())));
+  protected readonly alt = computed(() => (this.value() === JOKER_VALUE ? "Joker" : `${this.value()} of ${this.suit()}`));
 }

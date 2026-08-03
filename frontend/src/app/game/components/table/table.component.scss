@@ -249,11 +249,11 @@
    Ce bouton définit taille, ombre, et interactivité.
    ========================================= */
 .tock-card-btn {
-    container-type: inline-size;
     position: absolute;
     width: var(--card-width);
     aspect-ratio: 2.5 / 3.5;
-    border-radius: clamp(5px, 1.2vw, 10px);
+    /* = rx/ry (12) du cadre dessiné dans le SVG, rapporté au viewBox 240×334 */
+    border-radius: 5% / 3.6%;
     border: none;
     cursor: pointer;
     padding: 0;
