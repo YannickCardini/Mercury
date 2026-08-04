@@ -525,6 +525,21 @@ export class GameStateService {
     return false;
   });
 
+  /**
+   * Pour chaque carte de la main (même index), vrai si elle a au moins un
+   * coup légal ce tour — sert à assombrir visuellement les cartes mortes
+   * dans l'éventail. `null` hors de son tour (pas de distinction affichée).
+   */
+  handCardPlayable = computed<boolean[] | null>(() => {
+    if (!this.isMyTurn()) return null;
+    const hand = this.data()?.gameState.hand;
+    const ctx = this.legalCtx();
+    if (!hand?.length || !ctx) return null;
+    const solidaire = this.forcedSolidaireEntry();
+    if (solidaire) return hand.map(card => ENTER_CARDS.includes(card.value));
+    return hand.map(card => findLegalMoveForCard(card, ctx) !== null);
+  });
+
   clearLocalHand() {
     this.data.update(state => {
       if (!state) return state;

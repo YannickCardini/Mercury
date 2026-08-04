@@ -61,13 +61,13 @@ export function getCardEffect(value: CardValue, teamMode = false): CardEffect {
     case 'K': return { title: 'King', text: 'Enter a marble onto your start square.' };
     case 'Q': return { title: 'Queen', text: 'Move one marble forward by 12.' };
     case 'J': return teamMode
-      ? { title: 'Jack', text: 'Swap any two marbles of different colors — yours don\'t have to be involved.' }
+      ? { title: 'Jack', text: 'Swap any two marbles of different colors, yours don\'t have to be involved.' }
       : { title: 'Jack', text: "Swap one of your marbles with any opponent's marble." };
     case '7': return teamMode
-      ? { title: 'Seven', text: 'Move 7 spaces — split them across two marbles: yours moves first, the remaining steps may go to your teammate\'s.' }
-      : { title: 'Seven', text: 'Move 7 spaces — you may split them across two marbles.' };
+      ? { title: 'Seven', text: 'Move 7 spaces, split them across two marbles: yours moves first, the remaining steps may go to your teammate\'s.' }
+      : { title: 'Seven', text: 'Move 7 spaces, you may split them across two marbles.' };
     case '4': return { title: 'Four', text: 'Move one marble backward by 4.' };
-    case 'Joker': return { title: 'Joker', text: 'Enter a marble or move forward 18 — then play again.' };
+    case 'Joker': return { title: 'Joker', text: 'Enter a marble or move forward 18, then play again.' };
     default: return { title: value, text: `Move one marble forward by ${value}.` };
   }
 }

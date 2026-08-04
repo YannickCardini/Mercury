@@ -28,6 +28,12 @@ interface FloatingReaction {
 
 const COOLDOWN_MS = 2000;
 const FLOAT_DURATION_MS = 1600;
+// Android WebView can dispatch a spurious extra click for a single tap
+// (ghost click) that lands on the just-inserted backdrop, toggling the
+// palette a second time within the same gesture (open→close→open blink).
+// Collapsing any open/close call within this window into the first one
+// removes the duplicate without affecting genuinely separate taps.
+const TOGGLE_GUARD_MS = 250;
 
 @Component({
   selector: "app-emoji-reactions",
@@ -56,6 +62,7 @@ export class EmojiReactionsComponent implements OnInit, OnDestroy {
   private soundService = inject(SoundService);
   private sub?: Subscription;
   private nextId = 1;
+  private lastToggleAt = 0;
 
   ngOnInit(): void {
     this.sub = this.gameStateService.reaction$.subscribe((msg) => {
@@ -87,11 +94,21 @@ export class EmojiReactionsComponent implements OnInit, OnDestroy {
 
   togglePalette(): void {
     if (this.cooldownActive()) return;
+    if (!this.consumeToggleGuard()) return;
     this.showPalette.update((v) => !v);
   }
 
   closePalette(): void {
+    if (!this.consumeToggleGuard()) return;
     this.showPalette.set(false);
+  }
+
+  /** Ignores a call arriving within TOGGLE_GUARD_MS of the previous one. */
+  private consumeToggleGuard(): boolean {
+    const now = Date.now();
+    if (now - this.lastToggleAt < TOGGLE_GUARD_MS) return false;
+    this.lastToggleAt = now;
+    return true;
   }
 
   pickEmoji(emoji: ReactionEmoji): void {

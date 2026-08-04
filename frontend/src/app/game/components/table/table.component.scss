@@ -315,6 +315,33 @@
     }
 }
 
+/* Carte sans coup légal ce tour — assombrie façon bouton « disabled ». Les
+   cartes jouables gardent leur plein éclat et ressortent d'autant plus par
+   contraste ; pas de lift/glow au survol, la carte reste « au repos ». */
+.unplayable-card {
+    filter: brightness(0.76) saturate(0.7);
+    cursor: default;
+
+    &::after {
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.18),
+            inset 0 -1px 0 rgba(0, 0, 0, 0.25),
+            0 2px 6px rgba(0, 0, 0, 0.4);
+    }
+
+    &.tock-card-btn:hover:not(.selected) {
+        transform: var(--card-base-transform) !important;
+        filter: brightness(0.84) saturate(0.7);
+
+        &::after {
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.18),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.25),
+                0 2px 6px rgba(0, 0, 0, 0.4);
+        }
+    }
+}
+
 .card-flying-away {
     opacity: 0;
     pointer-events: none;
@@ -1290,8 +1317,13 @@
    =========================================  */
 
 @keyframes cardHelpHintFade {
-    from { opacity: 0; }
-    to   { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
 }
 
 .card-help-popover {
@@ -1339,8 +1371,13 @@
 }
 
 @keyframes cardHelpPop {
-    from { opacity: 0; }
-    to   { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
 }
 
 /* =========================================

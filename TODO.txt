@@ -1,3 +1,185 @@
-- peut reculer depuis sa case de départ
-- K can be use as 13
-- la fenetre de fin ram sur les appareils les moins performant, peut etre optimisé ou réduire sa lourdeur ?
+═══════════════════════════════════════════════════════════════════════
+MERCURY — TODO
+═══════════════════════════════════════════════════════════════════════
+
+Global constraints (apply to every task below):
+- NEVER run the app (no `npm run dev`, no E2E, no screenshots). Only
+  `npx tsc` / `npm run build:*` for syntax checks. The user validates
+  visually on a real Android device (Capacitor build).
+- Android-specific rendering issues must be fixed WITHOUT changing the
+  web/desktop rendering. Use the existing pattern: the `is-native` host
+  class (set from `Capacitor.isNativePlatform()`) + a `:host(.is-native)`
+  SCSS block at the end of the component stylesheet.
+  Existing examples: board.component.scss:1673, table.component.scss:1420,
+  emoji-reactions.component.scss:163, game.page.scss:347.
+
+───────────────────────────────────────────────────────────────────────
+[1] BUG — Emoji palette blinks once when opened (Android only)
+───────────────────────────────────────────────────────────────────────
+Symptom
+  Tapping the emoji trigger button makes the palette appear, disappear
+  and re-appear within a few frames (visible flicker). Happens only on
+  the native Android build, not on web/desktop.
+
+Files
+  frontend/src/app/game/components/emoji-reactions/emoji-reactions.component.ts
+  frontend/src/app/game/components/emoji-reactions/emoji-reactions.component.html
+  frontend/src/app/game/components/emoji-reactions/emoji-reactions.component.scss
+  Mounted from table.component.html:34 (hidden during the seven-split
+  overlay and for spectators).
+
+Leads to investigate (in this order)
+  a. Double event on the same tap. `togglePalette()` is bound to `(click)`
+     on `.emoji-trigger`; `.emoji-backdrop` (rendered only while the
+     palette is open, html:1-3) is bound to `(click)="closePalette()"`.
+     On the Android WebView a single tap can produce a second event that
+     reaches the freshly-rendered backdrop → close, then re-open.
+     Verify whether the sequence is really open→close→open and, if so,
+     neutralise it (e.g. stop propagation on the trigger, ignore backdrop
+     clicks for a few ms after opening, or drive the toggle from a single
+     pointer event instead of `click`).
+  b. Animation restart. `.emoji-palette` runs `animation: emojiPaletteIn
+     0.15s ease` (scss:74) which starts at `opacity: 0`. If the element is
+     removed and re-inserted by the `@if (showPalette())` block, the
+     animation replays from opacity 0 → reads exactly like a blink.
+  c. Compositing. The palette is an overlay above the board/table; check
+     that the native override at scss:163 (backdrop-filter removed) is
+     actually applied to the palette on device, and that no parent
+     re-creates its compositing layer when the palette mounts.
+
+Acceptance criteria
+  - One tap = palette opens once, no intermediate frame where it is hidden.
+  - Tapping the backdrop still closes the palette in one tap.
+  - Tapping the trigger again while open still closes it.
+  - Cooldown behaviour unchanged (COOLDOWN_MS = 2000, trigger disabled
+    during cooldown, ts:52-53 / 88-107).
+  - Web/desktop behaviour and look unchanged.
+
+───────────────────────────────────────────────────────────────────────
+[2] BUG — The whole board flashes briefly when a card is played
+     (Android only)
+───────────────────────────────────────────────────────────────────────
+Symptom
+  Occasionally ("sometimes", not every time), right when a card is
+  played, the entire board flashes/blinks for a few frames before
+  returning to normal.
+  ⚠️ ASSUMPTION to confirm with the user: the original note was cut off
+  ("all the board flash/blink/become one time"). Assumed meaning: the
+  board briefly changes appearance as a whole — most likely it darkens
+  or loses its background — then returns to normal. If the actual
+  symptom is different (e.g. it goes white/transparent, or the marbles
+  vanish), re-scope this task before fixing.
+
+Files
+  frontend/src/app/game/components/board/board.component.html:1
+    → `<div class="board-container" [style.--square-size.px]="squareSize()"
+       [class.card-selected]="isCardSelected()" ...>`
+  frontend/src/app/game/components/board/board.component.ts
+    → `isCardSelected()` (ts:1056), `runActionSequence()` (ts:328),
+      `flyCard()` (ts:398), `calculateSquareSize()` (ts:860)
+  frontend/src/app/game/components/board/board.component.scss
+    → `.board-container` (scss:23, `contain: layout style paint`,
+      `backdrop-filter: blur(8px)`), `.board-container.card-selected::after`
+      full-surface dark overlay `rgba(0,0,0,0.62)` (scss:1129),
+      native overrides (scss:1673)
+
+Leads to investigate (in this order)
+  a. `card-selected` overlay toggle. Playing a card clears the selected
+     card, so `.card-selected::after` (a full-board 62 % black layer) is
+     removed in the same frame the move animation starts. On WebView this
+     removal + the `contain: paint` container can force a full repaint of
+     the board. Check whether fading the overlay (opacity transition on a
+     permanently-mounted pseudo-element) instead of adding/removing it
+     removes the flash.
+  b. `--square-size` re-write. `calculateSquareSize()` writes a custom
+     property used by nearly every rule in the board stylesheet; any
+     re-run (resize, WebView viewport change caused by the card-fly
+     overlay) re-styles the whole subtree. Confirm it is not being called
+     during a card play, and guard against no-op writes (skip
+     `squareSize.set()` when the computed value is unchanged).
+  c. Compositing layer recreation. `.board-container` combines
+     `backdrop-filter` + `contain: layout style paint`. The native block
+     already replaces the blur with a matte background (scss:1673-1680) —
+     verify it is really applied, and test dropping `contain: paint`
+     (keeping `layout style`) on native only, since `paint` containment is
+     what forces the whole container to be re-rasterised.
+  d. Instrumentation. `[attr.data-render-tick]="debug ? countBoardRender()
+     : null"` already exists on the board container (html:2) — use it in
+     debug mode to tell "the board component fully re-rendered" from
+     "only a repaint happened".
+
+Acceptance criteria
+  - Playing a card (normal move, capture, discard, seven-split) never
+    produces a full-board flash on Android.
+  - Marble move / capture / enter animations are unchanged.
+  - Web/desktop rendering unchanged.
+  - ⚠️ Do NOT take this as an excuse to migrate the grid from
+    ion-row/ion-col to CSS Grid — that migration broke the marble-move
+    animation 3 times (see board.component.html:3-13 and the
+    "mercury-ionic-grid-migration-breaks-move-anim" memory). Warn the
+    user before attempting it again.
+
+───────────────────────────────────────────────────────────────────────
+[3] UI — Give the "team vs team" banner more room above the board
+     (mobile portrait only, 2v2 mode)
+───────────────────────────────────────────────────────────────────────
+Goal
+  On phones in portrait, shift the board slightly downward (toward the
+  vertical centre of the screen) so the `app-team-vs-banner` above it has
+  a bit more free vertical space and is no longer cramped against / cut
+  off by the top edge.
+
+Current layout
+  frontend/src/app/game/game.page.html:40-49
+    `.board-wrapper` contains `<app-board>` and, in 2v2 only,
+    `<app-team-vs-banner>`.
+  frontend/src/app/game/game.page.scss:62-81 (portrait, `max-aspect-ratio: 1/1`)
+    `.board-wrapper { flex: 1; width: 100%; display:flex;
+     justify-content:center; min-height:0; position:relative; }`
+    `.table-wrapper { flex: 1; max-height: 40%; }`
+  frontend/src/app/game/components/board/board.component.scss:5-13
+    board `:host` is `display:flex; justify-content:center;
+    align-items:center; width:100%; height:100%` → the square board is
+    vertically centred inside the wrapper.
+  frontend/src/app/game/components/team-vs-banner/team-vs-banner.component.scss:14-33
+    banner `:host` is `position:absolute; top:-2%; left:50%;
+    transform:translateX(-50%)`, and is only displayed under
+    `@media (max-aspect-ratio: 12/25)` (tall phone portrait).
+
+Hard constraint
+  `BoardComponent.calculateSquareSize()` (board.component.ts:860-873)
+  measures `.board-wrapper` via `getBoundingClientRect()` and derives
+  `--square-size` **and** `gameStateService.boardContainerSize` (which
+  drives the table-wrapper size, game.page.html:64-65).
+  → Any change that shrinks the measured wrapper box (e.g. `padding-top`
+  on `.board-wrapper`) also shrinks the board and the table. Prefer a
+  purely visual offset that does not alter the measured rect:
+  for example shifting the board `:host` content down
+  (`align-items: flex-end`-style offset, `transform: translateY(...)`, or
+  a `margin-top` on `.board-container` rather than on the wrapper).
+  If a solution that changes the measured box is chosen, state the
+  resulting board-size reduction explicitly before implementing.
+
+Steps
+  1. Decide the offset value and express it relative to the free vertical
+     space that already exists (the board is `min(w,h) * 0.95` — see
+     board.component.ts:865 — so on a portrait phone there is unused
+     height above and below it).
+  2. Scope the change to the same breakpoint the banner uses
+     (`max-aspect-ratio: 12/25`) so tablets/landscape are untouched —
+     the banner is hidden there anyway.
+  3. Keep the board horizontally centred and keep the four player badges
+     in the board corners fully visible (board.component.scss:52-100).
+  4. Verify the banner no longer overlaps the top of the board and is not
+     clipped by the top of `.game-layout` (which has `padding: 2vh 2vw`
+     and `overflow: hidden`, game.page.scss:34-37).
+
+Acceptance criteria
+  - Portrait phone, 2v2: visible gap between the banner and the top edge
+    of the board; the banner is fully visible.
+  - Board size (`--square-size`) and table-wrapper size unchanged, or the
+    change is intentional and stated.
+  - Landscape, tablets, desktop and 1v1v1v1 mode unchanged.
+  - ⚠️ The 820px threshold mentioned in the "mercury-team-vs-banner"
+    memory is stale — the real gate in the code is
+    `@media (max-aspect-ratio: 12/25)`.

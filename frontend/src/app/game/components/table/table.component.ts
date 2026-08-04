@@ -54,6 +54,8 @@ enum TURN_PHASE {
 
   // ── Signaux UI ─────────────────────────────────────────────────
   selectedCardIndex = signal<number | null>(null);
+  /** Carte tapée pour consultation d'aide uniquement, hors tour (le jeu réel reste verrouillé). */
+  infoCardIndex = signal<number | null>(null);
   flyingCardIndex = signal<number | null>(null);
   turnPhase = signal<string>('Choose a card');
 
@@ -219,6 +221,7 @@ enum TURN_PHASE {
       this.startTimer();
       this.updateTurnPhase();
       this.closeCardHelp();
+      this.infoCardIndex.set(null);
     });
 
     // Ferme l'aide carte dès qu'une action est effectivement jouée, quel que
@@ -407,9 +410,14 @@ enum TURN_PHASE {
     this.closeCardHelp();
 
     if (!this.gameStateService.isMyTurn()) {
+      // Hors tour : pas de jeu possible, mais on garde la consultation d'aide
+      // (footerCardHelp) pour permettre au joueur de réfléchir à ses options.
       this.turnPhase.set(TURN_PHASE.WAIT);
+      this.infoCardIndex.set(this.infoCardIndex() === index ? null : index);
       return;
     }
+
+    this.infoCardIndex.set(null);
 
     if (this.isDiscardMode()) {
       this.turnPhase.set(TURN_PHASE.DISCARD);
@@ -460,9 +468,14 @@ enum TURN_PHASE {
   readonly footerCardHelp = computed(() => {
     if (this.canHover) return null;
     if (this.gameStateService.tutorialHintId() === 'card') return null;
-    if (this.isDiscardMode() || this.showSevenSplitOverlay()) return null;
-    if (this.gameStateService.selectedMarblePosition() !== null) return null;
-    const idx = this.selectedCardIndex();
+    const myTurn = this.gameStateService.isMyTurn();
+    // `isDiscardMode`/`selectedMarblePosition` décrivent le flux de jeu du tour
+    // en cours (potentiellement celui d'un autre joueur) : ne s'appliquent que
+    // lorsque c'est effectivement mon tour, sinon ils bloqueraient à tort la
+    // consultation d'aide hors tour.
+    if (myTurn && (this.isDiscardMode() || this.showSevenSplitOverlay())) return null;
+    if (myTurn && this.gameStateService.selectedMarblePosition() !== null) return null;
+    const idx = myTurn ? this.selectedCardIndex() : this.infoCardIndex();
     if (idx === null) return null;
     const card = this.getPlayerHand()[idx];
     return card ? getCardEffect(card.value, this.gameStateService.gameMode() === '2v2') : null;
@@ -628,7 +641,7 @@ enum TURN_PHASE {
 
     const verticalOffset = (distFromCenter * distFromCenter) * 2;
 
-    const overlapFactor = total > 5 ? 55 : 70;
+    const overlapFactor = total > 5 ? 40 : 52;
     const xOffsetPercent = distFromCenter * overlapFactor;
 
     const baseTransform = `translateX(${xOffsetPercent}%) translateY(${verticalOffset}px) rotate(${angle}deg)`;
@@ -647,6 +660,11 @@ enum TURN_PHASE {
   getPlayerHand(): Card[] {
     const gameData = this.gameStateService.data();
     return gameData?.gameState.hand || [];
+  }
+
+  /** Vrai quand la carte à cet index n'a aucun coup légal ce tour (visuel « désactivé »). */
+  isCardUnplayable(index: number): boolean {
+    return this.gameStateService.handCardPlayable()?.[index] === false;
   }
 
   getPlayerName(): string {
