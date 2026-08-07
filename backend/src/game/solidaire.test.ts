@@ -41,9 +41,9 @@ function buildTeamCtx(
     };
 }
 
-// Main [K] bloquée pour red avec un seul pion en 10 : le K ne sait qu'entrer,
-// et red n'a aucun pion en réserve.
-const BLOCKED_RED = { ...emptyByColor(), red: [10] };
+// Red a tous ses pions dans sa zone d'arrivée : plus aucun coup n'est possible,
+// avec aucune carte (ni entrée — plus rien en réserve — ni déplacement).
+const BLOCKED_RED = { ...emptyByColor(), red: [...ARRIVAL_POSITIONS.red] };
 
 test('solidaire — main bloquée + K + réserve coéquipier + start libre → entrée forcée du pion blue', () => {
     const marbles = { ...BLOCKED_RED, blue: [HOME_POSITIONS.blue[0]!, HOME_POSITIONS.blue[1]!, 86] };
@@ -69,8 +69,9 @@ test('solidaire — start du coéquipier occupé par N\'IMPORTE QUEL pion → pa
 });
 
 test('solidaire — un coup légal existe avec la main → pas d\'exception (main non bloquée)', () => {
-    // La Q peut avancer le pion red de 12 : la main n'est pas bloquée.
-    const marbles = { ...BLOCKED_RED, blue: [HOME_POSITIONS.blue[0]!] };
+    // Red a un pion mobile en 10 : la Q peut l'avancer de 12, la main n'est pas
+    // bloquée. (Le K non plus ne serait pas bloqué : il peut l'avancer de 13.)
+    const marbles = { ...emptyByColor(), red: [10], blue: [HOME_POSITIONS.blue[0]!] };
     assert.equal(findSolidaireEntry([card('K'), card('Q')], buildTeamCtx('red', marbles)), null);
 });
 
@@ -99,17 +100,13 @@ test('solidaire — mode 1v3 (pas de teammateColor) → jamais d\'exception', ()
     assert.equal(findSolidaireEntry([card('K')], ctx), null);
 });
 
-test('solidaire — priorité de la carte sacrifiée : K > A > Joker', () => {
-    // Pions red tous à l'abri (aucun coup possible avec aucune carte) — cas
-    // synthétique pour isoler le choix de la carte.
-    const marbles = {
-        ...emptyByColor(),
-        red: [...ARRIVAL_POSITIONS.red],
-        blue: [HOME_POSITIONS.blue[0]!, 86],
-    };
+test('solidaire — priorité de la carte sacrifiée : A > K > Joker', () => {
+    // On sacrifie la carte la plus faible en premier : l'As (+1) avant le Roi
+    // (+13), et le Joker (+18 et rejeu) en tout dernier.
+    const marbles = { ...BLOCKED_RED, blue: [HOME_POSITIONS.blue[0]!, 86] };
     const ctx = buildTeamCtx('red', marbles);
-    assert.equal(findSolidaireEntry([card('Joker'), card('A'), card('K')], ctx)!.cardPlayed![0]!.value, 'K');
-    assert.equal(findSolidaireEntry([card('Joker'), card('A')], ctx)!.cardPlayed![0]!.value, 'A');
+    assert.equal(findSolidaireEntry([card('Joker'), card('K'), card('A')], ctx)!.cardPlayed![0]!.value, 'A');
+    assert.equal(findSolidaireEntry([card('Joker'), card('K')], ctx)!.cardPlayed![0]!.value, 'K');
     assert.equal(findSolidaireEntry([card('Joker')], ctx)!.cardPlayed![0]!.value, 'Joker');
 });
 

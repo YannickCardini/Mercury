@@ -29,7 +29,7 @@ export interface CardEffectTile {
 export function getCardEffectTiles(teamMode: boolean): CardEffectTile[] {
   return [
     { val: 'A', tileClass: 'ca-green', html: 'Enter or move +1' },
-    { val: 'K', tileClass: 'ca-green', html: 'Enter a marble' },
+    { val: 'K', tileClass: 'ca-green', html: 'Enter a marble <em>or</em> move forward +13' },
     { val: 'Q', tileClass: 'ca-blue', html: 'Move forward +12' },
     {
       val: 'J', tileClass: 'ca-orange',
@@ -58,7 +58,7 @@ export interface CardEffect {
 export function getCardEffect(value: CardValue, teamMode = false): CardEffect {
   switch (value) {
     case 'A': return { title: 'Ace', text: 'Enter a marble onto your start, or move one forward by 1.' };
-    case 'K': return { title: 'King', text: 'Enter a marble onto your start square.' };
+    case 'K': return { title: 'King', text: 'Enter a marble onto your start, or move one forward by 13.' };
     case 'Q': return { title: 'Queen', text: 'Move one marble forward by 12.' };
     case 'J': return teamMode
       ? { title: 'Jack', text: 'Swap any two marbles of different colors, yours don\'t have to be involved.' }

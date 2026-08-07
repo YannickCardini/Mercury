@@ -57,7 +57,7 @@ export const HOME_POSITIONS: Record<MarbleColor, number[]> = {
 };
 
 // ── Cases d'entrée en jeu (start) ─────────────────────────────────────────────
-// Case sur laquelle un pion arrive quand il entre en jeu (carte A ou K).
+// Case sur laquelle un pion arrive quand il entre en jeu (carte A, K ou Joker).
 
 export const START_POSITIONS: Record<MarbleColor, number> = {
   red: 9,

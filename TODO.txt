@@ -56,66 +56,153 @@ Acceptance criteria
   - Web/desktop behaviour and look unchanged.
 
 ───────────────────────────────────────────────────────────────────────
-[2] BUG — The whole board flashes briefly when a card is played
-     (Android only)
+[2] BUG — Full-board flash when a marble ENTERS the game
+     (Android native only)
 ───────────────────────────────────────────────────────────────────────
-Symptom
-  Occasionally ("sometimes", not every time), right when a card is
-  played, the entire board flashes/blinks for a few frames before
-  returning to normal.
-  ⚠️ ASSUMPTION to confirm with the user: the original note was cut off
-  ("all the board flash/blink/become one time"). Assumed meaning: the
-  board briefly changes appearance as a whole — most likely it darkens
-  or loses its background — then returns to normal. If the actual
-  symptom is different (e.g. it goes white/transparent, or the marbles
-  vanish), re-scope this task before fixing.
+Symptom  (re-scoped after observation on device — this supersedes the
+          previous "flashes when a card is played" description)
+  The whole board flashes/blinks for a few frames, then returns to
+  normal. Native Android build only, never on web/desktop.
 
-Files
-  frontend/src/app/game/components/board/board.component.html:1
-    → `<div class="board-container" [style.--square-size.px]="squareSize()"
-       [class.card-selected]="isCardSelected()" ...>`
+  Narrowed down to ONE action type:
+  - Only on `enter` — a marble leaving home for its start square,
+    played with a K / Ace / Joker.
+  - Never observed on move, capture, swap, promote or discard.
+
+  Ownership bias (the key clue — and the part still unexplained):
+  - Happens almost every time the entering marble belongs to the local
+    player or to their 2v2 teammate.
+  - Does not happen when an opponent enters a marble — except once,
+    seen a single time.
+  → The mechanism is therefore almost certainly common to every `enter`,
+    with something about "my team" enters pushing it over the threshold
+    most of the time. Do NOT hunt for a code path that only runs for own
+    marbles; look for what makes the same path more expensive.
+
+Already tried — did NOT help (do not redo)
+  The three leads written in the previous version of this task were
+  implemented on device and changed nothing:
+  a. fading `.card-selected::after` instead of adding/removing it;
+  b. guarding `--square-size` / `calculateSquareSize()` against no-op
+     re-writes;
+  c. touching `contain` / `backdrop-filter` on `.board-container`
+     (native override, scss:1673-1681).
+  Treat these as ruled out as the primary cause. Keep whatever cleanup
+  was worth keeping, but do not spend time there again.
+
+Files / anchors
   frontend/src/app/game/components/board/board.component.ts
-    → `isCardSelected()` (ts:1056), `runActionSequence()` (ts:328),
-      `flyCard()` (ts:398), `calculateSquareSize()` (ts:860)
+    :484-505  `case 'enter'` in animateMarble() — 1 phase without capture
+              (`marble-entering`, 800 ms); 3 phases with capture
+              (`marble-ejected` + `square-enter-impact` → `marble-entering`
+              → `marble-enter-impact`).
+    :423-436  applyAndWait() — adds the animation class, then removes it
+              after the duration via setTimeout (so `will-change` is
+              added and removed around every animation).
+    :669-709  updateMarblePosition() — optimistic local mutation; on an
+              `enter` it also sets `marbleInvincible[idx] = true` (:696).
+    :243-255  invincibleSquares computed → `.square-invincible`.
+    :218-233  marbleByPosition computed — note the existing comment: an
+              already-fixed "flash de tout le plateau" was an empty
+              marble map. Same visual signature, different trigger.
+    :293-295  effect() overwriting `displayedGameData` from
+              `gameStateService.data()` — can land mid-animation.
   frontend/src/app/game/components/board/board.component.scss
-    → `.board-container` (scss:23, `contain: layout style paint`,
-      `backdrop-filter: blur(8px)`), `.board-container.card-selected::after`
-      full-surface dark overlay `rgba(0,0,0,0.62)` (scss:1129),
-      native overrides (scss:1673)
+    :220-253   @keyframes marbleDrop + `.marble.marble-entering`
+    :279-335   enter+capture keyframes (marbleEnterImpact,
+               squareEnterImpact)
+    :1236-1292 `.case-path.square-invincible` ::before / ::after
+    :1673-1730 `:host(.is-native)` block
+  packages/shared/src/constants.ts:36 — enter = 800 ms (move = 200 ms).
 
 Leads to investigate (in this order)
-  a. `card-selected` overlay toggle. Playing a card clears the selected
-     card, so `.card-selected::after` (a full-board 62 % black layer) is
-     removed in the same frame the move animation starts. On WebView this
-     removal + the `contain: paint` container can force a full repaint of
-     the board. Check whether fading the overlay (opacity transition on a
-     permanently-mounted pseudo-element) instead of adding/removing it
-     removes the flash.
-  b. `--square-size` re-write. `calculateSquareSize()` writes a custom
-     property used by nearly every rule in the board stylesheet; any
-     re-run (resize, WebView viewport change caused by the card-fly
-     overlay) re-styles the whole subtree. Confirm it is not being called
-     during a card play, and guard against no-op writes (skip
-     `squareSize.set()` when the computed value is unchanged).
-  c. Compositing layer recreation. `.board-container` combines
-     `backdrop-filter` + `contain: layout style paint`. The native block
-     already replaces the blur with a matte background (scss:1673-1680) —
-     verify it is really applied, and test dropping `contain: paint`
-     (keeping `layout style`) on native only, since `paint` containment is
-     what forces the whole container to be re-rasterised.
-  d. Instrumentation. `[attr.data-render-tick]="debug ? countBoardRender()
-     : null"` already exists on the board container (html:2) — use it in
-     debug mode to tell "the board component fully re-rendered" from
-     "only a repaint happened".
+  a. marbleDrop animates `box-shadow` — prime suspect.
+     @keyframes marbleDrop (scss:220-247) changes `box-shadow` on 4 of
+     its 5 keyframes, across the full 800 ms. box-shadow is not
+     compositable → the marble is fully repainted on every frame for
+     800 ms. It is the ONLY per-marble animation in the stylesheet that
+     does this: marbleMove (scss:341-370) and pawnJostle (scss:377-412)
+     are transform/opacity/filter only. That alone explains "only on
+     enter".
+     Worse: `.marble-entering` declares `will-change: transform, opacity`
+     (scss:252), which promotes the marble to its own compositing layer
+     while the animation keeps dirtying a property that is NOT in
+     will-change → the promoted layer is re-rasterised every frame,
+     inside a `contain: layout style paint` root.
+     Test (native only): keep the transform/opacity part of marbleDrop
+     and make the shadow static — or move the drop shadow onto a
+     `::after` pseudo-element animated in opacity only.
+
+  b. Compositing layer created then destroyed.
+     applyAndWait() (ts:423-436) adds `marble-entering` (with its
+     `will-change`) and removes it 800 ms later. Promotion followed by
+     demotion inside a `contain: paint` container is a classic Android
+     WebView full-repaint trigger, and the 800 ms enter is the
+     longest-lived of these layers.
+     Test (native only): declare `will-change` (or `translateZ(0)`)
+     permanently on `.marble` so no layer is created/destroyed around the
+     animation — or drop `will-change` from `.marble-entering` entirely.
+
+  c. The invincibility halo mounts in the same frame as the drop.
+     updateMarblePosition() flips `marbleInvincible` to true (ts:696) at
+     the exact moment the `marble-entering` class is applied, so
+     `.square-invincible` mounts two heavy painted pseudo-elements on the
+     destination square: `::before` with a negative inset and three
+     box-shadows including `0 0 28px 6px` (scss:1236-1254), and `::after`
+     with a conic-gradient (scss:1256-1292). Two large new painted areas
+     appearing mid-animation, on top of (a).
+     Test: apply the halo only once the enter animation has resolved.
+     ⚠️ This also fires for opponent enters, so on its own it does not
+     explain the ownership bias — it is an amplifier, not the
+     discriminator.
+
+  d. Pin down the real discriminator before assuming "ownership".
+     What genuinely differs when the LOCAL player is the one entering:
+       - `isCardSelected()` flips to false in the same frame → the
+         full-board `.card-selected::after` overlay (62 % black,
+         scss:1129-1139) is destroyed, and every native-only
+         `.marble-selectable::after` pulse ring (scss:1686-1702) is
+         destroyed at once.
+       - The entering marble gets `.marble-mine { z-index: 20 }`
+         (scss:1141-1143) → new stacking context above that overlay.
+       - The card flies `fromHand` (ts:333, 342), with its own overlay.
+     None of that applies to the TEAMMATE's turn, yet the teammate case
+     flashes too. Two possibilities, cheap to separate:
+       1. Positional, not ownership. The board is never rotated — seats
+          are fixed (cornerSlots(), ts:928-940: orange=tl, red=tr,
+          blue=bl, green=br) and 2v2 teams are red+blue / green+orange,
+          i.e. exactly one DIAGONAL of the board each. "My team" and "one
+          diagonal of start squares" are indistinguishable from the
+          observations so far. If it is positional, look at the drop
+          starting at `translateY(-220%)` (scss:222) overflowing the
+          square / container differently depending on the corner.
+       2. The teammate correlation is a mis-attribution.
+     → FIRST ACTION, before writing any fix: ask the user to note the
+       COLOUR of the marble that enters each time it flashes (and each
+       time it does not), over a few games. Team vs diagonal vs "always,
+       just more noticeable sometimes" decides which lead above is right.
+
+  e. Instrumentation (unchanged, still useful).
+     `[attr.data-render-tick]="debug ? countBoardRender() : null"`
+     (html:2, ts:266-272) tells "the board component re-rendered" from
+     "only a repaint happened". If the tick does not move during a flash,
+     it is purely a paint/compositing problem → leads a/b/c.
 
 Acceptance criteria
-  - Playing a card (normal move, capture, discard, seven-split) never
-    produces a full-board flash on Android.
-  - Marble move / capture / enter animations are unchanged.
-  - Web/desktop rendering unchanged.
+  - Entering a marble (K / Ace / Joker) never produces a full-board flash
+    on Android, whoever owns the marble — including the enter-with-
+    capture variant (3-phase sequence, ts:490-499).
+  - The drop keeps its look: fall from above, bounce, landing shadow.
+  - Timing unchanged (800 ms, constants.ts:36) — that shared constant
+    also feeds the backend turn budget (constants.ts:132). Do not touch it.
+  - move / capture / swap / promote / discard animations untouched.
+  - The invincibility halo still appears on a freshly-entered marble and
+    still disappears on its first move.
+  - Web/desktop rendering unchanged — fixes go under `:host(.is-native)`
+    unless the change is provably neutral.
   - ⚠️ Do NOT take this as an excuse to migrate the grid from
     ion-row/ion-col to CSS Grid — that migration broke the marble-move
-    animation 3 times (see board.component.html:3-13 and the
+    animation 3 times (see board.component.html:3-12 and the
     "mercury-ionic-grid-migration-breaks-move-anim" memory). Warn the
     user before attempting it again.
 

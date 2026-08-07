@@ -76,7 +76,12 @@ export interface SquareAnimation {
   imports: [IonCol, IonRow, IonGrid, CommonModule, TockCardComponent, PlayerBadgeComponent],
   // `is-native` : permet d'alléger en CSS les effets coûteux/flashants sur WebView
   // Android (filtres SVG sur l'anneau-timer des badges).
-  host: { '[class.is-native]': '!isWeb' },
+  // `is-2v2` : permet de décaler légèrement le plateau vers le bas en portrait
+  // étroit pour laisser de la place à `app-team-vs-banner` (voir board.component.scss).
+  host: {
+    '[class.is-native]': '!isWeb',
+    '[class.is-2v2]': "gameStateService.gameMode() === '2v2'",
+  },
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class BoardComponent implements OnDestroy {

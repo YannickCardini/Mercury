@@ -11,7 +11,7 @@ import {
     START_POSITIONS,
     ARRIVAL_POSITIONS,
 } from './board-config.js';
-import { JOKER_MOVE_DISTANCE } from './types.js';
+import { JOKER_MOVE_DISTANCE, KING_MOVE_DISTANCE } from './types.js';
 import type { Action, Card, MarbleColor } from './types.js';
 import { sameTeam } from './teams.js';
 
@@ -50,7 +50,7 @@ export interface LegalMoveContext {
     marblesByColor: Record<MarbleColor, number[]>;
     /**
      * Positions des pions invincibles, par couleur. Un pion invincible vient
-     * d'entrer en jeu via A/K sur sa case de départ et n'a pas encore bougé.
+     * d'entrer en jeu via A/K/Joker sur sa case de départ et n'a pas encore bougé.
      * Il bloque le chemin, ne peut être reculé par un 4, ni échangé par un J.
      */
     invincibleMarblesByColor: Record<MarbleColor, number[]>;
@@ -148,8 +148,16 @@ export function getLegalAction(
         };
     }
 
+    // Roi : fait ENTRER un pion depuis la maison, OU avance un pion déjà en jeu
+    // de 13 cases. Le joueur choisit l'option en sélectionnant le pion concerné
+    // (un pion en maison ⇒ entrée ; un pion sur le chemin ⇒ +13).
     if (card.value === 'K') {
-        return enterMarbleInGame();
+        if (homePositions.includes(marblePosition)) {
+            return enterMarbleInGame();
+        } else if (isOnMainPath(marblePosition)) {
+            return buildMoveAction(card, marblePosition, KING_MOVE_DISTANCE, ctx);
+        }
+        return null;
     }
 
     if (card.value === 'A') {
@@ -184,8 +192,8 @@ export function getLegalAction(
             ? colorAtPosition(marblePosition, ctx.marblesByColor)
             : (ownMarbles.includes(marblePosition) ? playerColor : null);
         if (sourceColor === null) return null;
-        // Un pion fraîchement entré via A/K (invincible) ne peut être ni source
-        // ni cible tant qu'il n'a pas bougé.
+        // Un pion fraîchement entré via A/K/Joker (invincible) ne peut être ni
+        // source ni cible tant qu'il n'a pas bougé.
         if (isInvincible(marblePosition, sourceColor, ctx.invincibleMarblesByColor)) return null;
 
         const sourceIsOwnTeam = sameTeam(sourceColor, playerColor);
@@ -506,16 +514,24 @@ export function getLegalSplit7Action(
     // propriété côté serveur.
     if (!ctx.ownMarbles.includes(from1)) return null;
 
-    const action1 = buildMoveAction(card, from1, steps1, ctx);
-    if (action1 === null) return null;
-    const to1 = action1.to;
-
     if (!isOnMainPath(from2)) return null;
     // Second pion : un pion contrôlé, ou un pion du coéquipier en 2v2.
     if (!splitSecondMarbleCandidates(ctx).includes(from2)) return null;
-    // Si le premier mouvement capture un pion sur to1, celui-ci est renvoyé en
-    // réserve — il ne peut pas être le second pion du split.
-    if (from2 === to1) return null;
+
+    // Les deux moitiés d'un split bougent dans le cadre du MÊME coup : si la
+    // destination du premier pion coïncide avec la position ACTUELLE du
+    // second (typiquement : promouvoir un coéquipier situé exactement
+    // `steps1` cases devant soi), ce n'est pas une capture — le second pion
+    // est justement en train de quitter cette case dans ce même coup. On le
+    // retire donc du plateau pour calculer le premier mouvement, afin qu'il
+    // ne soit pas traité comme un obstacle/une victime.
+    const ctxWithoutFrom2: LegalMoveContext = {
+        ...ctx,
+        allMarbles: ctx.allMarbles.filter(p => p !== from2),
+    };
+    const action1 = buildMoveAction(card, from1, steps1, ctxWithoutFrom2);
+    if (action1 === null) return null;
+    const to1 = action1.to;
 
     // Contexte mis à jour : le premier pion a déjà bougé.
     // Note : un pion qui vient de bouger n'est plus invincible — on retire
@@ -542,6 +558,10 @@ export function getLegalSplit7Action(
     // est validé de SON point de vue (son start, ses arrivées).
     const action2 = buildMoveActionForMarble(card, from2, steps2, ctx2);
     if (action2 === null) return null;
+    const to2 = action2.to;
+
+    // Les deux pions ne peuvent pas atterrir sur la même case.
+    if (to1 === to2) return null;
 
     const owner2 = colorAtPosition(from2, ctx.marblesByColor) ?? ctx.playerColor;
 
@@ -553,7 +573,7 @@ export function getLegalSplit7Action(
         playerColor: ctx.playerColor,
         marbleColor: ctx.playerColor,
         splitFrom: from2,
-        splitTo: action2.to,
+        splitTo: to2,
         splitType: action2.type,
         ...(owner2 !== ctx.playerColor ? { splitMarbleColor: owner2 } : {}),
     };
@@ -630,7 +650,17 @@ export function findLegalMoveForCard(
     card: Card,
     ctx: LegalMoveContext
 ): Action | null {
-    for (const marblePos of ctx.ownMarbles) {
+    // Les pions en réserve d'abord : pour les cartes bivalentes (A, K, Joker),
+    // l'entrée en jeu prime sur le déplacement — sans ce tri, l'action retournée
+    // dépendrait de l'ordre de `ownMarbles`, qui est arbitraire (les indices de
+    // `marblePositions` sont écrasés en place au fil de la partie). Neutre pour
+    // les autres cartes : un pion en réserve n'a jamais de coup légal avec elles.
+    const homePositions = HOME_POSITIONS[ctx.playerColor];
+    const marblesEntryFirst = [
+        ...ctx.ownMarbles.filter(pos => homePositions.includes(pos)),
+        ...ctx.ownMarbles.filter(pos => !homePositions.includes(pos)),
+    ];
+    for (const marblePos of marblesEntryFirst) {
         const action = getLegalAction(card, marblePos, ctx);
         if (action !== null) return action;
     }
@@ -668,10 +698,10 @@ export function isHandBlocked(hand: Card[], ctx: LegalMoveContext): boolean {
 
 /**
  * Ordre de préférence de la carte jouée pour l'entrée solidaire : on sacrifie
- * d'abord le Roi (pure carte d'entrée), puis l'As (qui sait aussi avancer
- * de 1), et le Joker en dernier recours.
+ * d'abord l'As (+1, le déplacement le plus faible des trois), puis le Roi
+ * (+13), et le Joker en dernier recours (+18 et rejeu).
  */
-const SOLIDAIRE_CARD_PRIORITY = ['K', 'A', 'Joker'] as const;
+const SOLIDAIRE_CARD_PRIORITY = ['A', 'K', 'Joker'] as const;
 
 /**
  * Mise en jeu solidaire (2v2 uniquement) : quand la main du joueur actif est

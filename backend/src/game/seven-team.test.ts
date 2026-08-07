@@ -97,12 +97,30 @@ test('7 (2v2) — le second pion peut capturer un pion de sa propre équipe (pas
     assert.equal(action!.splitType, 'capture', 'atterrir sur un pion allié le capture');
 });
 
-test('7 (2v2) — un pion capturé par le premier mouvement ne peut pas être le second pion', () => {
-    // Red 10 → 25 capture le pion blue en 25 : ce pion (renvoyé en réserve)
-    // ne peut pas servir de second pion au split.
+test('7 (2v2) — quand le premier pion atterrit sur la position ACTUELLE du second, ce n\'est pas une capture : le second bouge aussi (bug prod)', () => {
+    // Bug de prod : red en 10 avec un 7, coéquipier blue exactement 1 case
+    // devant (25). Sélectionner le split 1+6 doit rester jouable pour
+    // promouvoir blue — red se contente d'avancer dans la case que blue
+    // quitte dans le cadre du MÊME coup, ce n'est pas une capture.
     const marbles = { ...emptyByColor(), red: [10], blue: [25] };
     const ctx = buildTeamCtx('red', marbles);
-    assert.equal(getLegalSplit7Action(SEVEN, 10, 1, 25, ctx), null);
+    const action = getLegalSplit7Action(SEVEN, 10, 1, 25, ctx);
+    assert.notEqual(action, null, 'le split doit rester légal même si to1 === from2');
+    assert.equal(action!.to, 25);
+    assert.equal(action!.type, 'move', 'pas une capture : blue quitte la case dans le même coup');
+    assert.equal(action!.splitFrom, 25);
+    assert.equal(action!.splitTo, 87);
+    assert.equal(action!.splitType, 'move');
+    assert.equal(action!.splitMarbleColor, 'blue');
+});
+
+test('7 (2v2) — les deux moitiés du split ne peuvent pas atterrir sur la même case', () => {
+    // Red en 10 (MAIN_PATH[1]) et blue en 7 (MAIN_PATH[54]) : avec 2+5, les
+    // deux pions convergent sur 40 (MAIN_PATH[3]) — un vrai chevauchement de
+    // destinations, distinct du cas to1===from2 corrigé ci-dessus.
+    const marbles = { ...emptyByColor(), red: [10], blue: [7] };
+    const ctx = buildTeamCtx('red', marbles);
+    assert.equal(getLegalSplit7Action(SEVEN, 10, 2, 7, ctx), null, 'to1 === to2 doit rester illégal');
 });
 
 test('7 (1v3) — le split reste limité aux pions propres (pas de teammateColor)', () => {

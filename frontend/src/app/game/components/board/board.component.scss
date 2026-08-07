@@ -1729,6 +1729,23 @@ $colors: (
        construction (aucune animation en boucle), voir .marble-anchored. */
 }
 
+/* ==========================================================================
+   BANDEAU « ÉQUIPE VS ÉQUIPE » (2v2, portrait étroit) — décale le plateau
+   vers le bas pour laisser plus de marge à `app-team-vs-banner` au-dessus.
+   Décalage purement visuel (transform sur .board-container, pas sur :host)
+   pour ne jamais modifier le rect mesuré par calculateSquareSize() sur
+   `.board-wrapper` : --square-size et boardContainerSize restent inchangés.
+   Même seuil que le bandeau (team-vs-banner.component.scss) pour rester
+   synchronisé avec son apparition/disparition.
+   ========================================================================== */
+:host(.is-2v2) {
+    @media (max-aspect-ratio: 12/25) {
+        .board-container {
+            transform: translateY(clamp(8px, 3.5vh, 32px));
+        }
+    }
+}
+
 @keyframes marblePulseRing {
     0% {
         transform: scale(1);

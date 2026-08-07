@@ -12,9 +12,11 @@ import type { PlayerStrategy } from './player-strategy.js';
 //  3. Q    → avance de 12, très efficace
 //  4. 10 … → grands déplacements en premier
 //
-// Le Joker est géré par getLegalAction (entrée depuis la maison ou +18 sur le
-// chemin), donc findLegalMoveForCard le reconnaît comme coup légal. Le rejeu est
-// géré côté Game : l'IA rejoue simplement au tour suivant (même joueur courant).
+// Joker, K et A sont bivalents (entrer depuis la maison, ou avancer de 18 / 13 / 1
+// sur le chemin) : getLegalAction gère les deux cas, et findLegalMoveForCard
+// privilégie l'entrée en examinant les pions en réserve en premier. Le rejeu du
+// Joker est géré côté Game : l'IA rejoue simplement au tour suivant (même joueur
+// courant).
 //
 // Cartes non gérées pour l'instant (7 : split, 4 : recul) →
 // getLegalAction retourne null pour leurs comportements spéciaux, donc l'IA

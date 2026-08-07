@@ -36,6 +36,8 @@ export const JOKER_VALUE = 'Joker' as const;
 export const JOKER_SUIT = '🃏' as const;
 /** Distance parcourue par un Joker joué comme déplacement avant. */
 export const JOKER_MOVE_DISTANCE = 18;
+/** Distance parcourue par un Roi joué comme déplacement avant. */
+export const KING_MOVE_DISTANCE = 13;
 
 /** Palette fermée de réactions emoji envoyables pendant une partie. */
 export const REACTION_EMOJIS = ['👏', '😂', '😮', '😥', '🔥', '🤔', '😡', '😎', '😴', '⏰', '🥱', '🦧'] as const;
@@ -57,7 +59,7 @@ export interface Player {
   marblePositions: number[];
   /**
    * Aligné 1:1 avec `marblePositions`. Un pion est invincible UNIQUEMENT entre
-   * son entrée en jeu (via A ou K) et son premier déplacement. Après s'être
+   * son entrée en jeu (via A, K ou Joker) et son premier déplacement. Après s'être
    * déplacé une fois, il n'est plus jamais invincible — même s'il ré-atterrit
    * sur sa case de départ. Re-mis à `false` lorsque le pion retourne en maison
    * (capture). Un pion invincible : bloque le chemin, ne peut être reculé par

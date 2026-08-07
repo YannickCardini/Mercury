@@ -1180,30 +1180,39 @@ export class Game {
             case 'enter':
             case 'promote':
             case 'capture': {
-                // 1. Déplacer le pion
+                // 1. Déplacer le(s) pion(s). Pour un split de 7, les DEUX
+                // moitiés bougent avant toute résolution de capture : sinon,
+                // si la destination de l'une coïncide avec la position de
+                // départ de l'autre (ex : promouvoir un coéquipier situé
+                // exactement `steps1` cases devant soi), la première moitié
+                // capturerait à tort la seconde avant qu'elle ait pu bouger.
                 const index = mover.marblePositions.indexOf(move.from);
                 if (index !== -1) {
                     mover.marblePositions[index] = move.to;
-                    // Entry via A/K → marble becomes invincible. Any other
+                    // Entry via A/K/Joker → marble becomes invincible. Any other
                     // movement (including a re-landing on the start) clears it.
                     mover.marbleInvincible[index] = (move.type === 'enter');
                 }
 
-                // 2. Renvoyer le pion capturé à sa base. Tout pion posé sur `to`
-                // est victime SAUF celui qui vient de bouger — y compris un pion
-                // du joueur actif ou de son coéquipier (pas d'immunité d'équipe).
-                this.sendVictimsHome(move.to, mover, index, player);
-
-                // 3. Split du 7 : appliquer aussi le second mouvement (le second
-                // pion peut appartenir au coéquipier en 2v2)
+                // Split du 7 : le second pion peut appartenir au coéquipier en 2v2.
+                let splitMover: Player | null = null;
+                let splitIdx = -1;
                 if (move.splitFrom !== undefined && move.splitTo !== undefined) {
-                    const splitMover = this.players.find(p => p.color === (move.splitMarbleColor ?? moverColor)) ?? mover;
-                    const splitIdx = splitMover.marblePositions.indexOf(move.splitFrom);
+                    splitMover = this.players.find(p => p.color === (move.splitMarbleColor ?? moverColor)) ?? mover;
+                    splitIdx = splitMover.marblePositions.indexOf(move.splitFrom);
                     if (splitIdx !== -1) {
                         splitMover.marblePositions[splitIdx] = move.splitTo;
                         splitMover.marbleInvincible[splitIdx] = false;
                     }
-                    this.sendVictimsHome(move.splitTo, splitMover, splitIdx, player);
+                }
+
+                // 2. Renvoyer les pions capturés à leur base, une fois les deux
+                // moitiés déplacées. Tout pion posé sur `to`/`splitTo` est
+                // victime SAUF celui qui vient d'y arriver — y compris un pion
+                // du joueur actif ou de son coéquipier (pas d'immunité d'équipe).
+                this.sendVictimsHome(move.to, mover, index, player);
+                if (splitMover !== null && splitIdx !== -1) {
+                    this.sendVictimsHome(move.splitTo!, splitMover, splitIdx, player);
                 }
                 break;
             }
