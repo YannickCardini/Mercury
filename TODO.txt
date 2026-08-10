@@ -12,150 +12,216 @@ Global constraints (apply to every task below):
   SCSS block at the end of the component stylesheet.
   Existing examples: board.component.scss:1673, table.component.scss:1420,
   emoji-reactions.component.scss:163, game.page.scss:347.
+- Tasks [1] and [2] are paint/compositing bugs that can only be confirmed
+  on device. Ship ONE hypothesis per iteration, state explicitly which
+  lead it tests, and tell the user what to look at — do not stack three
+  speculative fixes in a single change.
 
 ───────────────────────────────────────────────────────────────────────
-[1] BUG — Emoji palette blinks once when opened (Android only)
+[1] BUG — One-frame flash of the hand-cards area when an overlay opens
+     (Android native only)
 ───────────────────────────────────────────────────────────────────────
 Symptom
-  Tapping the emoji trigger button makes the palette appear, disappear
-  and re-appear within a few frames (visible flicker). Happens only on
-  the native Android build, not on web/desktop.
+  Tapping the emoji trigger (top-left of the table) or Resign (in the ⋮
+  menu, top-right) opens its overlay correctly, but the area BEHIND the
+  overlay — the player's hand, i.e. the card fan at the bottom of the
+  table — blinks once, briefly, during the opening frame. One blink per
+  opening, not a loop. Native Android build only.
 
-Files
-  frontend/src/app/game/components/emoji-reactions/emoji-reactions.component.ts
-  frontend/src/app/game/components/emoji-reactions/emoji-reactions.component.html
-  frontend/src/app/game/components/emoji-reactions/emoji-reactions.component.scss
-  Mounted from table.component.html:34 (hidden during the seven-split
-  overlay and for spectators).
+Scoping (infer, then confirm with the user)
+  The two reported entry points share one mechanism: a full-size
+  absolutely-positioned element is inserted at the top of the table's
+  stacking context, above the already-rendered hand.
+    - emoji trigger → `.emoji-backdrop` (inset 0, z-index 28) +
+      `.emoji-palette` (emoji-reactions.component.html:1-3 / 17-30)
+    - ⋮ trigger     → `.menu-backdrop` (inset 0, z-index 28) +
+      `.menu-dropdown` (table.component.html:38-51)
+    - Resign item   → `.resign-overlay` (inset 0, z-index 200,
+      table.component.html:291-306)
+  Reaching Resign requires opening the ⋮ menu first, so the user may in
+  fact be seeing the flash at the ⋮ step too. Treat all three as the same
+  bug; ask the user to confirm whether the ⋮ menu alone already blinks.
+
+Already fixed — do NOT redo
+  The older "palette opens → closes → re-opens" double-toggle (Android
+  ghost click landing on the freshly-inserted backdrop) is fixed by
+  TOGGLE_GUARD_MS (emoji-reactions.component.ts:29-36 and 106-112,
+  commit b38bad83). The remaining artefact is a PAINT problem, not an
+  event problem: the overlay itself never disappears, it is the content
+  behind it that flashes. Confirm this framing before touching event
+  handling again.
+
+Files / anchors
+  frontend/src/app/game/components/emoji-reactions/emoji-reactions.component.{ts,html,scss}
+    scss:13-17    `.emoji-backdrop` (inset 0, z-index 28, no filter)
+    scss:57-83    `.emoji-palette` — `animation: emojiPaletteIn 0.15s`
+                  (scss:74), keyframes scss:85-95, starts at opacity 0
+    scss:163-169  `:host(.is-native)` — backdrop-filter already removed
+  frontend/src/app/game/components/table/table.component.scss
+    :29-42        `.game-board` — `container-type: size` + `overflow:hidden`
+    :219-235      `.hand-zone` — z-index 10, opacity/filter transitions
+    :251-283      `.tock-card-btn` — ⚠️ `will-change: transform` (:261)
+                  on EVERY card + an `::after` with layered box-shadows
+    :474-478      `.menu-backdrop`      :506-522 `.menu-dropdown`
+    :524          @keyframes menuFadeIn (opacity 0 → 1)
+    :1179-1190    `.resign-overlay`     :1192 @keyframes overlayFadeIn
+    :1420-1452    `:host(.is-native)` — backdrop-filter already removed
+                  from `.menu-dropdown`, `.card-help-popover`,
+                  `.resign-overlay`
+  frontend/src/app/game/components/table/table.component.html:130-149
+    the hand fan (`.cards-fan` → one `.tock-card-btn` per card)
+  frontend/src/app/shared/tock-card.component.ts:8
+    each card is `<img class="card-img" decoding="sync">` whose src is a
+    `data:image/svg+xml,…` URL built in
+    frontend/src/app/shared/cards/card-svg.ts:130-137 (memoised string,
+    but the DECODED bitmap is the WebView's to keep or drop).
 
 Leads to investigate (in this order)
-  a. Double event on the same tap. `togglePalette()` is bound to `(click)`
-     on `.emoji-trigger`; `.emoji-backdrop` (rendered only while the
-     palette is open, html:1-3) is bound to `(click)="closePalette()"`.
-     On the Android WebView a single tap can produce a second event that
-     reaches the freshly-rendered backdrop → close, then re-open.
-     Verify whether the sequence is really open→close→open and, if so,
-     neutralise it (e.g. stop propagation on the trigger, ignore backdrop
-     clicks for a few ms after opening, or drive the toggle from a single
-     pointer event instead of `click`).
-  b. Animation restart. `.emoji-palette` runs `animation: emojiPaletteIn
-     0.15s ease` (scss:74) which starts at `opacity: 0`. If the element is
-     removed and re-inserted by the `@if (showPalette())` block, the
-     animation replays from opacity 0 → reads exactly like a blink.
-  c. Compositing. The palette is an overlay above the board/table; check
-     that the native override at scss:163 (backdrop-filter removed) is
-     actually applied to the palette on device, and that no parent
-     re-creates its compositing layer when the palette mounts.
+  a. Layer churn caused by `will-change: transform` on the cards.
+     5-6 hand cards are permanently promoted to their own compositing
+     layers (scss:261) and sit directly under the newly inserted overlay.
+     On Android WebView, inserting a full-size element above a group of
+     promoted layers re-layerises the region → one full repaint frame.
+     Test (native only): under `:host(.is-native)`, drop
+     `will-change: transform` from `.tock-card-btn`. Touch devices have
+     no hover, so the only transform change left is select/deselect —
+     promotion buys nothing there.
+  b. Image re-decode. If the region is re-rasterised, the `<img>` SVG
+     data-URIs may have to be decoded again; with `decoding="sync"` the
+     cards can paint blank for a frame — which matches "the cards area
+     blinks" precisely, and explains why the flash is localised on the
+     hand and not on the rest of the table.
+     Test: only after (a) is ruled out — swap the `<img>` for a `<div>`
+     with `background-image: url(data:…)` (backgrounds stay in the parent
+     paint layer), or keep the `<img>` and remove `decoding="sync"`.
+  c. Entry animation creating/destroying a layer.
+     `emojiPaletteIn`, `menuFadeIn` and `overlayFadeIn` all animate
+     opacity from 0, so the overlay is promoted for the animation and
+     demoted right after.
+     Test: disable those three animations under `:host(.is-native)` in
+     one build. If the blink disappears, the fix is to keep the overlay
+     opacity static on native (or animate transform only).
+  d. Insertion into a size container.
+     `.game-board` is `container-type: size` with `overflow: hidden`
+     (scss:29-42). Inserting `position:absolute; inset:0` children at the
+     top of that container can force a re-layout on some WebView builds.
+     Test: keep a permanently-mounted, empty, `pointer-events:none`
+     overlay host div in the template and render the backdrops inside it,
+     so nothing is ever inserted at the top of the stacking context.
 
 Acceptance criteria
-  - One tap = palette opens once, no intermediate frame where it is hidden.
-  - Tapping the backdrop still closes the palette in one tap.
-  - Tapping the trigger again while open still closes it.
-  - Cooldown behaviour unchanged (COOLDOWN_MS = 2000, trigger disabled
-    during cooldown, ts:52-53 / 88-107).
-  - Web/desktop behaviour and look unchanged.
+  - Opening the emoji palette, the ⋮ menu and the Resign confirmation on
+    Android shows no flash anywhere on the table, in particular not on
+    the hand cards.
+  - Emoji behaviour unchanged: one tap opens, tap on the backdrop closes,
+    tap on the trigger while open closes, cooldown still disables the
+    trigger for COOLDOWN_MS = 2000 (emoji-reactions.component.ts:29-59).
+  - Resign flow unchanged: Cancel closes, Resign confirms.
+  - Card fan look unchanged: overlap, lift on selection, greyed-out
+    unplayable cards (`.unplayable-card`, table.component.scss:321-343).
+  - Web/desktop rendering strictly unchanged (all fixes under
+    `:host(.is-native)` unless the change is provably neutral).
 
 ───────────────────────────────────────────────────────────────────────
 [2] BUG — Full-board flash when a marble ENTERS the game
      (Android native only)
 ───────────────────────────────────────────────────────────────────────
-Symptom  (re-scoped after observation on device — this supersedes the
-          previous "flashes when a card is played" description)
-  The whole board flashes/blinks for a few frames, then returns to
-  normal. Native Android build only, never on web/desktop.
+Symptom
+  During the `enter` animation the whole board blinks for a few frames —
+  it looks as if the board/DOM were being reloaded — then everything is
+  back to normal. Native Android build only, never on web/desktop.
+  It does NOT happen on every enter.
 
   Narrowed down to ONE action type:
-  - Only on `enter` — a marble leaving home for its start square,
-    played with a K / Ace / Joker.
+  - Only on `enter` — a marble leaving home for its start square, played
+    with a K / Ace / Joker.
   - Never observed on move, capture, swap, promote or discard.
 
-  Ownership bias (the key clue — and the part still unexplained):
+  Ownership bias (the key clue — still unexplained):
   - Happens almost every time the entering marble belongs to the local
     player or to their 2v2 teammate.
-  - Does not happen when an opponent enters a marble — except once,
-    seen a single time.
+  - Not observed when an opponent enters a marble, except once.
   → The mechanism is therefore almost certainly common to every `enter`,
-    with something about "my team" enters pushing it over the threshold
-    most of the time. Do NOT hunt for a code path that only runs for own
-    marbles; look for what makes the same path more expensive.
+    with something about "my team" entering pushing it over the
+    threshold most of the time. Do NOT hunt for a code path that only
+    runs for own marbles; look for what makes the same path more
+    expensive.
 
 Already tried — did NOT help (do not redo)
-  The three leads written in the previous version of this task were
-  implemented on device and changed nothing:
   a. fading `.card-selected::after` instead of adding/removing it;
   b. guarding `--square-size` / `calculateSquareSize()` against no-op
      re-writes;
   c. touching `contain` / `backdrop-filter` on `.board-container`
-     (native override, scss:1673-1681).
-  Treat these as ruled out as the primary cause. Keep whatever cleanup
-  was worth keeping, but do not spend time there again.
+     (native override, board.component.scss:1673-1681).
+  Treat these as ruled out as the primary cause.
 
 Files / anchors
   frontend/src/app/game/components/board/board.component.ts
-    :484-505  `case 'enter'` in animateMarble() — 1 phase without capture
+    :489-509  `case 'enter'` in animateMarble() — 1 phase without capture
               (`marble-entering`, 800 ms); 3 phases with capture
               (`marble-ejected` + `square-enter-impact` → `marble-entering`
               → `marble-enter-impact`).
-    :423-436  applyAndWait() — adds the animation class, then removes it
-              after the duration via setTimeout (so `will-change` is
-              added and removed around every animation).
-    :669-709  updateMarblePosition() — optimistic local mutation; on an
-              `enter` it also sets `marbleInvincible[idx] = true` (:696).
-    :243-255  invincibleSquares computed → `.square-invincible`.
-    :218-233  marbleByPosition computed — note the existing comment: an
+    :428-441  applyAndWait() — adds the animation class, removes it after
+              the duration via setTimeout (so `will-change` is added and
+              removed around every animation).
+    :674-714  updateMarblePosition() — optimistic local mutation; on an
+              `enter` it also sets `marbleInvincible[idx] = true` (:701).
+    :248-260  invincibleSquares computed → `.square-invincible`.
+    :223-240  marbleByPosition computed — note the existing comment: an
               already-fixed "flash de tout le plateau" was an empty
               marble map. Same visual signature, different trigger.
-    :293-295  effect() overwriting `displayedGameData` from
+    :298-300  effect() overwriting `displayedGameData` from
               `gameStateService.data()` — can land mid-animation.
   frontend/src/app/game/components/board/board.component.scss
-    :220-253   @keyframes marbleDrop + `.marble.marble-entering`
-    :279-335   enter+capture keyframes (marbleEnterImpact,
-               squareEnterImpact)
-    :1236-1292 `.case-path.square-invincible` ::before / ::after
-    :1673-1730 `:host(.is-native)` block
-  packages/shared/src/constants.ts:36 — enter = 800 ms (move = 200 ms).
+    :220-247    @keyframes marbleDrop
+    :249-253    `.marble.marble-entering` (`will-change: transform, opacity`)
+    :279-335    enter+capture keyframes (marbleEjected, marbleEnterImpact,
+                squareEnterImpact)
+    :341-375    @keyframes marbleMove (for comparison: no box-shadow)
+    :1129-1143  `.board-container.card-selected::after` + `.marble-mine`
+    :1236-1292  `.case-path.square-invincible` ::before / ::after
+    :1673+      `:host(.is-native)` block
+  packages/shared/src/constants.ts
+    :36 enter = 800 ms (move = 200), :74 ENTER_IMPACT_DURATION_MS = 500,
+    :77 MARBLE_EJECTED_DURATION_MS = 400 — all three also feed the backend
+    turn budget via computeMinAnimationDuration (:128-138).
 
 Leads to investigate (in this order)
   a. marbleDrop animates `box-shadow` — prime suspect.
      @keyframes marbleDrop (scss:220-247) changes `box-shadow` on 4 of
-     its 5 keyframes, across the full 800 ms. box-shadow is not
-     compositable → the marble is fully repainted on every frame for
-     800 ms. It is the ONLY per-marble animation in the stylesheet that
-     does this: marbleMove (scss:341-370) and pawnJostle (scss:377-412)
-     are transform/opacity/filter only. That alone explains "only on
-     enter".
+     its 5 keyframes across the full 800 ms. box-shadow is not
+     compositable → the marble is fully repainted every frame for 800 ms.
+     It is the ONLY per-marble animation in the stylesheet that does
+     this (marbleMove and pawnJostle are transform/opacity/filter only),
+     which alone explains "only on enter".
      Worse: `.marble-entering` declares `will-change: transform, opacity`
-     (scss:252), which promotes the marble to its own compositing layer
-     while the animation keeps dirtying a property that is NOT in
-     will-change → the promoted layer is re-rasterised every frame,
-     inside a `contain: layout style paint` root.
+     (scss:252), promoting the marble to its own layer while the
+     animation keeps dirtying a property that is NOT in will-change →
+     the promoted layer is re-rasterised every frame, inside a
+     `contain: layout style paint` root (scss:43).
      Test (native only): keep the transform/opacity part of marbleDrop
-     and make the shadow static — or move the drop shadow onto a
+     and make the shadow static — or move the drop shadow onto an
      `::after` pseudo-element animated in opacity only.
-
   b. Compositing layer created then destroyed.
-     applyAndWait() (ts:423-436) adds `marble-entering` (with its
-     `will-change`) and removes it 800 ms later. Promotion followed by
-     demotion inside a `contain: paint` container is a classic Android
-     WebView full-repaint trigger, and the 800 ms enter is the
-     longest-lived of these layers.
+     applyAndWait() adds `marble-entering` (with its `will-change`) and
+     removes it 800 ms later. Promotion followed by demotion inside a
+     `contain: paint` container is a classic Android WebView
+     full-repaint trigger, and the 800 ms enter is the longest-lived of
+     these layers.
      Test (native only): declare `will-change` (or `translateZ(0)`)
-     permanently on `.marble` so no layer is created/destroyed around the
-     animation — or drop `will-change` from `.marble-entering` entirely.
-
+     permanently on `.marble` so no layer is created/destroyed around
+     the animation — or drop `will-change` from `.marble-entering`.
   c. The invincibility halo mounts in the same frame as the drop.
-     updateMarblePosition() flips `marbleInvincible` to true (ts:696) at
-     the exact moment the `marble-entering` class is applied, so
+     updateMarblePosition() flips `marbleInvincible` to true (ts:701) at
+     the exact moment `marble-entering` is applied, so
      `.square-invincible` mounts two heavy painted pseudo-elements on the
      destination square: `::before` with a negative inset and three
-     box-shadows including `0 0 28px 6px` (scss:1236-1254), and `::after`
-     with a conic-gradient (scss:1256-1292). Two large new painted areas
+     box-shadows including `0 0 28px 6px`, and `::after` with a
+     conic-gradient (scss:1236-1292). Two large new painted areas
      appearing mid-animation, on top of (a).
      Test: apply the halo only once the enter animation has resolved.
      ⚠️ This also fires for opponent enters, so on its own it does not
-     explain the ownership bias — it is an amplifier, not the
-     discriminator.
-
+     explain the ownership bias — amplifier, not discriminator.
   d. Pin down the real discriminator before assuming "ownership".
      What genuinely differs when the LOCAL player is the one entering:
        - `isCardSelected()` flips to false in the same frame → the
@@ -165,36 +231,35 @@ Leads to investigate (in this order)
          destroyed at once.
        - The entering marble gets `.marble-mine { z-index: 20 }`
          (scss:1141-1143) → new stacking context above that overlay.
-       - The card flies `fromHand` (ts:333, 342), with its own overlay.
+       - The card flies `fromHand` (ts:338, 347), with its own overlay.
      None of that applies to the TEAMMATE's turn, yet the teammate case
-     flashes too. Two possibilities, cheap to separate:
-       1. Positional, not ownership. The board is never rotated — seats
-          are fixed (cornerSlots(), ts:928-940: orange=tl, red=tr,
+     flashes too. Two cheap-to-separate possibilities:
+       1. Positional, not ownership. Seats are fixed and the board is
+          never rotated (cornerSlots(), ts:933-945: orange=tl, red=tr,
           blue=bl, green=br) and 2v2 teams are red+blue / green+orange,
-          i.e. exactly one DIAGONAL of the board each. "My team" and "one
-          diagonal of start squares" are indistinguishable from the
-          observations so far. If it is positional, look at the drop
-          starting at `translateY(-220%)` (scss:222) overflowing the
-          square / container differently depending on the corner.
-       2. The teammate correlation is a mis-attribution.
+          i.e. exactly one DIAGONAL each. "My team" and "one diagonal of
+          start squares" are indistinguishable from the observations so
+          far. If positional, look at the drop starting at
+          `translateY(-220%)` (scss:222) overflowing the square /
+          container differently depending on the corner.
+       2. The teammate correlation is a mis-attribution ("always, just
+          more noticeable when it is my turn").
      → FIRST ACTION, before writing any fix: ask the user to note the
        COLOUR of the marble that enters each time it flashes (and each
-       time it does not), over a few games. Team vs diagonal vs "always,
-       just more noticeable sometimes" decides which lead above is right.
-
-  e. Instrumentation (unchanged, still useful).
+       time it does not), over a few games.
+  e. Instrumentation (still useful).
      `[attr.data-render-tick]="debug ? countBoardRender() : null"`
-     (html:2, ts:266-272) tells "the board component re-rendered" from
-     "only a repaint happened". If the tick does not move during a flash,
-     it is purely a paint/compositing problem → leads a/b/c.
+     (board.component.html:2, ts:271-277) separates "the board component
+     re-rendered" from "only a repaint happened". If the tick does not
+     move during a flash, it is purely paint/compositing → leads a/b/c.
 
 Acceptance criteria
   - Entering a marble (K / Ace / Joker) never produces a full-board flash
     on Android, whoever owns the marble — including the enter-with-
-    capture variant (3-phase sequence, ts:490-499).
+    capture variant (3-phase sequence, ts:493-505).
   - The drop keeps its look: fall from above, bounce, landing shadow.
   - Timing unchanged (800 ms, constants.ts:36) — that shared constant
-    also feeds the backend turn budget (constants.ts:132). Do not touch it.
+    also feeds the backend turn budget. Do not touch it.
   - move / capture / swap / promote / discard animations untouched.
   - The invincibility halo still appears on a freshly-entered marble and
     still disappears on its first move.
@@ -207,66 +272,125 @@ Acceptance criteria
     user before attempting it again.
 
 ───────────────────────────────────────────────────────────────────────
-[3] UI — Give the "team vs team" banner more room above the board
-     (mobile portrait only, 2v2 mode)
+[3] UX — After the host presses "Start" in a custom room, no player is
+     told the game is now searching for the missing players
 ───────────────────────────────────────────────────────────────────────
+Problem
+  In a custom (private) room, the host can press "Start" with fewer than
+  4 players. The server then closes the room and drops everyone into the
+  PUBLIC matchmaking queue, where the empty seats are filled by other
+  humans or by AI bots. Nothing in the UI says so — every player is left
+  looking at a frozen room screen with no indication that a search is in
+  progress, how many seats are still missing, or that strangers/bots may
+  join.
+
+What actually happens today (verified in code)
+  Server
+    backend/src/session/custom-game-manager.ts
+      :410-427 startRoomFromCreator() — deletes the room, cancels pending
+               invites, then: 4 players → launch() (:444), otherwise →
+               fallbackToMatchmaking() (:506).
+      :506-527 fallbackToMatchmaking() — every room player is pushed into
+               MatchmakingManager.joinQueue(); resolveFallbackColors()
+               (:529+) keeps a 2v2 pair together if their colours are
+               already taken in the public queue.
+    backend/src/session/matchmaking-manager.ts
+      :66-136  joinQueue() — assigns/keeps a colour, starts the bot
+               dispatch timer, launches as soon as 4 players are present.
+      :135-150 tickBotDispatch() — every 1 s, +1 % chance to dispatch an
+               external AI agent while a human is waiting.
+      broadcastStatus() — sends `matchmakingStatus` (connectedCount,
+               totalNeeded, myColor, takenColors) to every queued player
+               on every change. So the data needed by the UI is ALREADY
+               being pushed to all ex-room players.
+  Client — frontend/src/app/home/home.page.ts / .html
+      :792-796 startCustomRoom() sets `customStarting = true` → the button
+               label becomes "Starting…" (html:1030-1036) and seats stop
+               being clickable (selectCustomSlot(), :866).
+      :641-680 wireCustomRoomSubs() subscribes to customRoomStatus$,
+               gameStarted$, connectionError$, actionRejected$, resumed$ —
+               but NOT to matchmakingStatus$.
+      Consequences:
+        · The room no longer exists server-side, so no further
+          `customRoomStatus` arrives → the modal freezes on the last known
+          state: room code + copy button (dead code now), stale seats,
+          stale "N / 4 players", "Tap an empty seat to choose your team".
+        · Non-host players never get `customStarting = true` (host-only
+          flag) → their screen does not change AT ALL when the host starts.
+        · Their seat taps call sendSelectCustomSlot, which the matchmaking
+          listener ignores (it only handles `selectMatchmakingSlot`,
+          matchmaking-manager.ts:114-121) → silent no-op.
+        · Closing the modal calls cancelCustomGame() (:798-808) which
+          sends `leaveCustomRoom` for a room that no longer exists.
+
 Goal
-  On phones in portrait, shift the board slightly downward (toward the
-  vertical centre of the screen) so the `app-team-vs-banner` above it has
-  a bit more free vertical space and is no longer cramped against / cut
-  off by the top edge.
-
-Current layout
-  frontend/src/app/game/game.page.html:40-49
-    `.board-wrapper` contains `<app-board>` and, in 2v2 only,
-    `<app-team-vs-banner>`.
-  frontend/src/app/game/game.page.scss:62-81 (portrait, `max-aspect-ratio: 1/1`)
-    `.board-wrapper { flex: 1; width: 100%; display:flex;
-     justify-content:center; min-height:0; position:relative; }`
-    `.table-wrapper { flex: 1; max-height: 40%; }`
-  frontend/src/app/game/components/board/board.component.scss:5-13
-    board `:host` is `display:flex; justify-content:center;
-    align-items:center; width:100%; height:100%` → the square board is
-    vertically centred inside the wrapper.
-  frontend/src/app/game/components/team-vs-banner/team-vs-banner.component.scss:14-33
-    banner `:host` is `position:absolute; top:-2%; left:50%;
-    transform:translateX(-50%)`, and is only displayed under
-    `@media (max-aspect-ratio: 12/25)` (tall phone portrait).
-
-Hard constraint
-  `BoardComponent.calculateSquareSize()` (board.component.ts:860-873)
-  measures `.board-wrapper` via `getBoundingClientRect()` and derives
-  `--square-size` **and** `gameStateService.boardContainerSize` (which
-  drives the table-wrapper size, game.page.html:64-65).
-  → Any change that shrinks the measured wrapper box (e.g. `padding-top`
-  on `.board-wrapper`) also shrinks the board and the table. Prefer a
-  purely visual offset that does not alter the measured rect:
-  for example shifting the board `:host` content down
-  (`align-items: flex-end`-style offset, `transform: translateY(...)`, or
-  a `margin-top` on `.board-container` rather than on the wrapper).
-  If a solution that changes the measured box is chosen, state the
-  resulting board-size reduction explicitly before implementing.
+  Keep the server behaviour as-is (the fallback to public matchmaking is
+  intentional). Make the transition explicit and correct in the UI, for
+  EVERY player in the room, and make the consequence of pressing "Start"
+  clear BEFORE it is pressed.
 
 Steps
-  1. Decide the offset value and express it relative to the free vertical
-     space that already exists (the board is `min(w,h) * 0.95` — see
-     board.component.ts:865 — so on a portrait phone there is unused
-     height above and below it).
-  2. Scope the change to the same breakpoint the banner uses
-     (`max-aspect-ratio: 12/25`) so tablets/landscape are untouched —
-     the banner is hidden there anyway.
-  3. Keep the board horizontally centred and keep the four player badges
-     in the board corners fully visible (board.component.scss:52-100).
-  4. Verify the banner no longer overlaps the top of the board and is not
-     clipped by the top of `.game-layout` (which has `padding: 2vh 2vw`
-     and `overflow: hidden`, game.page.scss:34-37).
+  1. Before starting — set expectations on the Start button
+     (home.page.html:1028-1037):
+     · With 4 players: label "Start game".
+     · With fewer: label "Start anyway" plus a one-line hint under it,
+       e.g. "Missing seats will be filled by other players or AI
+       opponents." Show the current count in the label or hint.
+     · Fix the dead guard `[disabled]="customRoomPlayers.length < 1"` —
+       the list always contains at least the host, so it never disables
+       anything. Either drop it or replace it with a real rule
+       (`customStarting` only).
+  2. Add a third stage to the custom-game modal:
+     `customStage: 'choose' | 'in-room' | 'searching'`
+     (declared home.page.ts:132).
+  3. In wireCustomRoomSubs() (:641), also subscribe to
+     `gameStateService.matchmakingStatus$`. On the first message received
+     while `customStage === 'in-room'`, switch to `'searching'` and store
+     connectedCount / myColor / takenColors into the existing
+     matchmaking fields (`matchmakingConnected`, `myMatchmakingColor`,
+     `matchmakingTakenColors`, :97-115). This works for the host AND for
+     every other player, since the server broadcasts to all of them.
+  4. Render the `'searching'` stage. Reuse the existing matchmaking modal
+     markup (home.page.html:602-708) rather than duplicating it — extract
+     the shared part (title, team seats, "N / 4 players", `.mq-dots`
+     spinner, Cancel) into one component or one shared template branch
+     used by both `showMatchmaking` and `customStage === 'searching'`.
+     In the searching stage:
+       · Title: "Finding players…" (same wording as public matchmaking).
+       · Hide the room code, the copy button and the invite list — the
+         room is gone, the code is no longer joinable.
+       · Show explicitly that the remaining seats will be filled by other
+         players or AI opponents.
+       · Keep the seats live from `takenColors` / `myColor`.
+  5. Seat selection in the searching stage must send
+     `sendSelectMatchmakingSlot` (as selectMatchmakingSlot(), :583-587),
+     NOT `sendSelectCustomSlot` — the latter is silently ignored once the
+     room is gone.
+  6. Cancel / close in the searching stage must behave like
+     cancelMatchmaking() (:565-571): unsubscribe, disconnect, release the
+     tab lock, restore presence. It must NOT send `leaveCustomRoom`.
+  7. Guard the 4-player case: when the room is full, the server calls
+     launch() and `gameStarted$` fires immediately — the searching UI
+     must not flash on screen in that case.
+  8. Keep the existing background/resume handling working: the resume
+     re-join path (:702-725) re-issues `joinCustomRoom` with the stored
+     code. Once the stage is `'searching'` that code is dead — the resume
+     path must not try to re-join a destroyed room.
 
 Acceptance criteria
-  - Portrait phone, 2v2: visible gap between the banner and the top edge
-    of the board; the banner is fully visible.
-  - Board size (`--square-size`) and table-wrapper size unchanged, or the
-    change is intentional and stated.
-  - Landscape, tablets, desktop and 1v1v1v1 mode unchanged.
-  - ⚠️ The 820px threshold mentioned in the "mercury-team-vs-banner"
-    memory is stale — the real gate in the code is
-    `@media (max-aspect-ratio: 12/25)`.
+  - Host presses Start with fewer than 4 players: every player in the
+    room (host included) immediately sees a "searching for players"
+    screen with a live seat count, a spinner, and a sentence saying the
+    missing seats will be filled by other players or AI opponents.
+  - The room code, copy button and invite list disappear at that point.
+  - Tapping an empty seat while searching actually moves the player
+    (server-acknowledged), or is visibly disabled — never a silent no-op.
+  - Cancel while searching returns to the home screen with the socket
+    closed, the tab lock released and presence restored; the user can
+    immediately start a new Play Now / Custom Game.
+  - Host presses Start with 4 players: the game starts as today, with no
+    searching screen appearing in between.
+  - Public "Play Now" matchmaking (home.page.html:602-708) is unchanged,
+    or shares the extracted component with identical behaviour.
+  - No server/protocol change is required; if one is added anyway, state
+    why `matchmakingStatus` was not enough.

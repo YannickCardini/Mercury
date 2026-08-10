@@ -462,8 +462,22 @@
   z-index: 10;
   flex-shrink: 0;
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
   padding: 12px 20px 18px;
+}
+
+.how-to-play-link {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-decoration: none;
+  padding: 7px 4px;
+  transition: color 0.2s;
+
+  &:hover {
+    color: rgba(255, 255, 255, 0.8);
+  }
 }
 
 .settings-btn {

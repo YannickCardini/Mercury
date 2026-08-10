@@ -33,6 +33,8 @@
             ],
             "assets": [
               "src/staticwebapp.config.json",
+              "src/sitemap.xml",
+              "src/robots.txt",
               {
                 "glob": "**/*",
                 "input": "src/assets",

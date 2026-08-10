@@ -22,11 +22,10 @@
           [class.square-preview-path]="isPreviewPath(index)"
           [class.square-preview-path-marble2]="isPreviewPathMarble2(index)"
           [class.square-preview-destination]="isPreviewDestination(index)"
-          [class.square-invincible]="isInvincibleSquare(index)"
-          (click)="onSquareClick(index)">
+          [class.square-invincible]="isInvincibleSquare(index)" (click)="onSquareClick(index)">
           <ng-container *ngTemplateOutlet="marbleCell; context: { $implicit: index }"></ng-container>
           <span class="square-number">
-            {{ debug ? index : '' }}<div style="font-size: medium;color:white">{{ debug ? '' : (getArrivalNumber(index)
+            {{ debug ? '' : '' }}<div style="font-size: medium;color:white">{{ debug ? '' : (getArrivalNumber(index)
               ?? '') }}
             </div>
           </span>
@@ -46,8 +45,8 @@
   <app-player-badge class="player-badge-slot" [ngClass]="'player-badge-slot--' + slot.corner"
     [class.player-badge-slot--diamond]="slot.shape === 'diamond'" [attr.data-player-color]="slot.color"
     [shape]="slot.shape" [player]="getPlayer(slot.color)" [color]="gameStateService.displayColor(slot.color)"
-    [isCurrentTurn]="isCurrentTurn(slot.color)"
-    [timer]="displayedGameData()?.gameState?.timer ?? 0" [rank]="playerRankings()[slot.color] ?? null">
+    [isCurrentTurn]="isCurrentTurn(slot.color)" [timer]="displayedGameData()?.gameState?.timer ?? 0"
+    [rank]="playerRankings()[slot.color] ?? null">
   </app-player-badge>
   }
 

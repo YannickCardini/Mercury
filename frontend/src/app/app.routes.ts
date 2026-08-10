@@ -29,6 +29,22 @@ export const routes: Routes = [
     loadComponent: () => import('./privacy/privacy.page').then(m => m.PrivacyPage)
   },
   {
+    path: 'rules/tock',
+    loadComponent: () => import('./rules/tock.page').then(m => m.TockRulesPage)
+  },
+  {
+    path: 'rules/keezen',
+    loadComponent: () => import('./rules/keezen.page').then(m => m.KeezenRulesPage)
+  },
+  {
+    path: 'rules/dog',
+    loadComponent: () => import('./rules/dog.page').then(m => m.DogRulesPage)
+  },
+  {
+    path: 'rules/pegs-and-jokers',
+    loadComponent: () => import('./rules/pegs-and-jokers.page').then(m => m.PegsAndJokersRulesPage)
+  },
+  {
     path: 'delete-account',
     loadComponent: () => import('./delete-account/delete-account.page').then(m => m.DeleteAccountPage)
   },
