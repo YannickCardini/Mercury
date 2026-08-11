@@ -1449,4 +1449,15 @@
         backdrop-filter: none;
         -webkit-backdrop-filter: none;
     }
+
+    /* [TODO 1 — piste a] `.tock-card-btn` promeut chaque carte de la main sur
+       son propre calque en permanence (will-change: transform, ligne 261).
+       Sur WebView Android, insérer un overlay plein écran au-dessus de ce
+       groupe de calques déjà promus (backdrop emoji/menu/resign) force une
+       re-layerisation de la zone → un frame de repaint complet (flash).
+       Aucun hover sur mobile : la promotion permanente ne sert à rien ici,
+       seul le select/deselect anime encore un transform. */
+    .tock-card-btn {
+        will-change: auto;
+    }
 }

@@ -1725,6 +1725,35 @@ $colors: (
         animation: none;
     }
 
+    /* ⚠️ CAUSE PRÉSUMÉE DU « FLASH DE TOUT LE PLATEAU » À L'ENTRÉE D'UN PION.
+       Le glint tournant (::after) est peint en `mix-blend-mode: screen`. Un
+       élément avec un blend mode doit être composé avec son ARRIÈRE-PLAN : le
+       moteur doit donc aplatir tout le groupe de composition qui le contient
+       en une seule surface rasterizée. Ce groupe, c'est `.board-container`
+       (`contain: layout style paint` ⇒ contexte d'empilement isolant) — donc
+       le plateau ENTIER, avec toutes ses couches promues (chaque `.marble` a
+       `transform: translateZ(0)`, chaque `.player-badge-slot` aussi).
+
+       Or ce halo n'apparaît QUE sur un `enter` : `updateMarblePosition()` pose
+       `marbleInvincible[idx] = action.type === 'enter'` (board.component.ts:701),
+       donc `.square-invincible` — et son ::after blendé — est créé pile au
+       démarrage de l'animation de chute. La WebView Android reconstruit alors
+       son arbre de couches pour tout le plateau ⇒ quelques frames de
+       re-rasterization visibles comme un « rechargement » du board. Cohérent
+       avec les 4 observations : `enter` uniquement (seule action qui crée un
+       halo), natif uniquement, plateau entier, et « pas à chaque fois » (le
+       groupe de blending n'est reconstruit que sur la transition 0 → 1 case
+       invincible : un 2e pion entrant pendant qu'un halo est déjà affiché ne
+       coûte rien).
+
+       Correctif : blending normal en natif. Le halo se pose ici toujours sur
+       une case de départ colorée ; sur ce fond, screen et normal donnent des
+       couleurs à quelques % près (la source est quasi blanche), le glint reste
+       donc visuellement identique — mais sans forcer l'aplatissement. */
+    .case-path.square-invincible::after {
+        mix-blend-mode: normal;
+    }
+
     /* Pions ancrés : rien à alléger — l'état « blindé » est statique par
        construction (aucune animation en boucle), voir .marble-anchored. */
 }

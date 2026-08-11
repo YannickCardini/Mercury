@@ -137,16 +137,6 @@ Symptom
     with a K / Ace / Joker.
   - Never observed on move, capture, swap, promote or discard.
 
-  Ownership bias (the key clue — still unexplained):
-  - Happens almost every time the entering marble belongs to the local
-    player or to their 2v2 teammate.
-  - Not observed when an opponent enters a marble, except once.
-  → The mechanism is therefore almost certainly common to every `enter`,
-    with something about "my team" entering pushing it over the
-    threshold most of the time. Do NOT hunt for a code path that only
-    runs for own marbles; look for what makes the same path more
-    expensive.
-
 Already tried — did NOT help (do not redo)
   a. fading `.card-selected::after` instead of adding/removing it;
   b. guarding `--square-size` / `calculateSquareSize()` against no-op
@@ -154,6 +144,24 @@ Already tried — did NOT help (do not redo)
   c. touching `contain` / `backdrop-filter` on `.board-container`
      (native override, board.component.scss:1673-1681).
   Treat these as ruled out as the primary cause.
+
+Shipped, awaiting on-device verdict (2026-08-11) — hypothesis "blend group"
+  `.case-path.square-invincible::after` is painted with `mix-blend-mode:
+  screen` (board.component.scss:1269). A blended element must be composed
+  with its BACKDROP, so the engine flattens the whole compositing group
+  that contains it — here `.board-container`, which is an isolating
+  stacking context via `contain: layout style paint` (scss:43). That halo
+  is created ONLY on an enter (`marbleInvincible[idx] = action.type ===
+  'enter'`, board.component.ts:701), exactly when the drop animation
+  starts. Only structural DOM delta unique to `enter`; every other action
+  merely moves a `.marble` div.
+  Fix shipped: `mix-blend-mode: normal` under `:host(.is-native)`
+  (board.component.scss, end of the is-native block).
+  If the flash is GONE → confirmed; consider whether the ::after glint is
+  still worth keeping at all (its spin animation is already commented out).
+  If it PERSISTS → this lead is dead, move to the box-shadow animated in
+  @keyframes marbleDrop (scss:220-247) — the only marble keyframe that
+  animates a paint property; marbleMove does not.
 
 Files / anchors
   frontend/src/app/game/components/board/board.component.ts
@@ -185,73 +193,6 @@ Files / anchors
     :36 enter = 800 ms (move = 200), :74 ENTER_IMPACT_DURATION_MS = 500,
     :77 MARBLE_EJECTED_DURATION_MS = 400 — all three also feed the backend
     turn budget via computeMinAnimationDuration (:128-138).
-
-Leads to investigate (in this order)
-  a. marbleDrop animates `box-shadow` — prime suspect.
-     @keyframes marbleDrop (scss:220-247) changes `box-shadow` on 4 of
-     its 5 keyframes across the full 800 ms. box-shadow is not
-     compositable → the marble is fully repainted every frame for 800 ms.
-     It is the ONLY per-marble animation in the stylesheet that does
-     this (marbleMove and pawnJostle are transform/opacity/filter only),
-     which alone explains "only on enter".
-     Worse: `.marble-entering` declares `will-change: transform, opacity`
-     (scss:252), promoting the marble to its own layer while the
-     animation keeps dirtying a property that is NOT in will-change →
-     the promoted layer is re-rasterised every frame, inside a
-     `contain: layout style paint` root (scss:43).
-     Test (native only): keep the transform/opacity part of marbleDrop
-     and make the shadow static — or move the drop shadow onto an
-     `::after` pseudo-element animated in opacity only.
-  b. Compositing layer created then destroyed.
-     applyAndWait() adds `marble-entering` (with its `will-change`) and
-     removes it 800 ms later. Promotion followed by demotion inside a
-     `contain: paint` container is a classic Android WebView
-     full-repaint trigger, and the 800 ms enter is the longest-lived of
-     these layers.
-     Test (native only): declare `will-change` (or `translateZ(0)`)
-     permanently on `.marble` so no layer is created/destroyed around
-     the animation — or drop `will-change` from `.marble-entering`.
-  c. The invincibility halo mounts in the same frame as the drop.
-     updateMarblePosition() flips `marbleInvincible` to true (ts:701) at
-     the exact moment `marble-entering` is applied, so
-     `.square-invincible` mounts two heavy painted pseudo-elements on the
-     destination square: `::before` with a negative inset and three
-     box-shadows including `0 0 28px 6px`, and `::after` with a
-     conic-gradient (scss:1236-1292). Two large new painted areas
-     appearing mid-animation, on top of (a).
-     Test: apply the halo only once the enter animation has resolved.
-     ⚠️ This also fires for opponent enters, so on its own it does not
-     explain the ownership bias — amplifier, not discriminator.
-  d. Pin down the real discriminator before assuming "ownership".
-     What genuinely differs when the LOCAL player is the one entering:
-       - `isCardSelected()` flips to false in the same frame → the
-         full-board `.card-selected::after` overlay (62 % black,
-         scss:1129-1139) is destroyed, and every native-only
-         `.marble-selectable::after` pulse ring (scss:1686-1702) is
-         destroyed at once.
-       - The entering marble gets `.marble-mine { z-index: 20 }`
-         (scss:1141-1143) → new stacking context above that overlay.
-       - The card flies `fromHand` (ts:338, 347), with its own overlay.
-     None of that applies to the TEAMMATE's turn, yet the teammate case
-     flashes too. Two cheap-to-separate possibilities:
-       1. Positional, not ownership. Seats are fixed and the board is
-          never rotated (cornerSlots(), ts:933-945: orange=tl, red=tr,
-          blue=bl, green=br) and 2v2 teams are red+blue / green+orange,
-          i.e. exactly one DIAGONAL each. "My team" and "one diagonal of
-          start squares" are indistinguishable from the observations so
-          far. If positional, look at the drop starting at
-          `translateY(-220%)` (scss:222) overflowing the square /
-          container differently depending on the corner.
-       2. The teammate correlation is a mis-attribution ("always, just
-          more noticeable when it is my turn").
-     → FIRST ACTION, before writing any fix: ask the user to note the
-       COLOUR of the marble that enters each time it flashes (and each
-       time it does not), over a few games.
-  e. Instrumentation (still useful).
-     `[attr.data-render-tick]="debug ? countBoardRender() : null"`
-     (board.component.html:2, ts:271-277) separates "the board component
-     re-rendered" from "only a repaint happened". If the tick does not
-     move during a flash, it is purely paint/compositing → leads a/b/c.
 
 Acceptance criteria
   - Entering a marble (K / Ace / Joker) never produces a full-board flash
