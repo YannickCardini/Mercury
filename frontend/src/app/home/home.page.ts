@@ -12,6 +12,7 @@ import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { Router, RouterLink } from "@angular/router";
 import { HttpClient } from "@angular/common/http";
+import { AndroidAppBannerComponent } from "../shared/android-app-banner.component";
 import { GameRulesModalComponent } from "../shared/game-rules-modal.component";
 import { InviteToastComponent } from "../shared/invite-toast.component";
 import { MarbleOrbitComponent } from "../shared/marble-orbit.component";
@@ -33,6 +34,7 @@ import type {
 } from "@mercury/shared";
 import { environment } from "src/environments/environment";
 import { generateGuestName } from "../shared/guest-name";
+import { PLAY_STORE_URL } from "../shared/store-url";
 
 interface ThreadSummary {
   peerId: string;
@@ -80,6 +82,7 @@ interface InviteCandidate {
     CommonModule,
     FormsModule,
     RouterLink,
+    AndroidAppBannerComponent,
     GameRulesModalComponent,
     InviteToastComponent,
     MarbleOrbitComponent,
@@ -88,6 +91,8 @@ interface InviteCandidate {
 export class HomePage implements OnInit, OnDestroy {
   readonly titleLetters = ["M", "E", "R", "C", "U", "R", "Y"];
   readonly appVersion = signal(version);
+  /** Lien Play Store du footer (visible partout, y compris desktop). */
+  readonly storeUrl = PLAY_STORE_URL;
   /** Paires d'équipes fixes (red+blue vs green+orange) — pour grouper les sièges dans le modal Custom Game. */
   readonly TEAMS = TEAMS;
 
@@ -129,8 +134,14 @@ export class HomePage implements OnInit, OnDestroy {
 
   // ── Custom Game state ──────────────────────────────────────────────────────
   showCustomGame = false;
-  /** Stage of the custom-game flow: pick action, then in-room. */
-  customStage: "choose" | "in-room" = "choose";
+  /**
+   * Stage of the custom-game flow: pick action, then in-room, then — when the
+   * host starts with fewer than 4 players — `searching`: the server destroyed
+   * the room and pushed everyone into the PUBLIC matchmaking queue
+   * (CustomGameManager.fallbackToMatchmaking), so from here on the modal shows
+   * the same "finding players" panel as Play Now.
+   */
+  customStage: "choose" | "in-room" | "searching" = "choose";
   customRoomCode = "";
   customRoomPlayers: CustomRoomPlayerInfo[] = [];
   myCustomColor: MarbleColor | null = null;
@@ -147,6 +158,7 @@ export class HomePage implements OnInit, OnDestroy {
   inviteLoading = false;
 
   private customRoomSub: Subscription | null = null;
+  private customMatchmakingSub: Subscription | null = null;
   private customGameStartSub: Subscription | null = null;
   private customConnectionErrorSub: Subscription | null = null;
   private customRejectedSub: Subscription | null = null;
@@ -564,7 +576,23 @@ export class HomePage implements OnInit, OnDestroy {
   }
 
   cancelMatchmaking(): void {
+    this.cancelSearch();
+  }
+
+  /**
+   * Cancel from the shared "finding players" panel — used by Play Now and by a
+   * custom room that fell back to the public queue. In the fallback case the
+   * room no longer exists server-side, so we must NOT send `leaveCustomRoom`:
+   * closing the socket is what removes us from the matchmaking session.
+   */
+  cancelSearch(): void {
+    const fromCustomRoom = this.customStage === "searching";
     this.cleanupMatchmaking();
+    if (fromCustomRoom) {
+      this.cleanupCustomGame();
+      this.showCustomGame = false;
+      this.resetCustomGameState();
+    }
     this.gameStateService.disconnect();
     this.tabLock.releaseSession();
     this.showMatchmaking = false;
@@ -662,6 +690,30 @@ export class HomePage implements OnInit, OnDestroy {
       }
     );
 
+    // The host started the room with fewer than 4 players: the server deleted
+    // the room and pushed EVERY player into the public queue, then broadcasts
+    // `matchmakingStatus` to all of them. No further `customRoomStatus` will
+    // ever arrive, so this is the only signal the transition happened — and it
+    // reaches non-host players too, which `customStarting` (host-only) never
+    // does. With 4 players the server launches directly and no status is sent,
+    // so the searching panel can't flash in that case.
+    this.customMatchmakingSub =
+      this.gameStateService.matchmakingStatus$.subscribe((status) => {
+        if (this.customStage === "in-room") {
+          this.customStage = "searching";
+          this.customStarting = false;
+          this.customError = "";
+          // The room is gone: drop the code so nothing tries to show, copy,
+          // invite to, or re-join it (see the resume handler below).
+          this.customRoomCode = "";
+          this.inviteCandidates = [];
+        }
+        if (this.customStage !== "searching") return;
+        this.matchmakingConnected = status.connectedCount;
+        this.myMatchmakingColor = status.myColor;
+        this.matchmakingTakenColors = status.takenColors;
+      });
+
     this.customGameStartSub = this.gameStateService.gameStarted$
       .pipe(take(1))
       .subscribe(() => {
@@ -705,8 +757,11 @@ export class HomePage implements OnInit, OnDestroy {
       // gone, transparently re-issue `joinCustomRoom` with the same code.
       // Backend matches us by userId/browserId and swaps us back into the
       // same slot, preserving the room for everyone.
+      // Once the stage is `searching` the room has been destroyed server-side,
+      // so there is nothing to re-join — never re-issue `joinCustomRoom`.
       if (
         !this.showCustomGame ||
+        this.customStage === "searching" ||
         !this.customRoomCode ||
         this.gameStateService.isConnected()
       )
@@ -729,6 +784,15 @@ export class HomePage implements OnInit, OnDestroy {
       (reason) => {
         this.customCreating = false;
         this.customError = reason;
+        // While searching, a rejection is a transient seat race
+        // (MatchmakingManager: "This seat is already taken") — show it and
+        // stay in the queue instead of tearing the whole flow down.
+        if (this.customStage === "searching") {
+          setTimeout(() => {
+            if (this.customStage === "searching") this.customError = "";
+          }, 3000);
+          return;
+        }
         // If we're still on the choose screen, the connection should be torn down
         // because the server already rejected us (e.g., room not found).
         if (this.customStage === "choose") {
@@ -797,6 +861,12 @@ export class HomePage implements OnInit, OnDestroy {
   }
 
   cancelCustomGame(): void {
+    // Past the fallback the room is already destroyed — leave the public queue
+    // instead of sending `leaveCustomRoom` for a room that no longer exists.
+    if (this.customStage === "searching") {
+      this.cancelSearch();
+      return;
+    }
     // Tell the server this is an intentional leave (skips the 60 s grace
     // window so the room is destroyed/cleaned immediately instead of waiting).
     if (this.gameStateService.isConnected()) {
@@ -812,12 +882,14 @@ export class HomePage implements OnInit, OnDestroy {
 
   private cleanupCustomGame(): void {
     this.customRoomSub?.unsubscribe();
+    this.customMatchmakingSub?.unsubscribe();
     this.customGameStartSub?.unsubscribe();
     this.customConnectionErrorSub?.unsubscribe();
     this.customRejectedSub?.unsubscribe();
     this.customInviteResponseSub?.unsubscribe();
     this.customResumeSub?.unsubscribe();
     this.customRoomSub = null;
+    this.customMatchmakingSub = null;
     this.customGameStartSub = null;
     this.customConnectionErrorSub = null;
     this.customRejectedSub = null;

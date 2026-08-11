@@ -9,69 +9,37 @@
       </div>
       @if (auth.user$ | async; as user) {
       <div class="nav-user">
-        <button
-          class="nav-inbox-btn"
-          (click)="openInbox()"
-          title="Inbox"
-          aria-label="Inbox"
-        >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
+        <button class="nav-inbox-btn" (click)="openInbox()" title="Inbox" aria-label="Inbox">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
             <path d="M22 12h-6l-2 3h-4l-2-3H2"></path>
             <path
-              d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"
-            ></path>
+              d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z">
+            </path>
           </svg>
           @if (unreadCount > 0) {
-          <span class="nav-inbox-badge"
-            >{{ unreadCount > 99 ? '99+' : unreadCount }}</span
-          >
+          <span class="nav-inbox-badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
           }
         </button>
         <button class="nav-login-btn" (click)="openLogin()">
-          <img
-            class="nav-avatar"
-            [src]="user.picture"
-            [alt]="user.name"
-            referrerpolicy="no-referrer"
-          />
+          <img class="nav-avatar" [src]="user.picture" [alt]="user.name" referrerpolicy="no-referrer" />
           <span>{{ user.name.split(' ')[0] }}</span>
         </button>
       </div>
       } @else {
-      <button
-        class="btn-google-nav"
-        (click)="loginWithGoogle()"
-        [disabled]="auth.isLoading$ | async"
-      >
+      <button class="btn-google-nav" (click)="loginWithGoogle()" [disabled]="auth.isLoading$ | async">
         @if (auth.isLoading$ | async) {
         <span class="btn-spinner"></span>
         } @if (!(auth.isLoading$ | async)) {
         <svg width="18" height="18" viewBox="0 0 48 48">
-          <path
-            fill="#EA4335"
-            d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"
-          />
-          <path
-            fill="#4285F4"
-            d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"
-          />
-          <path
-            fill="#FBBC05"
-            d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"
-          />
-          <path
-            fill="#34A853"
-            d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.35-8.16 2.35-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
-          />
+          <path fill="#EA4335"
+            d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+          <path fill="#4285F4"
+            d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+          <path fill="#FBBC05"
+            d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+          <path fill="#34A853"
+            d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.35-8.16 2.35-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
         </svg>
         }
         <span>Sign in with Google</span>
@@ -127,17 +95,8 @@
         <button class="action-btn play-btn" (click)="openMatchmaking()">
           <span class="ab-marble ab-green"></span>
           <span class="ab-text">Play Now</span>
-          <svg
-            class="ab-arrow"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
+          <svg class="ab-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <path d="M5 12h14M12 5l7 7-7 7" />
           </svg>
         </button>
@@ -145,17 +104,8 @@
         <button class="action-btn custom-btn" (click)="openCustomGame()">
           <span class="ab-marble ab-orange"></span>
           <span class="ab-text">Custom Game</span>
-          <svg
-            class="ab-arrow"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
+          <svg class="ab-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <path d="M5 12h14M12 5l7 7-7 7" />
           </svg>
         </button>
@@ -163,17 +113,8 @@
         <button class="action-btn leaderboard-btn" (click)="goToLeaderboard()">
           <span class="ab-marble ab-red"></span>
           <span class="ab-text">Leaderboard</span>
-          <svg
-            class="ab-arrow"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
+          <svg class="ab-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <path d="M5 12h14M12 5l7 7-7 7" />
           </svg>
         </button>
@@ -182,46 +123,26 @@
 
     <!-- ── Footer ─────────────────────────────────────── -->
     <footer class="home-footer">
-      <a class="how-to-play-link" routerLink="/rules/pegs-and-jokers">How to Play</a>
+      <div class="footer-links">
+        <a class="how-to-play-link" routerLink="/rules/pegs-and-jokers">How to Play</a>
+      </div>
       <button class="settings-btn" (click)="openSettings()">
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.8"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+          stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="3" />
-          <path
-            d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42
-                   M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"
-          />
+          <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42
+                   M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
         </svg>
         <span>v{{ appVersion() }}</span>
       </button>
     </footer>
 
     <!-- ══════════════ LOGIN MODAL ══════════════ -->
-    <div
-      class="modal-overlay"
-      [class.active]="showLogin"
-      (click)="closeLogin()"
-    >
+    <div class="modal-overlay" [class.active]="showLogin" (click)="closeLogin()">
       <div class="modal-card" (click)="$event.stopPropagation()">
         <button class="modal-close" (click)="closeLogin()">
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
             <path d="M18 6 6 18M6 6l12 12" />
           </svg>
         </button>
@@ -246,33 +167,14 @@
         <div class="profile-card">
           <!-- Avatar -->
           <div class="profile-avatar-wrap" [class.editable]="editingProfile">
-            <img
-              class="profile-avatar"
-              [src]="editingProfile ? editPreviewUrl : user.picture"
-              [alt]="user.name"
-              referrerpolicy="no-referrer"
-            />
+            <img class="profile-avatar" [src]="editingProfile ? editPreviewUrl : user.picture" [alt]="user.name"
+              referrerpolicy="no-referrer" />
             @if (editingProfile) {
             <label class="profile-avatar-change" title="Change picture">
-              <input
-                type="file"
-                accept="image/*,.heic,.heif"
-                (change)="onFileSelected($event)"
-                hidden
-              />
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2.5"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path
-                  d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"
-                />
+              <input type="file" accept="image/*,.heic,.heif" (change)="onFileSelected($event)" hidden />
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
                 <circle cx="12" cy="13" r="4" />
               </svg>
               <span>Change</span>
@@ -289,13 +191,8 @@
           <!-- Edit fields (edit mode) -->
           @if (editingProfile) {
           <div class="profile-edit-fields">
-            <input
-              class="edit-name-input"
-              type="text"
-              [(ngModel)]="editName"
-              maxlength="30"
-              placeholder="Display name"
-            />
+            <input class="edit-name-input" type="text" [(ngModel)]="editName" maxlength="30"
+              placeholder="Display name" />
             @if (previewUnavailable) {
             <div class="edit-status">
               Photo selected — preview unavailable, it will appear after saving.
@@ -308,58 +205,26 @@
           <!-- Actions -->
           <div class="profile-actions">
             @if (!editingProfile) {
-            <button
-              class="btn-action btn-action-secondary"
-              (click)="toggleEditProfile(user)"
-            >
-              <svg
-                width="13"
-                height="13"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2.5"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path
-                  d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
-                />
-                <path
-                  d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
-                />
+            <button class="btn-action btn-action-secondary" (click)="toggleEditProfile(user)">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
               </svg>
               Edit Profile
             </button>
             <button class="btn-action btn-action-danger" (click)="logout()">
-              <svg
-                width="13"
-                height="13"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2.5"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path
-                  d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"
-                />
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
               </svg>
               Sign Out
             </button>
             } @if (editingProfile) {
-            <button
-              class="btn-action btn-action-secondary"
-              (click)="toggleEditProfile(user)"
-            >
+            <button class="btn-action btn-action-secondary" (click)="toggleEditProfile(user)">
               Cancel
             </button>
-            <button
-              class="btn-action btn-action-primary"
-              (click)="saveProfile()"
-              [disabled]="isSaving"
-            >
+            <button class="btn-action btn-action-primary" (click)="saveProfile()" [disabled]="isSaving">
               {{ isSaving ? 'Saving…' : 'Save changes' }}
             </button>
             }
@@ -375,37 +240,23 @@
           Custom Game requires an account to play.
         </div>
         }
-        <button
-          class="btn-google"
-          (click)="loginWithGoogle()"
-          [disabled]="auth.isLoading$ | async"
-        >
+        <button class="btn-google" (click)="loginWithGoogle()" [disabled]="auth.isLoading$ | async">
           @if (auth.isLoading$ | async) {
           <span class="btn-spinner"></span>
           } @if (!(auth.isLoading$ | async)) {
           <svg width="18" height="18" viewBox="0 0 48 48">
-            <path
-              fill="#EA4335"
-              d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"
-            />
-            <path
-              fill="#4285F4"
-              d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"
-            />
-            <path
-              fill="#FBBC05"
-              d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"
-            />
-            <path
-              fill="#34A853"
-              d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.35-8.16 2.35-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
-            />
+            <path fill="#EA4335"
+              d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+            <path fill="#4285F4"
+              d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+            <path fill="#FBBC05"
+              d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+            <path fill="#34A853"
+              d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.35-8.16 2.35-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
           </svg>
           }
-          <span
-            >{{ (auth.isLoading$ | async) ? 'Signing in…' : 'Continue with
-            Google' }}</span
-          >
+          <span>{{ (auth.isLoading$ | async) ? 'Signing in…' : 'Continue with
+            Google' }}</span>
         </button>
         <div class="or-divider"><span>or</span></div>
         <button class="btn-guest" (click)="continueAsGuest()">
@@ -416,23 +267,11 @@
     </div>
 
     <!-- ══════════════ SETTINGS / INFO MODAL ══════════════ -->
-    <div
-      class="modal-overlay"
-      [class.active]="showSettings"
-      (click)="closeSettings()"
-    >
+    <div class="modal-overlay" [class.active]="showSettings" (click)="closeSettings()">
       <div class="modal-card settings-card" (click)="$event.stopPropagation()">
         <button class="modal-close" (click)="closeSettings()">
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
             <path d="M18 6 6 18M6 6l12 12" />
           </svg>
         </button>
@@ -448,18 +287,12 @@
         <div class="settings-info">
           <div class="info-row">
             <span class="info-key">Version</span>
-            <span
-              class="info-val"
-              (click)="onVersionTap()"
-              style="cursor: default; user-select: none"
-              >{{ appVersion() }}</span
-            >
+            <span class="info-val" (click)="onVersionTap()" style="cursor: default; user-select: none">{{ appVersion()
+              }}</span>
           </div>
           <div class="info-row">
             <span class="info-key">Contact</span>
-            <a class="info-link" href="mailto:yannick.cardini@gmail.com"
-              >yannick.cardini@gmail.com</a
-            >
+            <a class="info-link" href="mailto:yannick.cardini@gmail.com">yannick.cardini@gmail.com</a>
           </div>
           <div class="info-row">
             <span class="info-key">Developer</span>
@@ -468,98 +301,41 @@
         </div>
 
         <button class="settings-rules-btn" (click)="openPrivacyPolicy()">
-          <svg
-            width="15"
-            height="15"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
           </svg>
           <span>Privacy Policy</span>
-          <svg
-            class="chevron"
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
+          <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <path d="M9 18l6-6-6-6" />
           </svg>
         </button>
 
-        <button
-          class="settings-rules-btn"
-          (click)="closeSettings(); showRules = true"
-        >
-          <svg
-            width="15"
-            height="15"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
+        <button class="settings-rules-btn" (click)="closeSettings(); showRules = true">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
             <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
             <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
           </svg>
           <span>Game Rules</span>
-          <svg
-            class="chevron"
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
+          <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <path d="M9 18l6-6-6-6" />
           </svg>
         </button>
 
-        <button
-          class="settings-rules-btn settings-delete-btn"
-          (click)="openDeleteAccount()"
-        >
-          <svg
-            width="15"
-            height="15"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
+        <button class="settings-rules-btn settings-delete-btn" (click)="openDeleteAccount()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
             <polyline points="3 6 5 6 21 6"></polyline>
             <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
             <path d="M10 11v6M14 11v6"></path>
             <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>
           </svg>
           <span>Delete Account</span>
-          <svg
-            class="chevron"
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
+          <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <path d="M9 18l6-6-6-6" />
           </svg>
         </button>
@@ -567,28 +343,14 @@
         @if (workerLoginVisible) {
         <div class="worker-login-section">
           <p class="worker-login-label">Staff access</p>
-          <input
-            class="worker-login-input"
-            type="text"
-            placeholder="Username"
-            [(ngModel)]="workerUsername"
-            autocomplete="off"
-          />
-          <input
-            class="worker-login-input"
-            type="password"
-            placeholder="Password"
-            [(ngModel)]="workerPassword"
-            autocomplete="off"
-          />
+          <input class="worker-login-input" type="text" placeholder="Username" [(ngModel)]="workerUsername"
+            autocomplete="off" />
+          <input class="worker-login-input" type="password" placeholder="Password" [(ngModel)]="workerPassword"
+            autocomplete="off" />
           @if (workerLoginError) {
           <p class="worker-login-error">{{ workerLoginError }}</p>
           }
-          <button
-            class="worker-login-btn"
-            (click)="loginAsWorker()"
-            [disabled]="workerLoginLoading"
-          >
+          <button class="worker-login-btn" (click)="loginAsWorker()" [disabled]="workerLoginLoading">
             @if (workerLoginLoading) {
             <span class="btn-spinner"></span>
             } @if (!workerLoginLoading) {
@@ -600,27 +362,14 @@
       </div>
     </div>
 
-    <!-- ══════════════ MATCHMAKING MODAL ══════════════ -->
-    <div class="modal-overlay" [class.active]="showMatchmaking">
-      <div
-        class="modal-card matchmaking-card"
-        (click)="$event.stopPropagation()"
-      >
-        <button class="modal-close" (click)="cancelMatchmaking()">
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M18 6 6 18M6 6l12 12" />
-          </svg>
-        </button>
-
+    <!-- ══════════════ SHARED "FINDING PLAYERS" PANEL ══════════════
+         Used by BOTH the public matchmaking modal and a custom room that fell
+         back to the public queue (customStage === 'searching'). Both read the
+         same matchmaking* fields and seat-select through
+         selectMatchmakingSlot(), so behaviour is identical; `fallback` only
+         adds the explanation about who fills the remaining seats. -->
+    <ng-template #searchPanel let-fallback>
+      <div class="mq-panel">
         <div class="modal-header">
           <div class="modal-marbles">
             <span class="mm mm-red"></span>
@@ -637,26 +386,18 @@
           <div class="custom-team">
             <span class="custom-team-label">Team 1</span>
             <div class="mq-slots">
-              <div
-                class="mq-slot mq-slot-red"
-                [class.mq-filled]="matchmakingSlotTaken('red')"
-                [class.mq-mine]="myMatchmakingColor === 'red'"
-                [class.mq-clickable]="!matchmakingSlotTaken('red')"
-                (click)="selectMatchmakingSlot('red')"
-              >
+              <div class="mq-slot mq-slot-red" [class.mq-filled]="matchmakingSlotTaken('red')"
+                [class.mq-mine]="myMatchmakingColor === 'red'" [class.mq-clickable]="!matchmakingSlotTaken('red')"
+                (click)="selectMatchmakingSlot('red')">
                 @if (matchmakingSlotTaken('red')) {
                 <span class="mm mm-red"></span>
                 } @if (!matchmakingSlotTaken('red')) {
                 <span class="mq-empty"></span>
                 }
               </div>
-              <div
-                class="mq-slot mq-slot-blue"
-                [class.mq-filled]="matchmakingSlotTaken('blue')"
-                [class.mq-mine]="myMatchmakingColor === 'blue'"
-                [class.mq-clickable]="!matchmakingSlotTaken('blue')"
-                (click)="selectMatchmakingSlot('blue')"
-              >
+              <div class="mq-slot mq-slot-blue" [class.mq-filled]="matchmakingSlotTaken('blue')"
+                [class.mq-mine]="myMatchmakingColor === 'blue'" [class.mq-clickable]="!matchmakingSlotTaken('blue')"
+                (click)="selectMatchmakingSlot('blue')">
                 @if (matchmakingSlotTaken('blue')) {
                 <span class="mm mm-blue"></span>
                 } @if (!matchmakingSlotTaken('blue')) {
@@ -669,26 +410,18 @@
           <div class="custom-team">
             <span class="custom-team-label">Team 2</span>
             <div class="mq-slots">
-              <div
-                class="mq-slot mq-slot-green"
-                [class.mq-filled]="matchmakingSlotTaken('green')"
-                [class.mq-mine]="myMatchmakingColor === 'green'"
-                [class.mq-clickable]="!matchmakingSlotTaken('green')"
-                (click)="selectMatchmakingSlot('green')"
-              >
+              <div class="mq-slot mq-slot-green" [class.mq-filled]="matchmakingSlotTaken('green')"
+                [class.mq-mine]="myMatchmakingColor === 'green'" [class.mq-clickable]="!matchmakingSlotTaken('green')"
+                (click)="selectMatchmakingSlot('green')">
                 @if (matchmakingSlotTaken('green')) {
                 <span class="mm mm-green"></span>
                 } @if (!matchmakingSlotTaken('green')) {
                 <span class="mq-empty"></span>
                 }
               </div>
-              <div
-                class="mq-slot mq-slot-orange"
-                [class.mq-filled]="matchmakingSlotTaken('orange')"
-                [class.mq-mine]="myMatchmakingColor === 'orange'"
-                [class.mq-clickable]="!matchmakingSlotTaken('orange')"
-                (click)="selectMatchmakingSlot('orange')"
-              >
+              <div class="mq-slot mq-slot-orange" [class.mq-filled]="matchmakingSlotTaken('orange')"
+                [class.mq-mine]="myMatchmakingColor === 'orange'" [class.mq-clickable]="!matchmakingSlotTaken('orange')"
+                (click)="selectMatchmakingSlot('orange')">
                 @if (matchmakingSlotTaken('orange')) {
                 <span class="mm mm-orange"></span>
                 } @if (!matchmakingSlotTaken('orange')) {
@@ -701,31 +434,48 @@
 
         <p class="mq-count">{{ matchmakingConnected }} / 4 players</p>
         <p class="mq-hint">Tap an empty seat to choose your team</p>
+        @if (fallback) {
+        <p class="mq-note">
+          The room is closed. The remaining seats will be filled by other
+          players.
+        </p>
+        } @if (fallback && customError) {
+        <div class="custom-error">{{ customError }}</div>
+        }
 
         <div class="mq-dots"><span></span><span></span><span></span></div>
 
-        <button class="btn-guest" (click)="cancelMatchmaking()">Cancel</button>
+        <button class="btn-guest" (click)="cancelSearch()">Cancel</button>
+      </div>
+    </ng-template>
+
+    <!-- ══════════════ MATCHMAKING MODAL ══════════════ -->
+    <div class="modal-overlay" [class.active]="showMatchmaking">
+      <div class="modal-card matchmaking-card" (click)="$event.stopPropagation()">
+        <button class="modal-close" (click)="cancelMatchmaking()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 6 6 18M6 6l12 12" />
+          </svg>
+        </button>
+
+        <ng-container *ngTemplateOutlet="searchPanel; context: { $implicit: false }"></ng-container>
       </div>
     </div>
 
     <!-- ══════════════ CUSTOM GAME MODAL ══════════════ -->
     <div class="modal-overlay" [class.active]="showCustomGame">
-      <div class="modal-card custom-card" [class.custom-card--in-room]="customStage === 'in-room'" (click)="$event.stopPropagation()">
+      <div class="modal-card custom-card" [class.custom-card--in-room]="customStage === 'in-room'"
+        [class.custom-card--searching]="customStage === 'searching'" (click)="$event.stopPropagation()">
         <button class="modal-close" (click)="cancelCustomGame()">
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
             <path d="M18 6 6 18M6 6l12 12" />
           </svg>
         </button>
 
+        <!-- The searching stage brings its own header from the shared panel. -->
+        @if (customStage !== 'searching') {
         <div class="modal-header">
           <div class="modal-marbles">
             <span class="mm mm-red"></span>
@@ -735,14 +485,16 @@
             {{ customStage === 'choose' ? 'Custom Game' : 'Custom room' }}
           </h2>
         </div>
+        }
+
+        <!-- ── Stage 3: the room fell back to the public queue ── -->
+        @if (customStage === 'searching') {
+        <ng-container *ngTemplateOutlet="searchPanel; context: { $implicit: true }"></ng-container>
+        }
 
         <!-- ── Stage 1: choose between Create or Join with code ── -->
         @if (customStage === 'choose') {
-        <button
-          class="custom-create-btn"
-          (click)="createCustomRoom()"
-          [disabled]="customCreating"
-        >
+        <button class="custom-create-btn" (click)="createCustomRoom()" [disabled]="customCreating">
           @if (!customCreating) {
           <span class="ab-marble ab-orange"></span>
           }
@@ -752,22 +504,11 @@
         <div class="custom-divider"><span>or join with a code</span></div>
         } @if (!customCreating) {
         <form class="custom-join" (ngSubmit)="joinCustomRoomByCode()">
-          <input
-            type="text"
-            class="custom-join-input"
-            [(ngModel)]="customJoinCode"
-            name="customJoinCode"
-            placeholder="ABCD12"
-            maxlength="6"
-            autocomplete="off"
-            spellcheck="false"
-            (input)="customJoinCode = customJoinCode.toUpperCase()"
-          />
-          <button
-            type="submit"
-            class="custom-join-btn"
-            [disabled]="customJoinCode.trim().length !== 6 || customCreating"
-          >
+          <input type="text" class="custom-join-input" [(ngModel)]="customJoinCode" name="customJoinCode"
+            placeholder="ABCD12" maxlength="6" autocomplete="off" spellcheck="false"
+            (input)="customJoinCode = customJoinCode.toUpperCase()" />
+          <button type="submit" class="custom-join-btn"
+            [disabled]="customJoinCode.trim().length !== 6 || customCreating">
             {{ customCreating ? 'Joining…' : 'Join' }}
           </button>
         </form>
@@ -782,39 +523,17 @@
           <span class="custom-code-label">Room code</span>
           <div class="custom-code-row">
             <span class="custom-code">{{ customRoomCode }}</span>
-            <button
-              class="custom-copy-btn"
-              (click)="copyRoomCode()"
-              [class.copied]="customCopied"
-              aria-label="Copy code"
-            >
+            <button class="custom-copy-btn" (click)="copyRoomCode()" [class.copied]="customCopied"
+              aria-label="Copy code">
               @if (!customCopied) {
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
                 <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                <path
-                  d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
-                ></path>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
               </svg>
               } @if (customCopied) {
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2.5"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="20 6 9 17 4 12"></polyline>
               </svg>
               }
@@ -828,26 +547,18 @@
           <div class="custom-team">
             <span class="custom-team-label">Team 1</span>
             <div class="mq-slots custom-slots">
-              <div
-                class="mq-slot mq-slot-red"
-                [class.mq-filled]="customSlotPlayer('red')"
+              <div class="mq-slot mq-slot-red" [class.mq-filled]="customSlotPlayer('red')"
                 [class.mq-mine]="myCustomColor === 'red'"
-                [class.mq-clickable]="!customSlotPlayer('red') && !customStarting"
-                (click)="selectCustomSlot('red')"
-              >
+                [class.mq-clickable]="!customSlotPlayer('red') && !customStarting" (click)="selectCustomSlot('red')">
                 @if (customSlotPlayer('red')) {
                 <span class="mm mm-red"></span>
                 } @if (!customSlotPlayer('red')) {
                 <span class="mq-empty"></span>
                 }
               </div>
-              <div
-                class="mq-slot mq-slot-blue"
-                [class.mq-filled]="customSlotPlayer('blue')"
+              <div class="mq-slot mq-slot-blue" [class.mq-filled]="customSlotPlayer('blue')"
                 [class.mq-mine]="myCustomColor === 'blue'"
-                [class.mq-clickable]="!customSlotPlayer('blue') && !customStarting"
-                (click)="selectCustomSlot('blue')"
-              >
+                [class.mq-clickable]="!customSlotPlayer('blue') && !customStarting" (click)="selectCustomSlot('blue')">
                 @if (customSlotPlayer('blue')) {
                 <span class="mm mm-blue"></span>
                 } @if (!customSlotPlayer('blue')) {
@@ -860,26 +571,20 @@
           <div class="custom-team">
             <span class="custom-team-label">Team 2</span>
             <div class="mq-slots custom-slots">
-              <div
-                class="mq-slot mq-slot-green"
-                [class.mq-filled]="customSlotPlayer('green')"
+              <div class="mq-slot mq-slot-green" [class.mq-filled]="customSlotPlayer('green')"
                 [class.mq-mine]="myCustomColor === 'green'"
                 [class.mq-clickable]="!customSlotPlayer('green') && !customStarting"
-                (click)="selectCustomSlot('green')"
-              >
+                (click)="selectCustomSlot('green')">
                 @if (customSlotPlayer('green')) {
                 <span class="mm mm-green"></span>
                 } @if (!customSlotPlayer('green')) {
                 <span class="mq-empty"></span>
                 }
               </div>
-              <div
-                class="mq-slot mq-slot-orange"
-                [class.mq-filled]="customSlotPlayer('orange')"
+              <div class="mq-slot mq-slot-orange" [class.mq-filled]="customSlotPlayer('orange')"
                 [class.mq-mine]="myCustomColor === 'orange'"
                 [class.mq-clickable]="!customSlotPlayer('orange') && !customStarting"
-                (click)="selectCustomSlot('orange')"
-              >
+                (click)="selectCustomSlot('orange')">
                 @if (customSlotPlayer('orange')) {
                 <span class="mm mm-orange"></span>
                 } @if (!customSlotPlayer('orange')) {
@@ -895,21 +600,11 @@
         <ul class="custom-players">
           @for (p of customRoomPlayers; track p) {
           <li class="custom-player-row">
-            <span
-              class="custom-player-marble"
-              [ngClass]="'mm mm-' + p.color"
-            ></span>
+            <span class="custom-player-marble" [ngClass]="'mm mm-' + p.color"></span>
             @if (p.picture) {
-            <img
-              class="custom-player-avatar"
-              [src]="p.picture"
-              [alt]="p.name"
-              referrerpolicy="no-referrer"
-            />
+            <img class="custom-player-avatar" [src]="p.picture" [alt]="p.name" referrerpolicy="no-referrer" />
             } @if (!p.picture) {
-            <div
-              class="custom-player-avatar custom-player-avatar--fallback"
-            ></div>
+            <div class="custom-player-avatar custom-player-avatar--fallback"></div>
             }
             <span class="custom-player-name">{{ p.name }}</span>
             @if (p.isCreator) {
@@ -924,13 +619,8 @@
         @if (iAmCreator && (auth.user$ | async)) {
         <div class="custom-invite">
           <h3 class="custom-invite-title">Invite a player</h3>
-          <input
-            type="text"
-            class="custom-invite-search"
-            [(ngModel)]="inviteSearch"
-            name="inviteSearch"
-            placeholder="Search by name…"
-          />
+          <input type="text" class="custom-invite-search" [(ngModel)]="inviteSearch" name="inviteSearch"
+            placeholder="Search by name…" />
           @if (inviteLoading) {
           <div class="custom-invite-state">Loading players…</div>
           } @if (!inviteLoading) {
@@ -938,77 +628,62 @@
             @for (u of filteredInviteCandidates(); track u) {
             <li class="custom-invite-row">
               @if (u.picture) {
-              <img
-                class="custom-invite-avatar"
-                [src]="u.picture"
-                [alt]="u.name"
-                referrerpolicy="no-referrer"
-              />
+              <img class="custom-invite-avatar" [src]="u.picture" [alt]="u.name" referrerpolicy="no-referrer" />
               } @if (!u.picture) {
-              <div
-                class="custom-invite-avatar custom-invite-avatar--fallback"
-              ></div>
+              <div class="custom-invite-avatar custom-invite-avatar--fallback"></div>
               }
               <span class="custom-invite-name">{{ u.name }}</span>
               <span class="custom-invite-points">{{ u.points }} pts</span>
               <div class="custom-invite-actions">
                 <!-- Cancel (X) — only while an invite is pending -->
                 @if (isInvitePending(u)) {
-                <button
-                  type="button"
-                  class="custom-invite-cancel"
-                  title="Cancel invitation"
-                  aria-label="Cancel invitation"
-                  (click)="cancelInvite(u)"
-                >
+                <button type="button" class="custom-invite-cancel" title="Cancel invitation"
+                  aria-label="Cancel invitation" (click)="cancelInvite(u)">
                   <!-- X -->
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"
+                    stroke-linecap="round" stroke-linejoin="round">
                     <path d="M18 6 6 18M6 6l12 12" />
                   </svg>
                 </button>
                 }
                 <!-- Status / invite trigger -->
-                <button
-                  type="button"
-                  class="custom-invite-btn"
-                  [class.pending]="u.inviteState === 'pending'"
-                  [class.accepted]="u.inviteState === 'accepted'"
-                  [class.error]="u.inviteState === 'error'"
-                  [class.sending]="u.inviteState === 'sending'"
-                  [disabled]="
+                <button type="button" class="custom-invite-btn" [class.pending]="u.inviteState === 'pending'"
+                  [class.accepted]="u.inviteState === 'accepted'" [class.error]="u.inviteState === 'error'"
+                  [class.sending]="u.inviteState === 'sending'" [disabled]="
                     u.inviteState === 'sending' ||
                     u.inviteState === 'pending' ||
                     u.inviteState === 'accepted'
-                  "
-                  [title]="inviteStatusLabel(u)"
-                  [attr.aria-label]="inviteStatusLabel(u)"
-                  (click)="invitePlayer(u)"
-                >
+                  " [title]="inviteStatusLabel(u)" [attr.aria-label]="inviteStatusLabel(u)" (click)="invitePlayer(u)">
                   @if (u.inviteState === 'sending') {
                   <!-- Spinner -->
-                  <svg class="custom-invite-spinner" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <svg class="custom-invite-spinner" width="15" height="15" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                   </svg>
                   } @else if (u.inviteState === 'pending') {
                   <!-- Clock / awaiting -->
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                    stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="12" r="10" />
                     <polyline points="12 6 12 12 16 14" />
                   </svg>
                   } @else if (u.inviteState === 'accepted') {
                   <!-- Checkmark -->
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+                    stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
                   } @else if (u.inviteState === 'error') {
                   <!-- Retry / refresh -->
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+                    stroke-linecap="round" stroke-linejoin="round">
                     <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
                     <path d="M3 3v5h5" />
                   </svg>
                   } @else {
                   <!-- Idle: person + plus -->
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                    stroke-linecap="round" stroke-linejoin="round">
                     <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
                     <circle cx="9" cy="7" r="4" />
                     <line x1="19" y1="8" x2="19" y2="14" />
@@ -1028,51 +703,38 @@
         <!-- Actions -->
         @if (iAmCreator) {
         <div class="custom-actions">
-          <button
-            class="custom-start-btn"
-            [disabled]="customRoomPlayers.length < 1 || customStarting"
-            (click)="startCustomRoom()"
-          >
-            {{ customStarting ? 'Starting…' : 'Start' }}
+          <button class="custom-start-btn" [disabled]="customStarting" (click)="startCustomRoom()">
+            @if (customStarting) { Starting… } @else if (customRoomPlayers.length
+            === 4) { Start game } @else { Start anyway ({{
+            customRoomPlayers.length }}/4) }
           </button>
         </div>
-        } @if (customError) {
-        <div class="custom-error">{{ customError }}</div>
-        } }
+        @if (customRoomPlayers.length < 4) { <p class="custom-start-hint">
+          The room will close and the missing seats will be filled by other
+          players.
+          </p>
+          } } @if (customError) {
+          <div class="custom-error">{{ customError }}</div>
+          } }
       </div>
     </div>
 
     <!-- ══════════════ INCOMING GAME INVITE TOAST ══════════════ -->
-    <app-invite-toast
-      [invite]="pendingInvite"
-      (join)="onInviteJoin($event)"
-      (decline)="onInviteDecline($event)"
-    ></app-invite-toast>
+    <app-invite-toast [invite]="pendingInvite" (join)="onInviteJoin($event)"
+      (decline)="onInviteDecline($event)"></app-invite-toast>
+
+    <!-- ══════════════ ANDROID APP PROMO ══════════════ -->
+    <app-android-app-banner></app-android-app-banner>
 
     <!-- ══════════════ RULES MODAL ══════════════ -->
-    <app-game-rules-modal
-      [show]="showRules"
-      (closeModal)="closeRules()"
-    ></app-game-rules-modal>
+    <app-game-rules-modal [show]="showRules" (closeModal)="closeRules()"></app-game-rules-modal>
 
     <!-- ══════════════ INBOX MODAL ══════════════ -->
-    <div
-      class="modal-overlay"
-      [class.active]="showInbox"
-      (click)="closeInbox()"
-    >
+    <div class="modal-overlay" [class.active]="showInbox" (click)="closeInbox()">
       <div class="modal-card inbox-card" (click)="$event.stopPropagation()">
         <button class="modal-close" (click)="closeInbox()">
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
             <path d="M18 6 6 18M6 6l12 12" />
           </svg>
         </button>
@@ -1095,49 +757,29 @@
           <div class="inbox-state inbox-state--error">{{ inboxError }}</div>
           } @if (!threadsLoading && !inboxError && threads.length === 0) {
           <div class="inbox-state inbox-empty">
-            <svg
-              width="32"
-              height="32"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+              stroke-linecap="round" stroke-linejoin="round">
               <path d="M22 12h-6l-2 3h-4l-2-3H2"></path>
               <path
-                d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"
-              ></path>
+                d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z">
+              </path>
             </svg>
             <p>No conversations yet.</p>
           </div>
           } @if (!threadsLoading && !inboxError && threads.length > 0) {
           <ul class="inbox-list">
             @for (thread of threads; track thread) {
-            <li
-              class="inbox-item"
-              [class.inbox-item--unread]="thread.unreadCount > 0"
-              (click)="openThread(thread)"
-            >
+            <li class="inbox-item" [class.inbox-item--unread]="thread.unreadCount > 0" (click)="openThread(thread)">
               @if (thread.peerPicture) {
-              <img
-                class="inbox-avatar"
-                [src]="thread.peerPicture"
-                [alt]="thread.peerName"
-                referrerpolicy="no-referrer"
-              />
+              <img class="inbox-avatar" [src]="thread.peerPicture" [alt]="thread.peerName"
+                referrerpolicy="no-referrer" />
               } @if (!thread.peerPicture) {
               <div class="inbox-avatar inbox-avatar--fallback"></div>
               }
               <div class="inbox-content">
                 <div class="inbox-meta">
-                  <span class="inbox-from"
-                    >{{ thread.peerName || 'Unknown' }}</span
-                  >
-                  <span class="inbox-date"
-                    >{{ formatInboxDate(thread.lastMessage.createdAt) }}</span
-                  >
+                  <span class="inbox-from">{{ thread.peerName || 'Unknown' }}</span>
+                  <span class="inbox-date">{{ formatInboxDate(thread.lastMessage.createdAt) }}</span>
                 </div>
                 <p class="inbox-preview">
                   @if (thread.lastMessage.fromMe) {
@@ -1146,10 +788,8 @@
                 </p>
               </div>
               @if (thread.unreadCount > 0) {
-              <span class="inbox-unread-pill"
-                >{{ thread.unreadCount > 99 ? '99+' : thread.unreadCount
-                }}</span
-              >
+              <span class="inbox-unread-pill">{{ thread.unreadCount > 99 ? '99+' : thread.unreadCount
+                }}</span>
               }
             </li>
             }
@@ -1161,40 +801,18 @@
         <!-- ─── Single-thread view ─── -->
         @if (inboxView === 'thread' && currentPeer; as peer) {
         <div class="thread-header">
-          <button
-            class="thread-back"
-            (click)="backToThreads()"
-            aria-label="Back"
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
+          <button class="thread-back" (click)="backToThreads()" aria-label="Back">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+              stroke-linecap="round" stroke-linejoin="round">
               <polyline points="15 18 9 12 15 6"></polyline>
             </svg>
           </button>
-          <button
-            class="thread-peer"
-            (click)="openSenderProfile(peer.id)"
-            [title]="peer.name"
-          >
+          <button class="thread-peer" (click)="openSenderProfile(peer.id)" [title]="peer.name">
             @if (peer.picture) {
-            <img
-              class="inbox-avatar thread-peer-avatar"
-              [src]="peer.picture"
-              [alt]="peer.name"
-              referrerpolicy="no-referrer"
-            />
+            <img class="inbox-avatar thread-peer-avatar" [src]="peer.picture" [alt]="peer.name"
+              referrerpolicy="no-referrer" />
             } @if (!peer.picture) {
-            <div
-              class="inbox-avatar inbox-avatar--fallback thread-peer-avatar"
-            ></div>
+            <div class="inbox-avatar inbox-avatar--fallback thread-peer-avatar"></div>
             }
             <span class="thread-peer-name">{{ peer.name || 'Unknown' }}</span>
           </button>
@@ -1217,9 +835,7 @@
             <li class="bubble-row" [class.bubble-row--mine]="isMyMessage(msg)">
               <div class="bubble">
                 <p class="bubble-text">{{ msg.text }}</p>
-                <span class="bubble-time"
-                  >{{ formatBubbleTime(msg.createdAt) }}</span
-                >
+                <span class="bubble-time">{{ formatBubbleTime(msg.createdAt) }}</span>
               </div>
             </li>
             }
@@ -1227,32 +843,13 @@
           }
         </div>
         <form class="thread-composer" (ngSubmit)="sendThreadReply()">
-          <textarea
-            class="thread-composer-input"
-            [(ngModel)]="composerText"
-            name="composerText"
-            [maxlength]="composerMaxLength"
-            [disabled]="sending"
-            (keydown)="onComposerKeydown($event)"
-            placeholder="Write a message…"
-            rows="1"
-          ></textarea>
-          <button
-            type="submit"
-            class="thread-composer-send"
-            [disabled]="sending || composerText.trim().length === 0"
-            aria-label="Send"
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
+          <textarea class="thread-composer-input" [(ngModel)]="composerText" name="composerText"
+            [maxlength]="composerMaxLength" [disabled]="sending" (keydown)="onComposerKeydown($event)"
+            placeholder="Write a message…" rows="1"></textarea>
+          <button type="submit" class="thread-composer-send" [disabled]="sending || composerText.trim().length === 0"
+            aria-label="Send">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
               <line x1="22" y1="2" x2="11" y2="13"></line>
               <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
             </svg>

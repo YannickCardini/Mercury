@@ -1,5 +1,7 @@
 import { Component, Input, ChangeDetectionStrategy } from "@angular/core";
 
+import { PLAY_STORE_URL } from "./store-url";
+
 /**
  * Popup de mise à jour OBLIGATOIRE.
  *
@@ -20,8 +22,7 @@ export class UpdateAvailableModalComponent {
   /** Affiche le popup quand true. */
   @Input() show = false;
   /** Lien Play Store ouvert par le bouton « Update ». */
-  @Input() storeUrl =
-    "https://play.google.com/store/apps/details?id=online.mercury.game";
+  @Input() storeUrl = PLAY_STORE_URL;
 
   openStore(): void {
     // `_system` fait quitter la WebView et ouvre le Play Store (app ou navigateur).

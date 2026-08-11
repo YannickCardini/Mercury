@@ -1,0 +1,109 @@
+@use "sass:color";
+@use "../styles/palette" as *;
+
+:host {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  // Au-dessus des modales de page (z-index 100), sous le popup de mise à jour
+  // obligatoire (300) et le toast global (10000).
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  z-index: 200;
+  pointer-events: none;
+}
+
+.android-promo {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 10px 12px;
+  border: 1px solid rgba($c-green, 0.35);
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.94);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  animation: android-promo-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.android-promo-glyph {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+}
+
+.android-promo-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.android-promo-title {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: #e2e8f0;
+}
+
+.android-promo-sub {
+  margin: 1px 0 0;
+  font-size: 0.72rem;
+  line-height: 1.3;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.android-promo-cta {
+  flex-shrink: 0;
+  padding: 7px 14px;
+  border-radius: 50px;
+  background: $c-green;
+  color: #0b1220;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.2s, transform 0.12s;
+
+  &:hover {
+    background: color.adjust($c-green, $lightness: 6%);
+  }
+
+  &:active {
+    transform: scale(0.96);
+  }
+}
+
+.android-promo-close {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.8);
+  }
+}
+
+@keyframes android-promo-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

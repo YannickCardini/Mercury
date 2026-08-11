@@ -1,0 +1,56 @@
+@if (visible()) {
+<div class="android-promo" role="region" aria-label="Mercury for Android">
+  <!-- Triangle Google Play (SVG inline : pas d'asset binaire à héberger) -->
+  <svg
+    class="android-promo-glyph"
+    viewBox="0 0 512 512"
+    aria-hidden="true"
+    focusable="false"
+  >
+    <path
+      fill="#00d4ff"
+      d="M47 30c-6 6-9 15-9 27v398c0 12 3 21 9 27l1 1 223-223v-5L48 29z"
+    />
+    <path
+      fill="#ffd400"
+      d="M344 330l-74-74v-5l74-74 2 1 88 50c25 14 25 37 0 51l-88 50z"
+    />
+    <path fill="#ff3333" d="M346 329l-76-76L47 476c8 9 22 10 37 1l262-148z" />
+    <path fill="#48ff48" d="M346 183L84 35c-15-9-29-8-37 1l223 222z" />
+  </svg>
+
+  <div class="android-promo-body">
+    <p class="android-promo-title">Mercury for Android</p>
+    <p class="android-promo-sub">Fullscreen, faster, no browser tab.</p>
+  </div>
+
+  <a
+    class="android-promo-cta"
+    [href]="storeUrl"
+    target="_blank"
+    rel="noopener"
+  >
+    Get&nbsp;it
+  </a>
+
+  <button
+    class="android-promo-close"
+    type="button"
+    (click)="dismiss()"
+    aria-label="Dismiss"
+  >
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2.2"
+      stroke-linecap="round"
+      aria-hidden="true"
+    >
+      <path d="M18 6L6 18M6 6l12 12" />
+    </svg>
+  </button>
+</div>
+}

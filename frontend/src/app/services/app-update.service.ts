@@ -4,6 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import { App } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { environment } from '../../environments/environment';
+import { PLAY_STORE_URL } from '../shared/store-url';
 
 interface VersionInfo {
   latestVersionCode: number;
@@ -11,9 +12,6 @@ interface VersionInfo {
   minVersionCode: number;
   storeUrl: string;
 }
-
-const DEFAULT_STORE_URL =
-  'https://play.google.com/store/apps/details?id=online.mercury.game';
 
 /**
  * Compare la version installée (Android `versionCode`) à la dernière version
@@ -32,7 +30,7 @@ export class AppUpdateService {
   /** True dès qu'une version plus récente est disponible sur le Play Store. */
   readonly updateAvailable = signal(false);
   /** Lien Play Store à ouvrir depuis le popup. */
-  readonly storeUrl = signal(DEFAULT_STORE_URL);
+  readonly storeUrl = signal(PLAY_STORE_URL);
 
   /** Garde contre les vérifications concurrentes (rafale resume/visibilitychange). */
   private checking = false;

@@ -467,6 +467,12 @@
   padding: 12px 20px 18px;
 }
 
+.footer-links {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
 .how-to-play-link {
   color: rgba(255, 255, 255, 0.4);
   font-size: 0.78rem;
@@ -742,6 +748,20 @@
 .matchmaking-card {
   max-width: 340px;
   text-align: center;
+}
+
+// Shared "finding players" panel — rendered both in .matchmaking-card (already
+// centered) and inside .custom-card once the room fell back to the queue.
+.mq-panel {
+  text-align: center;
+}
+
+// Fallback-only: says who will take the seats the room could not fill.
+.mq-note {
+  margin: -10px 0 16px;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .mq-slots {
@@ -2000,6 +2020,12 @@
   overflow-y: auto;
 }
 
+// Fallback to the public queue: same footprint as the Play Now modal, since it
+// now shows the very same panel.
+.custom-card.custom-card--searching {
+  max-width: 340px;
+}
+
 .custom-create-btn {
   display: flex;
   align-items: center;
@@ -2476,6 +2502,16 @@
   margin-top: 14px;
   padding-top: 12px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+
+// Warns the host, BEFORE the tap, what "Start anyway" actually does.
+.custom-start-hint {
+  margin: 8px 0 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.42);
   flex-shrink: 0;
 }
 
