@@ -1,3 +1,23 @@
+/* ── Safe areas (edge-to-edge Android 15+) ───────────────────────────────────
+   Source de vérité unique pour les insets des barres système. Deux mécanismes
+   coexistent et il faut les couvrir tous les deux :
+
+   • WebView ≥ 140 + viewport-fit=cover → Capacitor laisse passer les insets au
+     WebView, `env(safe-area-inset-*)` renvoie de vraies valeurs.
+   • WebView < 140 → Capacitor remet les insets système à 0 (donc `env()` vaut
+     0px) et injecte à la place `--safe-area-inset-*` en style inline sur
+     <html> (voir SystemBars.injectSafeAreaCSS côté natif).
+
+   `max()` des deux résout le cas courant sans détection de plateforme : sur le
+   web pur la custom property n'existe pas et retombe sur son fallback 0px.
+   ────────────────────────────────────────────────────────────────────────── */
+:root {
+  --sa-top: max(env(safe-area-inset-top, 0px), var(--safe-area-inset-top, 0px));
+  --sa-right: max(env(safe-area-inset-right, 0px), var(--safe-area-inset-right, 0px));
+  --sa-bottom: max(env(safe-area-inset-bottom, 0px), var(--safe-area-inset-bottom, 0px));
+  --sa-left: max(env(safe-area-inset-left, 0px), var(--safe-area-inset-left, 0px));
+}
+
 html,
 body {
   margin: 0;
@@ -14,7 +34,7 @@ app-root {
   width: 100%;
   height: 100%;
   box-sizing: border-box;
-  padding-top: env(safe-area-inset-top);
+  padding-top: var(--sa-top);
 }
 
 * {
@@ -26,7 +46,7 @@ app-root {
 /* ── Toast global (ToastService) ─────────────────────────────────────────── */
 .app-toast {
   position: fixed;
-  top: calc(env(safe-area-inset-top) + 14px);
+  top: calc(var(--sa-top) + 14px);
   left: 50%;
   transform: translateX(-50%);
   z-index: 10000;

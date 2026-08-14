@@ -15,7 +15,8 @@
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  padding: 32px 16px 48px;
+  padding: 32px calc(16px + var(--sa-right)) calc(48px + var(--sa-bottom))
+    calc(16px + var(--sa-left));
   overflow-y: auto;
 }
 
@@ -261,6 +262,9 @@
   .lb-list {
     flex: 1;
     max-height: none;
+    // En mobile .lb-wrap passe en padding 0 : c'est la liste qui affleure le bas
+    // du viewport, donc c'est elle qui doit dégager la barre de navigation.
+    padding-bottom: calc(8px + var(--sa-bottom));
   }
 
   .lb-header {

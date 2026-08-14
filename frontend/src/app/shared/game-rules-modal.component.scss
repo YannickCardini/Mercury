@@ -10,7 +10,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  // Insets ajoutés au padding : en edge-to-edge la modale couvre tout l'écran,
+  // sans ça la croix de fermeture et le bas de la carte passent sous les barres.
+  padding: calc(20px + var(--sa-top)) calc(20px + var(--sa-right)) calc(20px + var(--sa-bottom))
+    calc(20px + var(--sa-left));
   background: rgba(5, 12, 28, 0.78);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
@@ -33,7 +36,9 @@
   position: relative;
   width: 100%;
   max-width: 420px;
-  max-height: 88vh;
+  // dvh mesure l'écran barres système comprises : on retranche les insets pour
+  // que la carte reste entièrement dans la zone sûre.
+  max-height: calc(88dvh - var(--sa-top) - var(--sa-bottom));
   display: flex;
   flex-direction: column;
   background: #0d1829;

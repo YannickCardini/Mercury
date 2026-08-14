@@ -24,7 +24,6 @@ import { UpdateAvailableModalComponent } from "./shared/update-available-modal.c
 import { SpaceBackgroundComponent } from "./shared/space-background.component";
 import { LoadingScreenComponent } from "./shared/loading-screen.component";
 import { environment } from "../environments/environment";
-import { StatusBar } from "@capacitor/status-bar";
 import { SplashScreen } from "@capacitor/splash-screen";
 
 @Component({
@@ -64,8 +63,6 @@ export class AppComponent implements OnInit {
   protected readonly navigating = signal(true);
 
   async ngOnInit(): Promise<void> {
-    StatusBar.setOverlaysWebView({ overlay: false }).catch(() => {});
-
     // Ne couvre que le tout premier routage (démarrage à froid) : le splash
     // natif Android (launchAutoHide: false, voir capacitor.config.ts) et
     // l'overlay du shell restent affichés jusqu'à ce que cette première

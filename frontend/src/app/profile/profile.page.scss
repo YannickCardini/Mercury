@@ -15,7 +15,8 @@
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  padding: 32px 16px 48px;
+  padding: 32px calc(16px + var(--sa-right)) calc(48px + var(--sa-bottom))
+    calc(16px + var(--sa-left));
   overflow-y: auto;
 }
 
@@ -431,7 +432,8 @@
 
 @media (max-width: 480px) {
   .pf-wrap {
-    padding: 16px 8px 32px;
+    padding: 16px calc(8px + var(--sa-right)) calc(32px + var(--sa-bottom))
+      calc(8px + var(--sa-left));
   }
 
   .pf-header {

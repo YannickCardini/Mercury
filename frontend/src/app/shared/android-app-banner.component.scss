@@ -7,7 +7,7 @@
   right: 12px;
   // Au-dessus des modales de page (z-index 100), sous le popup de mise à jour
   // obligatoire (300) et le toast global (10000).
-  bottom: calc(12px + env(safe-area-inset-bottom));
+  bottom: calc(12px + var(--sa-bottom));
   z-index: 200;
   pointer-events: none;
 }

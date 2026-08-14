@@ -380,8 +380,8 @@ $player-colors: (
 
 .ti-replay {
   position: absolute;
-  top: max(8px, env(safe-area-inset-top));
-  right: max(8px, env(safe-area-inset-right));
+  top: max(8px, var(--sa-top));
+  right: max(8px, var(--sa-right));
   z-index: 45;
   width: 30px;
   height: 30px;

@@ -29,8 +29,8 @@ $slot-glows: (
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
-    max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  padding: max(12px, var(--sa-top)) max(12px, var(--sa-right)) max(12px, var(--sa-bottom))
+    max(12px, var(--sa-left));
   background: rgba($bg-dark, 0.82);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
@@ -121,7 +121,9 @@ $slot-glows: (
   gap: clamp(8px, 1.6dvh, 14px);
   padding: clamp(14px, 3dvh, 28px) clamp(14px, 4.5vw, 28px) clamp(12px, 2.4dvh, 20px);
   width: min(92vw, 460px);
-  max-height: calc(100dvh - 24px);
+  // Miroir du padding de .victory-overlay ci-dessus : 100dvh inclut les barres
+  // système, on retranche exactement ce que l'overlay réserve de chaque côté.
+  max-height: calc(100dvh - max(12px, var(--sa-top)) - max(12px, var(--sa-bottom)));
   // Filet de sécurité uniquement : les media queries « écrans courts »
   // ci-dessous retirent des éléments avant d'en arriver là.
   overflow-y: auto;

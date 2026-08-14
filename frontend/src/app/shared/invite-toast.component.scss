@@ -5,8 +5,8 @@ $accent: #f0c040;
 
 :host {
   position: fixed;
-  bottom: 24px;
-  right: 24px;
+  bottom: calc(24px + var(--sa-bottom));
+  right: calc(24px + var(--sa-right));
   z-index: 1000;
   pointer-events: none;
 }

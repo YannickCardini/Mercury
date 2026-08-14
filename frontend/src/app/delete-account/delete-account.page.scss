@@ -15,7 +15,8 @@
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  padding: 32px 16px 48px;
+  padding: 32px calc(16px + var(--sa-right)) calc(48px + var(--sa-bottom))
+    calc(16px + var(--sa-left));
 }
 
 .da-card {

@@ -120,7 +120,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
+  // Insets latéraux : en paysage avec navigation à 3 boutons, la barre passe
+  // sur un côté et masquerait le bouton de retour / l'avatar.
+  padding: 16px calc(20px + var(--sa-right)) 16px calc(20px + var(--sa-left));
   animation: entranceDown 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
@@ -464,7 +466,11 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 20px 18px;
+  // Dernier enfant de .home-wrap (inset: 0) : collé au bas du viewport, donc
+  // sous la barre de navigation en edge-to-edge. Les liens « How to play » et
+  // le bouton Settings deviennent inatteignables sans cet inset.
+  padding: 12px calc(20px + var(--sa-right)) calc(18px + var(--sa-bottom))
+    calc(20px + var(--sa-left));
 }
 
 .footer-links {
@@ -515,7 +521,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  // Insets ajoutés au padding : l'overlay couvre tout l'écran en edge-to-edge,
+  // la carte doit rester centrée dans la zone sûre.
+  padding: calc(20px + var(--sa-top)) calc(20px + var(--sa-right)) calc(20px + var(--sa-bottom))
+    calc(20px + var(--sa-left));
   background: rgba(5, 12, 28, 0.7);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
@@ -2014,7 +2023,8 @@
   max-width: 440px;
   display: flex;
   flex-direction: column;
-  max-height: min(85dvh, 760px);
+  // dvh mesure l'écran barres système comprises : on retranche les insets.
+  max-height: min(85dvh - var(--sa-top) - var(--sa-bottom), 760px);
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;

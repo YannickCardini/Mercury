@@ -3,4 +3,10 @@
     <color name="colorPrimary">#3880FF</color>
     <color name="colorPrimaryDark">#3171e0</color>
     <color name="colorAccent">#3880FF</color>
+    <!-- Fond spatial profond, aligné sur $space-deep (space-background.component.scss)
+         et sur le background de html/body (styles.scss). Utilisé comme
+         android:windowBackground : en edge-to-edge (targetSdk 36), Capacitor peint
+         le decorView avec cette couleur, donc c'est elle qu'on voit derrière les
+         barres système et pendant les transitions. -->
+    <color name="spaceDeep">#05070f</color>
 </resources>

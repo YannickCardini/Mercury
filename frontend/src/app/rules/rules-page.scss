@@ -14,7 +14,8 @@
   background: transparent; // fond spatial global visible à travers la page
   display: flex;
   justify-content: center;
-  padding: 32px 16px 56px;
+  padding: 32px calc(16px + var(--sa-right)) calc(56px + var(--sa-bottom))
+    calc(16px + var(--sa-left));
 }
 
 .rp-card {
