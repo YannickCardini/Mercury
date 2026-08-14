@@ -195,7 +195,7 @@
               placeholder="Display name" />
             @if (previewUnavailable) {
             <div class="edit-status">
-              Photo selected — preview unavailable, it will appear after saving.
+              Photo selected, preview unavailable, it will appear after saving.
             </div>
             } @if (editError) {
             <div class="edit-error">{{ editError }}</div>
@@ -306,19 +306,6 @@
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
           </svg>
           <span>Privacy Policy</span>
-          <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M9 18l6-6-6-6" />
-          </svg>
-        </button>
-
-        <button class="settings-rules-btn" (click)="closeSettings(); showRules = true">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-          </svg>
-          <span>Game Rules</span>
           <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <path d="M9 18l6-6-6-6" />
@@ -825,7 +812,7 @@
           } @if (!threadLoading && currentMessages.length === 0 && !inboxError)
           {
           <div class="inbox-state inbox-empty">
-            <p>No messages yet — say hi!</p>
+            <p>No messages yet. Say hi!</p>
           </div>
           } @if (!threadLoading && inboxError) {
           <div class="inbox-state inbox-state--error">{{ inboxError }}</div>

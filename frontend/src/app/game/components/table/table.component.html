@@ -13,9 +13,9 @@
   <div class="timeout-banner" [ngClass]="'timeout-banner--' + gameStateService.displayColor(color)">
     <span class="timeout-icon">⏰</span>
     @if (color === gameStateService.myPlayerColor()) {
-    <span>Time's up — the computer played for you</span>
+    <span>Time's up, the computer played for you</span>
     } @else {
-    <span>Time's up — the computer played for {{ gameStateService.displayColor(color) }}</span>
+    <span>Time's up, the computer played for {{ gameStateService.displayColor(color) }}</span>
     }
   </div>
   }
@@ -24,7 +24,7 @@
   @if (autoPlayBannerColor(); as color) {
   <div class="timeout-banner" [ngClass]="'timeout-banner--' + gameStateService.displayColor(color)">
     <span class="timeout-icon">🤖</span>
-    <span>{{ gameStateService.displayColor(color) }} disconnected — a bot played for them</span>
+    <span>{{ gameStateService.displayColor(color) }} disconnected, a bot played for them</span>
   </div>
   }
 
@@ -85,7 +85,8 @@
       </button>
       }
       <!-- Card Help toggle -->
-      <button class="menu-item" [class.menu-item--muted]="!gameStateService.cardHelpEnabled()" (click)="gameStateService.toggleCardHelp()">
+      <button class="menu-item" [class.menu-item--muted]="!gameStateService.cardHelpEnabled()"
+        (click)="gameStateService.toggleCardHelp()">
         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="10" />
@@ -133,11 +134,9 @@
       @for (card of getPlayerHand(); track card.id; let i = $index) {
       <button class="tock-card-btn playable-card"
         [class.selected]="(gameStateService.isMyTurn() ? selectedCardIndex() : infoCardIndex()) === i"
-        [class.unplayable-card]="isCardUnplayable(i)"
-        [class.card-flying-away]="flyingCardIndex() === i"
+        [class.unplayable-card]="isCardUnplayable(i)" [class.card-flying-away]="flyingCardIndex() === i"
         [style]="getCardStyle(i, getPlayerHand().length)" (click)="onCardSelected(i)"
-        (mouseenter)="onCardHover(i, $event)" (mouseleave)="onCardHoverLeave()"
-        (contextmenu)="$event.preventDefault()">
+        (mouseenter)="onCardHover(i, $event)" (mouseleave)="onCardHoverLeave()" (contextmenu)="$event.preventDefault()">
         <app-tock-card [value]="card.value" [suit]="card.suit">
         </app-tock-card>
       </button>
@@ -150,7 +149,8 @@
 
   <!-- ===== AIDE CONTEXTUELLE — popover « effet de la carte » ===== -->
   @if (cardHelp(); as help) {
-  <div class="card-help-popover" [style.left.px]="help.x" [style.top.px]="help.y" [style.--arrow-offset.px]="help.arrowOffset">
+  <div class="card-help-popover" [style.left.px]="help.x" [style.top.px]="help.y"
+    [style.--arrow-offset.px]="help.arrowOffset">
     <span class="chp-title">{{ help.title }}</span>
     <span class="chp-text">{{ help.text }}</span>
     <span class="chp-arrow"></span>

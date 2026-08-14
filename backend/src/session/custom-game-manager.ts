@@ -650,7 +650,7 @@ export class CustomGameManager {
         if (wasCreator) {
             for (const p of room.players) {
                 try {
-                    wsSend(p.ws, { type: 'actionRejected', reason: 'The room creator left — room destroyed.' });
+                    wsSend(p.ws, { type: 'actionRejected', reason: 'The room creator left, room destroyed.' });
                 } catch { /* ignore */ }
                 try { p.ws.removeEventListener('message', p.roomMessageListener); } catch { /* ignore */ }
                 try { p.ws.removeEventListener('close', p.closeListener); } catch { /* ignore */ }

@@ -38,12 +38,12 @@ export function getCardEffectTiles(teamMode: boolean): CardEffectTile[] {
     {
       val: '7', tileClass: 'ca-purple',
       html: teamMode
-        ? '7 steps — yours first, the rest may go to your teammate'
-        : '7 steps — split across 2 marbles',
+        ? '7 steps, yours first, the rest may go to your teammate'
+        : '7 steps, split across 2 marbles',
     },
     { val: '4', tileClass: 'ca-red', html: 'Move backward −4' },
     { val: '2–10', smallVal: true, tileClass: 'ca-muted ca-wide', html: 'Move one marble forward by face value' },
-    { val: '🤡', tileClass: 'ca-joker ca-wide', html: 'Enter a marble <em>or</em> move forward +18 — then <strong>play again</strong>' },
+    { val: '🤡', tileClass: 'ca-joker ca-wide', html: 'Enter a marble <em>or</em> move forward +18, then <strong>play again</strong>' },
   ];
 }
 

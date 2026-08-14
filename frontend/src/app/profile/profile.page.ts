@@ -97,9 +97,9 @@ export class ProfilePage implements OnInit, OnDestroy {
   }
 
   formatDate(iso: string | undefined): string {
-    if (!iso) return "—";
+    if (!iso) return "N/A";
     const d = new Date(iso);
-    if (isNaN(d.getTime())) return "—";
+    if (isNaN(d.getTime())) return "N/A";
     return d.toLocaleDateString(undefined, {
       year: "numeric",
       month: "short",
@@ -108,9 +108,9 @@ export class ProfilePage implements OnInit, OnDestroy {
   }
 
   formatLastSeen(iso: string | undefined): string {
-    if (!iso) return "—";
+    if (!iso) return "N/A";
     const d = new Date(iso);
-    if (isNaN(d.getTime())) return "—";
+    if (isNaN(d.getTime())) return "N/A";
     const diffMs = Date.now() - d.getTime();
     const minutes = Math.floor(diffMs / 60_000);
     if (minutes < 1) return "just now";

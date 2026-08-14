@@ -23,7 +23,6 @@
     pointer-events: all;
 
     .rules-card {
-      transform: translateY(0) scale(1);
       opacity: 1;
     }
   }
@@ -43,7 +42,6 @@
   box-shadow: 0 28px 72px rgba(0, 0, 0, 0.75);
   transform: translateY(24px) scale(0.97);
   opacity: 0;
-  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.22s ease;
   overflow: hidden;
 }
 
@@ -157,8 +155,14 @@
   flex-direction: column;
   gap: 18px;
 
-  &::-webkit-scrollbar { width: 3px; }
-  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar {
+    width: 3px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
   &::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.1);
     border-radius: 3px;
@@ -175,7 +179,9 @@
   background: rgba(255, 255, 255, 0.04);
   border-radius: 10px;
 
-  strong { color: rgba(255, 255, 255, 0.88); }
+  strong {
+    color: rgba(255, 255, 255, 0.88);
+  }
 }
 
 // ─── Divider ──────────────────────────────────────────────────────────────────
@@ -230,7 +236,9 @@
   line-height: 1.5;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 
-  &:last-child { border-bottom: none; }
+  &:last-child {
+    border-bottom: none;
+  }
 
   &::before {
     content: counter(step);
@@ -251,8 +259,14 @@
     justify-content: center;
   }
 
-  strong { color: rgba(255, 255, 255, 0.85); }
-  em     { color: rgba(255, 255, 255, 0.35); font-style: italic; }
+  strong {
+    color: rgba(255, 255, 255, 0.85);
+  }
+
+  em {
+    color: rgba(255, 255, 255, 0.35);
+    font-style: italic;
+  }
 }
 
 // ─── Card action grid ─────────────────────────────────────────────────────────
@@ -281,13 +295,68 @@
     padding: 10px 14px;
   }
 
-  &.ca-green  { background: rgba($c-green,  0.07); border-color: rgba($c-green,  0.22); .ca-val { color: $c-green; } }
-  &.ca-blue   { background: rgba($c-blue,   0.07); border-color: rgba($c-blue,   0.22); .ca-val { color: $c-blue; } }
-  &.ca-orange { background: rgba($c-orange, 0.07); border-color: rgba($c-orange, 0.22); .ca-val { color: $c-orange; } }
-  &.ca-purple { background: rgba($c-purple, 0.07); border-color: rgba($c-purple, 0.22); .ca-val { color: #a78bfa; } }
-  &.ca-red    { background: rgba($c-red,    0.07); border-color: rgba($c-red,    0.22); .ca-val { color: $c-red; } }
-  &.ca-muted  { background: rgba(255, 255, 255, 0.03); border-color: rgba(255, 255, 255, 0.08); .ca-val { color: rgba(255,255,255,0.45); } }
-  &.ca-joker  { background: rgba(124, 58, 237, 0.10); border-color: rgba(124, 58, 237, 0.35); .ca-action strong { color: #a78bfa; } }
+  &.ca-green {
+    background: rgba($c-green, 0.07);
+    border-color: rgba($c-green, 0.22);
+
+    .ca-val {
+      color: $c-green;
+    }
+  }
+
+  &.ca-blue {
+    background: rgba($c-blue, 0.07);
+    border-color: rgba($c-blue, 0.22);
+
+    .ca-val {
+      color: $c-blue;
+    }
+  }
+
+  &.ca-orange {
+    background: rgba($c-orange, 0.07);
+    border-color: rgba($c-orange, 0.22);
+
+    .ca-val {
+      color: $c-orange;
+    }
+  }
+
+  &.ca-purple {
+    background: rgba($c-purple, 0.07);
+    border-color: rgba($c-purple, 0.22);
+
+    .ca-val {
+      color: #a78bfa;
+    }
+  }
+
+  &.ca-red {
+    background: rgba($c-red, 0.07);
+    border-color: rgba($c-red, 0.22);
+
+    .ca-val {
+      color: $c-red;
+    }
+  }
+
+  &.ca-muted {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.08);
+
+    .ca-val {
+      color: rgba(255, 255, 255, 0.45);
+    }
+  }
+
+  &.ca-joker {
+    background: rgba(124, 58, 237, 0.10);
+    border-color: rgba(124, 58, 237, 0.35);
+
+    .ca-action strong {
+      color: #a78bfa;
+    }
+  }
 }
 
 .ca-val {
@@ -297,7 +366,9 @@
   letter-spacing: -0.02em;
   flex-shrink: 0;
 
-  &.ca-val-sm { font-size: 1rem; }
+  &.ca-val-sm {
+    font-size: 1rem;
+  }
 }
 
 .ca-action {
@@ -306,7 +377,10 @@
   color: rgba(255, 255, 255, 0.45);
   line-height: 1.3;
 
-  em { color: rgba(255, 255, 255, 0.25); font-style: italic; }
+  em {
+    color: rgba(255, 255, 255, 0.25);
+    font-style: italic;
+  }
 }
 
 // ─── Key rules list ───────────────────────────────────────────────────────────
@@ -329,9 +403,13 @@
   line-height: 1.5;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 
-  &:last-child { border-bottom: none; }
+  &:last-child {
+    border-bottom: none;
+  }
 
-  strong { color: rgba(255, 255, 255, 0.85); }
+  strong {
+    color: rgba(255, 255, 255, 0.85);
+  }
 }
 
 .rules-key-dot {
@@ -341,7 +419,18 @@
   border-radius: 50%;
   margin-top: 5px;
 
-  &.rules-key-dot--green  { background: $c-green;  box-shadow: 0 0 6px rgba($c-green, 0.5); }
-  &.rules-key-dot--blue   { background: $c-blue;   box-shadow: 0 0 6px rgba($c-blue, 0.5); }
-  &.rules-key-dot--orange { background: $c-orange; box-shadow: 0 0 6px rgba($c-orange, 0.5); }
+  &.rules-key-dot--green {
+    background: $c-green;
+    box-shadow: 0 0 6px rgba($c-green, 0.5);
+  }
+
+  &.rules-key-dot--blue {
+    background: $c-blue;
+    box-shadow: 0 0 6px rgba($c-blue, 0.5);
+  }
+
+  &.rules-key-dot--orange {
+    background: $c-orange;
+    box-shadow: 0 0 6px rgba($c-orange, 0.5);
+  }
 }

@@ -816,7 +816,6 @@
     align-items: stretch;
     gap: clamp(0.35rem, 1.5cqh, 0.85rem);
     overflow: hidden;
-    animation: dialogSlideIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 
     &__header {
         position: relative;
@@ -1206,7 +1205,6 @@
     padding: 1.5rem 2rem;
     text-align: center;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-    animation: dialogSlideIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
     max-width: 300px;
     width: 85%;
 
@@ -1275,18 +1273,6 @@
         &:active {
             transform: translateY(0);
         }
-    }
-}
-
-@keyframes dialogSlideIn {
-    from {
-        opacity: 0;
-        transform: scale(0.9) translateY(10px);
-    }
-
-    to {
-        opacity: 1;
-        transform: scale(1) translateY(0);
     }
 }
 
@@ -1434,23 +1420,17 @@
         }
     }
 
-    /* Indicateur de phase, toujours affiché : retire le flou (petit élément,
-       le fond translucide suffit). */
-    .phase-capsule {
-        backdrop-filter: none;
-        -webkit-backdrop-filter: none;
-    }
-
     /* Overlays à la demande (fonds déjà quasi opaques) : on retire juste le
        flou coûteux. */
     .menu-dropdown,
     .card-help-popover,
-    .resign-overlay {
+    .resign-dialog,
+    .phase-capsule .resign-overlay {
         backdrop-filter: none;
         -webkit-backdrop-filter: none;
     }
 
-    /* [TODO 1 — piste a] `.tock-card-btn` promeut chaque carte de la main sur
+    /* `.tock-card-btn` promeut chaque carte de la main sur
        son propre calque en permanence (will-change: transform, ligne 261).
        Sur WebView Android, insérer un overlay plein écran au-dessus de ce
        groupe de calques déjà promus (backdrop emoji/menu/resign) force une

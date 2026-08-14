@@ -205,7 +205,7 @@ export class TutorialOverlayComponent implements OnDestroy {
     if (this.isDiscardMode()) {
       if (!this.discardHintDelay.elapsed()) return null;
       if (this.hasDiscarded()) return null;
-      return { id: 'discard', text: 'No playable cards — tap to discard', anchor: 'confirm' };
+      return { id: 'discard', text: 'No playable cards, tap to discard', anchor: 'confirm' };
     }
 
     // Each flow (entry / swap / generic) is gated behind ONE inactivity

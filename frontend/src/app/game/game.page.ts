@@ -431,7 +431,7 @@ export class GamePage implements OnDestroy, AfterViewInit {
         this.handleInGameRejection(reason)
       ),
       this.gameStateService.reconnecting$.subscribe(() =>
-        this.toast.show("Connection lost — reconnecting…", "error")
+        this.toast.show("Connection lost, reconnecting…", "error")
       ),
       this.gameStateService.reconnected$.subscribe(() =>
         this.toast.show("Reconnected", "info", 1500)
