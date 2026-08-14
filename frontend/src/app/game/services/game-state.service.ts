@@ -1,4 +1,4 @@
-import { Injectable, signal, computed, inject } from '@angular/core';
+import { Injectable, signal, computed, inject, effect, DestroyRef, type Signal } from '@angular/core';
 import { BehaviorSubject, Subject } from 'rxjs';
 import { TabLockService } from './tab-lock.service';
 import {
@@ -113,6 +113,43 @@ export class GameStateService {
    * tutoriel) évitent de superposer/débloquer trop tôt.
    */
   teamIntroPlaying = signal(false);
+
+  /**
+   * Identifiants des overlays modaux actuellement ouverts au-dessus du plateau
+   * (menu ⋮, palette d'emoji, confirmation d'abandon, modale des règles).
+   * Publié par les composants qui les possèdent, même pattern que
+   * `teamIntroPlaying` : le tutoriel est en z-index 300, au-dessus d'eux tous,
+   * et doit donc se taire tant que l'un d'eux est à l'écran.
+   */
+  private readonly openOverlays = signal<ReadonlySet<string>>(new Set());
+
+  /** Vrai dès qu'un overlay modal est ouvert (voir `openOverlays`). */
+  readonly isOverlayOpen = computed(() => this.openOverlays().size > 0);
+
+  /** Déclare l'ouverture/fermeture d'un overlay modal. */
+  setOverlayOpen(id: string, open: boolean): void {
+    this.openOverlays.update(prev => {
+      if (prev.has(id) === open) return prev; // pas de notification inutile
+      const next = new Set(prev);
+      if (open) next.add(id); else next.delete(id);
+      return next;
+    });
+  }
+
+  /**
+   * Publie l'état d'ouverture d'un overlay depuis le composant qui le possède,
+   * et le relâche automatiquement à la destruction de ce composant.
+   * À appeler depuis un contexte d'injection (corps de constructeur).
+   *
+   * Le relâchement à la destruction n'est pas optionnel : `app-emoji-reactions`
+   * par exemple est détruit dès que l'overlay du 7 s'ouvre (voir le `@if` dans
+   * table.component.html), et un `true` resté bloqué couperait le tutoriel pour
+   * le reste de la partie.
+   */
+  publishOverlay(id: string, open: Signal<boolean>): void {
+    effect(() => this.setOverlayOpen(id, open()));
+    inject(DestroyRef).onDestroy(() => this.setOverlayOpen(id, false));
+  }
 
   /**
    * Debug uniquement : vrai quand le plateau est en mode édition (la partie est
@@ -1028,6 +1065,7 @@ export class GameStateService {
     this.lastActionPlayed = null;
     this.tutorialHintId.set(null);
     this.teamIntroPlaying.set(false);
+    this.openOverlays.set(new Set());
     this.boardEditMode.set(false);
     this.finishedColorsSeen.clear();
     this.intentionalClose = true;

@@ -152,6 +152,15 @@ class InactivityTimer {
  *   marbles has its own dedicated overlay/hints (table.component.ts) —
  *   'select-marble' stays silent for it.
  *
+ * On top of those per-flow gates, hints are suppressed outright while the
+ * new-turn banner is up, while the 2v2 team announcement plays
+ * (GameStateService.teamIntroPlaying), and while any modal overlay is open
+ * (GameStateService.isOverlayOpen: the ⋮ menu, the emoji palette, the resign
+ * confirmation, the rules modal) — this layer is at z-index 300, so it would
+ * otherwise draw its pill and rings straight over them. The overlay case is
+ * the only one that hides the pill without changing the underlying state:
+ * see `visibleHint` vs `hint`.
+ *
  * To add a hint step: add one entry to the `hint` state machine and a
  * matching branch in `recompute`.
  */
@@ -284,6 +293,13 @@ export class TutorialOverlayComponent implements OnDestroy {
     return null;
   });
 
+  /** The hint actually drawn: suppressed while any modal overlay is open (the
+   *  ⋮ menu, the emoji palette, the resign confirmation, the rules modal) —
+   *  this layer sits at z-index 300, above every one of them. `hint` itself
+   *  stays the logical state, published through `tutorialHintId` so the
+   *  card-effect help keeps deferring to it while it's merely hidden. */
+  visibleHint = computed(() => this.gameState.isOverlayOpen() ? null : this.hint());
+
   /** Placement of the text pill(s), recomputed whenever the hint changes.
    *  Always a single pill. */
   pills = signal<PillPlacement[]>([]);
@@ -361,15 +377,20 @@ export class TutorialOverlayComponent implements OnDestroy {
     });
 
     effect(() => {
-      const h = this.hint();
       // Publish the active hint id so other components (e.g. the card-effect
-      // hint) can avoid overlapping with the tutorial.
-      this.gameState.tutorialHintId.set(h?.id ?? null);
+      // hint) can avoid overlapping with the tutorial. Deliberately the
+      // logical `hint`, not `visibleHint`: an overlay merely hides the pill,
+      // it doesn't change which step the player is on — republishing null
+      // would pop the card-effect capsule into the footer for as long as the
+      // overlay stays open.
+      this.gameState.tutorialHintId.set(this.hint()?.id ?? null);
+      const h = this.visibleHint();
       if (!h) {
         this.clear();
         return;
       }
-      // Defer one frame so the target elements' layout is settled.
+      // Defer one frame so the target elements' layout is settled. Also covers
+      // the overlay closing again: positions are re-measured from scratch.
       requestAnimationFrame(() => this.recompute(h.anchor));
     });
   }
@@ -381,7 +402,7 @@ export class TutorialOverlayComponent implements OnDestroy {
 
   @HostListener('window:resize')
   onResize(): void {
-    const h = this.hint();
+    const h = this.visibleHint();
     if (h) this.recompute(h.anchor);
   }
 

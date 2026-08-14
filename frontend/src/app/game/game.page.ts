@@ -257,6 +257,10 @@ export class GamePage implements OnDestroy, AfterViewInit {
     private router: Router,
     private toast: ToastService
   ) {
+    // Le tutoriel se dessine au-dessus de tout : il doit se taire pendant que
+    // la modale des règles est ouverte.
+    this.gameStateService.publishOverlay("rules", this.showRules);
+
     effect(() => {
       const winners = this.gameStateService.winners();
       if (winners.length === 0) return;

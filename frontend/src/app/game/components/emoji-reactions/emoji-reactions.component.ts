@@ -64,6 +64,12 @@ export class EmojiReactionsComponent implements OnInit, OnDestroy {
   private nextId = 1;
   private lastToggleAt = 0;
 
+  constructor() {
+    // Le tutoriel se dessine au-dessus de tout : il doit se taire pendant que
+    // la palette est ouverte.
+    this.gameStateService.publishOverlay("emoji", this.showPalette);
+  }
+
   ngOnInit(): void {
     this.sub = this.gameStateService.reaction$.subscribe((msg) => {
       this.spawnFloating(msg.author, msg.emoji);

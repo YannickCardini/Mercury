@@ -214,6 +214,10 @@ enum TURN_PHASE {
       this.gameStateService.data()?.gameState.hand;
       this.flyingCardIndex.set(null);
     });
+    // Le tutoriel se dessine au-dessus de tout : il doit se taire pendant que
+    // le menu ou la confirmation d'abandon sont ouverts.
+    this.gameStateService.publishOverlay('menu', this.showMenu);
+    this.gameStateService.publishOverlay('resign', this.showResignConfirm);
   }
 
   ngOnInit(): void {
