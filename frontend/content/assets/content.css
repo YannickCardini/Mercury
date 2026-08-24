@@ -656,12 +656,8 @@ strong {
 }
 
 /* Une seule div par couche : le `box-shadow` (figé au build, cf. space-bg.mjs)
-   sème des centaines de points sur un champ de 2000×2000px. Contrairement au
-   composant Angular d'origine, ce champ est statique (pas de translateY en
-   boucle) : sur un semis aussi dense, l'interpolation de centaines d'ombres
-   portées sur des dizaines de minutes se traduit par des sauts perceptibles
-   plutôt qu'une dérive fluide. Les étoiles filantes (sb-shooting-star,
-   ci-dessous) suffisent à animer le ciel. */
+   sème des centaines de points. Statique ici (pas de dérive verticale comme
+   dans l'app) : les étoiles filantes suffisent à faire vivre le ciel. */
 .sb-stars {
   position: absolute;
   top: 0;
@@ -964,8 +960,11 @@ strong {
   box-shadow: 0 28px 60px rgba(3, 10, 22, 0.58), inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
-/* Vignette : le logo du jeu sur un panneau plus sombre, comme l'aperçu d'une
-   vidéo — et le bouton « lire » débordant sur le coin, qui signale le clic. */
+/* Vignette : logo + aperçu vidéo sur un panneau plus sombre, et le bouton
+   « lire » débordant sur le coin, qui signale le clic. Le logo sert de
+   placeholder tant que la vidéo (chargée après le reste de la page, cf.
+   script en fin de body) n'a pas encore de source : elle est transparente
+   jusque-là et le laisse visible en dessous, sans JS pour le masquer. */
 .hp-play-thumb {
   position: relative;
   display: flex;
@@ -990,6 +989,15 @@ strong {
 
 .hp-play-card:hover .hp-play-logo {
   transform: scale(1.04);
+}
+
+.hp-play-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
 }
 
 .hp-play-badge {

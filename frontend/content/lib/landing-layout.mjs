@@ -32,6 +32,15 @@ import { spaceBackground } from "./space-bg.mjs";
  */
 const LOGO_PATH = "/assets/icon/favicon.svg";
 
+/**
+ * Aperçu vidéo de la partie, dans la carte « jouer ». Hébergée hors du repo
+ * (Azure Blob Storage) : elle ne doit jamais transiter par src/assets ni
+ * www/, sous peine d'être embarquée dans l'APK Android par `cap sync` (qui
+ * copie tout webDir sans filtrage) alors que l'app Android ne charge jamais
+ * ces pages SEO statiques.
+ */
+const PREVIEW_VIDEO_URL = "https://mercurystockage.blob.core.windows.net/media/preview_play.webm";
+
 /** Triangle « lecture » du bouton principal. */
 const PLAY_ICON = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.2a1 1 0 0 1 1.53-.85l9 6.8a1 1 0 0 1 0 1.7l-9 6.8A1 1 0 0 1 8 18.8V5.2Z"/></svg>`;
 
@@ -189,6 +198,7 @@ export function renderLandingPage({
           <a class="hp-play-card" href="${appPath}">
             <span class="hp-play-thumb" aria-hidden="true">
               <img class="hp-play-logo" src="${LOGO_PATH}" alt="" width="104" height="104" />
+              <video id="hp-play-video" class="hp-play-video" muted loop playsinline preload="none" data-src="${PREVIEW_VIDEO_URL}"></video>
               <span class="hp-play-badge">${PLAY_ICON}</span>
             </span>
             <span class="hp-play-body">
@@ -259,6 +269,16 @@ export function renderLandingPage({
     </div>
   </div>
 
+  <script>
+    (function () {
+      var v = document.getElementById("hp-play-video");
+      if (!v) return;
+      addEventListener("load", function () {
+        v.src = v.dataset.src;
+        v.play().catch(function () {});
+      });
+    })();
+  </script>
 </body>
 </html>
 `;

@@ -63,8 +63,11 @@ export function spaceBackground() {
   return `<div class="sb-root" aria-hidden="true">
     <style>
       .sb-stars--small { box-shadow: ${starsSmall}; }
+      .sb-stars--small::after { box-shadow: ${starsSmall}; }
       .sb-stars--medium { box-shadow: ${starsMedium}; }
+      .sb-stars--medium::after { box-shadow: ${starsMedium}; }
       .sb-stars--large { box-shadow: ${starsLarge}; }
+      .sb-stars--large::after { box-shadow: ${starsLarge}; }
     </style>
     <div class="sb-nebula sb-nebula--blue"></div>
     <div class="sb-nebula sb-nebula--violet"></div>
