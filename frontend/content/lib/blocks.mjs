@@ -8,20 +8,28 @@
  * Pegs and Jokers » résolvable pour un modèle.
  */
 
-import { PLAY_STORE_URL, APP_PATH, LANDING_PATH, RULES_PATH } from "./site.mjs";
+import { PLAY_STORE_URL, APP_PATH, RULES_PATH } from "./site.mjs";
 
 /** Libellés d'interface (navigation, pieds de page, boutons). */
 export const UI = {
   en: {
     play: "Play online",
     rules: "Game rules",
-    playCta: "Play now — free, no sign-up",
+    playCta: "Play now",
     resume: "Resume your game",
     updated: "Updated on",
     languages: "Language",
     otherNames: "Also known as",
     privacy: "Privacy policy",
+    legal: "Legal",
+    contact: "Contact",
+    contactDialogTitle: "Contact",
+    contactDialogBody:
+      "For any question, feedback or issue about Mercury, send an email to the address below, it goes directly to the developer.",
+    contactClose: "Close",
     android: "Android app",
+    androidCta: "Download for Android",
+    androidSub: "Free on Google Play",
     breadcrumbHome: "Home",
     breadcrumbRules: "Rules",
     tocLabel: "On this page",
@@ -29,13 +37,21 @@ export const UI = {
   fr: {
     play: "Jouer en ligne",
     rules: "Règles du jeu",
-    playCta: "Jouer maintenant — gratuit, sans inscription",
+    playCta: "Jouer maintenant",
     resume: "Reprendre la partie",
     updated: "Mis à jour le",
     languages: "Langue",
     otherNames: "Aussi appelé",
     privacy: "Politique de confidentialité",
+    legal: "Légal",
+    contact: "Contact",
+    contactDialogTitle: "Contact",
+    contactDialogBody:
+      "Pour toute question, retour ou problème concernant Mercury, envoyez un e-mail à l'adresse ci-dessous, il arrive directement au développeur.",
+    contactClose: "Fermer",
     android: "Application Android",
+    androidCta: "Télécharger sur Android",
+    androidSub: "Gratuit sur Google Play",
     breadcrumbHome: "Accueil",
     breadcrumbRules: "Règles",
     tocLabel: "Sur cette page",
@@ -43,13 +59,21 @@ export const UI = {
   nl: {
     play: "Online spelen",
     rules: "Spelregels",
-    playCta: "Speel nu — gratis, zonder account",
+    playCta: "Speel nu",
     resume: "Ga verder met je partij",
     updated: "Bijgewerkt op",
     languages: "Taal",
     otherNames: "Ook bekend als",
     privacy: "Privacybeleid",
+    legal: "Juridisch",
+    contact: "Contact",
+    contactDialogTitle: "Contact",
+    contactDialogBody:
+      "Voor vragen, feedback of problemen over Mercury stuur je een e-mail naar onderstaand adres, die komt rechtstreeks bij de ontwikkelaar terecht.",
+    contactClose: "Sluiten",
     android: "Android-app",
+    androidCta: "Download voor Android",
+    androidSub: "Gratis in Google Play",
     breadcrumbHome: "Home",
     breadcrumbRules: "Spelregels",
     tocLabel: "Op deze pagina",
@@ -57,13 +81,21 @@ export const UI = {
   de: {
     play: "Online spielen",
     rules: "Spielregeln",
-    playCta: "Jetzt spielen — kostenlos, ohne Anmeldung",
+    playCta: "Jetzt spielen",
     resume: "Partie fortsetzen",
     updated: "Aktualisiert am",
     languages: "Sprache",
     otherNames: "Auch bekannt als",
     privacy: "Datenschutz",
+    legal: "Rechtliches",
+    contact: "Kontakt",
+    contactDialogTitle: "Kontakt",
+    contactDialogBody:
+      "Bei Fragen, Feedback oder Problemen zu Mercury schreibt einfach eine E-Mail an die untenstehende Adresse, sie geht direkt an den Entwickler.",
+    contactClose: "Schließen",
     android: "Android-App",
+    androidCta: "Für Android herunterladen",
+    androidSub: "Kostenlos bei Google Play",
     breadcrumbHome: "Startseite",
     breadcrumbRules: "Regeln",
     tocLabel: "Auf dieser Seite",
@@ -278,29 +310,64 @@ export function langSwitch(lang, cluster) {
       </nav>`;
 }
 
+/** Adresse de contact, identique à celle affichée dans la modale « À propos » de l'app (home.page.html). */
+const CONTACT_EMAIL = "yannick.cardini@gmail.com";
+
 /**
- * Pied de page commun : chaque page pointe vers les 7 autres. Avec 8 pages le
- * graphe complet reste naturel, et il supprime les pages orphelines — les 3
- * pages de règles autres que l'anglaise n'étaient jusqu'ici liées par rien.
+ * Overlay de contact, ouverte par le bouton "Contact" du footer via
+ * `<dialog>` natif pas de framework de modale nécessaire pour une seule
+ * boîte par page. `showModal()`/`close()` sont supportés par tous les
+ * navigateurs modernes ; le contenu (adresse en clair + lien mailto) reste
+ * lisible même par un crawler qui n'exécute pas ce script.
+ */
+function contactDialog(lang) {
+  const t = UI[lang];
+  return `<dialog id="rp-contact-dialog" class="rp-dialog">
+      <form method="dialog" class="rp-dialog-card">
+        <button type="submit" class="rp-dialog-close" aria-label="${t.contactClose}">✕</button>
+        <h2>${t.contactDialogTitle}</h2>
+        <p>${t.contactDialogBody}</p>
+        <a class="rp-dialog-email" href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a>
+      </form>
+    </dialog>
+    <script>
+      (function () {
+        var d = document.getElementById('rp-contact-dialog');
+        var openers = document.querySelectorAll('[data-open-contact]');
+        for (var i = 0; i < openers.length; i++) {
+          openers[i].addEventListener('click', function (e) {
+            e.preventDefault();
+            if (typeof d.showModal === 'function') d.showModal();
+          });
+        }
+      })();
+    </script>`;
+}
+
+/**
+ * Pied de page commun. Le sélecteur de langue en haut de chaque page (voir
+ * `langSwitch`) couvre déjà la navigation entre les 4 landings, donc le
+ * footer se concentre sur ce qu'il n'y a nulle part ailleurs : contact,
+ * confidentialité, et le maillage vers les 4 pages de règles les 3 autres
+ * que l'anglaise n'étaient jusqu'ici liées par rien.
  */
 export function footer(lang) {
   const t = UI[lang];
-  const landings = ["en", "fr", "nl", "de"]
-    .map((l) => `<li><a href="${LANDING_PATH[l]}" hreflang="${l}" lang="${l}">${LANG_LABEL[l]}</a></li>`)
-    .join("");
   const rules = ["fr", "nl", "de", "en"]
     .map(
       (l) =>
-        `<li><a href="${RULES_PATH[l]}" hreflang="${l}" lang="${l}">${
-          { fr: "Tock", nl: "Keezen", de: "Dog", en: "Pegs and Jokers" }[l]
+        `<li><a href="${RULES_PATH[l]}" hreflang="${l}" lang="${l}">${{ fr: "Tock", nl: "Keezen", de: "Dog", en: "Pegs and Jokers" }[l]
         }</a></li>`,
     )
     .join("");
   return `<footer class="rp-footer">
     <div class="rp-footer-cols">
       <div>
-        <h2>${t.play}</h2>
-        <ul>${landings}</ul>
+        <h2>${t.legal}</h2>
+        <ul>
+          <li><a href="mailto:${CONTACT_EMAIL}" data-open-contact>${t.contact}</a></li>
+          <li><a href="/privacy">${t.privacy}</a></li>
+        </ul>
       </div>
       <div>
         <h2>${t.rules}</h2>
@@ -311,9 +378,9 @@ export function footer(lang) {
         <ul>
           <li><a href="${APP_PATH}">${t.play}</a></li>
           <li><a href="${PLAY_STORE_URL}" rel="noopener">${t.android}</a></li>
-          <li><a href="/privacy">${t.privacy}</a></li>
         </ul>
       </div>
     </div>
+    ${contactDialog(lang)}
   </footer>`;
 }

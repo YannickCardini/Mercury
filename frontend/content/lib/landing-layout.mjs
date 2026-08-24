@@ -13,9 +13,35 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-import { SITE_NAME, OG_LOCALE, OG_IMAGE_PATH, BUILD_DATE, url } from "./site.mjs";
+import {
+  SITE_NAME,
+  OG_LOCALE,
+  OG_IMAGE_PATH,
+  BUILD_DATE,
+  PLAY_STORE_URL,
+  url,
+} from "./site.mjs";
 import { UI, langSwitch, footer, namesTable, vsTable, faqSection } from "./blocks.mjs";
 import { graph } from "./schema.mjs";
+import { spaceBackground } from "./space-bg.mjs";
+
+/**
+ * Logo du jeu (les 4 billes). Déjà déclaré en <link rel="icon"> plus bas :
+ * le réutiliser en <img> ne coûte aucune requête supplémentaire, le
+ * navigateur dédoublonne sur l'URL.
+ */
+const LOGO_PATH = "/assets/icon/favicon.svg";
+
+/** Triangle « lecture » du bouton principal. */
+const PLAY_ICON = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.2a1 1 0 0 1 1.53-.85l9 6.8a1 1 0 0 1 0 1.7l-9 6.8A1 1 0 0 1 8 18.8V5.2Z"/></svg>`;
+
+/**
+ * Robot Android, dessiné à la main : demi-disque + deux antennes + deux yeux
+ * évidés. Quelques centaines d'octets, contre une image à télécharger.
+ */
+const ANDROID_ICON = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.4 7.6 5.9 4.9M16.6 7.6 18.1 4.9" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" fill="none"/><path d="M4 13.6a8 8 0 0 1 16 0Z" fill="currentColor"/><circle cx="9" cy="10.2" r="1" fill="#0d1730"/><circle cx="15" cy="10.2" r="1" fill="#0d1730"/></svg>`;
+
+const DOWNLOAD_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg>`;
 
 const CSS = readFileSync(
   fileURLToPath(new URL("../assets/content.css", import.meta.url)),
@@ -133,18 +159,22 @@ export function renderLandingPage({
   ${jsonLdScript(jsonLd)}
 </head>
 <body class="hp-body">
+  ${spaceBackground()}
 
   <div class="hp-fold">
+
+    <header class="hp-topbar">
+      <a class="hp-brand" href="${path}">
+        <img class="hp-brand-logo" src="${LOGO_PATH}" alt="" width="30" height="30" />
+        <span class="hp-brand-name">${SITE_NAME}</span>
+      </a>
+      ${langSwitch(lang, cluster)}
+    </header>
+
     <div class="hp-inner">
-
-      <header class="hp-topbar">
-        <a class="rp-brand" href="${path}">Mercury</a>
-        ${langSwitch(lang, cluster)}
-      </header>
-
       <div class="hp-grid">
         <section class="hp-main">
-          <span class="rp-eyebrow">${eyebrow}</span>
+          <span class="hp-eyebrow">${eyebrow}</span>
           <h1 class="hp-title">${h1}</h1>
           <p class="hp-lede">${lede}</p>
 
@@ -152,36 +182,42 @@ export function renderLandingPage({
           ${highlightsHtml}
           </ul>
 
-          <p class="hp-more"><a href="${moreLink.path}">${moreLink.text} →</a></p>
+          <p class="hp-more"><a href="${moreLink.path}">${moreLink.text}<span class="hp-more-arrow" aria-hidden="true">→</span></a></p>
         </section>
 
         <aside class="hp-side">
           <a class="hp-play-card" href="${appPath}">
-            <span class="hp-play-badge" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+            <span class="hp-play-thumb" aria-hidden="true">
+              <img class="hp-play-logo" src="${LOGO_PATH}" alt="" width="104" height="104" />
+              <span class="hp-play-badge">${PLAY_ICON}</span>
             </span>
-            <span class="hp-play-text">${playCta}</span>
-            <span class="hp-play-sub">${free.factFree}</span>
+            <span class="hp-play-body">
+              <span class="hp-play-text">${playCta}</span>
+              <span class="hp-play-sub">${free.factFree}</span>
+            </span>
           </a>
 
-          <div class="hp-facts">
-            <div class="hp-marbles" aria-hidden="true">
-              <span class="hp-marble hp-marble--red"></span>
-              <span class="hp-marble hp-marble--blue"></span>
-              <span class="hp-marble hp-marble--green"></span>
-              <span class="hp-marble hp-marble--orange"></span>
-            </div>
-            <ul class="hp-facts-list">
-              <li>${free.factPlayers}</li>
-              <li>${free.factPlatform}</li>
-            </ul>
-          </div>
+          <a class="hp-store" href="${PLAY_STORE_URL}" rel="noopener">
+            <span class="hp-store-icon" aria-hidden="true">${ANDROID_ICON}</span>
+            <span class="hp-store-text">
+              <span class="hp-store-label">${t.androidCta}</span>
+              <span class="hp-store-sub">${t.androidSub}</span>
+            </span>
+            <span class="hp-store-arrow" aria-hidden="true">${DOWNLOAD_ICON}</span>
+          </a>
+
+          <ul class="hp-facts">
+            <li>${free.factPlayers}</li>
+            <li>${free.factPlatform}</li>
+          </ul>
         </aside>
       </div>
     </div>
 
     <div class="hp-scroll-hint" aria-hidden="true">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+      <span class="hp-scroll-dot">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+      </span>
     </div>
   </div>
 

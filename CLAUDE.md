@@ -22,6 +22,13 @@ Before implementing:
 
 ---
 
+## 📝 Content Generation Rules
+- **No Em Dash**: Do NOT use the em dash character (`—`) in generated user-facing text content.
+- **Language**: Default to English for all content, unless explicitly requested otherwise or required by a specific use case.
+- **Tone**: Maintain an informative, neutral, and objective tone. Do not use promotional or sales-oriented language.
+
+---
+
 ## ⛔ Execution Limits (Important)
 - **NEVER run the application locally** (no `npm run dev`, no E2E tests, no screenshots).
 - You are **only allowed** to execute light syntax verification or build commands (e.g., `npx tsc`, `npm run build:shared`) to check for errors in your code.

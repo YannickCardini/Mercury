@@ -38,7 +38,7 @@ const CONTENT = {
       platform: "Browser or Android",
     },
     highlights: [
-      { icon: "🂡", text: "Ace, King or Joker brings a marble into play" },
+      { icon: "🃏", text: "Ace, King or Joker brings a marble into play" },
       { icon: "🎯", text: "Land on a marble to send it back to start" },
       { icon: "🤝", text: "2v2 teams: help your partner once you're home" },
       { icon: "⚡", text: "No account needed — play as a guest right away" },
@@ -98,7 +98,7 @@ const CONTENT = {
       platform: "Navigateur ou Android",
     },
     highlights: [
-      { icon: "🂡", text: "As, Roi ou Joker fait entrer une bille en jeu" },
+      { icon: "🃏", text: "As, Roi ou Joker fait entrer une bille en jeu" },
       { icon: "🎯", text: "Atterrir sur une bille la renvoie au départ" },
       { icon: "🤝", text: "Équipes 2v2 : aidez votre partenaire une fois arrivé" },
       { icon: "⚡", text: "Sans inscription — jouez en invité tout de suite" },
@@ -158,7 +158,7 @@ const CONTENT = {
       platform: "Browser of Android",
     },
     highlights: [
-      { icon: "🂡", text: "Aas, Heer of Joker zet een pion in" },
+      { icon: "🃏", text: "Aas, Heer of Joker zet een pion in" },
       { icon: "🎯", text: "Land op een pion en die gaat terug naar start" },
       { icon: "🤝", text: "2v2-teams: help je maatje zodra jij thuis bent" },
       { icon: "⚡", text: "Geen account nodig — speel meteen als gast" },
@@ -218,7 +218,7 @@ const CONTENT = {
       platform: "Browser oder Android",
     },
     highlights: [
-      { icon: "🂡", text: "Ass, König oder Joker setzt eine Murmel ein" },
+      { icon: "🃏", text: "Ass, König oder Joker setzt eine Murmel ein" },
       { icon: "🎯", text: "Landen auf einer Murmel schickt sie zurück zum Start" },
       { icon: "🤝", text: "2v2-Teams: helft eurem Partner, sobald ihr im Ziel seid" },
       { icon: "⚡", text: "Kein Konto nötig — sofort als Gast spielen" },
