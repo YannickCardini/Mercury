@@ -1,4 +1,67 @@
+# Mercury — https://www.mercury-game.online
+#
+# Les pages de contenu (/, /fr/, /nl/, /de/, /rules/*) sont servies en HTML
+# statique complet : elles sont lisibles sans exécuter de JavaScript, y compris
+# par les robots dépourvus de moteur de rendu. Le reste du site (/home, /game,
+# /profile/*) est l'application elle-même et n'a pas vocation à être indexé.
+
 User-agent: *
+Allow: /
+
+# ── Moteurs de réponse IA — récupération au moment de la réponse ────────────
+# Ces robots vont chercher la page pendant qu'ils répondent à un utilisateur et
+# citent leurs sources : c'est par eux que Mercury peut apparaître dans les
+# réponses de ChatGPT, Claude, Perplexity et Copilot.
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: Claude-SearchBot
+Allow: /
+
+User-agent: Claude-User
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Perplexity-User
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: DuckDuckBot
+Allow: /
+
+User-agent: Applebot
+Allow: /
+
+# ── Robots de collecte pour l'entraînement ──────────────────────────────────
+# Ils n'améliorent pas la citation immédiate : ils alimentent les corpus
+# d'entraînement des modèles, ce qui aide à moyen terme à ce que « Mercury »,
+# « Tock », « Keezen » et « Dog » soient reliés entre eux. Autorisés par choix ;
+# passer une ligne à « Disallow: / » suffit à en exclure un.
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+User-agent: meta-externalagent
 Allow: /
 
 Sitemap: https://www.mercury-game.online/sitemap.xml

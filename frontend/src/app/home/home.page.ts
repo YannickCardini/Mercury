@@ -10,7 +10,7 @@ import {
 } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
-import { Router, RouterLink } from "@angular/router";
+import { Router } from "@angular/router";
 import { HttpClient } from "@angular/common/http";
 import { AndroidAppBannerComponent } from "../shared/android-app-banner.component";
 import { GameRulesModalComponent } from "../shared/game-rules-modal.component";
@@ -81,7 +81,6 @@ interface InviteCandidate {
   imports: [
     CommonModule,
     FormsModule,
-    RouterLink,
     AndroidAppBannerComponent,
     GameRulesModalComponent,
     InviteToastComponent,

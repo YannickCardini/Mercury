@@ -1,14 +1,59 @@
 {
   "routes": [
     {
+      "route": "/",
+      "rewrite": "/content/en/index.html",
+      "headers": { "cache-control": "public, max-age=0, must-revalidate" }
+    },
+    { "route": "/fr", "redirect": "/fr/", "statusCode": 301 },
+    { "route": "/nl", "redirect": "/nl/", "statusCode": 301 },
+    { "route": "/de", "redirect": "/de/", "statusCode": 301 },
+    {
+      "route": "/fr/",
+      "rewrite": "/content/fr/index.html",
+      "headers": { "cache-control": "public, max-age=0, must-revalidate" }
+    },
+    {
+      "route": "/nl/",
+      "rewrite": "/content/nl/index.html",
+      "headers": { "cache-control": "public, max-age=0, must-revalidate" }
+    },
+    {
+      "route": "/de/",
+      "rewrite": "/content/de/index.html",
+      "headers": { "cache-control": "public, max-age=0, must-revalidate" }
+    },
+    {
+      "route": "/rules/tock",
+      "rewrite": "/content/rules/tock.html",
+      "headers": { "cache-control": "public, max-age=0, must-revalidate" }
+    },
+    {
+      "route": "/rules/keezen",
+      "rewrite": "/content/rules/keezen.html",
+      "headers": { "cache-control": "public, max-age=0, must-revalidate" }
+    },
+    {
+      "route": "/rules/dog",
+      "rewrite": "/content/rules/dog.html",
+      "headers": { "cache-control": "public, max-age=0, must-revalidate" }
+    },
+    {
+      "route": "/rules/pegs-and-jokers",
+      "rewrite": "/content/rules/pegs-and-jokers.html",
+      "headers": { "cache-control": "public, max-age=0, must-revalidate" }
+    },
+    {
       "route": "/index.html",
-      "headers": {
-        "cache-control": "no-store"
-      }
+      "headers": { "cache-control": "no-store" }
     }
   ],
   "navigationFallback": {
     "rewrite": "/index.html",
-    "exclude": ["/assets/*.{png,jpg,gif,svg}", "/css/*"]
+    "exclude": [
+      "/assets/*",
+      "/content/*",
+      "/*.{css,js,json,txt,xml,map,png,jpg,jpeg,gif,svg,webp,ico,woff,woff2,mp3,wav}"
+    ]
   }
 }

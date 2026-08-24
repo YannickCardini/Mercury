@@ -221,3 +221,5 @@ frontend/android/app/build/outputs/bundle/release/app-release.aab
 C'est ce fichier `.aab` qu'il faut uploader dans la **Google Play Console** (onglet *Production* → *Créer une version*).
 
 ---
+
+

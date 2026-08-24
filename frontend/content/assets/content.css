@@ -1,0 +1,406 @@
+/*
+ * Feuille de style des pages statiques SEO.
+ *
+ * Inlinée dans chaque page (<style>) : aucune requête bloquante, donc un LCP
+ * quasi immédiat, ce qui compte pour ces pages d'entrée. Reprend la palette
+ * « Système solaire » de src/app/styles/_palette.scss, transposée en CSS pur
+ * puisque ces pages sont générées hors du pipeline Angular.
+ */
+
+:root {
+  --c-earth: #2dd4a0;
+  --c-neptune: #4f8cff;
+  --c-saturn: #e0b15a;
+  --c-moon: #b8c4d8;
+  --bg-dark: #0f172a;
+  --bg-mid: #1a2840;
+  --text: #cbd5e1;
+  --heading: #e2e8f0;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: var(--bg-dark);
+  background-image:
+    radial-gradient(1px 1px at 20% 30%, rgba(255, 255, 255, 0.5) 50%, transparent 50%),
+    radial-gradient(1px 1px at 70% 12%, rgba(255, 255, 255, 0.4) 50%, transparent 50%),
+    radial-gradient(1px 1px at 45% 68%, rgba(255, 255, 255, 0.35) 50%, transparent 50%),
+    radial-gradient(1.5px 1.5px at 85% 55%, rgba(255, 255, 255, 0.45) 50%, transparent 50%),
+    radial-gradient(1px 1px at 12% 82%, rgba(255, 255, 255, 0.4) 50%, transparent 50%),
+    radial-gradient(ellipse 90% 60% at 50% 0%, var(--bg-mid) 0%, var(--bg-dark) 70%);
+  background-attachment: fixed;
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+a {
+  color: var(--c-neptune);
+}
+
+.rp-wrap {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 24px 16px 56px;
+}
+
+.rp-card {
+  width: 100%;
+  max-width: 760px;
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 24px 28px 32px;
+}
+
+/* ── En-tête ─────────────────────────────────────────────────────────────── */
+
+.rp-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+  letter-spacing: 3px;
+  font-size: 15px;
+  color: var(--heading);
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.rp-brand::before {
+  content: "";
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #f0d9a8, #b8863b);
+  box-shadow: 0 0 10px rgba(224, 177, 90, 0.6);
+}
+
+.rp-topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.rls-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.rls-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 12.5px;
+  color: var(--c-moon);
+  text-decoration: none;
+}
+
+.rls-link:hover {
+  color: var(--heading);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.rls-link.active {
+  color: var(--heading);
+  background: rgba(79, 140, 255, 0.16);
+  border-color: rgba(79, 140, 255, 0.4);
+}
+
+.rls-flag {
+  font-size: 13px;
+}
+
+.rp-crumbs {
+  font-size: 12.5px;
+  color: var(--c-moon);
+  margin: 0 0 14px;
+}
+
+.rp-crumbs a {
+  color: var(--c-moon);
+}
+
+.rp-crumbs span {
+  margin: 0 6px;
+  opacity: 0.5;
+}
+
+/* ── Titres et texte ─────────────────────────────────────────────────────── */
+
+.rp-eyebrow {
+  display: block;
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--c-neptune);
+  margin-bottom: 8px;
+}
+
+.rp-title {
+  margin: 0 0 12px;
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--heading);
+  line-height: 1.22;
+}
+
+.rp-lede {
+  margin: 0 0 20px;
+  font-size: 16px;
+}
+
+.rp-section {
+  margin: 30px 0;
+}
+
+.rp-section h2 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--heading);
+  margin: 0 0 12px;
+}
+
+.rp-section h3 {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--heading);
+  margin: 16px 0 6px;
+}
+
+.rp-section p {
+  margin: 0 0 10px;
+}
+
+.rp-section p:last-child {
+  margin-bottom: 0;
+}
+
+.rp-section ul,
+.rp-section ol {
+  margin: 8px 0 10px;
+  padding-left: 20px;
+}
+
+.rp-section li {
+  margin-bottom: 6px;
+}
+
+strong {
+  color: var(--heading);
+  font-weight: 600;
+}
+
+/* ── Tableaux ────────────────────────────────────────────────────────────── */
+
+.rp-table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.rp-table {
+  width: 100%;
+  min-width: 460px;
+  border-collapse: collapse;
+  margin: 10px 0 6px;
+  font-size: 13.5px;
+}
+
+.rp-table caption {
+  caption-side: top;
+  text-align: left;
+  font-size: 12px;
+  color: var(--c-moon);
+  margin-bottom: 6px;
+}
+
+.rp-table th,
+.rp-table td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  vertical-align: top;
+}
+
+.rp-table th {
+  color: var(--c-moon);
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.rp-table td:first-child {
+  color: var(--c-saturn);
+  font-weight: 700;
+}
+
+.rp-table--vs td:first-child {
+  color: var(--c-moon);
+  font-weight: 600;
+}
+
+.rp-table--vs td:nth-child(2) {
+  color: var(--heading);
+}
+
+/* ── FAQ ─────────────────────────────────────────────────────────────────── */
+
+.rp-faq {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 4px 14px;
+  margin-bottom: 8px;
+}
+
+.rp-faq summary {
+  cursor: pointer;
+  padding: 10px 0;
+  font-weight: 600;
+  color: var(--heading);
+  list-style: none;
+}
+
+.rp-faq summary::-webkit-details-marker {
+  display: none;
+}
+
+.rp-faq summary::before {
+  content: "+ ";
+  color: var(--c-neptune);
+}
+
+.rp-faq[open] summary::before {
+  content: "− ";
+}
+
+.rp-faq p {
+  padding-bottom: 10px;
+  margin: 0;
+}
+
+/* ── Actions ─────────────────────────────────────────────────────────────── */
+
+.rp-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 28px 0 6px;
+}
+
+.rp-cta {
+  display: block;
+  text-align: center;
+  padding: 15px 20px;
+  border-radius: 12px;
+  background: var(--c-earth);
+  color: #06251c;
+  font-weight: 700;
+  font-size: 15.5px;
+  text-decoration: none;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.rp-cta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(45, 212, 160, 0.25);
+}
+
+.rp-resume {
+  display: block;
+  text-align: center;
+  padding: 12px 20px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: var(--heading);
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.rp-resume[hidden] {
+  display: none;
+}
+
+.rp-note {
+  font-size: 12.5px;
+  color: var(--c-moon);
+}
+
+.rp-updated {
+  font-size: 12px;
+  color: var(--c-moon);
+  margin-top: 26px;
+  opacity: 0.8;
+}
+
+/* ── Pied de page ────────────────────────────────────────────────────────── */
+
+.rp-footer {
+  margin-top: 34px;
+  padding-top: 22px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.rp-footer-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 18px;
+}
+
+.rp-footer h2 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--c-moon);
+  margin: 0 0 8px;
+  font-weight: 600;
+}
+
+.rp-footer ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 13.5px;
+}
+
+.rp-footer li {
+  margin-bottom: 5px;
+}
+
+@media (max-width: 560px) {
+  .rp-card {
+    padding: 20px 18px 26px;
+    border-radius: 14px;
+  }
+
+  .rp-title {
+    font-size: 23px;
+  }
+
+  .rp-wrap {
+    padding: 16px 10px 40px;
+  }
+}

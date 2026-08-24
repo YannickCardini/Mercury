@@ -28,22 +28,11 @@ export const routes: Routes = [
     path: 'privacy',
     loadComponent: () => import('./privacy/privacy.page').then(m => m.PrivacyPage)
   },
-  {
-    path: 'rules/tock',
-    loadComponent: () => import('./rules/tock.page').then(m => m.TockRulesPage)
-  },
-  {
-    path: 'rules/keezen',
-    loadComponent: () => import('./rules/keezen.page').then(m => m.KeezenRulesPage)
-  },
-  {
-    path: 'rules/dog',
-    loadComponent: () => import('./rules/dog.page').then(m => m.DogRulesPage)
-  },
-  {
-    path: 'rules/pegs-and-jokers',
-    loadComponent: () => import('./rules/pegs-and-jokers.page').then(m => m.PegsAndJokersRulesPage)
-  },
+  // Les pages /rules/* et les pages « jouer » localisées ne sont plus des
+  // routes Angular : ce sont des fichiers HTML statiques générés par
+  // content/build.mjs et servis directement (voir src/staticwebapp.config.json).
+  // Elles doivent rester lisibles sans JavaScript pour les moteurs de réponse
+  // IA, ce qu'un rendu côté client ne permet pas.
   {
     path: 'delete-account',
     loadComponent: () => import('./delete-account/delete-account.page').then(m => m.DeleteAccountPage)
