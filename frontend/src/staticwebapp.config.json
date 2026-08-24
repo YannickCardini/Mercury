@@ -5,9 +5,6 @@
       "rewrite": "/content/en/index.html",
       "headers": { "cache-control": "public, max-age=0, must-revalidate" }
     },
-    { "route": "/fr", "redirect": "/fr/", "statusCode": 301 },
-    { "route": "/nl", "redirect": "/nl/", "statusCode": 301 },
-    { "route": "/de", "redirect": "/de/", "statusCode": 301 },
     {
       "route": "/fr/",
       "rewrite": "/content/fr/index.html",

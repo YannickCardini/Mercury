@@ -1,164 +1,166 @@
 # Mercury
 
-Implémentation multijoueur en temps réel du jeu de société **Tock / Keezen**, en TypeScript de bout en bout.
+Real-time multiplayer implementation of the **Tock / Keezen** board game, written end-to-end in TypeScript.
 
-- **Backend** : Node.js + WebSocket (Express), authoritative server, persistance Azure Cosmos DB
-- **Frontend** : Angular + Ionic (web + Android via Capacitor)
-- **Code partagé** : monorepo npm workspaces avec un package `@mercury/shared` (types, géométrie du plateau, constantes)
-- **Matchmaking** : file d'attente publique avec **complétion automatique par des bots IA** — voir [Agent IA externe](#agent-ia-externe--complétion-automatique-du-matchmaking)
+🎮 **Play now: [https://mercury-game.online](https://mercury-game.online)**
+
+- **Backend**: Node.js + WebSocket (Express), authoritative server, persistence via Azure Cosmos DB
+- **Frontend**: Angular + Ionic (web + Android via Capacitor)
+- **Shared code**: npm workspaces monorepo with a `@mercury/shared` package (types, board geometry, constants)
+- **Matchmaking**: public queue with **automatic completion by AI bots** — see [External AI agent](#external-ai-agent--automatic-matchmaking-completion)
 
 ---
 
-## Package partagé : `@mercury/shared`
+## Shared package: `@mercury/shared`
 
-### Pourquoi ?
+### Why?
 
-Le frontend et le backend partagent naturellement :
-- Les **types TypeScript** (Card, Player, Action, GameState…)
-- La **géométrie du plateau** (positions des cases, homes, starts, arrivées)
-- La **validation des mouvements** (même logique appliquée côté client pour le feedback instantané)
-- Les **constantes** (durée du tour, durées d'animation, règles)
+The frontend and backend naturally share:
+- **TypeScript types** (Card, Player, Action, GameState…)
+- **Board geometry** (cell positions, homes, starts, finish lines)
+- **Move validation** (same logic applied client-side for instant feedback)
+- **Constants** (turn duration, animation durations, rules)
 
-Sans package partagé, ces données sont dupliquées et divergent — ce qui provoque des bugs difficiles à tracer. Avec `@mercury/shared`, il y a **une seule source de vérité**, garantie à la compilation par TypeScript des deux côtés du WebSocket.
+Without a shared package, this data gets duplicated and drifts apart — causing hard-to-trace bugs. With `@mercury/shared`, there is a **single source of truth**, guaranteed at compile time by TypeScript on both sides of the WebSocket.
 
-### Contenu
+### Contents
 
-| Fichier | Contenu |
+| File | Contents |
 |---|---|
-| `types.ts` | Interfaces et types (`Card`, `Player`, `Action`, `GameState`, messages WebSocket…) |
-| `board-config.ts` | Positions du plateau : cases affichées, chemin principal, homes, starts, arrivées. Helpers : `getStartPosition()`, `hasWon()`, etc. |
-| `move-validator.ts` | Validation des mouvements légaux — partagée pour feedback immédiat côté client et vérification autoritaire côté serveur. |
-| `constants.ts` | Durées d'animation, durée du tour, config d'affichage, règles (`ENTER_CARDS`, `CARDS_PER_HAND`…) |
-| `index.ts` | Barrel export — importer toujours depuis `@mercury/shared` |
+| `types.ts` | Interfaces and types (`Card`, `Player`, `Action`, `GameState`, WebSocket messages…) |
+| `board-config.ts` | Board positions: displayed cells, main path, homes, starts, finish lines. Helpers: `getStartPosition()`, `hasWon()`, etc. |
+| `move-validator.ts` | Legal move validation — shared for immediate client-side feedback and authoritative server-side verification. |
+| `constants.ts` | Animation durations, turn duration, display config, rules (`ENTER_CARDS`, `CARDS_PER_HAND`…) |
+| `index.ts` | Barrel export — always import from `@mercury/shared` |
 
 ---
 
-## Agent IA externe — complétion automatique du matchmaking
+## External AI agent — automatic matchmaking completion
 
-Mercury est un jeu **à quatre joueurs obligatoires**. Pour éviter qu'un joueur seul dans la file d'attente publique attende indéfiniment qu'un humain le rejoigne, le matchmaking fait appel à un **service d'agents IA externes** déployé séparément, qui rejoignent la file pour compléter la partie.
+Mercury is a game that **requires exactly four players**. To prevent a lone player in the public queue from waiting indefinitely for a human to join, matchmaking relies on an **external AI agent service** deployed separately, which joins the queue to complete the game.
 
 ### Architecture
 
-L'agent IA vit dans un **projet séparé**, déployé comme un service indépendant. Il est entraîné à partir d'un **LLM** et joue au Tock comme un véritable joueur connecté en WebSocket — il reçoit les mêmes messages, joue ses cartes, et abandonne la partie comme un humain. Pour le moteur de jeu, **un bot est strictement indistinguable d'un humain**.
+The AI agent lives in a **separate project**, deployed as an independent service. It is trained on top of an **LLM** and plays Tock like a genuine WebSocket-connected player — it receives the same messages, plays its cards, and forfeits the game like a human would. From the game engine's perspective, **a bot is strictly indistinguishable from a human**.
 
 ```
 ┌──────────────┐         HTTP POST /dispatch          ┌────────────────────┐
-│  Mercury     │ ───────────────────────────────────▶ │  Agent IA service  │
-│  backend     │      (X-Bot-Secret, body: {})        │  (projet séparé,   │
+│  Mercury     │ ───────────────────────────────────▶ │  AI agent service  │
+│  backend     │      (X-Bot-Secret, body: {})        │  (separate project,│
 │              │ ◀─────────────────────────────────── │   LLM-driven)      │
-│ matchmaking- │      200 OK / 503 (occupé)           └──────────┬─────────┘
+│ matchmaking- │      200 OK / 503 (busy)              └──────────┬─────────┘
 │ manager.ts   │                                                 │
-│              │                                                 │ se connecte
+│              │                                                 │ connects
 │              │ ◀──── WebSocket join (bot userId) ──────────────┘
 └──────────────┘
 ```
 
-- **Découplage total** : le backend Mercury ne sait rien des modèles, prompts ou pondérations utilisés. Il connaît uniquement un endpoint HTTP `POST /dispatch` et un secret partagé.
-- **Authentification** : header `X-Bot-Secret` pour empêcher tout client non autorisé d'invoquer le pool de bots.
-- **Backpressure** : si tous les bots du pool sont déjà occupés sur d'autres parties, le service répond `503` — Mercury continue d'attendre et retentera.
-- **Scalabilité indépendante** : le service IA peut être scalé (nombre de bots concurrents) sans toucher au backend de jeu.
+- **Full decoupling**: the Mercury backend knows nothing about the models, prompts, or weights used. It only knows an `POST /dispatch` HTTP endpoint and a shared secret.
+- **Authentication**: `X-Bot-Secret` header to prevent any unauthorized client from invoking the bot pool.
+- **Backpressure**: if all bots in the pool are already busy on other games, the service responds `503` — Mercury keeps waiting and retries later.
+- **Independent scalability**: the AI service can be scaled (number of concurrent bots) without touching the game backend.
 
-### Algorithme de dispatch (probabiliste, croissant)
+### Dispatch algorithm (probabilistic, increasing)
 
-Implémenté dans [backend/src/session/matchmaking-manager.ts](backend/src/session/matchmaking-manager.ts) :
+Implemented in [backend/src/session/matchmaking-manager.ts](backend/src/session/matchmaking-manager.ts):
 
-- Tant qu'**au moins un humain** attend dans la file (et que la partie n'est pas pleine), un tick d'1 seconde évalue s'il faut invoquer l'agent.
-- À chaque tick la probabilité de dispatch **augmente de +1 %** (`BOT_DISPATCH_CHANCE_STEP`).
-- Quand un dispatch est déclenché, la probabilité est **divisée par 2**, puis recommence à monter.
+- As long as **at least one human** is waiting in the queue (and the game isn't full), a 1-second tick evaluates whether to invoke the agent.
+- On each tick, the dispatch probability **increases by +1%** (`BOT_DISPATCH_CHANCE_STEP`).
+- When a dispatch is triggered, the probability is **halved**, then starts climbing again.
 
-Conséquence : un joueur seul est très probablement rejoint par un bot dans la première minute, mais si plusieurs humains arrivent en rafale, les bots ne se précipitent pas — le système **laisse sa chance à une partie 100 % humaine** sans jamais laisser un joueur poireauter.
+Result: a lone player is very likely joined by a bot within the first minute, but if several humans arrive in a burst, the bots don't rush in — the system **gives an all-human game a chance** without ever leaving a player hanging.
 
 ### Configuration
 
 ```bash
-AGENT_URL=https://agent-service.example.com   # endpoint du service IA
-BOT_SECRET=<shared-secret>                    # auth du dispatch
+AGENT_URL=https://agent-service.example.com   # AI service endpoint
+BOT_SECRET=<shared-secret>                    # dispatch auth
 ```
 
-Si l'une des deux manque, le dispatch est désactivé (le backend log un warning, la partie continue normalement et attend des humains).
+If either is missing, dispatch is disabled (the backend logs a warning, the game continues normally and waits for humans).
 
-### Authentification WebSocket des bots
+### Bot WebSocket authentication
 
-Depuis que la couche WebSocket authentifie l'identité des joueurs, un `userId` envoyé
-par le client n'est **plus jamais accepté tel quel**. Le flux côté agent IA est :
+Since the WebSocket layer authenticates player identity, a `userId` sent
+by the client is **no longer ever accepted as-is**. The flow on the AI agent side is:
 
-1. `POST /api/auth/bot` avec `{ secret, botId }` → la réponse contient désormais un
-   champ **`sessionToken`** (JWT signé par le backend).
-2. Le bot inclut ce token dans son message de join : `{ type: 'joinMatchmaking',
-   authToken: <sessionToken>, … }` — le serveur en dérive le `userId` vérifié.
+1. `POST /api/auth/bot` with `{ secret, botId }` → the response now contains a
+   **`sessionToken`** field (a JWT signed by the backend).
+2. The bot includes this token in its join message: `{ type: 'joinMatchmaking',
+   authToken: <sessionToken>, … }` — the server derives the verified `userId` from it.
 
-Un agent qui omet `authToken` rejoint la file **en invité** (sans compte, sans points) :
-le matchmaking ne le reconnaîtra pas comme bot (`BOT_USER_IDS`), ce qui peut entraîner
-des dispatchs supplémentaires. Mettre à jour le service d'agents en conséquence.
+A bot that omits `authToken` joins the queue **as a guest** (no account, no points):
+matchmaking won't recognize it as a bot (`BOT_USER_IDS`), which may trigger
+extra dispatches. Update the agent service accordingly.
 
 ---
 
-## Installation et démarrage
+## Installation and setup
 
-### Prérequis
+### Requirements
 
 - Node.js ≥ 18
 - npm ≥ 8 (workspaces)
-- Azure Cosmos DB (pour la persistance des utilisateurs, points, leaderboard) — ou l'émulateur Cosmos local via `COSMOS_CONNECTION_STRING_LOCAL`
+- Azure Cosmos DB (for user, points, and leaderboard persistence) — or the local Cosmos emulator via `COSMOS_CONNECTION_STRING_LOCAL`
 
 ### Installation
 
 ```bash
-# À la racine — installe toutes les dépendances (shared + backend + frontend)
+# From the repo root — installs all dependencies (shared + backend + frontend)
 npm install
 
-# Puis créer le fichier .env à la racine à partir du modèle
-cp .env.example .env   # et remplir les valeurs
+# Then create the .env file at the root from the template
+cp .env.example .env   # and fill in the values
 ```
 
-### Variables d'environnement
+### Environment variables
 
-| Variable | Obligatoire | Description |
+| Variable | Required | Description |
 |---|---|---|
-| `GOOGLE_AUDIENCE_WEB` | oui | Client ID OAuth Google (web) |
-| `GOOGLE_AUDIENCE_ANDROID` | oui | Client ID OAuth Google (Android) |
-| `COSMOS_CONNECTION_STRING` | prod | Chaîne de connexion Azure Cosmos DB |
-| `COSMOS_CONNECTION_STRING_LOCAL` | dev | Émulateur Cosmos local |
-| `SESSION_JWT_SECRET` | oui | Secret HS256 pour les session tokens (≥ 32 chars) |
-| `AZURE_STORAGE_CONNECTION_STRING` | oui | Azure Blob Storage (avatars) |
-| `AVATARS_CONTAINER` | non | Nom du container blob (défaut : `avatars`) |
-| `BOT_SECRET` | non | Secret partagé avec le service d'agents IA |
-| `AGENT_URL` | non | Endpoint du service d'agents IA — vide = dispatch désactivé |
-| `ALLOWED_ORIGINS` | prod | Origines CORS autorisées, séparées par des virgules |
-| `DEBUG` | non | `true` = active les routes de test et le joinMatchmaking debug vs 3 bots locaux |
-| `TRAIN_MODE` | non | `true` = self-play sans dispatch d'agents externes |
-| `LATEST_VERSION_CODE` | non | Surcharge `versionCode` sans redéploiement |
-| `LATEST_VERSION_NAME` | non | Surcharge `versionName` sans redéploiement |
-| `MIN_VERSION_CODE` | non | Code minimum avant mise à jour forcée (usage futur) |
-| `STORE_URL` | non | URL du Play Store affichée dans la popup de mise à jour |
-| `WORKER_USERNAME` | non | Identifiants compte staff (revue Google Play) |
-| `WORKER_PASSWORD` | non | Identifiants compte staff (revue Google Play) |
+| `GOOGLE_AUDIENCE_WEB` | yes | Google OAuth Client ID (web) |
+| `GOOGLE_AUDIENCE_ANDROID` | yes | Google OAuth Client ID (Android) |
+| `COSMOS_CONNECTION_STRING` | prod | Azure Cosmos DB connection string |
+| `COSMOS_CONNECTION_STRING_LOCAL` | dev | Local Cosmos emulator |
+| `SESSION_JWT_SECRET` | yes | HS256 secret for session tokens (≥ 32 chars) |
+| `AZURE_STORAGE_CONNECTION_STRING` | yes | Azure Blob Storage (avatars) |
+| `AVATARS_CONTAINER` | no | Blob container name (default: `avatars`) |
+| `BOT_SECRET` | no | Shared secret with the AI agent service |
+| `AGENT_URL` | no | AI agent service endpoint — empty = dispatch disabled |
+| `ALLOWED_ORIGINS` | prod | Allowed CORS origins, comma-separated |
+| `DEBUG` | no | `true` = enables test routes and debug joinMatchmaking vs 3 local bots |
+| `TRAIN_MODE` | no | `true` = self-play without dispatching external agents |
+| `LATEST_VERSION_CODE` | no | Overrides `versionCode` without redeploying |
+| `LATEST_VERSION_NAME` | no | Overrides `versionName` without redeploying |
+| `MIN_VERSION_CODE` | no | Minimum code before forced update (future use) |
+| `STORE_URL` | no | Play Store URL shown in the update popup |
+| `WORKER_USERNAME` | no | Staff account credentials (Google Play review) |
+| `WORKER_PASSWORD` | no | Staff account credentials (Google Play review) |
 
-> **Production** : `ALLOWED_ORIGINS` doit lister l'URL du frontend déployé. Sans cette variable, seuls `localhost` (dev) et `capacitor://localhost` sont autorisés.
+> **Production**: `ALLOWED_ORIGINS` must list the deployed frontend's URL. Without this variable, only `localhost` (dev) and `capacitor://localhost` are allowed.
 
-### Build du package partagé
+### Building the shared package
 
-Le package partagé doit être **buildé avant** de démarrer le frontend ou le backend.
+The shared package must be **built before** starting the frontend or backend.
 
 ```bash
-# Build unique
+# One-off build
 npm run build:shared
 
-# Ou en mode watch (développement)
+# Or in watch mode (development)
 npm run build --workspace=packages/shared -- --watch
 ```
 
-### Démarrage
+### Running
 
 ```bash
-# Backend (port 3000 par défaut)
+# Backend (port 3000 by default)
 npm run dev:backend
 
-# Frontend (port 8100 par défaut, autre terminal)
+# Frontend (port 8100 by default, separate terminal)
 npm run dev:frontend
 ```
 
-### Build de production
+### Production build
 
 ```bash
 npm run build:all
@@ -166,60 +168,59 @@ npm run build:all
 
 ---
 
-## Release Android
+## Android release
 
-### 1. Incrémenter la version dans `build.gradle`
+### 1. Bump the version in `build.gradle`
 
-Ouvrir [`frontend/android/app/build.gradle`](frontend/android/app/build.gradle) et modifier le bloc `defaultConfig` :
+Open [`frontend/android/app/build.gradle`](frontend/android/app/build.gradle) and edit the `defaultConfig` block:
 
 ```groovy
 defaultConfig {
-    versionCode 11         // entier — incrémenter de 1 à chaque release
-    versionName "0.11"     // chaîne affichée dans le Play Store
+    versionCode 11         // integer — increment by 1 on each release
+    versionName "0.11"     // string shown in the Play Store
     …
 }
 ```
 
-> `versionCode` doit être **strictement supérieur** à celui de la version précédente sur le Play Store.
+> `versionCode` must be **strictly greater** than the previous version on the Play Store.
 
-### 2. Mettre à jour les valeurs dans le backend
+### 2. Update the values in the backend
 
-Ouvrir [`backend/src/version/version-router.ts`](backend/src/version/version-router.ts) et mettre à jour les constantes `LATEST_VERSION_CODE` et `LATEST_VERSION_NAME` pour qu'elles correspondent exactement aux valeurs du `build.gradle`.
+Open [`backend/src/version/version-router.ts`](backend/src/version/version-router.ts) and update the `LATEST_VERSION_CODE` and `LATEST_VERSION_NAME` constants so they exactly match the values in `build.gradle`.
 
-L'endpoint `GET /api/version` expose ces valeurs à l'app mobile, qui les compare à sa version embarquée pour détecter qu'une mise à jour est disponible.
+The `GET /api/version` endpoint exposes these values to the mobile app, which compares them against its embedded version to detect that an update is available.
 
-Ces constantes peuvent également être surchargées sans redéploiement via les **variables d'environnement** du backend :
+These constants can also be overridden without redeploying via the backend's **environment variables**:
 
 ```bash
 LATEST_VERSION_CODE=11
 LATEST_VERSION_NAME=0.11
 ```
 
-### 3. Construire le bundle de release
+### 3. Build the release bundle
 
-Depuis la racine du dépôt :
+From the repo root:
 
 ```bash
 cd frontend
-rm -rf www                          # purge l'ancien build Angular
+rm -rf www                          # purge the previous Angular build
 npm run build                       # build Angular → www/
-npx cap sync android                # synchronise www/ + plugins dans le projet Android
+npx cap sync android                # sync www/ + plugins into the Android project
 cd android
-./gradlew bundleRelease             # produit le .aab signé
+./gradlew bundleRelease             # produces the signed .aab
 ```
 
-> `www/` est le répertoire de sortie Angular consommé par Capacitor (défini par `webDir` dans [`frontend/capacitor.config.ts`](frontend/capacitor.config.ts)).
+> `www/` is the Angular output directory consumed by Capacitor (defined by `webDir` in [`frontend/capacitor.config.ts`](frontend/capacitor.config.ts)).
 
-### 4. Récupérer l'artefact et publier
+### 4. Retrieve the artifact and publish
 
-Le bundle généré se trouve dans :
+The generated bundle is located at:
 
 ```
 frontend/android/app/build/outputs/bundle/release/app-release.aab
 ```
 
-C'est ce fichier `.aab` qu'il faut uploader dans la **Google Play Console** (onglet *Production* → *Créer une version*).
+This `.aab` file is what you upload to the **Google Play Console** (*Production* tab → *Create release*).
 
 ---
-
 
