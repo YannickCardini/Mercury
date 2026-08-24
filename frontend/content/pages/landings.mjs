@@ -5,9 +5,14 @@
  * online", "Keezen online spelen", "Dog kostenlos spielen"), là où les pages
  * /rules/* répondent à une intention informationnelle. Les deux séries se
  * renvoient l'une vers l'autre dans chaque langue.
+ *
+ * Mise en page : à partir de ~960px, l'essentiel (titre, accroche, 4 points
+ * clés, CTA) tient dans la hauteur d'écran sans scroll — voir
+ * lib/landing-layout.mjs. Les tableaux et la FAQ complète restent sous le pli,
+ * inchangés : rien n'est retiré, seule la répartition change.
  */
 
-import { renderPage } from "../lib/layout.mjs";
+import { renderLandingPage } from "../lib/landing-layout.mjs";
 import {
   LANDING_CLUSTER,
   LANDING_PATH,
@@ -16,21 +21,7 @@ import {
   APP_PATH,
   PLAY_STORE_URL,
 } from "../lib/site.mjs";
-import { namesTable, vsTable, faqSection, ctaBlock } from "../lib/blocks.mjs";
-import { webSite, organization, videoGame, faqPage } from "../lib/schema.mjs";
-
-/**
- * Renvoie le visiteur revenant de Google OAuth vers l'app : le plugin renvoie
- * le jeton dans le fragment à la racine du site (voir auth.service.ts), or `/`
- * ne sert plus le SPA. Le fragment est préservé tel quel, AuthService le lit
- * ensuite à l'initialisation sur /home.
- */
-const OAUTH_FORWARD = `<script>
-    (function () {
-      var h = location.hash;
-      if (h && h.indexOf('id_token') !== -1) location.replace('${APP_PATH}' + h);
-    })();
-  </script>`;
+import { organization, webSite, videoGame, faqPage } from "../lib/schema.mjs";
 
 const CONTENT = {
   en: {
@@ -39,20 +30,26 @@ const CONTENT = {
       "Play Pegs and Jokers online free: the card and marble race game also called Tock, Keezen and Dog. 4 players, 2v2 teams, no download, no sign-up.",
     eyebrow: "Play online — free",
     h1: "Play Pegs and Jokers Online — Free, 4 Players, No Download",
+    playCta: "Play now",
+    resumeCta: "Resume your game →",
+    facts: {
+      players: "4 players, 2v2 teams by default",
+      free: "100% free, no sign-up",
+      platform: "Browser or Android",
+    },
+    highlights: [
+      { icon: "🂡", text: "Ace, King or Joker brings a marble into play" },
+      { icon: "🎯", text: "Land on a marble to send it back to start" },
+      { icon: "🤝", text: "2v2 teams: help your partner once you're home" },
+      { icon: "⚡", text: "No account needed — play as a guest right away" },
+    ],
     headings: {
-      how: "How a game works, in 30 seconds",
       names: "One game, four names",
       cards: "Cards instead of dice",
       free: "Free, no sign-up, browser or Android",
       faq: "Frequently asked questions",
     },
-    how: [
-      "Each of the 4 players has 4 marbles and is dealt 13 cards, in three deals of 5, 4 and 4.",
-      "An <strong>Ace</strong>, a <strong>King</strong> or a <strong>Joker</strong> brings a marble out of your starting box.",
-      "Every other card moves a marble forward by its value — except the <strong>4</strong>, which moves backwards, the <strong>7</strong>, which splits its steps between marbles, and the <strong>Jack</strong>, which swaps two marbles.",
-      "Landing on a marble sends it back to its starting box. Get all 4 of your marbles into your home lane to win.",
-    ],
-    howLink: "Read the full Pegs and Jokers rules",
+    moreLink: { path: RULES_PATH.en, text: "Read the full Pegs and Jokers rules" },
     namesIntro:
       "Tock, Keezen, Dog and Pegs and Jokers are four names for one and the same game. The board, the 54-card deck and the card effects are identical; only the name changes with the country. Mercury plays the same whichever name you know it by.",
     cardsIntro:
@@ -93,20 +90,26 @@ const CONTENT = {
       "Jouez au Tock (ou Toc) en ligne, gratuitement et à 4, en équipes 2 contre 2. Le jeu de société de cartes et de billes, sans inscription ni téléchargement.",
     eyebrow: "Jouer en ligne — gratuit",
     h1: "Jouer au Tock en ligne, gratuitement et à 4",
+    playCta: "Jouer maintenant",
+    resumeCta: "Reprendre la partie →",
+    facts: {
+      players: "4 joueurs, équipes 2v2 par défaut",
+      free: "100 % gratuit, sans inscription",
+      platform: "Navigateur ou Android",
+    },
+    highlights: [
+      { icon: "🂡", text: "As, Roi ou Joker fait entrer une bille en jeu" },
+      { icon: "🎯", text: "Atterrir sur une bille la renvoie au départ" },
+      { icon: "🤝", text: "Équipes 2v2 : aidez votre partenaire une fois arrivé" },
+      { icon: "⚡", text: "Sans inscription — jouez en invité tout de suite" },
+    ],
     headings: {
-      how: "Une partie en 30 secondes",
       names: "Un seul jeu, quatre noms",
       cards: "Des cartes à la place du dé",
       free: "Gratuit, sans inscription, sur navigateur ou Android",
       faq: "Questions fréquentes",
     },
-    how: [
-      "Chacun des 4 joueurs possède 4 billes et reçoit 13 cartes, distribuées en trois donnes de 5, 4 puis 4.",
-      "Un <strong>As</strong>, un <strong>Roi</strong> ou un <strong>Joker</strong> fait sortir une bille de sa case de départ.",
-      "Toutes les autres cartes avancent une bille de leur valeur — sauf le <strong>4</strong>, qui recule, le <strong>7</strong>, qui répartit ses pas entre plusieurs billes, et le <strong>Valet</strong>, qui échange deux billes.",
-      "Atterrir sur une bille la renvoie à sa case de départ. Amenez vos 4 billes dans votre maison pour gagner.",
-    ],
-    howLink: "Lire les règles complètes du Tock",
+    moreLink: { path: RULES_PATH.fr, text: "Lire les règles complètes du Tock" },
     namesIntro:
       "Tock, Keezen, Dog et Pegs and Jokers sont quatre noms d'un seul et même jeu. Le plateau, le jeu de 54 cartes et l'effet des cartes sont identiques ; seul le nom change selon le pays. Sur Mercury, on joue exactement au même jeu quel que soit le nom sous lequel vous le connaissez.",
     cardsIntro:
@@ -147,20 +150,26 @@ const CONTENT = {
       "Speel Keezen gratis online met 4 spelers, standaard 2 tegen 2. Het kaart- en knikkerspel in je browser of op Android, zonder account en zonder download.",
     eyebrow: "Online spelen — gratis",
     h1: "Keezen online spelen — gratis en met 4 spelers",
+    playCta: "Speel nu",
+    resumeCta: "Ga verder met je partij →",
+    facts: {
+      players: "4 spelers, standaard 2v2-teams",
+      free: "100% gratis, zonder account",
+      platform: "Browser of Android",
+    },
+    highlights: [
+      { icon: "🂡", text: "Aas, Heer of Joker zet een pion in" },
+      { icon: "🎯", text: "Land op een pion en die gaat terug naar start" },
+      { icon: "🤝", text: "2v2-teams: help je maatje zodra jij thuis bent" },
+      { icon: "⚡", text: "Geen account nodig — speel meteen als gast" },
+    ],
     headings: {
-      how: "Een partij in 30 seconden",
       names: "Eén spel, vier namen",
       cards: "Kaarten in plaats van een dobbelsteen",
       free: "Gratis, zonder account, in je browser of op Android",
       faq: "Veelgestelde vragen",
     },
-    how: [
-      "Elk van de 4 spelers heeft 4 pionnen en krijgt 13 kaarten, verdeeld over drie rondes van 5, 4 en 4.",
-      "Met een <strong>Aas</strong>, een <strong>Heer</strong> of een <strong>Joker</strong> zet je een pion vanaf je startvak in.",
-      "Alle andere kaarten zetten een pion het aantal vakken vooruit dat erop staat — behalve de <strong>4</strong>, die achteruit gaat, de <strong>7</strong>, die je over meerdere pionnen verdeelt, en de <strong>Boer</strong>, die twee pionnen wisselt.",
-      "Land je op een pion, dan gaat die terug naar zijn startvak. Breng al je 4 pionnen thuis om te winnen.",
-    ],
-    howLink: "Lees de volledige Keezen spelregels",
+    moreLink: { path: RULES_PATH.nl, text: "Lees de volledige Keezen spelregels" },
     namesIntro:
       "Tock, Keezen, Dog en Pegs and Jokers zijn vier namen voor één en hetzelfde spel. Het bord, het spel van 54 kaarten en de werking van de kaarten zijn identiek; alleen de naam verschilt per land. Op Mercury speel je hetzelfde spel, onder welke naam je het ook kent.",
     cardsIntro:
@@ -201,20 +210,26 @@ const CONTENT = {
       "Spielt Dog kostenlos online zu viert, standardmäßig 2 gegen 2. Das Karten- und Murmelspiel im Browser oder auf Android, ohne Anmeldung und ohne Download.",
     eyebrow: "Online spielen — kostenlos",
     h1: "Dog online spielen — kostenlos und zu viert",
+    playCta: "Jetzt spielen",
+    resumeCta: "Partie fortsetzen →",
+    facts: {
+      players: "4 Spieler, standardmäßig 2v2-Teams",
+      free: "100% kostenlos, ohne Anmeldung",
+      platform: "Browser oder Android",
+    },
+    highlights: [
+      { icon: "🂡", text: "Ass, König oder Joker setzt eine Murmel ein" },
+      { icon: "🎯", text: "Landen auf einer Murmel schickt sie zurück zum Start" },
+      { icon: "🤝", text: "2v2-Teams: helft eurem Partner, sobald ihr im Ziel seid" },
+      { icon: "⚡", text: "Kein Konto nötig — sofort als Gast spielen" },
+    ],
     headings: {
-      how: "Eine Partie in 30 Sekunden",
       names: "Ein Spiel, vier Namen",
       cards: "Karten statt Würfel",
       free: "Kostenlos, ohne Anmeldung, im Browser oder auf Android",
       faq: "Häufig gestellte Fragen",
     },
-    how: [
-      "Jeder der 4 Spieler hat 4 Murmeln und erhält 13 Karten, verteilt auf drei Runden zu 5, 4 und 4 Karten.",
-      "Mit einem <strong>Ass</strong>, einem <strong>König</strong> oder einem <strong>Joker</strong> setzt ihr eine Murmel auf euer Startfeld.",
-      "Alle anderen Karten ziehen eine Murmel um ihren Wert vorwärts — außer der <strong>4</strong>, die rückwärts zieht, der <strong>7</strong>, deren Schritte ihr aufteilen dürft, und dem <strong>Buben</strong>, der zwei Murmeln tauscht.",
-      "Landet ihr auf einer Murmel, geht diese zurück auf ihr Startfeld. Wer alle 4 eigenen Murmeln ins Ziel bringt, gewinnt.",
-    ],
-    howLink: "Die vollständigen Dog-Spielregeln lesen",
+    moreLink: { path: RULES_PATH.de, text: "Die vollständigen Dog-Spielregeln lesen" },
     namesIntro:
       "Tock, Keezen, Dog und Pegs and Jokers sind vier Namen für ein und dasselbe Spiel. Spielfeld, das Blatt aus 54 Karten und die Wirkung der Karten sind identisch; nur der Name wechselt mit dem Land. Auf Mercury spielt ihr dasselbe Spiel, unter welchem Namen ihr es auch kennt.",
     cardsIntro:
@@ -254,50 +269,13 @@ function renderLanding(lang) {
   const c = CONTENT[lang];
   const h = c.headings;
 
-  const body = `${ctaBlock(lang)}
-
-      <section class="rp-section">
-        <h2>${h.how}</h2>
-        <ul>
-          ${c.how.map((li) => `<li>${li}</li>`).join("\n          ")}
-        </ul>
-        <p><a href="${RULES_PATH[lang]}">${c.howLink} →</a></p>
-      </section>
-
-      <section class="rp-section">
-        <h2>${h.names}</h2>
-        <p>${c.namesIntro}</p>
-        <div class="rp-table-scroll">${namesTable(lang)}</div>
-      </section>
-
-      <section class="rp-section">
-        <h2>${h.cards}</h2>
-        <p>${c.cardsIntro}</p>
-        <div class="rp-table-scroll">${vsTable(lang)}</div>
-      </section>
-
-      <section class="rp-section">
-        <h2>${h.free}</h2>
-        <ul>
-          ${c.free.map((li) => `<li>${li}</li>`).join("\n          ")}
-        </ul>
-      </section>
-
-      <section class="rp-section">
-        <h2>${h.faq}</h2>
-        ${faqSection(c.faq)}
-      </section>
-
-      ${ctaBlock(lang)}`;
-
-  return renderPage({
+  return renderLandingPage({
     lang,
     path: LANDING_PATH[lang],
     title: c.title,
     description: c.description,
     cluster: LANDING_CLUSTER,
-    ogType: "website",
-    headScripts: lang === "en" ? OAUTH_FORWARD : "",
+    appPath: APP_PATH,
     jsonLd:
       lang === "en"
         ? [organization(), webSite(), videoGame(lang), faqPage(c.faq)]
@@ -305,7 +283,20 @@ function renderLanding(lang) {
     eyebrow: c.eyebrow,
     h1: c.h1,
     lede: ENTITY_SENTENCE[lang],
-    body,
+    highlights: c.highlights,
+    playCta: c.playCta,
+    resumeCta: c.resumeCta,
+    moreLink: c.moreLink,
+    names: { heading: h.names, intro: c.namesIntro },
+    compare: { heading: h.cards, intro: c.cardsIntro },
+    faq: { heading: h.faq, items: c.faq },
+    free: {
+      heading: h.free,
+      items: c.free,
+      factPlayers: c.facts.players,
+      factFree: c.facts.free,
+      factPlatform: c.facts.platform,
+    },
   });
 }
 

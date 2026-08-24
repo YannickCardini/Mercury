@@ -404,3 +404,286 @@ strong {
     padding: 16px 10px 40px;
   }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Landings « jouer » (/ /fr/ /nl/ /de/) — mise en page à part, préfixe hp-.
+   ≥960px : tout tient dans la hauteur d'écran (hp-fold), footer sous le pli.
+   <960px : une colonne empilée, scroll normal — Mercury a une appli Android,
+   c'est le point d'entrée mobile le plus fréquent, la mise en page à 2
+   colonnes n'a pas de sens sur un écran étroit.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.hp-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.hp-fold {
+  display: flex;
+  flex-direction: column;
+  min-height: 100svh;
+  padding: 20px 16px 12px;
+}
+
+.hp-inner {
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.hp-topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.hp-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.hp-main {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  padding: 26px 28px;
+}
+
+.hp-title {
+  margin: 0 0 12px;
+  font-size: 27px;
+  font-weight: 800;
+  color: var(--heading);
+  line-height: 1.2;
+}
+
+.hp-lede {
+  margin: 0 0 18px;
+  font-size: 15.5px;
+  max-width: 62ch;
+}
+
+.hp-highlights {
+  list-style: none;
+  margin: 0 0 6px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px 18px;
+}
+
+.hp-highlight {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
+.hp-hl-icon {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(79, 140, 255, 0.14);
+  font-size: 14px;
+}
+
+.hp-more {
+  margin: 16px 0 0;
+  font-size: 13px;
+}
+
+.hp-side {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.hp-play-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 6px;
+  padding: 26px 20px;
+  border-radius: 18px;
+  background: linear-gradient(160deg, rgba(45, 212, 160, 0.22), rgba(45, 212, 160, 0.06));
+  border: 1px solid rgba(45, 212, 160, 0.35);
+  text-decoration: none;
+  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+}
+
+.hp-play-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(45, 212, 160, 0.2);
+  border-color: rgba(45, 212, 160, 0.55);
+}
+
+.hp-play-badge {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--c-earth);
+  color: #06251c;
+  margin-bottom: 4px;
+}
+
+.hp-play-badge svg {
+  width: 24px;
+  height: 24px;
+}
+
+.hp-play-text {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--heading);
+}
+
+.hp-play-sub {
+  font-size: 12px;
+  color: var(--c-moon);
+}
+
+.hp-facts {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 16px 18px;
+}
+
+.hp-marbles {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.hp-marble {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  box-shadow: inset -2px -2px 3px rgba(0, 0, 0, 0.25), inset 2px 2px 3px rgba(255, 255, 255, 0.3);
+}
+
+.hp-marble--red {
+  background: #ef4444;
+}
+
+.hp-marble--blue {
+  background: var(--c-neptune);
+}
+
+.hp-marble--green {
+  background: var(--c-earth);
+}
+
+.hp-marble--orange {
+  background: #f0a850;
+}
+
+.hp-facts-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 12.5px;
+  color: var(--c-moon);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hp-scroll-hint {
+  display: flex;
+  justify-content: center;
+  padding-top: 10px;
+  color: var(--c-moon);
+  opacity: 0.5;
+  animation: hp-bounce 2.2s ease-in-out infinite;
+}
+
+.hp-scroll-hint svg {
+  width: 20px;
+  height: 20px;
+}
+
+@keyframes hp-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(5px); }
+}
+
+.hp-below {
+  display: flex;
+  justify-content: center;
+  padding: 8px 16px 56px;
+}
+
+.hp-below-inner {
+  width: 100%;
+  max-width: 760px;
+}
+
+@media (min-width: 960px) {
+  .hp-grid {
+    flex-direction: row;
+    align-items: stretch;
+  }
+
+  .hp-main {
+    flex: 3;
+  }
+
+  .hp-side {
+    flex: 1;
+    min-width: 240px;
+    justify-content: space-between;
+  }
+
+  .hp-title {
+    font-size: 32px;
+  }
+
+  .hp-lede {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 959px) {
+  .hp-scroll-hint {
+    display: none;
+  }
+
+  .hp-fold {
+    min-height: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .hp-highlights {
+    grid-template-columns: 1fr;
+  }
+
+  .hp-main {
+    padding: 20px 18px;
+  }
+
+  .hp-title {
+    font-size: 24px;
+  }
+}
