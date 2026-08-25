@@ -28,8 +28,7 @@ const CONTENT = {
     title: "Play Pegs and Jokers Online Free — Tock, Keezen & Dog | Mercury",
     description:
       "Play Pegs and Jokers online free: the card and marble race game also called Tock, Keezen and Dog. 4 players, 2v2 teams, no download, no sign-up.",
-    eyebrow: "Play online — free",
-    h1: "Play Pegs and Jokers Online — Free, 4 Players, No Download",
+    h1: "Play Pegs and Jokers Online Free, 4 Players, No Download",
     playCta: "Play now",
     resumeCta: "Resume your game →",
     facts: {
@@ -88,7 +87,6 @@ const CONTENT = {
     title: "Jouer au Tock en ligne gratuitement — jeu de société | Mercury",
     description:
       "Jouez au Tock (ou Toc) en ligne, gratuitement et à 4, en équipes 2 contre 2. Le jeu de société de cartes et de billes, sans inscription ni téléchargement.",
-    eyebrow: "Jouer en ligne — gratuit",
     h1: "Jouer au Tock en ligne, gratuitement et à 4",
     playCta: "Jouer maintenant",
     resumeCta: "Reprendre la partie →",
@@ -148,8 +146,7 @@ const CONTENT = {
     title: "Keezen online spelen — gratis, met 4 spelers | Mercury",
     description:
       "Speel Keezen gratis online met 4 spelers, standaard 2 tegen 2. Het kaart- en knikkerspel in je browser of op Android, zonder account en zonder download.",
-    eyebrow: "Online spelen — gratis",
-    h1: "Keezen online spelen — gratis en met 4 spelers",
+    h1: "Keezen online spelen gratis en met 4 spelers",
     playCta: "Speel nu",
     resumeCta: "Ga verder met je partij →",
     facts: {
@@ -208,8 +205,7 @@ const CONTENT = {
     title: "Dog online spielen — kostenlos, zu viert | Mercury",
     description:
       "Spielt Dog kostenlos online zu viert, standardmäßig 2 gegen 2. Das Karten- und Murmelspiel im Browser oder auf Android, ohne Anmeldung und ohne Download.",
-    eyebrow: "Online spielen — kostenlos",
-    h1: "Dog online spielen — kostenlos und zu viert",
+    h1: "Dog online spielen kostenlos und zu viert",
     playCta: "Jetzt spielen",
     resumeCta: "Partie fortsetzen →",
     facts: {
@@ -280,7 +276,6 @@ function renderLanding(lang) {
       lang === "en"
         ? [organization(), webSite(), videoGame(lang), faqPage(c.faq)]
         : [videoGame(lang), faqPage(c.faq)],
-    eyebrow: c.eyebrow,
     h1: c.h1,
     lede: ENTITY_SENTENCE[lang],
     highlights: c.highlights,

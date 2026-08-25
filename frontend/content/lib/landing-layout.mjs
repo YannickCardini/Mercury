@@ -44,12 +44,6 @@ const PREVIEW_VIDEO_URL = "https://mercurystockage.blob.core.windows.net/media/p
 /** Triangle « lecture » du bouton principal. */
 const PLAY_ICON = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.2a1 1 0 0 1 1.53-.85l9 6.8a1 1 0 0 1 0 1.7l-9 6.8A1 1 0 0 1 8 18.8V5.2Z"/></svg>`;
 
-/**
- * Robot Android, dessiné à la main : demi-disque + deux antennes + deux yeux
- * évidés. Quelques centaines d'octets, contre une image à télécharger.
- */
-const ANDROID_ICON = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.4 7.6 5.9 4.9M16.6 7.6 18.1 4.9" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" fill="none"/><path d="M4 13.6a8 8 0 0 1 16 0Z" fill="currentColor"/><circle cx="9" cy="10.2" r="1" fill="#0d1730"/><circle cx="15" cy="10.2" r="1" fill="#0d1730"/></svg>`;
-
 const DOWNLOAD_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg>`;
 
 const CSS = readFileSync(
@@ -101,7 +95,6 @@ export function renderLandingPage({
   cluster,
   jsonLd = [],
   appPath,
-  eyebrow,
   h1,
   lede,
   /** [{ icon, text }] — 4 points clés affichés au-dessus du pli. */
@@ -183,7 +176,6 @@ export function renderLandingPage({
     <div class="hp-inner">
       <div class="hp-grid">
         <section class="hp-main">
-          <span class="hp-eyebrow">${eyebrow}</span>
           <h1 class="hp-title">${h1}</h1>
           <p class="hp-lede">${lede}</p>
 
@@ -197,7 +189,7 @@ export function renderLandingPage({
         <aside class="hp-side">
           <a class="hp-play-card" href="${appPath}">
             <span class="hp-play-thumb" aria-hidden="true">
-              <img class="hp-play-logo" src="${LOGO_PATH}" alt="" width="104" height="104" />
+              <span class="hp-play-spinner"></span>
               <video id="hp-play-video" class="hp-play-video" muted loop playsinline preload="none" data-src="${PREVIEW_VIDEO_URL}"></video>
               <span class="hp-play-badge">${PLAY_ICON}</span>
             </span>
@@ -208,7 +200,7 @@ export function renderLandingPage({
           </a>
 
           <a class="hp-store" href="${PLAY_STORE_URL}" rel="noopener">
-            <span class="hp-store-icon" aria-hidden="true">${ANDROID_ICON}</span>
+            <span class="hp-store-icon" aria-hidden="true"><img src="${LOGO_PATH}" alt="" width="24" height="24" /></span>
             <span class="hp-store-text">
               <span class="hp-store-label">${t.androidCta}</span>
               <span class="hp-store-sub">${t.androidSub}</span>
