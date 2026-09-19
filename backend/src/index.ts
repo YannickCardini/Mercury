@@ -16,8 +16,21 @@ import { MultiWsMessenger, wsSend } from './game/game-messenger.js';
 import authRouter, { verifyAuth } from './auth/auth-router.js';
 import messagesRouter from './messages/messages-router.js';
 import versionRouter from './version/version-router.js';
+import { touchLastSeen } from './db.js';
 
 const DEBUG = process.env['DEBUG'] === 'true';
+
+/**
+ * Horodate l'activité du joueur connecté ("Last seen" du profil). Fire-and-forget :
+ * une panne Cosmos ne doit jamais faire échouer un handshake WS ou une reprise de
+ * partie. Sans effet pour les invités, qui n'ont pas de document utilisateur.
+ */
+function markSeen(userId: string | undefined): void {
+    if (!userId) return;
+    void touchLastSeen(userId).catch((err: unknown) => {
+        console.error('⚠️ touchLastSeen a échoué:', err);
+    });
+}
 
 
 // ─── Origines autorisées (CORS + WebSocket) ───────────────────────────────────
@@ -80,6 +93,8 @@ app.get('/api/active-game', async (req: Request, res: Response) => {
         res.status(401).json({ error: 'Unauthorized' });
         return;
     }
+
+    markSeen(userId);
 
     const active = sessionManager.reconnect.getActiveGameForUser(userId);
     if (!active || !GameRegistry.get(active.gameId)) {
@@ -200,6 +215,7 @@ async function handleSetupMessage(ws: WebSocket, msg: ClientMessage): Promise<vo
                 // L'identité signed-in vient exclusivement du token vérifié :
                 // un userId forgé par le client n'est jamais pris en compte.
                 const userId = (await verifyAuth(msg.authToken)) ?? undefined;
+                markSeen(userId);
                 if (DEBUG && msg.debug === true) {
                     sessionManager.startDebugGameVsBots(ws, msg.playerName, userId, msg.picture);
                 } else {
@@ -210,6 +226,7 @@ async function handleSetupMessage(ws: WebSocket, msg: ClientMessage): Promise<vo
 
             case 'createCustomRoom': {
                 const userId = (await verifyAuth(msg.authToken)) ?? undefined;
+                markSeen(userId);
                 sessionManager.createCustomRoom(ws, {
                     playerName: msg.playerName,
                     ...(msg.browserId ? { browserId: msg.browserId } : {}),
@@ -221,6 +238,7 @@ async function handleSetupMessage(ws: WebSocket, msg: ClientMessage): Promise<vo
 
             case 'joinCustomRoom': {
                 const userId = (await verifyAuth(msg.authToken)) ?? undefined;
+                markSeen(userId);
                 sessionManager.joinCustomRoom(ws, msg.code, {
                     playerName: msg.playerName,
                     ...(msg.browserId ? { browserId: msg.browserId } : {}),
@@ -233,6 +251,7 @@ async function handleSetupMessage(ws: WebSocket, msg: ClientMessage): Promise<vo
             case 'registerPresence': {
                 const userId = await verifyAuth(msg.authToken);
                 if (!userId) return; // présence réservée aux comptes authentifiés
+                markSeen(userId);
                 sessionManager.registerPresence(ws, userId);
                 break;
             }
@@ -254,6 +273,10 @@ async function handleSetupMessage(ws: WebSocket, msg: ClientMessage): Promise<vo
                     // expired — the server-side registry vouches for them.
                     const ok = messenger.reconnect(identity.color, ws, !!identity.userId);
                     if (ok) {
+                        // Pas de token sur ce message : l'identité vient du
+                        // ReconnectRegistry, qui l'a enregistrée depuis un token
+                        // vérifié au moment du join. Elle fait donc foi.
+                        markSeen(identity.userId);
                         game.resendStateToPlayer(identity.color);
                         console.log(`🔄 Reconnection réussie pour ${identity.color} (game ${identity.gameId})`);
                     } else {

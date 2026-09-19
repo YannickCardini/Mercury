@@ -20,7 +20,7 @@ interface ProfileResponse {
   points: number;
   ranking: number;
   createdAt: string;
-  lastLogin: string;
+  lastSeenAt: string;
 }
 
 @Component({

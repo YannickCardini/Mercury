@@ -2,6 +2,7 @@ import { Router, type Request, type Response, type NextFunction } from 'express'
 import { OAuth2Client } from 'google-auth-library';
 import { createHash, timingSafeEqual } from 'crypto';
 import multer, { MulterError } from 'multer';
+import type { PatchOperation } from '@azure/cosmos';
 import { getUsersContainer } from '../db.js';
 import { processToWebp, uploadAvatarWebp } from '../storage/blob.js';
 import { signSessionToken, verifySessionToken } from './session-token.js';
@@ -61,6 +62,9 @@ interface UserDoc {
     points: number;
     ranking: number;
     lastLogin: string;
+    /** Dernière activité authentifiée (cf. touchLastSeen). Absent des documents
+     *  créés avant son introduction, d'où l'optionnalité. */
+    lastSeenAt?: string;
     createdAt: string;
 }
 
@@ -99,12 +103,17 @@ router.post('/google', async (req: Request, res: Response) => {
         const container = await getUsersContainer();
 
         try {
-            const { resource } = await container.item(userId, userId).read<UserDoc>();
+            // Utilisateur existant → mise à jour lastLogin/lastSeenAt.
+            // `patch` plutôt que read + `replace` : un replace réécrirait tout le
+            // document depuis un instantané, et écraserait au passage les points
+            // ou le ranking qu'un patch concurrent (fin de partie,
+            // recomputeRankings) aurait posés entre-temps.
+            const ops: PatchOperation[] = [
+                { op: 'set', path: '/lastLogin', value: now },
+                { op: 'set', path: '/lastSeenAt', value: now },
+            ];
+            const { resource } = await container.item(userId, userId).patch<UserDoc>(ops);
             if (!resource) throw Object.assign(new Error('Not found'), { code: 404 });
-
-            // Utilisateur existant → mise à jour lastLogin
-            resource.lastLogin = now;
-            await container.item(userId, userId).replace(resource);
             user = resource;
         } catch (err: unknown) {
             const code = (err as { code?: number }).code;
@@ -119,6 +128,7 @@ router.post('/google', async (req: Request, res: Response) => {
                 points: 0,
                 ranking: 0,
                 lastLogin: now,
+                lastSeenAt: now,
                 createdAt: now,
             };
             await container.items.create(user);
@@ -188,16 +198,30 @@ router.patch('/user/:id', async (req: Request, res: Response) => {
 
     try {
         const container = await getUsersContainer();
-        const { resource } = await container.item(id, id).read<UserDoc>();
+        // Patch ciblé : ne touche que les champs modifiés, sans réécrire
+        // points/ranking depuis un instantané potentiellement périmé.
+        const ops: PatchOperation[] = [];
+        if (name !== undefined) ops.push({ op: 'set', path: '/name', value: name });
+        if (picture !== undefined) ops.push({ op: 'set', path: '/picture', value: picture });
+
+        let resource: UserDoc | undefined;
+        if (ops.length === 0) {
+            // Rien à modifier : on renvoie simplement le profil courant.
+            const result = await container.item(id, id).read<UserDoc>();
+            resource = result.resource;
+        } else {
+            try {
+                const result = await container.item(id, id).patch<UserDoc>(ops);
+                resource = result.resource;
+            } catch (err: unknown) {
+                if ((err as { code?: number }).code !== 404) throw err;
+            }
+        }
         if (!resource) {
             res.status(404).json({ error: 'User not found' });
             return;
         }
 
-        if (name !== undefined) resource.name = name;
-        if (picture !== undefined) resource.picture = picture;
-
-        await container.item(id, id).replace(resource);
         res.json({
             id: resource.id,
             email: resource.email,
@@ -248,14 +272,19 @@ router.post('/user/:id/picture', avatarUpload.single('file'), async (req: Reques
         const pictureUrl = `${baseUrl}?v=${Date.now()}`;
 
         const container = await getUsersContainer();
-        const { resource } = await container.item(id, id).read<UserDoc>();
+        const ops: PatchOperation[] = [{ op: 'set', path: '/picture', value: pictureUrl }];
+        let resource: UserDoc | undefined;
+        try {
+            const result = await container.item(id, id).patch<UserDoc>(ops);
+            resource = result.resource;
+        } catch (err: unknown) {
+            if ((err as { code?: number }).code !== 404) throw err;
+        }
         if (!resource) {
             res.status(404).json({ error: 'User not found' });
             return;
         }
 
-        resource.picture = pictureUrl;
-        await container.item(id, id).replace(resource);
         res.json({
             id: resource.id,
             email: resource.email,
@@ -287,7 +316,10 @@ router.get('/user/:id', async (req: Request, res: Response) => {
             points: resource.points,
             ranking: resource.ranking,
             createdAt: resource.createdAt,
-            lastLogin: resource.lastLogin,
+            // Fallback sur lastLogin pour les documents antérieurs à
+            // lastSeenAt : ils gardent leur ancienne valeur au lieu d'un "N/A",
+            // jusqu'à la prochaine session de l'utilisateur.
+            lastSeenAt: resource.lastSeenAt ?? resource.lastLogin,
         });
     } catch (err) {
         console.error('❌ Cosmos DB error (GET /user/:id):', err);
@@ -310,9 +342,14 @@ router.post('/bot', async (req: Request, res: Response) => {
 
     try {
         const container = await getUsersContainer();
+        const nowIso = new Date().toISOString();
+        const ops: PatchOperation[] = [
+            { op: 'set', path: '/lastLogin', value: nowIso },
+            { op: 'set', path: '/lastSeenAt', value: nowIso },
+        ];
         let resource: UserDoc | undefined;
         try {
-            const result = await container.item(botId, botId).read<UserDoc>();
+            const result = await container.item(botId, botId).patch<UserDoc>(ops);
             resource = result.resource;
         } catch (err: unknown) {
             if ((err as { code?: number }).code === 404) {
@@ -325,8 +362,6 @@ router.post('/bot', async (req: Request, res: Response) => {
             res.status(404).json({ error: 'Bot not found' });
             return;
         }
-        resource.lastLogin = new Date().toISOString();
-        await container.item(botId, botId).replace(resource);
         // Mémorise ce compte comme bot : la détection des sièges d'agents
         // (matchmaking, re-seat post-restauration) ne peut pas reposer sur une
         // liste statique, les botIds du pool étant arbitraires.
@@ -368,13 +403,22 @@ router.post('/worker', async (req: Request, res: Response) => {
     const workerId = '1337';
     try {
         const container = await getUsersContainer();
-        const { resource } = await container.item(workerId, workerId).read<UserDoc>();
+        const nowIso = new Date().toISOString();
+        const ops: PatchOperation[] = [
+            { op: 'set', path: '/lastLogin', value: nowIso },
+            { op: 'set', path: '/lastSeenAt', value: nowIso },
+        ];
+        let resource: UserDoc | undefined;
+        try {
+            const result = await container.item(workerId, workerId).patch<UserDoc>(ops);
+            resource = result.resource;
+        } catch (err: unknown) {
+            if ((err as { code?: number }).code !== 404) throw err;
+        }
         if (!resource) {
             res.status(404).json({ error: 'Worker account not found' });
             return;
         }
-        resource.lastLogin = new Date().toISOString();
-        await container.item(workerId, workerId).replace(resource);
         res.json({
             user: {
                 id: resource.id,
