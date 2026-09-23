@@ -9,9 +9,13 @@
       </div>
       @if (auth.user$ | async; as user) {
       <div class="nav-user">
-        <button class="nav-coins-btn" (click)="goToShop()" title="Shop" aria-label="Shop">
+        <button class="nav-coins-btn" (click)="goToShop()" title="Shop"
+          [class.is-pulsing]="coinsPulse()"
+          [class.has-offer]="hasAffordableItem()"
+          [attr.aria-label]="hasAffordableItem() ? 'Shop, items available' : 'Shop'">
           <span aria-hidden="true" class="nav-coin"> </span>
-          <span class="nav-coins-value">{{ user.coins ?? 0 }}</span>
+          <app-coin-count class="nav-coins-value" [value]="user.coins ?? 0"
+            (rolled)="onCoinsRolled($event)" />
         </button>
         <!-- Profil + messages : un seul point d'entrée, la pastille porte le
              compteur de non-lus qui vivait sur l'ancien bouton inbox. -->

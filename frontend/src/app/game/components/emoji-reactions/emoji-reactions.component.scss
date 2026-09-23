@@ -118,10 +118,14 @@
   }
 
   /* Réaction non débloquée : visible (la grille ne change pas de forme selon
-     l'état du compte) mais clairement inerte. */
+     l'état du compte) mais clairement inerte. Le voile ne porte que sur le
+     glyphe : un filtre posé sur le bouton éteindrait aussi le cadenas, qui est
+     précisément ce qui doit rester lisible. */
   &.is-locked {
-    filter: grayscale(1);
-    opacity: 0.4;
+    .emoji-option__glyph {
+      filter: grayscale(1);
+      opacity: 0.35;
+    }
 
     &:active {
       transform: none;
@@ -129,13 +133,32 @@
   }
 }
 
+.emoji-option__glyph {
+  display: inline-block;
+  line-height: 1;
+}
+
+/* Cadenas doré et non gris : la réaction n'est pas interdite, elle s'achète.
+   Un SVG plutôt qu'un 🔒 — deux emojis dans la même case se disputeraient
+   la lecture. */
 .emoji-lock {
   position: absolute;
-  right: 1px;
-  bottom: 1px;
-  font-size: 10px;
-  line-height: 1;
-  filter: none;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgba(10, 16, 32, 0.92);
+  color: #e0b15a;
+  box-shadow: 0 0 0 1px rgba(224, 177, 90, 0.55);
+
+  svg {
+    width: 8px;
+    height: 8px;
+  }
 }
 
 /* Floats overlay — fixed to viewport so they can travel across board+table. */

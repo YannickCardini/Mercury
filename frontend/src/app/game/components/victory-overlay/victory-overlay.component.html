@@ -86,9 +86,14 @@
             <div class="stats-rank">New ranking: #{{ newRanking() }}</div>
           }
           @if (coinsDelta() !== null) {
-            <div class="stats-coins">
+            <!-- Présente dès le départ mais transparente : elle réserve sa place
+                 dans la colonne (pas de saut de layout) et sert de cible mesurable
+                 aux pièces avant même d'être visible. -->
+            <div class="stats-coins"
+              [class.is-revealed]="coinsRevealed()"
+              [class.is-complete]="coinsComplete()">
               <span class="stats-coin" aria-hidden="true"></span>
-              +{{ coinsDelta() }} coins
+              +{{ coinsShown() }} {{ coinsShown() === 1 ? 'coin' : 'coins' }}
             </div>
           }
         } @else {
@@ -98,6 +103,20 @@
     }
 
     <button class="back-btn" (click)="backToMenu.emit()">Back to menu</button>
+  </div>
+
+  <!-- Scène des pièces gagnées. Toujours montée, même vide : elle sert de repère
+       de mesure. Hors de .victory-card, qui est animée et rognerait le vol. -->
+  <div class="coin-flights" aria-hidden="true">
+    @for (c of flyingCoins(); track c.id) {
+      <span class="coin-fly"
+        [style.left.px]="c.x"
+        [style.top.px]="c.y"
+        [style.--fx]="c.dx + 'px'"
+        [style.--fy]="c.dy + 'px'"
+        [style.--lift]="c.lift + 'px'"
+        [style.animation-delay]="c.delay + 'ms'"></span>
+    }
   </div>
 
 </div>

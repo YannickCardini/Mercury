@@ -24,9 +24,14 @@
       role="menuitem"
       [attr.aria-label]="(e.locked ? 'Locked reaction ' : 'Send ') + e.emoji"
       (click)="pickEmoji(e)">
-      {{ e.emoji }}
+      <span class="emoji-option__glyph">{{ e.emoji }}</span>
       @if (e.locked) {
-      <span class="emoji-lock" aria-hidden="true">🔒</span>
+      <span class="emoji-lock" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="4" y="11" width="16" height="10" rx="2"></rect>
+          <path d="M8 11V7a4 4 0 0 1 8 0v4"></path>
+        </svg>
+      </span>
       }
     </button>
     }

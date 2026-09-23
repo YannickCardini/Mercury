@@ -2,6 +2,7 @@ import {
   Component,
   OnInit,
   OnDestroy,
+  computed,
   inject,
   ViewChild,
   ElementRef,
@@ -16,6 +17,7 @@ import { AndroidAppBannerComponent } from "../shared/android-app-banner.componen
 import { GameRulesModalComponent } from "../shared/game-rules-modal.component";
 import { InviteToastComponent } from "../shared/invite-toast.component";
 import { MarbleOrbitComponent } from "../shared/marble-orbit.component";
+import { CoinCountComponent } from "../shared/coin-count.component";
 import { Subscription, firstValueFrom, take } from "rxjs";
 import { version } from "../../../../package.json";
 import { App } from "@capacitor/app";
@@ -86,6 +88,7 @@ interface InviteCandidate {
     GameRulesModalComponent,
     InviteToastComponent,
     MarbleOrbitComponent,
+    CoinCountComponent,
   ],
 })
 export class HomePage implements OnInit, OnDestroy {
@@ -522,6 +525,28 @@ export class HomePage implements OnInit, OnDestroy {
 
   goToShop() {
     this.router.navigate(["/shop"]);
+  }
+
+  // ── Pastille de monnaie ────────────────────────────────────────────────────
+
+  /** Halo doré bref après un gain, le temps du défilement du compteur. */
+  readonly coinsPulse = signal(false);
+
+  /**
+   * Vrai dès qu'un article verrouillé est à portée du solde. Une monnaie dont
+   * personne ne sait qu'elle suffit reste une monnaie dormante : la pastille
+   * porte alors un point de rappel qui renvoie vers la boutique.
+   */
+  readonly hasAffordableItem = computed(() => {
+    const coins = this.shop.coins();
+    if (coins === null) return false;
+    return this.shop.items().some(item => !this.shop.isOwned(item.id) && coins >= item.price);
+  });
+
+  onCoinsRolled(delta: number): void {
+    if (delta <= 0) return; // une dépense se voit déjà dans la boutique
+    this.coinsPulse.set(true);
+    setTimeout(() => this.coinsPulse.set(false), 1100);
   }
 
   // ── Matchmaking ────────────────────────────────────────────────────────────

@@ -1,5 +1,6 @@
 @use "sass:color";
 @use "../styles/palette" as *; // palette « Système solaire » centralisée
+@use "../styles/coin" as *; // recette partagée de la pièce
 
 :host {
   display: block;
@@ -7,7 +8,10 @@
   height: 100%;
 }
 
-// ── Coquille : identique au leaderboard et au profil ─────────────────────────
+// ── Coquille : même famille que le leaderboard et le profil ──────────────────
+// La boutique garde la carte de verre commune, mais reçoit une aurore dorée en
+// haut : c'est la « salle de l'or » du jeu, elle doit se reconnaître d'un coup
+// d'œil sans devenir un écran étranger.
 
 .sh-wrap {
   width: 100%;
@@ -23,9 +27,12 @@
 }
 
 .sh-card {
+  position: relative;
   width: 100%;
   max-width: 560px;
-  background: rgba(255, 255, 255, 0.04);
+  background:
+    radial-gradient(120% 60% at 50% -10%, rgba($c-gold, 0.16), rgba($c-gold, 0) 70%),
+    rgba(255, 255, 255, 0.04);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -33,6 +40,10 @@
   overflow: hidden;
 }
 
+// ── En-tête ──────────────────────────────────────────────────────────────────
+
+// Strictement l'en-tête du leaderboard et du profil : la boutique est une page
+// de plus dans la même famille, elle ne mérite pas sa propre grammaire de titre.
 .sh-header {
   display: flex;
   align-items: center;
@@ -74,6 +85,8 @@
   letter-spacing: 0.5px;
 }
 
+// ── États de chargement ──────────────────────────────────────────────────────
+
 .sh-state {
   display: flex;
   justify-content: center;
@@ -85,13 +98,6 @@
 
   &--error {
     color: #f87171;
-  }
-
-  // Bandeau d'invitation à se connecter : au-dessus de la liste, donc moins
-  // haut qu'un état plein écran.
-  &--signin {
-    padding: 18px 20px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   }
 }
 
@@ -105,73 +111,96 @@
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
-// ── Pièce ─────────────────────────────────────────────────────────────────────
-// Même recette que la bille dorée .ab-gold de la home : boutique, pastille de
-// nav et écran de victoire doivent montrer visiblement le même objet.
+.sh-signin {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  color: $c-silver;
+  font-size: 13.5px;
+}
+
+.sh-signin-orb {
+  @include coin;
+  --coin-size: 20px;
+
+  opacity: 0.55;
+  filter: grayscale(0.5);
+}
+
+// ── Pièce partagée ───────────────────────────────────────────────────────────
 
 .sh-coin {
-  flex: none;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  display: inline-block;
-  background: radial-gradient(
-    circle at 35% 35%,
-    color.adjust($c-gold, $lightness: 14%),
-    $c-gold 60%,
-    color.adjust($c-gold, $lightness: -14%)
-  );
-  box-shadow: 0 0 6px rgba($c-gold, 0.5);
+  @include coin;
+  --coin-size: 13px;
 
-  &--sm {
-    width: 13px;
-    height: 13px;
-    vertical-align: -1px;
-  }
+  vertical-align: -1px;
 
   &--muted {
-    filter: grayscale(0.6);
-    opacity: 0.6;
+    filter: grayscale(0.7);
+    opacity: 0.55;
     box-shadow: none;
   }
 }
 
-// ── Bandeau de solde ─────────────────────────────────────────────────────────
+// ── Coffre : solde, progression de collection, prochaine marche ──────────────
 
-.sh-balance {
+.sh-vault {
+  position: relative;
+  padding: 18px 20px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  // Lueur basse : le coffre semble poser sa lumière sur la grille en dessous.
+  background: linear-gradient(180deg, rgba($c-gold, 0.07), rgba($c-gold, 0) 85%);
+}
+
+.sh-vault-row {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 16px 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  gap: 10px;
 }
 
-.sh-balance-value {
-  font-size: 22px;
-  font-weight: 700;
-  color: $c-gold;
+.sh-vault-coin {
+  @include coin;
+  --coin-size: 26px;
+}
+
+.sh-vault-amount {
+  font-size: 26px;
+  font-weight: 800;
   line-height: 1;
+  color: $c-gold;
+  letter-spacing: 0.01em;
 }
 
-.sh-balance-label {
-  font-size: 12px;
+.sh-vault-unit {
+  flex: 1;
+  font-size: 11px;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.9px;
   color: $c-silver;
+  opacity: 0.8;
+  // Aligné sur la ligne de base du montant plutôt que centré verticalement.
+  align-self: flex-end;
+  padding-bottom: 2px;
 }
 
-.sh-earn-hint {
-  flex: 1 1 100%;
+.sh-vault-hint {
+  margin: 10px 0 0;
   font-size: 12px;
+  line-height: 1.45;
   color: $c-silver;
   opacity: 0.8;
 }
 
 .sh-debug-add {
+  flex: none;
   padding: 4px 10px;
   border: 1px dashed rgba(255, 255, 255, 0.35);
   border-radius: 999px;
@@ -186,79 +215,138 @@
   }
 }
 
-// ── Liste des articles ───────────────────────────────────────────────────────
+// ── Sections ─────────────────────────────────────────────────────────────────
 
-.sh-list {
+.sh-section {
+  padding: 16px 20px 4px;
+
+  &:last-of-type {
+    padding-bottom: 20px;
+  }
+}
+
+.sh-section-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 12px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.4px;
+  color: $c-silver;
+  opacity: 0.85;
+}
+
+.sh-section-rule {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0));
+}
+
+// ── Grille de vignettes ──────────────────────────────────────────────────────
+// La liste verticale lisait « écran de réglages ». Une collection se montre en
+// grille : l'objet convoité occupe la vignette, l'étiquette et le prix servent.
+
+.sh-grid {
   list-style: none;
   margin: 0;
-  padding: 8px 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
 }
 
-.sh-item {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 12px 20px;
-  border-left: 2px solid transparent;
-  transition: background 0.15s;
-
-  & + & {
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
-  }
-
-  &--owned {
-    background: rgba($c-green, 0.06);
-    border-left-color: rgba($c-green, 0.55);
-  }
-
-  &--locked .sh-item-preview {
-    filter: grayscale(1);
-    opacity: 0.45;
-  }
-}
-
-.sh-item-preview {
-  flex: none;
-  width: 40px;
-  text-align: center;
-  font-size: 28px;
-  line-height: 1;
-}
-
-.sh-item-text {
-  flex: 1;
+.sh-tile {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.035);
+  // --tile-rgb porte la couleur d'état sous forme de composantes, pour que le
+  // halo de l'orbe puisse en moduler l'alpha : or « à portée », vert
+  // « possédé », argent « hors budget ». Un seul mot, trois lectures.
+  --tile-rgb: 224, 177, 90;
+  transition: border-color 0.2s, background 0.2s, transform 0.2s, box-shadow 0.2s;
+
+  &:hover {
+    border-color: rgba($c-gold, 0.4);
+    background: rgba(255, 255, 255, 0.055);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.3);
+  }
 }
 
-.sh-item-label {
-  font-size: 15px;
+// Orbe d'aperçu : disque nébuleux qui porte l'objet, dans le vocabulaire des
+// planètes du plateau plutôt que dans celui d'une icône d'application.
+.sh-tile-orb {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 74px;
+  height: 74px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 30% 26%, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0) 55%),
+    radial-gradient(circle at 50% 55%, rgba(var(--tile-rgb, 224, 177, 90), 0.22), rgba(0, 0, 0, 0) 68%),
+    radial-gradient(circle at 74% 30%, rgba(255, 255, 255, 0.5) 0 1px, rgba(255, 255, 255, 0) 2px),
+    radial-gradient(circle at 22% 70%, rgba(255, 255, 255, 0.35) 0 1px, rgba(255, 255, 255, 0) 2px),
+    radial-gradient(circle at 62% 80%, rgba(255, 255, 255, 0.25) 0 1px, rgba(255, 255, 255, 0) 2px),
+    rgba(6, 12, 28, 0.5);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 0 18px rgba(var(--tile-rgb, 224, 177, 90), 0.2);
+}
+
+.sh-tile-glyph {
+  font-size: 34px;
+  line-height: 1;
+  // Respiration lente et décalée d'une vignette à l'autre : la grille vit sans
+  // qu'aucun élément ne réclame l'attention.
+  animation: tile-breathe 5.5s ease-in-out infinite;
+  animation-delay: calc(var(--tile-i, 0) * 0.45s);
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.45));
+}
+
+@keyframes tile-breathe {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-3px) scale(1.04);
+  }
+}
+
+.sh-tile-label {
+  font-size: 13.5px;
   font-weight: 600;
   color: #e2e8f0;
+  text-align: center;
+  line-height: 1.25;
 }
 
-.sh-item-kind {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: $c-silver;
-  opacity: 0.75;
-}
-
-.sh-item-owned {
-  display: inline-flex;
+// Cadenas discret, en badge sur l'orbe : un glyphe 🔒 se serait battu avec
+// l'emoji de l'aperçu, deux emojis dans la même vignette.
+.sh-tile-lock {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
   align-items: center;
-  gap: 5px;
-  flex: none;
-  padding: 5px 10px;
-  border-radius: 999px;
-  background: rgba($c-green, 0.14);
-  border: 1px solid rgba($c-green, 0.35);
-  color: $c-green;
-  font-size: 12px;
-  font-weight: 700;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(10, 16, 32, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: $c-silver;
 
   svg {
     width: 12px;
@@ -266,42 +354,70 @@
   }
 }
 
-.sh-item-price-locked {
+// Les trois actions possibles partagent `margin-top: auto` : dans une rangée
+// où un libellé passe sur deux lignes, la grille étire toutes les vignettes et
+// les boutons resteraient désalignés sans cela.
+.sh-tile-badge {
+  margin-top: auto;
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  flex: none;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: rgba($c-green, 0.16);
+  border: 1px solid rgba($c-green, 0.4);
+  color: $c-green;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+
+  svg {
+    width: 11px;
+    height: 11px;
+  }
+}
+
+.sh-tile-price {
+  margin-top: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   color: $c-silver;
   font-size: 14px;
   font-weight: 700;
 }
 
 .sh-buy-btn {
+  margin-top: auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  flex: none;
-  min-width: 82px;
-  padding: 9px 14px;
+  min-width: 78px;
+  padding: 8px 14px;
   border: none;
-  border-radius: 10px;
-  background: linear-gradient(135deg, $c-gold, color.adjust($c-gold, $lightness: -10%));
+  border-radius: 999px;
+  background: linear-gradient(135deg, $coin-hi, $c-gold 55%, $coin-lo);
   color: #1a1206; // texte sombre : seul contraste lisible sur le doré
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 13.5px;
+  font-weight: 800;
   cursor: pointer;
   box-shadow: 0 4px 14px rgba($c-gold, 0.3);
   transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
 
   &:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 6px 18px rgba($c-gold, 0.42);
+    box-shadow: 0 6px 20px rgba($c-gold, 0.45);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0) scale(0.97);
   }
 
   &:disabled {
-    opacity: 0.5;
     cursor: not-allowed;
+    background: rgba(255, 255, 255, 0.08);
+    color: $c-silver;
     box-shadow: none;
   }
 }
@@ -313,6 +429,210 @@
   border-top-color: #1a1206;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
+}
+
+// ── États des vignettes ──────────────────────────────────────────────────────
+
+// Possédé : teinte Terre et voile satiné qui balaie lentement la vignette, le
+// signe qu'on regarde une pièce de collection et non un article en rayon.
+.sh-tile.is-owned {
+  --tile-rgb: 45, 212, 160;
+
+  border-color: rgba($c-green, 0.32);
+  background: rgba($c-green, 0.07);
+  overflow: hidden;
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: -40% -120%;
+    pointer-events: none;
+    background: linear-gradient(
+      100deg,
+      rgba(255, 255, 255, 0) 44%,
+      rgba(255, 255, 255, 0.14) 50%,
+      rgba(255, 255, 255, 0) 56%
+    );
+    animation: tile-foil 7s ease-in-out infinite;
+    animation-delay: calc(var(--tile-i, 0) * 1.1s);
+  }
+
+  &:hover {
+    border-color: rgba($c-green, 0.5);
+  }
+}
+
+@keyframes tile-foil {
+  0%,
+  12% {
+    transform: translateX(-45%);
+  }
+  48%,
+  100% {
+    transform: translateX(45%);
+  }
+}
+
+// Hors budget : l'objet reste visible mais éteint, et le halo perd sa couleur.
+.sh-tile.is-short {
+  --tile-rgb: 184, 196, 216;
+
+  .sh-tile-glyph {
+    filter: grayscale(1) brightness(0.85);
+    opacity: 0.5;
+    animation: none;
+  }
+
+  .sh-tile-label {
+    color: $c-silver;
+  }
+
+  &:hover {
+    border-color: rgba(255, 255, 255, 0.18);
+  }
+}
+
+// ── Éclosion : le moment de l'achat ──────────────────────────────────────────
+
+.sh-tile-ring,
+.sh-tile-sparks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.sh-tile-ring {
+  border-radius: 50%;
+  border: 2px solid $c-gold;
+}
+
+.sh-tile-sparks i {
+  --a: calc(var(--s) * 45deg);
+
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 3px;
+  height: 10px;
+  margin: -5px 0 0 -1.5px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #fff, $c-gold);
+  opacity: 0;
+}
+
+.sh-tile.is-burst {
+  // Flash doré avant que la vignette ne se pose sur sa teinte « possédé ».
+  animation: tile-flash 0.9s ease-out;
+  // L'objet devient « possédé » au moment même où il éclot : sans cette levée,
+  // l'overflow qui découpe le voile satiné rognerait anneau et étincelles.
+  overflow: visible;
+
+  &::after {
+    display: none; // le voile satiné attend la fin de l'éclosion
+  }
+
+  .sh-tile-ring {
+    animation: tile-ring 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .sh-tile-sparks i {
+    animation: tile-spark 0.72s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .sh-tile-glyph {
+    animation: tile-pop 0.72s cubic-bezier(0.2, 1.5, 0.4, 1);
+  }
+}
+
+@keyframes tile-flash {
+  0% {
+    box-shadow: 0 0 0 0 rgba($c-gold, 0.65);
+    background: rgba($c-gold, 0.3);
+  }
+  100% {
+    box-shadow: 0 0 0 22px rgba($c-gold, 0);
+    background: rgba($c-green, 0.07);
+  }
+}
+
+@keyframes tile-ring {
+  0% {
+    opacity: 0.95;
+    transform: scale(0.55);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.9);
+  }
+}
+
+@keyframes tile-spark {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--a)) translateY(-8px) scaleY(0.4);
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--a)) translateY(-46px) scaleY(1.6);
+  }
+}
+
+@keyframes tile-pop {
+  0% {
+    transform: scale(0.5) rotate(-14deg);
+  }
+  55% {
+    transform: scale(1.32) rotate(6deg);
+  }
+  100% {
+    transform: scale(1) rotate(0);
+  }
+}
+
+// ── Pièces en vol ────────────────────────────────────────────────────────────
+// Le prix quitte physiquement le solde pour rejoindre l'objet : c'est ce trajet,
+// pas le chiffre qui change, qui fait sentir la dépense.
+
+.sh-flights {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+}
+
+.sh-fly-coin {
+  @include coin;
+  --coin-size: 15px;
+
+  position: fixed;
+  // left/top portent le centre de la pièce source ; la marge recentre le disque.
+  margin: calc(var(--coin-size) * -0.5) 0 0 calc(var(--coin-size) * -0.5);
+  opacity: 0;
+  animation: coin-fly 620ms cubic-bezier(0.4, 0, 0.55, 1) forwards;
+}
+
+@keyframes coin-fly {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.7);
+  }
+  14% {
+    opacity: 1;
+    transform: translate(calc(var(--fx) * 0.12), calc(var(--fy) * 0.12 - var(--lift) * 0.5))
+      scale(1.15);
+  }
+  62% {
+    opacity: 1;
+    transform: translate(calc(var(--fx) * 0.62), calc(var(--fy) * 0.62 - var(--lift))) scale(1.05);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--fx), var(--fy)) scale(0.35);
+  }
 }
 
 // ── Modale de confirmation ───────────────────────────────────────────────────
@@ -342,32 +662,77 @@
   width: 100%;
   max-width: 340px;
   box-sizing: border-box;
-  padding: 24px 20px 20px;
+  padding: 26px 22px 20px;
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: linear-gradient(180deg, $bg-mid, $bg-dark);
+  border: 1px solid rgba($c-gold, 0.2);
+  background:
+    radial-gradient(120% 55% at 50% 0%, rgba($c-gold, 0.16), rgba($c-gold, 0) 70%),
+    linear-gradient(180deg, $bg-mid, $bg-dark);
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
   text-align: center;
 }
 
-.sh-confirm-preview {
-  display: block;
+// L'objet convoité, présenté comme sur sa vignette mais plus grand : le joueur
+// confirme un objet, pas une ligne de catalogue.
+.sh-confirm-orb {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 92px;
+  height: 92px;
+  margin-bottom: 14px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 30% 26%, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0) 55%),
+    radial-gradient(circle at 50% 55%, rgba($c-gold, 0.24), rgba(0, 0, 0, 0) 68%),
+    rgba(6, 12, 28, 0.55);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.1),
+    0 0 26px rgba($c-gold, 0.3);
+
+  // Halo qui tourne lentement autour de l'objet, écho des orbites de la home.
+  &::before {
+    content: "";
+    position: absolute;
+    inset: -7px;
+    border-radius: 50%;
+    border: 1px dashed rgba($c-gold, 0.4);
+    animation: confirm-orbit 14s linear infinite;
+  }
+}
+
+@keyframes confirm-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.sh-confirm-glyph {
   font-size: 46px;
   line-height: 1;
-  margin-bottom: 12px;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
 }
 
 .sh-confirm-title {
   margin: 0 0 8px;
-  font-size: 17px;
-  font-weight: 700;
+  font-size: 18px;
+  font-weight: 800;
   color: #e2e8f0;
+  letter-spacing: 0.02em;
 }
 
 .sh-confirm-text {
   margin: 0 0 20px;
   font-size: 13px;
+  line-height: 1.6;
   color: $c-silver;
+
+  strong {
+    color: $c-gold;
+    font-weight: 700;
+    margin-left: 3px;
+  }
 }
 
 .sh-confirm-actions {
@@ -381,7 +746,7 @@
   border-radius: 10px;
   border: 1px solid transparent;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
 
@@ -397,13 +762,41 @@
   }
 
   &--primary {
-    background: linear-gradient(135deg, $c-gold, color.adjust($c-gold, $lightness: -10%));
+    background: linear-gradient(135deg, $coin-hi, $c-gold 55%, $coin-lo);
     color: #1a1206;
     box-shadow: 0 4px 14px rgba($c-gold, 0.3);
 
     &:hover {
       transform: translateY(-1px);
-      box-shadow: 0 6px 18px rgba($c-gold, 0.42);
+      box-shadow: 0 6px 20px rgba($c-gold, 0.45);
+    }
+
+    &:active {
+      transform: translateY(0) scale(0.98);
+    }
+  }
+}
+
+// ── Accessibilité ────────────────────────────────────────────────────────────
+
+@media (prefers-reduced-motion: reduce) {
+  // On coupe les déplacements — respiration, voile satiné, orbite, anneau et
+  // étincelles de l'éclosion — mais on garde `tile-flash`, qui n'est qu'un
+  // changement de couleur : l'achat doit rester confirmé à l'écran.
+  .sh-tile-glyph,
+  .sh-tile.is-owned::after,
+  .sh-confirm-orb::before,
+  .sh-tile.is-burst .sh-tile-ring,
+  .sh-tile.is-burst .sh-tile-sparks i,
+  .sh-tile.is-burst .sh-tile-glyph {
+    animation: none !important;
+  }
+
+  .sh-tile {
+    transition: border-color 0.2s, background 0.2s;
+
+    &:hover {
+      transform: none;
     }
   }
 }
@@ -433,13 +826,6 @@
     max-width: 100%;
   }
 
-  .sh-list {
-    flex: 1;
-    // En mobile .sh-wrap passe en padding 0 : c'est la liste qui affleure le bas
-    // du viewport, donc c'est elle qui doit dégager la barre de navigation.
-    padding-bottom: calc(8px + var(--sa-bottom));
-  }
-
   .sh-header {
     padding: 14px 14px 12px;
     gap: 8px;
@@ -454,22 +840,38 @@
     padding: 5px 8px;
   }
 
-  .sh-balance {
+  .sh-vault {
     padding: 14px;
   }
 
-  .sh-item {
-    padding: 11px 14px;
-    gap: 11px;
+  .sh-section {
+    padding: 14px 14px 4px;
+
+    &:last-of-type {
+      // En mobile .sh-wrap passe en padding 0 : c'est la dernière section qui
+      // affleure le bas du viewport, donc c'est elle qui dégage la barre de
+      // navigation.
+      padding-bottom: calc(18px + var(--sa-bottom));
+    }
   }
 
-  .sh-item-preview {
-    width: 34px;
-    font-size: 25px;
+  .sh-grid {
+    grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+    gap: 10px;
   }
 
-  .sh-item-label {
-    font-size: 14px;
+  .sh-tile {
+    padding: 16px 10px 13px;
+    gap: 9px;
+  }
+
+  .sh-tile-orb {
+    width: 66px;
+    height: 66px;
+  }
+
+  .sh-tile-glyph {
+    font-size: 30px;
   }
 }
 
@@ -482,27 +884,39 @@
     font-size: 15px;
   }
 
-  .sh-balance-value {
-    font-size: 19px;
-  }
-
-  .sh-item {
-    padding: 10px;
-    gap: 9px;
-  }
-
-  .sh-item-preview {
-    width: 30px;
+  .sh-vault-amount {
     font-size: 22px;
   }
 
-  .sh-item-label {
-    font-size: 13px;
+  .sh-vault-coin {
+    --coin-size: 22px;
+  }
+
+  .sh-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 9px;
+  }
+
+  .sh-tile {
+    padding: 14px 8px 12px;
+  }
+
+  .sh-tile-orb {
+    width: 58px;
+    height: 58px;
+  }
+
+  .sh-tile-glyph {
+    font-size: 27px;
+  }
+
+  .sh-tile-label {
+    font-size: 12.5px;
   }
 
   .sh-buy-btn {
-    min-width: 72px;
-    padding: 8px 11px;
+    min-width: 70px;
+    padding: 7px 11px;
     font-size: 13px;
   }
 }

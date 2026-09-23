@@ -448,6 +448,80 @@ export class SoundService {
     if (key) this.playBuffer(key);
   }
 
+  /**
+   * Metallic scatter — coins moving, whether spent in the shop or collected on
+   * the victory screen. Synthesis rather than a sample so the caller can match
+   * the blips to its own animation: `count` is how many coins are in flight and
+   * `stepMs` the spacing between them.
+   */
+  playCoinSpend(count = 6, stepMs = 55): void {
+    if (this.muted()) return;
+    const ctx = this.getCtx();
+    const t = ctx.currentTime;
+
+    for (let i = 0; i < count; i++) {
+      const start = t + (i * stepMs) / 1000;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      // Hauteur montante et légèrement irrégulière : des pièces identiques
+      // sonneraient comme une alarme, pas comme une poignée de monnaie.
+      const freq = 1450 + i * 120 + Math.random() * 90;
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, start);
+      osc.frequency.exponentialRampToValueAtTime(freq * 0.72, start + 0.07);
+      gain.gain.setValueAtTime(0.0, start);
+      gain.gain.linearRampToValueAtTime(0.16, start + 0.008);
+      gain.gain.exponentialRampToValueAtTime(0.01, start + 0.09);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + 0.09);
+    }
+  }
+
+  /**
+   * Bright arpeggio with a shimmer tail — a shop item is unlocked. Volontairement
+   * plus haut et plus rapide que `playPromote` : les deux peuvent s'entendre dans
+   * la même session et doivent rester distincts.
+   */
+  playUnlock(): void {
+    if (this.muted()) return;
+    const ctx = this.getCtx();
+    const t = ctx.currentTime;
+
+    const notes = [784, 988, 1175, 1568]; // G5 B5 D6 G6
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const start = t + i * 0.07;
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, start);
+      gain.gain.setValueAtTime(0.0, start);
+      gain.gain.linearRampToValueAtTime(0.3, start + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.01, start + 0.4);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + 0.4);
+    });
+
+    // Traîne cristalline : une sinusoïde très aiguë qui s'éteint lentement,
+    // pour que le déverrouillage « brille » au lieu de s'arrêter net.
+    const shimmer = ctx.createOscillator();
+    const shimmerGain = ctx.createGain();
+    const shimmerStart = t + 0.2;
+    shimmer.type = 'sine';
+    shimmer.frequency.setValueAtTime(2350, shimmerStart);
+    shimmer.frequency.exponentialRampToValueAtTime(3100, shimmerStart + 0.5);
+    shimmerGain.gain.setValueAtTime(0.0, shimmerStart);
+    shimmerGain.gain.linearRampToValueAtTime(0.1, shimmerStart + 0.06);
+    shimmerGain.gain.exponentialRampToValueAtTime(0.01, shimmerStart + 0.7);
+    shimmer.connect(shimmerGain);
+    shimmerGain.connect(ctx.destination);
+    shimmer.start(shimmerStart);
+    shimmer.stop(shimmerStart + 0.7);
+  }
+
   /** Low descending tone — human player loses. */
   playDefeat(): void {
     if (this.muted()) return;

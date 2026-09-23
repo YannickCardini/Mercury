@@ -1,6 +1,6 @@
 <div class="sh-wrap">
   <div class="sh-card">
-    <div class="sh-header">
+    <header class="sh-header">
       <button class="sh-back" (click)="goBack()">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="15 18 9 12 15 6"></polyline>
@@ -8,18 +8,29 @@
         Back
       </button>
       <h1 class="sh-title">Shop</h1>
-    </div>
+    </header>
 
     @if (signedIn()) {
-      <div class="sh-balance">
-        <span class="sh-coin" aria-hidden="true"></span>
-        <span class="sh-balance-value">{{ balance() }}</span>
-        <span class="sh-balance-label">coins</span>
-        <span class="sh-earn-hint">Win a game to earn coins, based on your marble lead</span>
-        @if (debug) {
-          <button class="sh-debug-add" type="button" (click)="debugAddCoins()">+500 (debug)</button>
-        }
-      </div>
+      <section class="sh-vault">
+        <div class="sh-vault-row">
+          <span class="sh-vault-coin" aria-hidden="true"></span>
+          <app-coin-count class="sh-vault-amount" [value]="balance()" />
+          <span class="sh-vault-unit">coins</span>
+          @if (debug) {
+            <button class="sh-debug-add" type="button" (click)="debugAddCoins()">+500</button>
+          }
+        </div>
+
+        <p class="sh-vault-hint">
+          @if (allOwned()) {
+            You own everything in stock. New items land here as they arrive.
+          } @else if (coinsToNext() > 0) {
+            {{ coinsToNext() }} more coins to unlock {{ nextUnlock()?.label }}.
+          } @else {
+            Win a game to earn coins, based on your marble lead.
+          }
+        </p>
+      </section>
     }
 
     @if (loading()) {
@@ -30,57 +41,105 @@
       <div class="sh-state sh-state--error">{{ error() }}</div>
     } @else {
       @if (!signedIn()) {
-        <div class="sh-state sh-state--signin">Sign in to earn coins and unlock reactions.</div>
+        <div class="sh-signin">
+          <span class="sh-signin-orb" aria-hidden="true"></span>
+          Sign in to earn coins and unlock reactions.
+        </div>
       }
-      <ul class="sh-list">
-        @for (item of shop.items(); track item.id) {
-          <li class="sh-item"
-              [class.sh-item--owned]="isOwned(item.id)"
-              [class.sh-item--locked]="signedIn() && !isOwned(item.id) && !canAfford(item)">
-            <span class="sh-item-preview">{{ previewOf(item) }}</span>
-            <span class="sh-item-text">
-              <span class="sh-item-label">{{ item.label }}</span>
-              <span class="sh-item-kind">Reaction</span>
-            </span>
 
-            @if (isOwned(item.id)) {
-              <span class="sh-item-owned">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="20 6 9 17 4 12"></polyline>
-                </svg>
-                Owned
-              </span>
-            } @else if (signedIn()) {
-              <button class="sh-buy-btn"
-                      [disabled]="!canAfford(item) || busyId() === item.id"
-                      (click)="confirm(item)">
-                @if (busyId() === item.id) {
-                  <span class="sh-btn-spinner"></span>
-                } @else {
-                  <span class="sh-coin sh-coin--sm" aria-hidden="true"></span>
-                  {{ item.price }}
+      @for (section of sections(); track section.kind) {
+        <section class="sh-section">
+          <h2 class="sh-section-title">
+            {{ section.label }}
+            <span class="sh-section-rule" aria-hidden="true"></span>
+          </h2>
+
+          <ul class="sh-grid">
+            @for (item of section.items; track item.id; let i = $index) {
+              <li class="sh-tile"
+                  [attr.data-item]="item.id"
+                  [class.is-owned]="stateOf(item) === 'owned'"
+                  [class.is-short]="stateOf(item) === 'short'"
+                  [class.is-burst]="burstId() === item.id"
+                  [style.--tile-i]="i">
+                <span class="sh-tile-orb" aria-hidden="true">
+                  <span class="sh-tile-glyph">{{ previewOf(item) }}</span>
+                  <span class="sh-tile-ring"></span>
+                  <span class="sh-tile-sparks">
+                    @for (s of sparks; track s) {
+                      <i [style.--s]="s"></i>
+                    }
+                  </span>
+                </span>
+
+                @if (stateOf(item) === 'short') {
+                  <span class="sh-tile-lock" aria-hidden="true">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="4" y="11" width="16" height="10" rx="2"></rect>
+                      <path d="M8 11V7a4 4 0 0 1 8 0v4"></path>
+                    </svg>
+                  </span>
                 }
-              </button>
-            } @else {
-              <span class="sh-item-price-locked">
-                <span class="sh-coin sh-coin--sm sh-coin--muted" aria-hidden="true"></span>
-                {{ item.price }}
-              </span>
+
+                <span class="sh-tile-label">{{ item.label }}</span>
+
+                @if (isOwned(item.id)) {
+                  <span class="sh-tile-badge">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                    Owned
+                  </span>
+                } @else if (signedIn()) {
+                  <button class="sh-buy-btn"
+                          [disabled]="!canAfford(item) || busyId() === item.id"
+                          (click)="confirm(item)"
+                          [attr.aria-label]="'Unlock ' + item.label + ' for ' + item.price + ' coins'">
+                    @if (busyId() === item.id) {
+                      <span class="sh-btn-spinner"></span>
+                    } @else {
+                      <span class="sh-coin" aria-hidden="true"></span>
+                      {{ item.price }}
+                    }
+                  </button>
+                } @else {
+                  <span class="sh-tile-price">
+                    <span class="sh-coin sh-coin--muted" aria-hidden="true"></span>
+                    {{ item.price }}
+                  </span>
+                }
+              </li>
             }
-          </li>
-        }
-      </ul>
+          </ul>
+        </section>
+      }
+    }
+  </div>
+
+  <!-- Pièces en vol : hors de .sh-card, dont le backdrop-filter créerait un bloc
+       conteneur et emprisonnerait ces éléments en position fixed. -->
+  <div class="sh-flights" aria-hidden="true">
+    @for (c of flyingCoins(); track c.id) {
+      <span class="sh-fly-coin"
+            [style.left.px]="c.x"
+            [style.top.px]="c.y"
+            [style.--fx]="c.dx + 'px'"
+            [style.--fy]="c.dy + 'px'"
+            [style.--lift]="c.lift + 'px'"
+            [style.animation-delay]="c.delay + 'ms'"></span>
     }
   </div>
 
   <div class="modal-overlay" [class.active]="pending() !== null" (click)="cancel()">
     @if (pending(); as item) {
       <div class="modal-card" (click)="$event.stopPropagation()">
-        <span class="sh-confirm-preview">{{ previewOf(item) }}</span>
-        <h2 class="sh-confirm-title">Unlock {{ item.label }}?</h2>
+        <span class="sh-confirm-orb" aria-hidden="true">
+          <span class="sh-confirm-glyph">{{ previewOf(item) }}</span>
+        </span>
+        <h2 class="sh-confirm-title">Unlock {{ item.label }}</h2>
         <p class="sh-confirm-text">
-          This costs <span class="sh-coin sh-coin--sm" aria-hidden="true"></span>{{ item.price }} coins.
-          You have {{ balance() }}.
+          Costs <span class="sh-coin" aria-hidden="true"></span><strong>{{ item.price }}</strong>
+          of your <span class="sh-coin" aria-hidden="true"></span><strong>{{ balance() }}</strong> coins.
         </p>
         <div class="sh-confirm-actions">
           <button class="sh-btn sh-btn--ghost" (click)="cancel()">Cancel</button>

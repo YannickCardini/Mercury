@@ -1,6 +1,7 @@
 @use "sass:color";
 @use "../../../styles/palette" as *; // palette « Système solaire » centralisée
 @use "../../../styles/planets" as *; // rendu billes « planètes » partagé
+@use "../../../styles/coin" as *; // recette partagée de la pièce
 
 // Couleurs joueur (sièges) — utilisées pour les anneaux d'avatar, les noms
 // et le halo de la card.
@@ -496,30 +497,111 @@ $slot-glows: (
 
 // Gain de pièces : c'est ici que le joueur découvre la monnaie, donc la ligne
 // est dorée et non grisée comme le total et le rang.
+// Gain de pièces : le compteur où atterrissent les pièces gagnées. Il est dans
+// le flux dès le départ (sa place est réservée, pas de saut de layout) mais
+// transparent tant que la première pièce n'est pas arrivée.
 .stats-coins {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-top: 2px;
+  margin-top: 4px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba($c-gold, 0.12);
+  border: 1px solid rgba($c-gold, 0.3);
   font-size: clamp(0.85rem, 1.9vw, 1.05rem);
-  font-weight: 700;
+  font-weight: 800;
   color: $c-gold;
   letter-spacing: 0.04em;
+  /* Chiffres à chasse fixe : le compteur monte de 1 à 8 sans que la pastille
+     change de largeur à chaque arrivée. */
+  font-variant-numeric: tabular-nums;
+  opacity: 0;
+  transform: scale(0.8);
+  transition: opacity 0.22s ease-out, transform 0.35s cubic-bezier(0.2, 1.5, 0.4, 1);
+
+  &.is-revealed {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  // Dernière pièce rentrée : une seule onde dorée, pas une pulsation par
+  // arrivée — l'overlay est déjà chargé, le total mérite un seul accent.
+  &.is-complete {
+    animation: coins-complete 0.6s ease-out;
+  }
 }
 
-// Même recette que la bille dorée .ab-gold de la home et que .sh-coin.
+@keyframes coins-complete {
+  0% {
+    box-shadow: 0 0 0 0 rgba($c-gold, 0.55);
+  }
+  100% {
+    box-shadow: 0 0 0 16px rgba($c-gold, 0);
+  }
+}
+
+// Même recette que la pastille de nav et que la boutique : un seul objet.
 .stats-coin {
-  flex: none;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: radial-gradient(
-    circle at 35% 35%,
-    color.adjust($c-gold, $lightness: 14%),
-    $c-gold 60%,
-    color.adjust($c-gold, $lightness: -14%)
-  );
-  box-shadow: 0 0 6px rgba($c-gold, 0.5);
+  @include coin;
+  --coin-size: 15px;
+}
+
+// ── Pièces gagnées en vol ─────────────────────────────────────────────────
+
+.coin-flights {
+  position: absolute;
+  inset: 0;
+  z-index: 2; // au-dessus de .victory-card (z-index: 1)
+  pointer-events: none;
+}
+
+.coin-fly {
+  @include coin;
+  --coin-size: 16px;
+
+  position: absolute;
+  // left/top portent le centre de la pièce ; la marge recentre le disque.
+  margin: calc(var(--coin-size) * -0.5) 0 0 calc(var(--coin-size) * -0.5);
+  opacity: 0;
+  animation: coin-earn 620ms cubic-bezier(0.34, 0, 0.5, 1) forwards;
+
+  // Le balayage spéculaire de la recette partagée est supprimé ici : il ajoute
+  // une couche composée par pièce, et il est de toute façon imperceptible sur
+  // un disque qui traverse l'écran en 620 ms. L'overlay a déjà 40 confettis.
+  &::before {
+    display: none;
+  }
+}
+
+@keyframes coin-earn {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.5);
+  }
+  12% {
+    opacity: 1;
+    transform: translate(calc(var(--fx) * 0.1), calc(var(--fy) * 0.1 - var(--lift) * 0.6))
+      scale(1.1);
+  }
+  70% {
+    opacity: 1;
+    transform: translate(calc(var(--fx) * 0.7), calc(var(--fy) * 0.7 - var(--lift) * 0.85))
+      scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--fx), var(--fy)) scale(0.45);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  // Aucune pièce n'est lancée dans ce mode (le composant cale directement le
+  // total) ; il reste à figer l'apparition de la pastille elle-même.
+  .stats-coins {
+    transition: none;
+    animation: none;
+  }
 }
 
 .stats-calculating {
