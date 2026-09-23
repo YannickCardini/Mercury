@@ -40,7 +40,7 @@ export const JOKER_MOVE_DISTANCE = 18;
 export const KING_MOVE_DISTANCE = 13;
 
 /** Palette fermée de réactions emoji envoyables pendant une partie. */
-export const REACTION_EMOJIS = ['👏', '😂', '😮', '😥', '🔥', '🤔', '😡', '😎', '😴', '⏰', '🥱', '🦧'] as const;
+export const REACTION_EMOJIS = ['👏', '😂', '😮', '😥', '🔥', '🤔', '😡', '😎', '😴', '⏰', '🥱', '🦧', '😉', '😘', '😊'] as const;
 export type ReactionEmoji = typeof REACTION_EMOJIS[number];
 
 // ── Entités ───────────────────────────────────────────────────────────────────
@@ -230,6 +230,17 @@ export interface GameStatsMessage {
   newPoints: number;
   /** Rang dans le classement après recalcul. */
   newRanking: number;
+  /**
+   * Couleur destinataire. Permet au client de ne recopier le message dans son
+   * profil local que pour son propre siège (en mode single-device une seule
+   * socket porte les quatre sièges).
+   */
+  color?: MarbleColor;
+  /** Pièces de boutique gagnées. Absent pour les invités, les bots, les perdants
+   *  et les joueurs pénalisés (abandon / déconnexion). */
+  coinsDelta?: number;
+  /** Solde de pièces après crédit. Absent dans les mêmes cas. */
+  newCoins?: number;
 }
 
 /**

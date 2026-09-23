@@ -9,21 +9,20 @@
       </div>
       @if (auth.user$ | async; as user) {
       <div class="nav-user">
-        <button class="nav-inbox-btn" (click)="openInbox()" title="Inbox" aria-label="Inbox">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <path d="M22 12h-6l-2 3h-4l-2-3H2"></path>
-            <path
-              d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z">
-            </path>
-          </svg>
-          @if (unreadCount > 0) {
-          <span class="nav-inbox-badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
-          }
+        <button class="nav-coins-btn" (click)="goToShop()" title="Shop" aria-label="Shop">
+          <span aria-hidden="true" class="nav-coin"> </span>
+          <span class="nav-coins-value">{{ user.coins ?? 0 }}</span>
         </button>
-        <button class="nav-login-btn" (click)="openLogin()">
+        <!-- Profil + messages : un seul point d'entrée, la pastille porte le
+             compteur de non-lus qui vivait sur l'ancien bouton inbox. -->
+        <button class="nav-login-btn" (click)="openLogin()"
+          [attr.aria-label]="unreadCount > 0 ? 'Profile and messages, ' + unreadCount + ' unread' : 'Profile and messages'"
+          title="Profile and messages">
           <img class="nav-avatar" [src]="user.picture" [alt]="user.name" referrerpolicy="no-referrer" />
           <span>{{ user.name.split(' ')[0] }}</span>
+          @if (unreadCount > 0) {
+          <span class="nav-unread-badge" aria-hidden="true">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
+          }
         </button>
       </div>
       } @else {
@@ -138,16 +137,21 @@
       </button>
     </footer>
 
-    <!-- ══════════════ LOGIN MODAL ══════════════ -->
+    <!-- ══════════════ LOGIN / PROFILE + MESSAGES MODAL ══════════════ -->
+    <!-- Deux vues dans la même carte : 'main' = fiche profil + conversations,
+         'thread' = une conversation ouverte (plein cadre, avec retour). -->
     <div class="modal-overlay" [class.active]="showLogin" (click)="closeLogin()">
-      <div class="modal-card" (click)="$event.stopPropagation()">
-        <button class="modal-close" (click)="closeLogin()">
+      <div class="modal-card login-card" [class.login-card--thread]="loginView === 'thread'"
+        (click)="$event.stopPropagation()">
+        <button class="modal-close" (click)="closeLogin()" aria-label="Close">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
             stroke-linecap="round" stroke-linejoin="round">
             <path d="M18 6 6 18M6 6l12 12" />
           </svg>
         </button>
 
+        <!-- ─── Main view: profile + messages ─── -->
+        @if (loginView === 'main') {
         <!-- Header: only when not logged in -->
         @if (!(auth.user$ | async)) {
         <div class="modal-header">
@@ -231,6 +235,68 @@
             }
           </div>
         </div>
+
+        <!-- ─── Messages (boîte de réception fusionnée) ─── -->
+        <!-- Masquée pendant l'édition du profil : le clavier Android la couvre
+             de toute façon et l'édition reste une tâche isolée. -->
+        @if (!editingProfile) {
+        <section class="login-messages">
+          <div class="login-messages-head">
+            <h3 class="login-messages-title">Messages</h3>
+            @if (unreadCount > 0) {
+            <span class="inbox-unread-pill">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
+            }
+          </div>
+          <div class="inbox-body">
+            @if (threadsLoading) {
+            <div class="inbox-state">
+              <div class="inbox-spinner"></div>
+            </div>
+            } @if (!threadsLoading && inboxError) {
+            <div class="inbox-state inbox-state--error">{{ inboxError }}</div>
+            } @if (!threadsLoading && !inboxError && threads.length === 0) {
+            <div class="inbox-state inbox-empty">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 12h-6l-2 3h-4l-2-3H2"></path>
+                <path
+                  d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z">
+                </path>
+              </svg>
+              <p>No conversations yet.</p>
+              <p class="inbox-empty-hint">Open a player profile to send a message.</p>
+            </div>
+            } @if (!threadsLoading && !inboxError && threads.length > 0) {
+            <ul class="inbox-list">
+              @for (thread of threads; track thread.peerId) {
+              <li class="inbox-item" [class.inbox-item--unread]="thread.unreadCount > 0" (click)="openThread(thread)">
+                @if (thread.peerPicture) {
+                <img class="inbox-avatar" [src]="thread.peerPicture" [alt]="thread.peerName"
+                  referrerpolicy="no-referrer" />
+                } @if (!thread.peerPicture) {
+                <div class="inbox-avatar inbox-avatar--fallback"></div>
+                }
+                <div class="inbox-content">
+                  <div class="inbox-meta">
+                    <span class="inbox-from">{{ thread.peerName || 'Unknown' }}</span>
+                    <span class="inbox-date">{{ formatInboxDate(thread.lastMessage.createdAt) }}</span>
+                  </div>
+                  <p class="inbox-preview">
+                    @if (thread.lastMessage.fromMe) {
+                    <span class="inbox-preview-prefix">You: </span>
+                    }{{ thread.lastMessage.text }}
+                  </p>
+                </div>
+                @if (thread.unreadCount > 0) {
+                <span class="inbox-unread-pill">{{ thread.unreadCount > 99 ? '99+' : thread.unreadCount }}</span>
+                }
+              </li>
+              }
+            </ul>
+            }
+          </div>
+        </section>
+        }
         }
 
         <!-- Formulaire si non connecté -->
@@ -263,6 +329,66 @@
         <button class="btn-guest" (click)="continueAsGuest()">
           Continue without account&nbsp;→
         </button>
+        }
+        }
+
+        <!-- ─── Single-thread view ─── -->
+        @if (loginView === 'thread' && currentPeer; as peer) {
+        <div class="thread-header">
+          <button class="thread-back" (click)="backToThreads()" aria-label="Back to profile">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+              stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+          </button>
+          <button class="thread-peer" (click)="openSenderProfile(peer.id)" [title]="peer.name">
+            @if (peer.picture) {
+            <img class="inbox-avatar thread-peer-avatar" [src]="peer.picture" [alt]="peer.name"
+              referrerpolicy="no-referrer" />
+            } @if (!peer.picture) {
+            <div class="inbox-avatar inbox-avatar--fallback thread-peer-avatar"></div>
+            }
+            <span class="thread-peer-name">{{ peer.name || 'Unknown' }}</span>
+          </button>
+        </div>
+        <div class="thread-scroll" #threadScroll>
+          @if (threadLoading) {
+          <div class="inbox-state">
+            <div class="inbox-spinner"></div>
+          </div>
+          } @if (!threadLoading && currentMessages.length === 0 && !inboxError)
+          {
+          <div class="inbox-state inbox-empty">
+            <p>No messages yet. Say hi!</p>
+          </div>
+          } @if (!threadLoading && inboxError) {
+          <div class="inbox-state inbox-state--error">{{ inboxError }}</div>
+          } @if (!threadLoading && currentMessages.length > 0) {
+          <ul class="bubble-list">
+            @for (msg of currentMessages; track msg) {
+            <li class="bubble-row" [class.bubble-row--mine]="isMyMessage(msg)">
+              <div class="bubble">
+                <p class="bubble-text">{{ msg.text }}</p>
+                <span class="bubble-time">{{ formatBubbleTime(msg.createdAt) }}</span>
+              </div>
+            </li>
+            }
+          </ul>
+          }
+        </div>
+        <form class="thread-composer" (ngSubmit)="sendThreadReply()">
+          <textarea class="thread-composer-input" [(ngModel)]="composerText" name="composerText"
+            [maxlength]="composerMaxLength" [disabled]="sending" (keydown)="onComposerKeydown($event)"
+            placeholder="Write a message…" rows="1"></textarea>
+          <button type="submit" class="thread-composer-send" [disabled]="sending || composerText.trim().length === 0"
+            aria-label="Send">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+          </button>
+        </form>
         }
       </div>
     </div>
@@ -716,135 +842,5 @@
 
     <!-- ══════════════ RULES MODAL ══════════════ -->
     <app-game-rules-modal [show]="showRules" (closeModal)="closeRules()"></app-game-rules-modal>
-
-    <!-- ══════════════ INBOX MODAL ══════════════ -->
-    <div class="modal-overlay" [class.active]="showInbox" (click)="closeInbox()">
-      <div class="modal-card inbox-card" (click)="$event.stopPropagation()">
-        <button class="modal-close" (click)="closeInbox()">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-            stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18 6 6 18M6 6l12 12" />
-          </svg>
-        </button>
-
-        <!-- ─── Threads list view ─── -->
-        @if (inboxView === 'threads') {
-        <div class="modal-header">
-          <div class="modal-marbles">
-            <span class="mm mm-blue"></span>
-            <span class="mm mm-gold"></span>
-          </div>
-          <h2 class="modal-title">Messages</h2>
-        </div>
-        <div class="inbox-body">
-          @if (threadsLoading) {
-          <div class="inbox-state">
-            <div class="inbox-spinner"></div>
-          </div>
-          } @if (!threadsLoading && inboxError) {
-          <div class="inbox-state inbox-state--error">{{ inboxError }}</div>
-          } @if (!threadsLoading && !inboxError && threads.length === 0) {
-          <div class="inbox-state inbox-empty">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
-              stroke-linecap="round" stroke-linejoin="round">
-              <path d="M22 12h-6l-2 3h-4l-2-3H2"></path>
-              <path
-                d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z">
-              </path>
-            </svg>
-            <p>No conversations yet.</p>
-          </div>
-          } @if (!threadsLoading && !inboxError && threads.length > 0) {
-          <ul class="inbox-list">
-            @for (thread of threads; track thread) {
-            <li class="inbox-item" [class.inbox-item--unread]="thread.unreadCount > 0" (click)="openThread(thread)">
-              @if (thread.peerPicture) {
-              <img class="inbox-avatar" [src]="thread.peerPicture" [alt]="thread.peerName"
-                referrerpolicy="no-referrer" />
-              } @if (!thread.peerPicture) {
-              <div class="inbox-avatar inbox-avatar--fallback"></div>
-              }
-              <div class="inbox-content">
-                <div class="inbox-meta">
-                  <span class="inbox-from">{{ thread.peerName || 'Unknown' }}</span>
-                  <span class="inbox-date">{{ formatInboxDate(thread.lastMessage.createdAt) }}</span>
-                </div>
-                <p class="inbox-preview">
-                  @if (thread.lastMessage.fromMe) {
-                  <span class="inbox-preview-prefix">You: </span>
-                  }{{ thread.lastMessage.text }}
-                </p>
-              </div>
-              @if (thread.unreadCount > 0) {
-              <span class="inbox-unread-pill">{{ thread.unreadCount > 99 ? '99+' : thread.unreadCount
-                }}</span>
-              }
-            </li>
-            }
-          </ul>
-          }
-        </div>
-        }
-
-        <!-- ─── Single-thread view ─── -->
-        @if (inboxView === 'thread' && currentPeer; as peer) {
-        <div class="thread-header">
-          <button class="thread-back" (click)="backToThreads()" aria-label="Back">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-              stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="15 18 9 12 15 6"></polyline>
-            </svg>
-          </button>
-          <button class="thread-peer" (click)="openSenderProfile(peer.id)" [title]="peer.name">
-            @if (peer.picture) {
-            <img class="inbox-avatar thread-peer-avatar" [src]="peer.picture" [alt]="peer.name"
-              referrerpolicy="no-referrer" />
-            } @if (!peer.picture) {
-            <div class="inbox-avatar inbox-avatar--fallback thread-peer-avatar"></div>
-            }
-            <span class="thread-peer-name">{{ peer.name || 'Unknown' }}</span>
-          </button>
-        </div>
-        <div class="thread-scroll" #threadScroll>
-          @if (threadLoading) {
-          <div class="inbox-state">
-            <div class="inbox-spinner"></div>
-          </div>
-          } @if (!threadLoading && currentMessages.length === 0 && !inboxError)
-          {
-          <div class="inbox-state inbox-empty">
-            <p>No messages yet. Say hi!</p>
-          </div>
-          } @if (!threadLoading && inboxError) {
-          <div class="inbox-state inbox-state--error">{{ inboxError }}</div>
-          } @if (!threadLoading && currentMessages.length > 0) {
-          <ul class="bubble-list">
-            @for (msg of currentMessages; track msg) {
-            <li class="bubble-row" [class.bubble-row--mine]="isMyMessage(msg)">
-              <div class="bubble">
-                <p class="bubble-text">{{ msg.text }}</p>
-                <span class="bubble-time">{{ formatBubbleTime(msg.createdAt) }}</span>
-              </div>
-            </li>
-            }
-          </ul>
-          }
-        </div>
-        <form class="thread-composer" (ngSubmit)="sendThreadReply()">
-          <textarea class="thread-composer-input" [(ngModel)]="composerText" name="composerText"
-            [maxlength]="composerMaxLength" [disabled]="sending" (keydown)="onComposerKeydown($event)"
-            placeholder="Write a message…" rows="1"></textarea>
-          <button type="submit" class="thread-composer-send" [disabled]="sending || composerText.trim().length === 0"
-            aria-label="Send">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <line x1="22" y1="2" x2="11" y2="13"></line>
-              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-            </svg>
-          </button>
-        </form>
-        }
-      </div>
-    </div>
   </div>
 </div>

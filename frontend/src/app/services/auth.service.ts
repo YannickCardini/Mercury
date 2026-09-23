@@ -12,6 +12,9 @@ export interface AuthUser {
     picture: string;
     points: number;
     ranking: number;
+    /** Monnaie de boutique. Optionnel : un profil mis en cache par une version
+     *  antérieure de l'app ne le contient pas. */
+    coins?: number;
 }
 
 const STORAGE_KEY = 'auth_user';
@@ -251,6 +254,25 @@ export class AuthService {
             this.isLoading$.next(false);
             history.replaceState(null, '', window.location.pathname);
         }
+    }
+
+    /**
+     * Met à jour le profil local sans repasser par le serveur : fin de partie
+     * (points, rang et pièces arrivent dans gameStats) et achat en boutique.
+     * Jusqu'ici rien ne rafraîchissait user$ après une partie, et la home
+     * affichait des points figés à la connexion.
+     */
+    patchUser(patch: Partial<AuthUser>): void {
+        const current = this.user$.getValue();
+        if (!current) return;
+        // Un patch sans changement ne doit rien réémettre : des abonnés à user$
+        // déclenchent des chargements qui repassent par ici, et une émission
+        // systématique les ferait boucler.
+        const keys = Object.keys(patch) as (keyof AuthUser)[];
+        if (keys.every(key => current[key] === patch[key])) return;
+        const next = { ...current, ...patch };
+        this.user$.next(next);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     }
 
     private loadStoredUser(): AuthUser | null {

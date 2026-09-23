@@ -85,6 +85,12 @@
           @if (newRanking() && newRanking()! > 0) {
             <div class="stats-rank">New ranking: #{{ newRanking() }}</div>
           }
+          @if (coinsDelta() !== null) {
+            <div class="stats-coins">
+              <span class="stats-coin" aria-hidden="true"></span>
+              +{{ coinsDelta() }} coins
+            </div>
+          }
         } @else {
           <div class="stats-calculating">Calculating…</div>
         }

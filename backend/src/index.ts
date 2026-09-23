@@ -16,6 +16,7 @@ import { MultiWsMessenger, wsSend } from './game/game-messenger.js';
 import authRouter, { verifyAuth } from './auth/auth-router.js';
 import messagesRouter from './messages/messages-router.js';
 import versionRouter from './version/version-router.js';
+import shopRouter from './shop/shop-router.js';
 import { touchLastSeen } from './db.js';
 
 const DEBUG = process.env['DEBUG'] === 'true';
@@ -59,12 +60,13 @@ app.use(express.json({ limit: '4mb' }));
 
 // Limites globales par IP, plus strictes sur les endpoints d'authentification.
 app.use('/api', rateLimit({ windowMs: 60_000, limit: 300, standardHeaders: true, legacyHeaders: false }));
-app.use(['/api/auth/google', '/api/auth/bot', '/api/auth/worker'],
+app.use(['/api/auth/google', '/api/auth/bot', '/api/auth/worker', '/api/shop/purchase'],
     rateLimit({ windowMs: 60_000, limit: 10, standardHeaders: true, legacyHeaders: false }));
 
 app.use('/api/auth', authRouter);
 app.use('/api/messages', messagesRouter);
 app.use('/api/version', versionRouter);
+app.use('/api/shop', shopRouter);
 
 const server = createServer(app);
 const wss = new WebSocketServer({ server });

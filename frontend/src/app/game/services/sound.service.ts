@@ -14,6 +14,9 @@ const REACTION_SOUND_KEY: Record<ReactionEmoji, string> = {
   '⏰': 'emoji_alarm',
   '🥱': 'emoji_yawn',
   '🦧': 'emoji_confused',
+  '😉': 'emoji_wink',
+  '😘': 'emoji_kissing',
+  '😊': 'emoji_smile',
 };
 
 @Injectable({ providedIn: 'root' })
@@ -60,6 +63,9 @@ export class SoundService {
       { key: 'emoji_alarm', url: 'assets/sounds/emojis/alarm.mp3' },
       { key: 'emoji_yawn', url: 'assets/sounds/emojis/yawn.wav' },
       { key: 'emoji_confused', url: 'assets/sounds/emojis/confused.mp3' },
+      { key: 'emoji_wink', url: 'assets/sounds/emojis/wink.mp3' },
+      { key: 'emoji_kissing', url: 'assets/sounds/emojis/kissing.mp3' },
+      { key: 'emoji_smile', url: 'assets/sounds/emojis/smile.mp3' },
     ];
 
     for (const { key, url } of assets) {

@@ -494,6 +494,34 @@ $slot-glows: (
   letter-spacing: 0.06em;
 }
 
+// Gain de pièces : c'est ici que le joueur découvre la monnaie, donc la ligne
+// est dorée et non grisée comme le total et le rang.
+.stats-coins {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  font-size: clamp(0.85rem, 1.9vw, 1.05rem);
+  font-weight: 700;
+  color: $c-gold;
+  letter-spacing: 0.04em;
+}
+
+// Même recette que la bille dorée .ab-gold de la home et que .sh-coin.
+.stats-coin {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 35% 35%,
+    color.adjust($c-gold, $lightness: 14%),
+    $c-gold 60%,
+    color.adjust($c-gold, $lightness: -14%)
+  );
+  box-shadow: 0 0 6px rgba($c-gold, 0.5);
+}
+
 .stats-calculating {
   font-size: clamp(0.85rem, 2vw, 1rem);
   color: rgba(255, 255, 255, 0.4);

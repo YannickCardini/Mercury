@@ -7,8 +7,10 @@ import { getLegalAction, findLegalMoveForCard, getLegalSplit7Action, MAIN_PATH, 
 import { MultiWsMessenger, type GameMessenger } from './game-messenger.js';
 import { GameRegistry } from '../session/game-registry.js';
 import { isBotUserId } from '../session/bot-dispatch.js';
-import { updateUserPoints, recomputeRankings, getUserPointsAndRanking } from '../db.js';
+import { updateUserPoints, recomputeRankings, getUserPointsAndRanking, awardCoins } from '../db.js';
 import { computeEndGamePointsDeltas } from './points.js';
+import { computeWinCoins } from './coins.js';
+import { loadOwnedItems, peekOwnedItems, prefetchOwnedItems } from '../shop/entitlements.js';
 import { isTrainMode } from '../train-mode.js';
 import { getServerGameMode } from '../game-mode.js';
 import {
@@ -25,7 +27,10 @@ import {
     TURN_TIMEOUT_OFFSET_MS,
     CARDS_PER_HAND,
     computeMinAnimationDuration,
+    countArrivedMarbles,
     SQUARES_TO_DISPLAY,
+    emojiItemId,
+    isFreeEmoji,
 } from '@mercury/shared';
 import { REACTION_EMOJIS } from "@mercury/shared";
 import { SNAPSHOT_SCHEMA_VERSION, type GameSnapshot } from './game-snapshot.js';
@@ -165,6 +170,15 @@ export class Game {
         if (snapshot) {
             this.applySnapshot(snapshot);
         }
+
+        // Préchauffe les inventaires de boutique : handleReaction doit pouvoir
+        // trancher sans lecture Cosmos. Après applySnapshot, pour que
+        // botSeatColors soit renseigné sur une partie restaurée.
+        prefetchOwnedItems(
+            this.players
+                .filter(p => p.isHuman && p.userId && !this.isBotSeat(p))
+                .map(p => p.userId!),
+        );
 
         // Handler centralisé : toute la logique WS passe par ici
         messenger.onMessage((msg, senderColor) => this.handleClientMessage(msg, senderColor));
@@ -658,17 +672,45 @@ export class Game {
             return;
         }
 
+        // Le cooldown est consommé AVANT le contrôle de possession : spammer un
+        // emoji verrouillé se rate-limite ainsi tout seul, au lieu d'ouvrir une
+        // fenêtre d'envois gratuits.
         const now = Date.now();
         const last = this.lastReactionAt.get(author) ?? 0;
         if (now - last < REACTION_COOLDOWN_MS) return;
         this.lastReactionAt.set(author, now);
 
-        this.messenger.send({
-            type: 'reactionBroadcast',
-            author,
-            emoji,
-            timestamp: now,
-        });
+        // Palette historique : accessible à tous, invités compris.
+        if (isFreeEmoji(emoji)) {
+            this.broadcastReaction(author, emoji, now);
+            return;
+        }
+
+        // Emoji de boutique : il faut un compte qui le possède. Les invités
+        // (pas de userId) et les sièges d'agents IA n'y ont pas accès.
+        const player = this.players.find(p => p.color === author);
+        const userId = player?.userId;
+        const itemId = emojiItemId(emoji);
+        if (!player || !userId || itemId === undefined || this.isBotSeat(player)) return;
+
+        const owned = peekOwnedItems(userId);
+        if (owned) {
+            if (owned.has(itemId)) this.broadcastReaction(author, emoji, now);
+            return;
+        }
+
+        // Cache froid (TTL expiré, ou achat sur une autre instance) : une seule
+        // lecture, les réactions suivantes repassent par le cache.
+        void loadOwnedItems(userId)
+            .then(items => {
+                if (this.gameFinished || this.aborted) return;
+                if (items.has(itemId)) this.broadcastReaction(author, emoji, Date.now());
+            })
+            .catch(err => console.error(`❌ Failed to check entitlements for ${userId}:`, err));
+    }
+
+    private broadcastReaction(author: MarbleColor, emoji: ReactionEmoji, timestamp: number): void {
+        this.messenger.send({ type: 'reactionBroadcast', author, emoji, timestamp });
     }
 
     // ─── Pause debug : édition du plateau ────────────────────────────────────
@@ -1299,6 +1341,41 @@ export class Game {
         await Promise.all(deltas.map(({ userId, delta }) => updateUserPoints(userId, delta)));
         await recomputeRankings();
 
+        // ── Pièces de boutique ───────────────────────────────────────────────
+        // Monnaie cosmétique, indépendante de l'Elo : un échec ici ne doit
+        // jamais altérer les points (d'où le bloc séparé et allSettled). Le gain
+        // est l'écart de pions rentrés entre les deux camps ; les perdants ne
+        // touchent rien. Les sièges d'agents IA sont exclus — isBotSeat couvre
+        // aussi le cas post-restauration, contrairement au seul isBotUserId —
+        // tandis que les invités (pas de userId) et les pénalisés le sont déjà
+        // par le filtre `participants`.
+        const arrivedOf = (p: Player) => countArrivedMarbles(p.marblePositions, p.color);
+        const winnersArrived = this.players
+            .filter(p => winners.includes(p.color))
+            .reduce((sum, p) => sum + arrivedOf(p), 0);
+        const losersArrived = this.players
+            .filter(p => !winners.includes(p.color))
+            .reduce((sum, p) => sum + arrivedOf(p), 0);
+        const winCoins = computeWinCoins(winnersArrived, losersArrived);
+
+        const coinRewards = new Map<MarbleColor, { delta: number; newCoins: number }>();
+        await Promise.allSettled(
+            currentStats
+                .filter(p => p.isWinner)
+                .filter(p => {
+                    const player = this.players.find(pl => pl.color === p.color);
+                    return player !== undefined && !this.isBotSeat(player);
+                })
+                .map(async p => {
+                    try {
+                        const newCoins = await awardCoins(p.userId, winCoins);
+                        if (newCoins !== null) coinRewards.set(p.color, { delta: winCoins, newCoins });
+                    } catch (err) {
+                        console.error(`❌ Failed to award coins to ${p.color}:`, err);
+                    }
+                })
+        );
+
         // Fetch updated stats and push a gameStats message to each player.
         // Promise.allSettled + try/catch per player: one player's fetch/send
         // failure (e.g. a socket that closed right at the win moment, still
@@ -1310,15 +1387,18 @@ export class Game {
                     const updated = await getUserPointsAndRanking(p.userId);
                     if (!updated) return;
                     const delta = deltas.find(d => d.userId === p.userId)?.delta ?? 0;
+                    const reward = coinRewards.get(p.color);
                     const statsMsg: GameStatsMessage = {
                         type: 'gameStats',
                         pointsDelta: delta,
                         newPoints: updated.points,
                         newRanking: updated.ranking,
+                        color: p.color,
+                        ...(reward ? { coinsDelta: reward.delta, newCoins: reward.newCoins } : {}),
                     };
                     this.lastGameStats.set(p.color, statsMsg);
                     this.messenger.sendTo(p.color, statsMsg);
-                    console.log(`📊 gameStats → ${p.color}: delta=${delta}, total=${updated.points}, rank=#${updated.ranking}`);
+                    console.log(`📊 gameStats → ${p.color}: delta=${delta}, total=${updated.points}, rank=#${updated.ranking}${reward ? `, coins=+${reward.delta} (${reward.newCoins})` : ''}`);
                 } catch (err) {
                     console.error(`❌ Failed to send gameStats to ${p.color}:`, err);
                 }
@@ -1342,6 +1422,7 @@ export class Game {
                         pointsDelta: -2,
                         newPoints: updated.points,
                         newRanking: updated.ranking,
+                        color: p.color,
                     };
                     this.lastGameStats.set(p.color, statsMsg);
                     this.messenger.sendTo(p.color, statsMsg);

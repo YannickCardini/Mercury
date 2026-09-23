@@ -1,0 +1,508 @@
+@use "sass:color";
+@use "../styles/palette" as *; // palette « Système solaire » centralisée
+
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+// ── Coquille : identique au leaderboard et au profil ─────────────────────────
+
+.sh-wrap {
+  width: 100%;
+  min-height: 100%;
+  box-sizing: border-box;
+  background: transparent; // fond spatial global visible à travers la page
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 32px calc(16px + var(--sa-right)) calc(48px + var(--sa-bottom))
+    calc(16px + var(--sa-left));
+  overflow-y: auto;
+}
+
+.sh-card {
+  width: 100%;
+  max-width: 560px;
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.sh-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sh-back {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  color: $c-silver;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  transition: background 0.15s, color 0.15s;
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #e2e8f0;
+  }
+}
+
+.sh-title {
+  flex: 1;
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #e2e8f0;
+  letter-spacing: 0.5px;
+}
+
+.sh-state {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 48px 20px;
+  color: $c-silver;
+  font-size: 14px;
+  text-align: center;
+
+  &--error {
+    color: #f87171;
+  }
+
+  // Bandeau d'invitation à se connecter : au-dessus de la liste, donc moins
+  // haut qu'un état plein écran.
+  &--signin {
+    padding: 18px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+}
+
+.sh-spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid rgba(255, 255, 255, 0.15);
+  border-top-color: $c-blue;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+// ── Pièce ─────────────────────────────────────────────────────────────────────
+// Même recette que la bille dorée .ab-gold de la home : boutique, pastille de
+// nav et écran de victoire doivent montrer visiblement le même objet.
+
+.sh-coin {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: inline-block;
+  background: radial-gradient(
+    circle at 35% 35%,
+    color.adjust($c-gold, $lightness: 14%),
+    $c-gold 60%,
+    color.adjust($c-gold, $lightness: -14%)
+  );
+  box-shadow: 0 0 6px rgba($c-gold, 0.5);
+
+  &--sm {
+    width: 13px;
+    height: 13px;
+    vertical-align: -1px;
+  }
+
+  &--muted {
+    filter: grayscale(0.6);
+    opacity: 0.6;
+    box-shadow: none;
+  }
+}
+
+// ── Bandeau de solde ─────────────────────────────────────────────────────────
+
+.sh-balance {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sh-balance-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: $c-gold;
+  line-height: 1;
+}
+
+.sh-balance-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: $c-silver;
+}
+
+.sh-earn-hint {
+  flex: 1 1 100%;
+  font-size: 12px;
+  color: $c-silver;
+  opacity: 0.8;
+}
+
+.sh-debug-add {
+  padding: 4px 10px;
+  border: 1px dashed rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
+  background: transparent;
+  color: $c-silver;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:active {
+    background: rgba(255, 255, 255, 0.08);
+  }
+}
+
+// ── Liste des articles ───────────────────────────────────────────────────────
+
+.sh-list {
+  list-style: none;
+  margin: 0;
+  padding: 8px 0;
+}
+
+.sh-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 20px;
+  border-left: 2px solid transparent;
+  transition: background 0.15s;
+
+  & + & {
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  &--owned {
+    background: rgba($c-green, 0.06);
+    border-left-color: rgba($c-green, 0.55);
+  }
+
+  &--locked .sh-item-preview {
+    filter: grayscale(1);
+    opacity: 0.45;
+  }
+}
+
+.sh-item-preview {
+  flex: none;
+  width: 40px;
+  text-align: center;
+  font-size: 28px;
+  line-height: 1;
+}
+
+.sh-item-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sh-item-label {
+  font-size: 15px;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.sh-item-kind {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: $c-silver;
+  opacity: 0.75;
+}
+
+.sh-item-owned {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba($c-green, 0.14);
+  border: 1px solid rgba($c-green, 0.35);
+  color: $c-green;
+  font-size: 12px;
+  font-weight: 700;
+
+  svg {
+    width: 12px;
+    height: 12px;
+  }
+}
+
+.sh-item-price-locked {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  color: $c-silver;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.sh-buy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex: none;
+  min-width: 82px;
+  padding: 9px 14px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, $c-gold, color.adjust($c-gold, $lightness: -10%));
+  color: #1a1206; // texte sombre : seul contraste lisible sur le doré
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba($c-gold, 0.3);
+  transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba($c-gold, 0.42);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+}
+
+.sh-btn-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(0, 0, 0, 0.25);
+  border-top-color: #1a1206;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+// ── Modale de confirmation ───────────────────────────────────────────────────
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(2, 6, 18, 0.72);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s, visibility 0.2s;
+
+  &.active {
+    opacity: 1;
+    visibility: visible;
+  }
+}
+
+.modal-card {
+  width: 100%;
+  max-width: 340px;
+  box-sizing: border-box;
+  padding: 24px 20px 20px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(180deg, $bg-mid, $bg-dark);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+  text-align: center;
+}
+
+.sh-confirm-preview {
+  display: block;
+  font-size: 46px;
+  line-height: 1;
+  margin-bottom: 12px;
+}
+
+.sh-confirm-title {
+  margin: 0 0 8px;
+  font-size: 17px;
+  font-weight: 700;
+  color: #e2e8f0;
+}
+
+.sh-confirm-text {
+  margin: 0 0 20px;
+  font-size: 13px;
+  color: $c-silver;
+}
+
+.sh-confirm-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.sh-btn {
+  flex: 1;
+  padding: 11px 14px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
+
+  &--ghost {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: $c-silver;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #e2e8f0;
+    }
+  }
+
+  &--primary {
+    background: linear-gradient(135deg, $c-gold, color.adjust($c-gold, $lightness: -10%));
+    color: #1a1206;
+    box-shadow: 0 4px 14px rgba($c-gold, 0.3);
+
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba($c-gold, 0.42);
+    }
+  }
+}
+
+// ── Mobile ───────────────────────────────────────────────────────────────────
+
+@media (max-width: 480px) {
+  :host {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sh-wrap {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0;
+    align-items: stretch;
+  }
+
+  .sh-card {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    border-radius: 0;
+    max-width: 100%;
+  }
+
+  .sh-list {
+    flex: 1;
+    // En mobile .sh-wrap passe en padding 0 : c'est la liste qui affleure le bas
+    // du viewport, donc c'est elle qui doit dégager la barre de navigation.
+    padding-bottom: calc(8px + var(--sa-bottom));
+  }
+
+  .sh-header {
+    padding: 14px 14px 12px;
+    gap: 8px;
+  }
+
+  .sh-title {
+    font-size: 17px;
+  }
+
+  .sh-back {
+    font-size: 13px;
+    padding: 5px 8px;
+  }
+
+  .sh-balance {
+    padding: 14px;
+  }
+
+  .sh-item {
+    padding: 11px 14px;
+    gap: 11px;
+  }
+
+  .sh-item-preview {
+    width: 34px;
+    font-size: 25px;
+  }
+
+  .sh-item-label {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 360px) {
+  .sh-header {
+    padding: 10px;
+  }
+
+  .sh-title {
+    font-size: 15px;
+  }
+
+  .sh-balance-value {
+    font-size: 19px;
+  }
+
+  .sh-item {
+    padding: 10px;
+    gap: 9px;
+  }
+
+  .sh-item-preview {
+    width: 30px;
+    font-size: 22px;
+  }
+
+  .sh-item-label {
+    font-size: 13px;
+  }
+
+  .sh-buy-btn {
+    min-width: 72px;
+    padding: 8px 11px;
+    font-size: 13px;
+  }
+}

@@ -26,6 +26,7 @@ import { AppResumeService } from "../services/app-resume.service";
 import { AuthService, type AuthUser } from "../services/auth.service";
 import { ActiveGameService } from "../services/active-game.service";
 import { PresenceService } from "../services/presence.service";
+import { ShopService } from "../services/shop.service";
 import { TEAMS } from "@mercury/shared";
 import type {
   GameInviteMessage,
@@ -171,14 +172,16 @@ export class HomePage implements OnInit, OnDestroy {
   private presenceInviteResponseSub: Subscription | null = null;
 
   // ── Inbox state ────────────────────────────────────────────────────────────
-  showInbox = false;
-  inboxView: "threads" | "thread" = "threads";
+  // La boîte de réception vit dans le modal profil (`showLogin`) : pas de second
+  // bouton dans la nav, donc pas de flag d'ouverture propre. `loginView` dit
+  // laquelle des deux vues de la carte est affichée.
+  loginView: "main" | "thread" = "main";
   threads: ThreadSummary[] = [];
   threadsLoading = false;
   inboxError = "";
   unreadCount = 0;
 
-  // Active thread (when inboxView === 'thread')
+  // Active thread (when loginView === 'thread')
   currentPeer: { id: string; name: string; picture: string } | null = null;
   currentMessages: ThreadMessage[] = [];
   threadLoading = false;
@@ -189,6 +192,7 @@ export class HomePage implements OnInit, OnDestroy {
   @ViewChild("threadScroll") threadScroll?: ElementRef<HTMLDivElement>;
 
   private http = inject(HttpClient);
+  private shop = inject(ShopService);
   private userSub: Subscription | null = null;
 
   private alreadyInGameSub: Subscription | null = null;
@@ -233,6 +237,15 @@ export class HomePage implements OnInit, OnDestroy {
     this.updateErrorSub = this.auth.updateError$.subscribe((msg) => {
       this.editError = msg;
     });
+    // Solde de la pastille : au démarrage avec une session déjà stockée, rien
+    // ne rafraîchit le profil, donc la pastille afficherait la valeur figée à
+    // la dernière connexion. Hors de l'abonnement à user$ ci-dessous, car
+    // load() écrit dans le profil et réémettrait en boucle. Une connexion en
+    // cours de session n'en a pas besoin : la réponse de login porte le solde.
+    if (this.auth.user$.getValue()) {
+      void this.shop.load().catch(() => { /* solde en cache conservé */ });
+    }
+
     this.userSub = this.auth.user$.subscribe((user) => {
       if (user) {
         void this.refreshUnreadCount();
@@ -240,8 +253,7 @@ export class HomePage implements OnInit, OnDestroy {
       } else {
         this.unreadCount = 0;
         this.threads = [];
-        this.currentMessages = [];
-        this.currentPeer = null;
+        this.resetThreadView();
         this.disconnectPresence();
       }
     });
@@ -342,12 +354,17 @@ export class HomePage implements OnInit, OnDestroy {
 
   openLogin() {
     this.showLogin = true;
+    this.loginView = "main";
+    // Les conversations sont rechargées à chaque ouverture : c'est le seul
+    // moment où elles sont visibles, et la pastille de non-lus s'y resynchronise.
+    if (this.auth.user$.getValue()) void this.loadThreads();
   }
   closeLogin() {
     this.showLogin = false;
     this.editingProfile = false;
     this.editError = "";
     this.loginPromptReason = null;
+    this.resetThreadView();
   }
 
   continueAsGuest(): void {
@@ -501,6 +518,10 @@ export class HomePage implements OnInit, OnDestroy {
   }
   goToLeaderboard() {
     this.router.navigate(["/leaderboard"]);
+  }
+
+  goToShop() {
+    this.router.navigate(["/shop"]);
   }
 
   // ── Matchmaking ────────────────────────────────────────────────────────────
@@ -1083,13 +1104,13 @@ export class HomePage implements OnInit, OnDestroy {
     }
   }
 
-  async openInbox(): Promise<void> {
-    if (!this.auth.user$.getValue()) return;
-    this.showInbox = true;
-    this.inboxView = "threads";
+  /** Remet la carte sur la vue profil + liste, conversation vidée. */
+  private resetThreadView(): void {
+    this.loginView = "main";
     this.currentPeer = null;
     this.currentMessages = [];
-    void this.loadThreads();
+    this.composerText = "";
+    this.inboxError = "";
   }
 
   private async loadThreads(): Promise<void> {
@@ -1109,15 +1130,13 @@ export class HomePage implements OnInit, OnDestroy {
         )
       );
       this.threads = list;
+      // La liste est exhaustive côté serveur : elle fait autorité sur la pastille.
+      this.unreadCount = list.reduce((n, t) => n + t.unreadCount, 0);
     } catch {
       this.inboxError = "Could not load your conversations.";
     } finally {
       this.threadsLoading = false;
     }
-  }
-
-  closeInbox(): void {
-    this.showInbox = false;
   }
 
   async openThread(thread: ThreadSummary): Promise<void> {
@@ -1128,7 +1147,8 @@ export class HomePage implements OnInit, OnDestroy {
     };
     this.currentMessages = [];
     this.composerText = "";
-    this.inboxView = "thread";
+    this.inboxError = "";
+    this.loginView = "thread";
     this.threadLoading = true;
 
     const headers = await this.authHeaders();
@@ -1180,10 +1200,7 @@ export class HomePage implements OnInit, OnDestroy {
   }
 
   backToThreads(): void {
-    this.inboxView = "threads";
-    this.currentPeer = null;
-    this.currentMessages = [];
-    this.composerText = "";
+    this.resetThreadView();
     void this.loadThreads();
   }
 
@@ -1270,7 +1287,7 @@ export class HomePage implements OnInit, OnDestroy {
 
   openSenderProfile(userId: string | null | undefined): void {
     if (!userId) return;
-    this.closeInbox();
+    this.closeLogin();
     void this.router.navigate(["/profile", userId]);
   }
 }

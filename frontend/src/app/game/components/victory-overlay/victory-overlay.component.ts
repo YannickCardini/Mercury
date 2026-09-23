@@ -42,6 +42,8 @@ export class VictoryOverlayComponent {
   pointsDelta = input<number | null>(null);
   newPoints = input<number | null>(null);
   newRanking = input<number | null>(null);
+  /** Pièces de boutique gagnées. null = partie perdue, ou joueur non crédité. */
+  coinsDelta = input<number | null>(null);
 
   backToMenu = output<void>();
 

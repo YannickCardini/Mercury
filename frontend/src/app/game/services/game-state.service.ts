@@ -1,6 +1,8 @@
 import { Injectable, signal, computed, inject, effect, DestroyRef, type Signal } from '@angular/core';
 import { BehaviorSubject, Subject } from 'rxjs';
 import { TabLockService } from './tab-lock.service';
+import { AuthService } from '../../services/auth.service';
+import { ShopService } from '../../services/shop.service';
 import {
   Action,
   Card,
@@ -624,6 +626,8 @@ export class GameStateService {
   reaction$ = new Subject<ReactionBroadcastMessage>();
 
   private tabLock = inject(TabLockService);
+  private auth = inject(AuthService);
+  private shop = inject(ShopService);
   private ws: WebSocket | null = null;
 
   // ── Reconnexion automatique en cours de partie ────────────────────────────
@@ -799,7 +803,21 @@ export class GameStateService {
         }
 
         case 'gameStats': {
-          this.gameStats.set(parsed as GameStatsMessage);
+          const stats = parsed as GameStatsMessage;
+          this.gameStats.set(stats);
+          // Recopie dans le profil local : rien d'autre ne rafraîchit user$
+          // après une partie. Le garde-fou sur la couleur vise le mode
+          // single-device, où une seule socket porte plusieurs sièges. Le
+          // serveur rejoue ce message à la reconnexion, mais patchUser est
+          // idempotent.
+          if (stats.color && stats.color === this.myPlayerColor()) {
+            this.auth.patchUser({
+              points: stats.newPoints,
+              ranking: stats.newRanking,
+              ...(stats.newCoins !== undefined ? { coins: stats.newCoins } : {}),
+            });
+            if (stats.newCoins !== undefined) this.shop.setCoins(stats.newCoins);
+          }
           break;
         }
 

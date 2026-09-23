@@ -97,6 +97,7 @@
     [pointsDelta]="gameStateService.gameStats()?.pointsDelta ?? null"
     [newPoints]="gameStateService.gameStats()?.newPoints ?? null"
     [newRanking]="gameStateService.gameStats()?.newRanking ?? null"
+    [coinsDelta]="gameStateService.gameStats()?.coinsDelta ?? null"
     (backToMenu)="backToMenu()"
   ></app-victory-overlay>
   }

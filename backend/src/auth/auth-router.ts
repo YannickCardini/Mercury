@@ -66,6 +66,30 @@ interface UserDoc {
      *  créés avant son introduction, d'où l'optionnalité. */
     lastSeenAt?: string;
     createdAt: string;
+    /** Monnaie de boutique. Absent des documents créés avant la boutique :
+     *  ensureWalletFields (db.ts) le pose au premier crédit ou achat. */
+    coins?: number;
+    /** Ids catalogue possédés (emojis, plus tard dos de cartes). Même
+     *  optionnalité que `coins`, pour la même raison. */
+    ownedItems?: string[];
+}
+
+/**
+ * Réponse « profil » renvoyée au propriétaire du compte. Le littéral était
+ * recopié sur quatre routes : un seul endroit à modifier quand un champ de
+ * profil apparaît.
+ */
+function toProfileResponse(user: UserDoc) {
+    return {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        picture: user.picture,
+        points: user.points,
+        ranking: user.ranking,
+        coins: user.coins ?? 0,
+        createdAt: user.createdAt,
+    };
 }
 
 // POST /api/auth/google
@@ -130,6 +154,8 @@ router.post('/google', async (req: Request, res: Response) => {
                 lastLogin: now,
                 lastSeenAt: now,
                 createdAt: now,
+                coins: 0,
+                ownedItems: [],
             };
             await container.items.create(user);
         }
@@ -141,13 +167,7 @@ router.post('/google', async (req: Request, res: Response) => {
 
     // ── 3. Retourner les infos publiques + un session token long-lived ──────
     res.json({
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        picture: user.picture,
-        points: user.points,
-        ranking: user.ranking,
-        createdAt: user.createdAt,
+        ...toProfileResponse(user),
         sessionToken: signSessionToken(user.id),
     });
 });
@@ -222,15 +242,7 @@ router.patch('/user/:id', async (req: Request, res: Response) => {
             return;
         }
 
-        res.json({
-            id: resource.id,
-            email: resource.email,
-            name: resource.name,
-            picture: resource.picture,
-            points: resource.points,
-            ranking: resource.ranking,
-            createdAt: resource.createdAt,
-        });
+        res.json(toProfileResponse(resource));
     } catch (err) {
         console.error('❌ Cosmos DB error (PATCH /user/:id):', err);
         res.status(500).json({ error: 'Database error' });
@@ -285,15 +297,7 @@ router.post('/user/:id/picture', avatarUpload.single('file'), async (req: Reques
             return;
         }
 
-        res.json({
-            id: resource.id,
-            email: resource.email,
-            name: resource.name,
-            picture: resource.picture,
-            points: resource.points,
-            ranking: resource.ranking,
-            createdAt: resource.createdAt,
-        });
+        res.json(toProfileResponse(resource));
     } catch (err) {
         console.error('❌ Avatar upload error (POST /user/:id/picture):', err);
         res.status(500).json({ error: 'Upload failed' });
@@ -420,15 +424,7 @@ router.post('/worker', async (req: Request, res: Response) => {
             return;
         }
         res.json({
-            user: {
-                id: resource.id,
-                email: resource.email,
-                name: resource.name,
-                picture: resource.picture,
-                points: resource.points,
-                ranking: resource.ranking,
-                createdAt: resource.createdAt,
-            },
+            user: toProfileResponse(resource),
             sessionToken,
         });
     } catch (err) {

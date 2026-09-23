@@ -13,3 +13,4 @@ export * from './board-config.js';
 export * from './constants.js';
 export * from './move-validator.js';
 export * from './teams.js';
+export * from './shop-catalog.js';

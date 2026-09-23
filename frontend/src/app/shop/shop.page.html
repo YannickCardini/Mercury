@@ -1,0 +1,92 @@
+<div class="sh-wrap">
+  <div class="sh-card">
+    <div class="sh-header">
+      <button class="sh-back" (click)="goBack()">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+        Back
+      </button>
+      <h1 class="sh-title">Shop</h1>
+    </div>
+
+    @if (signedIn()) {
+      <div class="sh-balance">
+        <span class="sh-coin" aria-hidden="true"></span>
+        <span class="sh-balance-value">{{ balance() }}</span>
+        <span class="sh-balance-label">coins</span>
+        <span class="sh-earn-hint">Win a game to earn coins, based on your marble lead</span>
+        @if (debug) {
+          <button class="sh-debug-add" type="button" (click)="debugAddCoins()">+500 (debug)</button>
+        }
+      </div>
+    }
+
+    @if (loading()) {
+      <div class="sh-state">
+        <div class="sh-spinner"></div>
+      </div>
+    } @else if (error()) {
+      <div class="sh-state sh-state--error">{{ error() }}</div>
+    } @else {
+      @if (!signedIn()) {
+        <div class="sh-state sh-state--signin">Sign in to earn coins and unlock reactions.</div>
+      }
+      <ul class="sh-list">
+        @for (item of shop.items(); track item.id) {
+          <li class="sh-item"
+              [class.sh-item--owned]="isOwned(item.id)"
+              [class.sh-item--locked]="signedIn() && !isOwned(item.id) && !canAfford(item)">
+            <span class="sh-item-preview">{{ previewOf(item) }}</span>
+            <span class="sh-item-text">
+              <span class="sh-item-label">{{ item.label }}</span>
+              <span class="sh-item-kind">Reaction</span>
+            </span>
+
+            @if (isOwned(item.id)) {
+              <span class="sh-item-owned">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                Owned
+              </span>
+            } @else if (signedIn()) {
+              <button class="sh-buy-btn"
+                      [disabled]="!canAfford(item) || busyId() === item.id"
+                      (click)="confirm(item)">
+                @if (busyId() === item.id) {
+                  <span class="sh-btn-spinner"></span>
+                } @else {
+                  <span class="sh-coin sh-coin--sm" aria-hidden="true"></span>
+                  {{ item.price }}
+                }
+              </button>
+            } @else {
+              <span class="sh-item-price-locked">
+                <span class="sh-coin sh-coin--sm sh-coin--muted" aria-hidden="true"></span>
+                {{ item.price }}
+              </span>
+            }
+          </li>
+        }
+      </ul>
+    }
+  </div>
+
+  <div class="modal-overlay" [class.active]="pending() !== null" (click)="cancel()">
+    @if (pending(); as item) {
+      <div class="modal-card" (click)="$event.stopPropagation()">
+        <span class="sh-confirm-preview">{{ previewOf(item) }}</span>
+        <h2 class="sh-confirm-title">Unlock {{ item.label }}?</h2>
+        <p class="sh-confirm-text">
+          This costs <span class="sh-coin sh-coin--sm" aria-hidden="true"></span>{{ item.price }} coins.
+          You have {{ balance() }}.
+        </p>
+        <div class="sh-confirm-actions">
+          <button class="sh-btn sh-btn--ghost" (click)="cancel()">Cancel</button>
+          <button class="sh-btn sh-btn--primary" (click)="buy()">Unlock</button>
+        </div>
+      </div>
+    }
+  </div>
+</div>

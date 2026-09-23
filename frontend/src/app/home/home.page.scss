@@ -159,6 +159,7 @@
 }
 
 .nav-login-btn {
+  position: relative; // ancre la pastille de messages non lus
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1376,6 +1377,7 @@
   gap: 0;
   padding: 8px 0 4px;
   text-align: center;
+  flex-shrink: 0; // la liste de messages défile, pas la fiche
 }
 
 .profile-avatar-wrap {
@@ -1567,38 +1569,69 @@
   }
 }
 
-// ─── Inbox button (in nav) ────────────────────────────────────────────────────
+// ─── Nav user row ─────────────────────────────────────────────────────────────
 .nav-user {
   display: flex;
-  align-items: center;
+  // Étirement : il ne reste que deux pilules dans la rangée, elles doivent
+  // faire la même hauteur (celle du bouton profil, dictée par son avatar).
+  align-items: stretch;
   gap: 8px;
 }
 
-.nav-inbox-btn {
-  position: relative;
-  width: 36px;
-  height: 36px;
-  display: flex;
+// ─── Coin balance / shop entry (in nav) ───────────────────────────────────────
+// Le solde et la porte d'entrée de la boutique sont le même objet : une monnaie
+// qu'on ne voit pas est une monnaie qu'on oublie.
+.nav-coins-btn {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 50%;
-  color: rgba(255, 255, 255, 0.75);
+  gap: 6px;
+  padding: 0 12px;
+  box-sizing: border-box;
+  background: rgba($c-gold, 0.1);
+  border: 1px solid rgba($c-gold, 0.3);
+  border-radius: 999px;
+  color: $c-gold;
+  font-size: 13px;
+  font-weight: 700;
   cursor: pointer;
-  transition: background 0.2s, border-color 0.2s, color 0.2s;
+  transition: background 0.2s, border-color 0.2s;
 
   &:hover {
-    background: rgba($c-blue, 0.15);
-    border-color: rgba($c-blue, 0.4);
-    color: white;
+    background: rgba($c-gold, 0.18);
+    border-color: rgba($c-gold, 0.55);
   }
 }
 
-.nav-inbox-badge {
+.nav-coin {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 35% 35%,
+    color.adjust($c-gold, $lightness: 14%),
+    $c-gold 60%,
+    color.adjust($c-gold, $lightness: -14%)
+  );
+  box-shadow: 0 0 6px rgba($c-gold, 0.5);
+}
+
+// La rangée porte déjà la marque, la pastille de pièces et le prénom : sur les
+// écrans les plus étroits, la pastille se resserre plutôt que de pousser le reste.
+@media (max-width: 360px) {
+  .nav-coins-btn {
+    padding: 0 9px;
+    font-size: 12px;
+  }
+}
+
+// Compteur de non-lus posé sur le bouton profil (seul point d'entrée des
+// messages depuis la nav) : coin haut-droit de la pilule, hors de l'avatar
+// pour rester lisible quel que soit le prénom affiché.
+.nav-unread-badge {
   position: absolute;
-  top: -3px;
-  right: -3px;
+  top: -5px;
+  right: -4px;
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
@@ -1611,23 +1644,60 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid rgba(15, 23, 42, 0.92);
+  border: 2px solid #0b1120;
   letter-spacing: 0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
 }
 
-// ─── Inbox modal ──────────────────────────────────────────────────────────────
-.inbox-card {
-  max-width: 460px;
-  padding: 28px 20px 20px;
+// ─── Profile modal (profil + messages fusionnés) ──────────────────────────────
+// Largeur unique pour les deux vues : ouvrir une conversation ne doit pas
+// redimensionner la carte sous le doigt.
+.login-card {
   display: flex;
   flex-direction: column;
-  max-height: min(85vh, 720px);
+  min-height: 0;
+  max-width: 420px;
+  // dvh mesure l'écran barres système comprises : on retranche les insets.
+  max-height: min(85dvh - var(--sa-top) - var(--sa-bottom), 720px);
+  overflow-y: auto; // filet de sécurité : la vue 'main' ne doit jamais déborder
+}
+
+.login-card--thread {
+  padding: 28px 20px 20px;
+}
+
+// ─── Messages section (inside the profile modal) ──────────────────────────────
+.login-messages {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.login-messages-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+}
+
+.login-messages-title {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.42);
 }
 
 .inbox-body {
   flex: 1;
   min-height: 0;
-  max-height: 60vh;
+  // Plafond de la liste dans la carte : au-delà, elle défile et la fiche
+  // profil reste visible au-dessus.
+  max-height: 38vh;
   overflow-y: auto;
   margin: 0 -4px;
   padding: 0 4px;
@@ -1638,10 +1708,11 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 36px 16px;
+  padding: 26px 16px;
   color: rgba(255, 255, 255, 0.55);
-  font-size: 0.9rem;
-  gap: 10px;
+  font-size: 0.88rem;
+  text-align: center;
+  gap: 8px;
 
   &--error {
     color: #f87171;
@@ -1649,11 +1720,18 @@
 }
 
 .inbox-empty svg {
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.3);
 }
 
 .inbox-empty p {
   margin: 0;
+}
+
+.inbox-empty-hint {
+  font-size: 0.76rem;
+  color: rgba(255, 255, 255, 0.35);
+  max-width: 24ch;
+  line-height: 1.4;
 }
 
 .inbox-spinner {
@@ -1787,9 +1865,11 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 0 0 14px;
+  // Réserve à droite : le bouton de fermeture flotte au-dessus de la carte.
+  padding: 0 34px 14px 0;
   margin-bottom: 12px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
 }
 
 .thread-back {
@@ -1922,6 +2002,7 @@
   padding: 12px 0 0;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   margin-top: 8px;
+  flex-shrink: 0;
 }
 
 .thread-composer-input {
@@ -1984,11 +2065,29 @@
   }
 }
 
+// Écran court (paysage téléphone) : la carte défile d'un bloc plutôt que de
+// contenir une liste qui défile dans une fiche qui défile. La conversation, elle,
+// garde son défilement interne pour laisser le champ de saisie au fond.
+@media (max-height: 560px) {
+  .inbox-body {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .thread-scroll {
+    min-height: 110px;
+    max-height: none;
+  }
+}
+
 @media (max-width: 480px) {
-  .inbox-card {
-    max-width: 95vw;
+  .login-card {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .login-card--thread {
     padding: 24px 14px 16px;
-    max-height: 90vh;
   }
 
   .inbox-item {

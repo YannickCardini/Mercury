@@ -127,3 +127,9 @@ export function hasWon(marblePositions: number[], color: MarbleColor): boolean {
   const arrivals = ARRIVAL_POSITIONS[color];
   return marblePositions.every(pos => arrivals.includes(pos));
 }
+
+/** Nombre de pions d'une couleur déjà rentrés dans sa zone d'arrivée. */
+export function countArrivedMarbles(marblePositions: number[], color: MarbleColor): number {
+  const arrivals = ARRIVAL_POSITIONS[color];
+  return marblePositions.filter(pos => arrivals.includes(pos)).length;
+}

@@ -105,6 +105,125 @@ export async function getUserPointsAndRanking(userId: string): Promise<{ points:
     }
 }
 
+// ── Boutique : porte-monnaie et inventaire ───────────────────────────────────
+//
+// Les documents antérieurs à la boutique n'ont ni `coins` ni `ownedItems`, et
+// Cosmos est strict là-dessus : `incr` et `add /ownedItems/-` échouent en 400
+// sur un chemin absent, et une `condition` portant sur un champ absent est
+// toujours fausse. Tout chemin d'écriture doit donc d'abord garantir les champs.
+//
+// On ne peut pas se reposer sur /api/auth/google pour cette initialisation : le
+// session token vivant ~27 ans, un appareil peut ne jamais y repasser.
+
+const walletReady = new Set<string>();
+
+/**
+ * Crée `coins` et `ownedItems` s'ils manquent. Idempotent, mémorisé par process.
+ * Deux patches séparés, chacun conditionné sur SON champ : une condition unique
+ * (« l'un OU l'autre est absent ») remettrait `coins` à 0 chez un joueur qui a
+ * déjà des pièces mais pas encore d'inventaire.
+ */
+export async function ensureWalletFields(userId: string): Promise<void> {
+    if (walletReady.has(userId)) return;
+    const container = await getUsersContainer();
+    const seeds: Array<{ path: string; field: string; value: unknown }> = [
+        { path: '/coins', field: 'coins', value: 0 },
+        { path: '/ownedItems', field: 'ownedItems', value: [] },
+    ];
+    for (const { path, field, value } of seeds) {
+        try {
+            await container.item(userId, userId).patch({
+                operations: [{ op: 'set', path, value }],
+                condition: `FROM c WHERE NOT IS_DEFINED(c.${field})`,
+            });
+        } catch (err: unknown) {
+            const code = (err as { code?: number }).code;
+            // 412 = condition non remplie, donc le champ existe déjà (cas
+            // nominal après le premier passage). 404 = compte supprimé.
+            if (code !== 412 && code !== 404) throw err;
+        }
+    }
+    walletReady.add(userId);
+}
+
+export interface UserWallet {
+    coins: number;
+    ownedItems: string[];
+}
+
+export async function getUserWallet(userId: string): Promise<UserWallet | null> {
+    const container = await getUsersContainer();
+    try {
+        const { resource } = await container.item(userId, userId).read<Partial<UserWallet>>();
+        if (!resource) return null;
+        return { coins: resource.coins ?? 0, ownedItems: resource.ownedItems ?? [] };
+    } catch (err: unknown) {
+        if ((err as { code?: number }).code === 404) return null;
+        throw err;
+    }
+}
+
+/**
+ * Crédite le solde et renvoie le NOUVEAU solde : le patch retourne le document
+ * à jour, donc aucune lecture supplémentaire n'est nécessaire en fin de partie.
+ * Renvoie null si le compte n'existe pas.
+ */
+export async function awardCoins(userId: string, delta: number): Promise<number | null> {
+    await ensureWalletFields(userId);
+    const container = await getUsersContainer();
+    const ops: PatchOperation[] = [{ op: 'incr', path: '/coins', value: delta }];
+    try {
+        const { resource } = await container.item(userId, userId).patch<Partial<UserWallet>>(ops);
+        return resource?.coins ?? null;
+    } catch (err: unknown) {
+        if ((err as { code?: number }).code === 404) return null;
+        throw err;
+    }
+}
+
+export type PurchaseResult =
+    | { ok: true; coins: number; ownedItems: string[] }
+    | { ok: false; reason: 'not_found' | 'rejected' };
+
+/**
+ * Achat atomique : débit et ajout à l'inventaire dans un SEUL patch conditionné.
+ * La condition porte à la fois sur le solde et sur la non-possession, donc le
+ * solde ne peut pas devenir négatif et deux requêtes concurrentes ne peuvent pas
+ * débiter deux fois (la seconde échoue en 412, sans application partielle).
+ *
+ * `reason: 'rejected'` couvre indifféremment « pas assez de pièces » et « déjà
+ * possédé » : l'appelant relit le porte-monnaie pour distinguer les deux, hors
+ * du chemin critique.
+ *
+ * La `condition` est une expression SQL sans paramètres nommés : `itemId` et
+ * `price` doivent venir du catalogue serveur, jamais du corps de la requête.
+ */
+export async function purchaseItem(
+    userId: string,
+    itemId: string,
+    price: number,
+): Promise<PurchaseResult> {
+    await ensureWalletFields(userId);
+    const container = await getUsersContainer();
+    const cost = Math.trunc(price);
+    try {
+        const { resource } = await container.item(userId, userId).patch<Partial<UserWallet>>({
+            operations: [
+                { op: 'incr', path: '/coins', value: -cost },
+                { op: 'add', path: '/ownedItems/-', value: itemId },
+            ],
+            condition: `FROM c WHERE c.coins >= ${cost} AND NOT ARRAY_CONTAINS(c.ownedItems, "${itemId}")`,
+        });
+        if (!resource) return { ok: false, reason: 'not_found' };
+        return { ok: true, coins: resource.coins ?? 0, ownedItems: resource.ownedItems ?? [] };
+    } catch (err: unknown) {
+        const code = (err as { code?: number }).code;
+        if (code === 404) return { ok: false, reason: 'not_found' };
+        if (code === 412) return { ok: false, reason: 'rejected' };
+        throw err;
+    }
+}
+
 export async function recomputeRankings(): Promise<void> {
     const container = await getUsersContainer();
     const { resources: users } = await container.items

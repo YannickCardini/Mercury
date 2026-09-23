@@ -16,14 +16,18 @@
 
   @if (showPalette()) {
   <div class="emoji-palette" role="menu">
-    @for (e of emojis; track e) {
+    @for (e of entries(); track e.emoji) {
     <button
       type="button"
       class="emoji-option"
+      [class.is-locked]="e.locked"
       role="menuitem"
-      [attr.aria-label]="'Send ' + e"
+      [attr.aria-label]="(e.locked ? 'Locked reaction ' : 'Send ') + e.emoji"
       (click)="pickEmoji(e)">
-      {{ e }}
+      {{ e.emoji }}
+      @if (e.locked) {
+      <span class="emoji-lock" aria-hidden="true">🔒</span>
+      }
     </button>
     }
   </div>

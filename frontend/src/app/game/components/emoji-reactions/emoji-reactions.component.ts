@@ -12,11 +12,21 @@ import { Capacitor } from "@capacitor/core";
 import { Subscription } from "rxjs";
 import {
   REACTION_EMOJIS,
+  isEmojiUnlocked,
   type ReactionEmoji,
   type MarbleColor,
 } from "@mercury/shared";
 import { GameStateService } from "../../services/game-state.service";
 import { SoundService } from "../../services/sound.service";
+import { ShopService } from "../../../services/shop.service";
+import { AuthService } from "../../../services/auth.service";
+import { ToastService } from "../../../shared/toast.service";
+
+/** Une case de la palette : l'emoji et son état de déblocage. */
+export interface PaletteEntry {
+  emoji: ReactionEmoji;
+  locked: boolean;
+}
 
 interface FloatingReaction {
   id: number;
@@ -47,7 +57,19 @@ const TOGGLE_GUARD_MS = 250;
 })
 export class EmojiReactionsComponent implements OnInit, OnDestroy {
   readonly isNative = Capacitor.isNativePlatform();
-  readonly emojis = REACTION_EMOJIS;
+
+  /**
+   * La palette garde toujours toutes ses cases, quel que soit l'état du compte :
+   * la géométrie de la grille ne dépend donc pas du nombre d'emojis débloqués
+   * (pas de reflow entre invité et connecté), et le cadenas est la seule
+   * publicité que la boutique reçoit depuis une partie.
+   */
+  readonly entries = computed<PaletteEntry[]>(() =>
+    REACTION_EMOJIS.map((emoji) => ({
+      emoji,
+      locked: !isEmojiUnlocked(emoji, this.shop.owned()),
+    }))
+  );
 
   showPalette = signal(false);
   floating = signal<FloatingReaction[]>([]);
@@ -60,6 +82,9 @@ export class EmojiReactionsComponent implements OnInit, OnDestroy {
 
   private gameStateService = inject(GameStateService);
   private soundService = inject(SoundService);
+  private shop = inject(ShopService);
+  private auth = inject(AuthService);
+  private toast = inject(ToastService);
   private sub?: Subscription;
   private nextId = 1;
   private lastToggleAt = 0;
@@ -75,6 +100,10 @@ export class EmojiReactionsComponent implements OnInit, OnDestroy {
       this.spawnFloating(msg.author, msg.emoji);
       this.soundService.playReaction(msg.emoji);
     });
+    // Rafraîchit l'inventaire de boutique. Le cache local a déjà donné le bon
+    // état de verrouillage de façon synchrone : un échec réseau ici n'empêche
+    // donc rien, et le serveur revérifie la possession de toute façon.
+    void this.shop.load().catch(() => { /* cache local conservé */ });
     // Pas de timer permanent : il ne sert qu'à libérer le bouton après le
     // cooldown. On ne le démarre donc que pendant la fenêtre de cooldown
     // (cf. startCooldownTicker), pour éviter 4 cycles de change detection/s
@@ -117,8 +146,22 @@ export class EmojiReactionsComponent implements OnInit, OnDestroy {
     return true;
   }
 
-  pickEmoji(emoji: ReactionEmoji): void {
+  pickEmoji(entry: PaletteEntry): void {
     if (this.cooldownActive()) return;
+
+    if (entry.locked) {
+      // Ni envoi, ni cooldown consommé, ni navigation : quitter la page
+      // pendant une partie coûterait un abandon.
+      this.showPalette.set(false);
+      this.toast.show(
+        this.auth.user$.getValue()
+          ? "Unlock this reaction in the Shop."
+          : "Sign in to unlock this reaction."
+      );
+      return;
+    }
+
+    const emoji = entry.emoji;
     this.lastSentAt.set(Date.now());
     this.now.set(Date.now());
     this.startCooldownTicker();
