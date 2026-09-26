@@ -487,6 +487,22 @@ $slot-glows: (
   &:not(.gain):not(.loss) { color: rgba(255, 255, 255, 0.7); }
 }
 
+// Badge du boost double points : sobre, doré, jamais dans la couleur du gain/perte
+// (le ×2 qualifie le calcul, il n'est ni un gain ni une perte en soi).
+.stats-boost {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 0.55em;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  vertical-align: middle;
+  color: #1a1206;
+  background: linear-gradient(135deg, #ffe08a, #f0c040);
+  box-shadow: 0 0 10px rgba(240, 192, 64, 0.5);
+}
+
 .stats-total,
 .stats-rank {
   font-size: clamp(0.8rem, 1.8vw, 1rem);

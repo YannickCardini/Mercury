@@ -817,6 +817,10 @@ export class GameStateService {
               ...(stats.newCoins !== undefined ? { coins: stats.newCoins } : {}),
             });
             if (stats.newCoins !== undefined) this.shop.setCoins(stats.newCoins);
+            // Le serveur désarme le boost au moment même où il calcule ce
+            // delta (cf. Game.applyEndGamePoints) : le client suit sans
+            // attendre un rechargement de la boutique.
+            if (stats.pointsBoosted) this.shop.clearActiveBoost();
           }
           break;
         }

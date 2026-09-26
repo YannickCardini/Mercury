@@ -7,7 +7,7 @@ import { getLegalAction, findLegalMoveForCard, getLegalSplit7Action, MAIN_PATH, 
 import { MultiWsMessenger, type GameMessenger } from './game-messenger.js';
 import { GameRegistry } from '../session/game-registry.js';
 import { isBotUserId } from '../session/bot-dispatch.js';
-import { updateUserPoints, recomputeRankings, getUserPointsAndRanking, awardCoins } from '../db.js';
+import { updateUserPoints, recomputeRankings, getUserPointsAndRanking, awardCoins, getPendingBoost, consumeBoost } from '../db.js';
 import { computeEndGamePointsDeltas } from './points.js';
 import { computeWinCoins } from './coins.js';
 import { loadOwnedItems, peekOwnedItems, prefetchOwnedItems } from '../shop/entitlements.js';
@@ -31,6 +31,7 @@ import {
     SQUARES_TO_DISPLAY,
     emojiItemId,
     isFreeEmoji,
+    DOUBLE_POINTS_BOOST_ID,
 } from '@mercury/shared';
 import { REACTION_EMOJIS } from "@mercury/shared";
 import { SNAPSHOT_SCHEMA_VERSION, type GameSnapshot } from './game-snapshot.js';
@@ -1324,22 +1325,38 @@ export class Game {
 
         if (participants.length === 0) return;
 
-        // Fetch current points for every participant (needed for the Elo formula)
+        // Fetch current points and armed boost for every participant (needed for the Elo formula)
         const currentStats = await Promise.all(
             participants.map(async p => {
-                const s = await getUserPointsAndRanking(p.userId);
-                return { ...p, points: s?.points ?? 1000, isWinner: winners.includes(p.color) };
+                const [s, pendingBoostId] = await Promise.all([
+                    getUserPointsAndRanking(p.userId),
+                    getPendingBoost(p.userId),
+                ]);
+                return {
+                    ...p,
+                    points: s?.points ?? 1000,
+                    isWinner: winners.includes(p.color),
+                    boosted: pendingBoostId === DOUBLE_POINTS_BOOST_ID,
+                };
             })
         );
 
         // Compute weighted deltas using the Elo-like formula in points.ts
         const deltas = computeEndGamePointsDeltas(
-            currentStats.map(p => ({ userId: p.userId, points: p.points, isWinner: p.isWinner }))
+            currentStats.map(p => ({ userId: p.userId, points: p.points, isWinner: p.isWinner, boosted: p.boosted }))
         );
 
         // Apply deltas in parallel, then recompute rankings once
         await Promise.all(deltas.map(({ userId, delta }) => updateUserPoints(userId, delta)));
         await recomputeRankings();
+
+        // Le boost ne vaut que pour CETTE partie : on le désarme dès qu'il a
+        // été pris en compte dans les deltas ci-dessus, gagnée ou perdue.
+        // Best-effort (allSettled) : un échec de désarmement ne doit jamais
+        // faire échouer la fin de partie, cf. consumeBoost.
+        await Promise.allSettled(
+            currentStats.filter(p => p.boosted).map(p => consumeBoost(p.userId, DOUBLE_POINTS_BOOST_ID))
+        );
 
         // ── Pièces de boutique ───────────────────────────────────────────────
         // Monnaie cosmétique, indépendante de l'Elo : un échec ici ne doit
@@ -1395,6 +1412,7 @@ export class Game {
                         newRanking: updated.ranking,
                         color: p.color,
                         ...(reward ? { coinsDelta: reward.delta, newCoins: reward.newCoins } : {}),
+                        ...(p.boosted ? { pointsBoosted: true } : {}),
                     };
                     this.lastGameStats.set(p.color, statsMsg);
                     this.messenger.sendTo(p.color, statsMsg);

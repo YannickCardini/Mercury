@@ -14,15 +14,25 @@ interface ShopStateResponse {
   coins: number;
   ownedItems: string[];
   items: ShopItem[];
+  /** Id du boost armé pour la prochaine partie, ou null. Absent sur une réponse
+   *  d'achat d'objet permanent (n'a pas changé, on garde la valeur connue). */
+  pendingBoostId?: string | null;
 }
 
 interface ShopErrorBody {
   code?: string;
   coins?: number;
   ownedItems?: string[];
+  pendingBoostId?: string | null;
 }
 
-export type PurchaseOutcome = 'ok' | 'insufficient' | 'owned' | 'unauthenticated' | 'error';
+export type PurchaseOutcome =
+  | 'ok'
+  | 'insufficient'
+  | 'owned'
+  | 'boost_active'
+  | 'unauthenticated'
+  | 'error';
 
 const CACHE_KEY = 'shop_state';
 
@@ -44,6 +54,8 @@ export class ShopService {
   readonly owned = signal<ReadonlySet<string>>(new Set<string>());
   /** Catalogue embarqué par défaut, remplacé par celui du serveur au chargement. */
   readonly items = signal<readonly ShopItem[]>(getShopItems());
+  /** Id du boost consommable armé pour la prochaine partie, ou null. */
+  readonly activeBoostId = signal<string | null>(null);
 
   constructor() {
     this.restoreFromCache();
@@ -68,13 +80,19 @@ export class ShopService {
       }),
     );
     this.apply(state.coins, state.ownedItems);
+    this.activeBoostId.set(state.pendingBoostId ?? null);
     if (state.items?.length) this.items.set(state.items);
+    this.persist();
   }
 
   /**
    * Achète un objet. Le prix débité est celui du catalogue serveur : le client
    * n'envoie que l'id. En cas de refus, le corps de la réponse porte le solde
    * réel, donc l'affichage se resynchronise même sur un échec.
+   *
+   * Pour un boost, la réponse ne porte pas `ownedItems` (un consommable n'y
+   * rejoint jamais) mais `pendingBoostId` : `apply` laisse l'inventaire
+   * intact dans ce cas, seul `activeBoostId` change.
    */
   async purchase(itemId: string): Promise<PurchaseOutcome> {
     const token = await this.auth.getFreshIdToken();
@@ -88,13 +106,18 @@ export class ShopService {
         ),
       );
       this.apply(res.coins, res.ownedItems);
+      if (res.pendingBoostId !== undefined) this.activeBoostId.set(res.pendingBoostId);
+      this.persist();
       return 'ok';
     } catch (err) {
       if (err instanceof HttpErrorResponse) {
         const body = err.error as ShopErrorBody | undefined;
-        if (body?.coins !== undefined) this.apply(body.coins, body.ownedItems ?? [...this.owned()]);
+        if (body?.coins !== undefined) this.apply(body.coins, body.ownedItems);
+        if (body?.pendingBoostId !== undefined) this.activeBoostId.set(body.pendingBoostId);
+        this.persist();
         if (err.status === 401) return 'unauthenticated';
         if (body?.code === 'ALREADY_OWNED') return 'owned';
+        if (body?.code === 'BOOST_ACTIVE') return 'boost_active';
         if (body?.code === 'INSUFFICIENT_FUNDS') return 'insufficient';
       }
       return 'error';
@@ -132,13 +155,25 @@ export class ShopService {
     return this.owned().has(itemId);
   }
 
+  /** Vrai si `itemId` est le boost armé pour la prochaine partie. */
+  isBoostActive(itemId: string): boolean {
+    return this.activeBoostId() === itemId;
+  }
+
   isEmojiUnlocked(emoji: ReactionEmoji): boolean {
     return isEmojiUnlocked(emoji, this.owned());
+  }
+
+  /** Le serveur a consommé le boost en fin de partie (message gameStats). */
+  clearActiveBoost(): void {
+    this.activeBoostId.set(null);
+    this.persist();
   }
 
   clear(): void {
     this.coins.set(null);
     this.owned.set(new Set<string>());
+    this.activeBoostId.set(null);
     try {
       localStorage.removeItem(CACHE_KEY);
     } catch {
@@ -146,9 +181,10 @@ export class ShopService {
     }
   }
 
-  private apply(coins: number, ownedItems: string[]): void {
+  /** `ownedItems` omis (undefined) laisse l'inventaire inchangé (cf. achat d'un boost). */
+  private apply(coins: number, ownedItems?: string[]): void {
     this.coins.set(coins);
-    this.owned.set(new Set(ownedItems));
+    if (ownedItems) this.owned.set(new Set(ownedItems));
     this.auth.patchUser({ coins });
     this.persist();
   }
@@ -157,7 +193,11 @@ export class ShopService {
     try {
       localStorage.setItem(
         CACHE_KEY,
-        JSON.stringify({ coins: this.coins(), ownedItems: [...this.owned()] }),
+        JSON.stringify({
+          coins: this.coins(),
+          ownedItems: [...this.owned()],
+          activeBoostId: this.activeBoostId(),
+        }),
       );
     } catch {
       /* stockage indisponible : on retombe sur un chargement réseau */
@@ -168,9 +208,14 @@ export class ShopService {
     try {
       const raw = localStorage.getItem(CACHE_KEY);
       if (!raw) return;
-      const cached = JSON.parse(raw) as { coins?: number | null; ownedItems?: string[] };
+      const cached = JSON.parse(raw) as {
+        coins?: number | null;
+        ownedItems?: string[];
+        activeBoostId?: string | null;
+      };
       if (typeof cached.coins === 'number') this.coins.set(cached.coins);
       if (Array.isArray(cached.ownedItems)) this.owned.set(new Set(cached.ownedItems));
+      if (typeof cached.activeBoostId === 'string') this.activeBoostId.set(cached.activeBoostId);
     } catch {
       /* cache illisible : on repart d'un état vide */
     }

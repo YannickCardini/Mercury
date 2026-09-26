@@ -17,6 +17,12 @@ import { REACTION_EMOJIS, type ReactionEmoji } from './types.js';
 /** Prix unitaire d'une réaction emoji (phase 1 de la boutique). */
 export const EMOJI_ITEM_PRICE = 50;
 
+/** Prix du boost qui double les points de la prochaine partie. */
+export const DOUBLE_POINTS_BOOST_PRICE = 10;
+
+/** Id catalogue du boost double points, réutilisé par le serveur pour l'armer et le consommer. */
+export const DOUBLE_POINTS_BOOST_ID = 'boost.double_points';
+
 /**
  * Bornes du gain de fin de partie. Le gain brut est l'écart de pions rentrés
  * entre les deux camps : en 2v2 le camp gagnant en a toujours 8, donc le gain
@@ -28,7 +34,7 @@ export const MAX_COINS_PER_WIN = 8;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type ShopItemKind = 'emoji' | 'cardback';
+export type ShopItemKind = 'emoji' | 'cardback' | 'boost';
 
 interface ShopItemCommon {
   readonly id: string;
@@ -50,7 +56,19 @@ export interface CardBackShopItem extends ShopItemCommon {
   readonly asset: string;
 }
 
-export type ShopItem = EmojiShopItem | CardBackShopItem;
+/**
+ * Objet consommable : une fois acheté, il s'arme pour la prochaine partie
+ * jouée par le joueur puis se consomme (qu'il gagne ou perde), sans jamais
+ * rejoindre `ownedItems`. Contrairement à `emoji`/`cardback`, il est
+ * rachetable dès qu'il n'est plus armé.
+ */
+export interface BoostShopItem extends ShopItemCommon {
+  readonly kind: 'boost';
+  /** Facteur appliqué au delta de points (gain ET perte) de la prochaine partie. */
+  readonly multiplier: number;
+}
+
+export type ShopItem = EmojiShopItem | CardBackShopItem | BoostShopItem;
 
 // ── Catalogue ─────────────────────────────────────────────────────────────────
 //
@@ -63,6 +81,13 @@ export const SHOP_CATALOG = [
   { id: 'emoji.wink', kind: 'emoji', label: 'Wink', price: EMOJI_ITEM_PRICE, emoji: '😉' },
   { id: 'emoji.kissing', kind: 'emoji', label: 'Heart eyes', price: EMOJI_ITEM_PRICE, emoji: '😘' },
   { id: 'emoji.smile', kind: 'emoji', label: 'Smile', price: EMOJI_ITEM_PRICE, emoji: '😊' },
+  {
+    id: DOUBLE_POINTS_BOOST_ID,
+    kind: 'boost',
+    label: 'Double Points',
+    price: DOUBLE_POINTS_BOOST_PRICE,
+    multiplier: 2,
+  },
 ] as const satisfies readonly ShopItem[];
 
 export type ShopItemId = typeof SHOP_CATALOG[number]['id'];
@@ -106,6 +131,16 @@ export function emojiItemId(emoji: ReactionEmoji): string | undefined {
 /** Vrai pour les emojis historiques : disponibles pour tous, invités compris. */
 export function isFreeEmoji(emoji: ReactionEmoji): boolean {
   return !PAID_EMOJI_ID.has(emoji);
+}
+
+/**
+ * Facteur du boost identifié par `id`, ou 1 (neutre) si l'id ne désigne pas un
+ * boost du catalogue. Seule façon dont le serveur doit lire ce multiplicateur :
+ * jamais recopié en dur à côté du catalogue.
+ */
+export function getBoostMultiplier(id: string): number {
+  const item = BY_ID.get(id);
+  return item?.kind === 'boost' ? item.multiplier : 1;
 }
 
 /** Palette accessible sans achat. Dérivée du catalogue, jamais recopiée. */

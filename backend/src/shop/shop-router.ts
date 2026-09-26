@@ -8,7 +8,7 @@
 
 import { Router, type Request, type Response } from 'express';
 import { CATALOG_ID_PATTERN, getCatalogItem, getShopItems } from '@mercury/shared';
-import { awardCoins, getUserWallet, purchaseItem } from '../db.js';
+import { awardCoins, getUserWallet, purchaseBoost, purchaseItem } from '../db.js';
 import { verifyAuth } from '../auth/auth-router.js';
 import { invalidateOwnedItems } from './entitlements.js';
 
@@ -52,7 +52,12 @@ router.get('/state', async (req: Request, res: Response) => {
             res.status(404).json({ error: 'User not found', code: 'USER_NOT_FOUND' });
             return;
         }
-        res.json({ coins: wallet.coins, ownedItems: wallet.ownedItems, items: getShopItems() });
+        res.json({
+            coins: wallet.coins,
+            ownedItems: wallet.ownedItems,
+            pendingBoostId: wallet.pendingBoostId,
+            items: getShopItems(),
+        });
     } catch (err) {
         console.error('❌ Cosmos DB error (GET /shop/state):', err);
         res.status(500).json({ error: 'Database error', code: 'SERVER_ERROR' });
@@ -74,6 +79,43 @@ router.post('/purchase', async (req: Request, res: Response) => {
     const item = getCatalogItem(itemId);
     if (!item || item.price <= 0) {
         res.status(400).json({ error: 'Unknown item', code: 'UNKNOWN_ITEM' });
+        return;
+    }
+
+    if (item.kind === 'boost') {
+        try {
+            const result = await purchaseBoost(userId, item.id, item.price);
+            if (result.ok) {
+                console.log(`🛒 ${userId} a armé ${item.id} pour ${item.price} (solde ${result.coins})`);
+                res.json({ itemId: item.id, coins: result.coins, pendingBoostId: result.pendingBoostId });
+                return;
+            }
+            if (result.reason === 'not_found') {
+                res.status(404).json({ error: 'User not found', code: 'USER_NOT_FOUND' });
+                return;
+            }
+
+            // Refus atomique : on relit pour dire POURQUOI, hors chemin critique.
+            const wallet = await getUserWallet(userId);
+            if (wallet?.pendingBoostId) {
+                res.status(409).json({
+                    error: 'A boost is already active',
+                    code: 'BOOST_ACTIVE',
+                    coins: wallet.coins,
+                    pendingBoostId: wallet.pendingBoostId,
+                });
+                return;
+            }
+            res.status(409).json({
+                error: 'Not enough coins',
+                code: 'INSUFFICIENT_FUNDS',
+                coins: wallet?.coins ?? 0,
+                pendingBoostId: wallet?.pendingBoostId ?? null,
+            });
+        } catch (err) {
+            console.error('❌ Cosmos DB error (POST /shop/purchase, boost):', err);
+            res.status(500).json({ error: 'Database error', code: 'SERVER_ERROR' });
+        }
         return;
     }
 

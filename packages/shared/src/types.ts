@@ -241,6 +241,8 @@ export interface GameStatsMessage {
   coinsDelta?: number;
   /** Solde de pièces après crédit. Absent dans les mêmes cas. */
   newCoins?: number;
+  /** Vrai si `pointsDelta` a été multiplié par un boost consommé sur cette partie. */
+  pointsBoosted?: boolean;
 }
 
 /**

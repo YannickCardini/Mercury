@@ -735,6 +735,13 @@
   }
 }
 
+.sh-confirm-hint {
+  margin: -12px 0 20px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(226, 232, 240, 0.6);
+}
+
 .sh-confirm-actions {
   display: flex;
   gap: 10px;

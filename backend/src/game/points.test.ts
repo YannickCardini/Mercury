@@ -43,3 +43,21 @@ test('1 seul humain (vs IA) — gagne +4', () => {
     ]);
     assert.equal(deltaOf(deltas, 'S'), 4);
 });
+
+test('boost double points — gagnant +8, perdant -2', () => {
+    const deltas = computeEndGamePointsDeltas([
+        { userId: 'W', points: 1000, isWinner: true, boosted: true },
+        { userId: 'L', points: 1000, isWinner: false, boosted: true },
+    ]);
+    assert.equal(deltaOf(deltas, 'W'), 8);
+    assert.equal(deltaOf(deltas, 'L'), -2);
+});
+
+test('boost n\'affecte que le joueur qui l\'a armé', () => {
+    const deltas = computeEndGamePointsDeltas([
+        { userId: 'W', points: 1000, isWinner: true, boosted: true },
+        { userId: 'L', points: 1000, isWinner: false, boosted: false },
+    ]);
+    assert.equal(deltaOf(deltas, 'W'), 8);
+    assert.equal(deltaOf(deltas, 'L'), -1);
+});

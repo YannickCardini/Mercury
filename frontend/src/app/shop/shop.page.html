@@ -88,13 +88,13 @@
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
-                    Owned
+                    {{ badgeLabel(item) }}
                   </span>
                 } @else if (signedIn()) {
                   <button class="sh-buy-btn"
                           [disabled]="!canAfford(item) || busyId() === item.id"
                           (click)="confirm(item)"
-                          [attr.aria-label]="'Unlock ' + item.label + ' for ' + item.price + ' coins'">
+                          [attr.aria-label]="actionLabel(item) + ' ' + item.label + ' for ' + item.price + ' coins'">
                     @if (busyId() === item.id) {
                       <span class="sh-btn-spinner"></span>
                     } @else {
@@ -136,14 +136,17 @@
         <span class="sh-confirm-orb" aria-hidden="true">
           <span class="sh-confirm-glyph">{{ previewOf(item) }}</span>
         </span>
-        <h2 class="sh-confirm-title">Unlock {{ item.label }}</h2>
+        <h2 class="sh-confirm-title">{{ actionLabel(item) }} {{ item.label }}</h2>
         <p class="sh-confirm-text">
           Costs <span class="sh-coin" aria-hidden="true"></span><strong>{{ item.price }}</strong>
           of your <span class="sh-coin" aria-hidden="true"></span><strong>{{ balance() }}</strong> coins.
         </p>
+        @if (item.kind === 'boost') {
+          <p class="sh-confirm-hint">Doubles the points you gain or lose in your next game.</p>
+        }
         <div class="sh-confirm-actions">
           <button class="sh-btn sh-btn--ghost" (click)="cancel()">Cancel</button>
-          <button class="sh-btn sh-btn--primary" (click)="buy()">Unlock</button>
+          <button class="sh-btn sh-btn--primary" (click)="buy()">{{ actionLabel(item) }}</button>
         </div>
       </div>
     }

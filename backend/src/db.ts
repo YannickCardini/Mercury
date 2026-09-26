@@ -129,6 +129,7 @@ export async function ensureWalletFields(userId: string): Promise<void> {
     const seeds: Array<{ path: string; field: string; value: unknown }> = [
         { path: '/coins', field: 'coins', value: 0 },
         { path: '/ownedItems', field: 'ownedItems', value: [] },
+        { path: '/pendingBoostId', field: 'pendingBoostId', value: null },
     ];
     for (const { path, field, value } of seeds) {
         try {
@@ -149,6 +150,8 @@ export async function ensureWalletFields(userId: string): Promise<void> {
 export interface UserWallet {
     coins: number;
     ownedItems: string[];
+    /** Id catalogue du boost armé pour la prochaine partie, ou null s'il n'y en a pas. */
+    pendingBoostId: string | null;
 }
 
 export async function getUserWallet(userId: string): Promise<UserWallet | null> {
@@ -156,7 +159,11 @@ export async function getUserWallet(userId: string): Promise<UserWallet | null> 
     try {
         const { resource } = await container.item(userId, userId).read<Partial<UserWallet>>();
         if (!resource) return null;
-        return { coins: resource.coins ?? 0, ownedItems: resource.ownedItems ?? [] };
+        return {
+            coins: resource.coins ?? 0,
+            ownedItems: resource.ownedItems ?? [],
+            pendingBoostId: resource.pendingBoostId ?? null,
+        };
     } catch (err: unknown) {
         if ((err as { code?: number }).code === 404) return null;
         throw err;
@@ -220,6 +227,77 @@ export async function purchaseItem(
         const code = (err as { code?: number }).code;
         if (code === 404) return { ok: false, reason: 'not_found' };
         if (code === 412) return { ok: false, reason: 'rejected' };
+        throw err;
+    }
+}
+
+export type PurchaseBoostResult =
+    | { ok: true; coins: number; pendingBoostId: string }
+    | { ok: false; reason: 'not_found' | 'rejected' };
+
+/**
+ * Achat d'un objet consommable (ex. boost double points) : débit et armement
+ * dans un SEUL patch conditionné, comme `purchaseItem`. Diffère de
+ * `purchaseItem` sur deux points : la cible est `pendingBoostId` (un
+ * consommable ne rejoint jamais `ownedItems`) et la condition de possession
+ * porte sur « rien n'est déjà armé », pas sur « jamais acheté » — un
+ * consommable est rachetable dès qu'il est consommé (cf. `consumeBoost`).
+ */
+export async function purchaseBoost(
+    userId: string,
+    itemId: string,
+    price: number,
+): Promise<PurchaseBoostResult> {
+    await ensureWalletFields(userId);
+    const container = await getUsersContainer();
+    const cost = Math.trunc(price);
+    try {
+        const { resource } = await container.item(userId, userId).patch<Partial<UserWallet>>({
+            operations: [
+                { op: 'incr', path: '/coins', value: -cost },
+                { op: 'set', path: '/pendingBoostId', value: itemId },
+            ],
+            condition: `FROM c WHERE c.coins >= ${cost} AND IS_NULL(c.pendingBoostId)`,
+        });
+        if (!resource) return { ok: false, reason: 'not_found' };
+        return { ok: true, coins: resource.coins ?? 0, pendingBoostId: resource.pendingBoostId ?? itemId };
+    } catch (err: unknown) {
+        const code = (err as { code?: number }).code;
+        if (code === 404) return { ok: false, reason: 'not_found' };
+        if (code === 412) return { ok: false, reason: 'rejected' };
+        throw err;
+    }
+}
+
+/** Boost actuellement armé pour la prochaine partie du joueur, ou null. */
+export async function getPendingBoost(userId: string): Promise<string | null> {
+    const container = await getUsersContainer();
+    try {
+        const { resource } = await container.item(userId, userId).read<Partial<UserWallet>>();
+        return resource?.pendingBoostId ?? null;
+    } catch (err: unknown) {
+        if ((err as { code?: number }).code === 404) return null;
+        throw err;
+    }
+}
+
+/**
+ * Désarme le boost `itemId` en fin de partie, qu'elle ait été gagnée ou
+ * perdue. Conditionné sur la valeur actuelle pour ne jamais effacer un boost
+ * racheté entre-temps sur une autre partie/appareil. Best-effort : appelé
+ * hors du chemin critique des points, un échec ne doit pas faire échouer la
+ * fin de partie (l'appelant utilise `allSettled`).
+ */
+export async function consumeBoost(userId: string, itemId: string): Promise<void> {
+    const container = await getUsersContainer();
+    try {
+        await container.item(userId, userId).patch({
+            operations: [{ op: 'set', path: '/pendingBoostId', value: null }],
+            condition: `FROM c WHERE c.pendingBoostId = "${itemId}"`,
+        });
+    } catch (err: unknown) {
+        const code = (err as { code?: number }).code;
+        if (code === 404 || code === 412) return;
         throw err;
     }
 }

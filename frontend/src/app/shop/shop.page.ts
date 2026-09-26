@@ -35,6 +35,7 @@ const BURST_MS = 900;
 const KIND_LABEL: Record<ShopItemKind, string> = {
   emoji: 'Reactions',
   cardback: 'Card backs',
+  boost: 'Boosts',
 };
 
 interface ShopSection {
@@ -110,9 +111,14 @@ export class ShopPage implements OnInit, OnDestroy {
     return [...groups].map(([kind, items]) => ({ kind, label: KIND_LABEL[kind], items }));
   });
 
-  /** Article verrouillé le moins cher : la prochaine marche à franchir. */
+  /**
+   * Article verrouillé le moins cher : la prochaine marche à franchir. Un
+   * boost en est exclu : rachetable dès qu'il est consommé, il n'a pas de
+   * notion de « collection complète » et resterait indéfiniment le prochain
+   * objectif sinon.
+   */
   readonly nextUnlock = computed<ShopItem | null>(() => {
-    const locked = this.shop.items().filter(item => !this.shop.isOwned(item.id));
+    const locked = this.shop.items().filter(item => item.kind !== 'boost' && !this.shop.isOwned(item.id));
     if (locked.length === 0) return null;
     return locked.reduce((cheapest, item) => (item.price < cheapest.price ? item : cheapest));
   });
@@ -139,9 +145,24 @@ export class ShopPage implements OnInit, OnDestroy {
     for (const timer of this.timers) clearTimeout(timer);
   }
 
+  /**
+   * « Possédé » couvre deux cas distincts derrière la même tuile figée : un
+   * objet permanent débloqué (emoji, dos de carte) ou un boost actuellement
+   * armé pour la prochaine partie (rachetable dès qu'il sera consommé).
+   */
   isOwned(itemId: string): boolean {
     if (this.holdOwned() === itemId) return false;
-    return this.shop.isOwned(itemId);
+    return this.shop.isOwned(itemId) || this.shop.isBoostActive(itemId);
+  }
+
+  /** Libellé de la pastille verte : distingue un déblocage définitif d'un boost armé. */
+  badgeLabel(item: ShopItem): string {
+    return item.kind === 'boost' ? 'Active' : 'Owned';
+  }
+
+  /** Libellé de l'action d'achat : « Unlock » pour un objet permanent, « Arm » pour un boost. */
+  actionLabel(item: ShopItem): string {
+    return item.kind === 'boost' ? 'Arm' : 'Unlock';
   }
 
   canAfford(item: ShopItem): boolean {
@@ -150,7 +171,9 @@ export class ShopPage implements OnInit, OnDestroy {
 
   /** Aperçu affiché sur la tuile. Les dos de cartes auront le leur. */
   previewOf(item: ShopItem): string {
-    return item.kind === 'emoji' ? item.emoji : '';
+    if (item.kind === 'emoji') return item.emoji;
+    if (item.kind === 'boost') return `×${item.multiplier}`;
+    return '';
   }
 
   /**
@@ -201,6 +224,11 @@ export class ShopPage implements OnInit, OnDestroy {
           // Déjà acheté ailleurs : l'inventaire vient d'être resynchronisé,
           // la tuile bascule d'elle-même en « Owned ».
           this.toast.show('You already own this item.');
+          break;
+        case 'boost_active':
+          // Armé ailleurs (autre appareil/onglet) entre l'ouverture de la
+          // modale et l'achat : la tuile bascule d'elle-même en « Active ».
+          this.toast.show('A boost is already active for your next game.');
           break;
         case 'unauthenticated':
           this.toast.show('Please sign in again.', 'error');
@@ -269,7 +297,8 @@ export class ShopPage implements OnInit, OnDestroy {
     this.burstId.set(item.id);
     this.sound.playUnlock();
     this.vibrate(ImpactStyle.Medium);
-    this.toast.show(`${item.label} unlocked.`);
+    const message = item.kind === 'boost' ? `${item.label} armed for your next game.` : `${item.label} unlocked.`;
+    this.toast.show(message);
     this.later(() => {
       if (this.burstId() === item.id) this.burstId.set('');
     }, BURST_MS);

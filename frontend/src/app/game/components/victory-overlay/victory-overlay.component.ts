@@ -81,6 +81,8 @@ export class VictoryOverlayComponent {
   newRanking = input<number | null>(null);
   /** Pièces de boutique gagnées. null = partie perdue, ou joueur non crédité. */
   coinsDelta = input<number | null>(null);
+  /** Vrai si `pointsDelta` a été doublé par un boost consommé sur cette partie. */
+  pointsBoosted = input<boolean>(false);
 
   backToMenu = output<void>();
 

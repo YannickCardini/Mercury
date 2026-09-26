@@ -2,10 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
     CATALOG_ID_PATTERN,
+    DOUBLE_POINTS_BOOST_ID,
+    DOUBLE_POINTS_BOOST_PRICE,
     FREE_REACTION_EMOJIS,
     REACTION_EMOJIS,
     SHOP_CATALOG,
     emojiItemId,
+    getBoostMultiplier,
     getCatalogItem,
     isEmojiUnlocked,
     isFreeEmoji,
@@ -69,4 +72,17 @@ test('isEmojiUnlocked : gratuit toujours, payant seulement si possédé', () => 
 test('isEmojiUnlocked accepte indifféremment un Set ou un tableau', () => {
     assert.equal(isEmojiUnlocked('😘', new Set(['emoji.kissing'])), true);
     assert.equal(isEmojiUnlocked('😘', new Set(['emoji.wink'])), false);
+});
+
+test('le boost double points coûte 10 pièces', () => {
+    const item = getCatalogItem(DOUBLE_POINTS_BOOST_ID);
+    assert.equal(item?.kind, 'boost');
+    assert.equal(item?.price, DOUBLE_POINTS_BOOST_PRICE);
+    assert.equal(DOUBLE_POINTS_BOOST_PRICE, 10);
+});
+
+test('getBoostMultiplier : x2 pour le boost, neutre sinon', () => {
+    assert.equal(getBoostMultiplier(DOUBLE_POINTS_BOOST_ID), 2);
+    assert.equal(getBoostMultiplier('emoji.wink'), 1);
+    assert.equal(getBoostMultiplier('unknown.id'), 1);
 });

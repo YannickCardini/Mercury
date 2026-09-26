@@ -80,6 +80,9 @@
         @if (pointsDelta() !== null && newPoints() !== null) {
           <div class="stats-delta" [class.gain]="pointsDelta()! > 0" [class.loss]="pointsDelta()! < 0">
             {{ pointsDelta()! > 0 ? '+' : '' }}{{ pointsDelta() }} pts
+            @if (pointsBoosted()) {
+              <span class="stats-boost">×2</span>
+            }
           </div>
           <div class="stats-total">New total: {{ newPoints() }} pts</div>
           @if (newRanking() && newRanking()! > 0) {
