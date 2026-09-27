@@ -12,8 +12,9 @@ import crypto from 'node:crypto';
 import { Game } from '../game/game.js';
 import { MultiWsMessenger, wsSend } from '../game/game-messenger.js';
 import { GameRegistry } from './game-registry.js';
-import { isBotUserId, dispatchBotAgent } from './bot-dispatch.js';
+import { isBotUserId, dispatchBotAgent, accountTag } from './bot-dispatch.js';
 import { isTrainMode } from '../train-mode.js';
+import { notifyAdmin } from '../admin/telegram.js';
 import { getServerGameMode } from '../game-mode.js';
 import { queueSaveSnapshot, queueDeleteSnapshot, isSnapshotStorageConfigured } from '../storage/snapshot-store.js';
 import type { ReconnectRegistry } from './reconnect-registry.js';
@@ -56,6 +57,12 @@ export class MatchmakingManager {
      */
     getTakenColors(): ReadonlySet<MarbleColor> {
         return new Set(this.session?.players.map(p => p.color) ?? []);
+    }
+
+    /** État de la file publique pour GET /api/admin/stats. */
+    getQueueSummary(): { waiting: number; humans: number } {
+        const players = this.session?.players ?? [];
+        return { waiting: players.length, humans: players.filter(p => !isBotUserId(p.userId)).length };
     }
 
     /**
@@ -122,7 +129,11 @@ export class MatchmakingManager {
         ws.addEventListener('close', player.closeListener);
 
         this.broadcastStatus();
-        console.log(`🔍 Matchmaking — ${finalName} (${color}) rejoint (${this.session.players.length}/4)`);
+        const waiting = this.session.players.length;
+        console.log(`🔍 Matchmaking — ${finalName} (${color}) [${accountTag(userId, browserId)}] rejoint (${waiting}/4)`);
+        if (!isBotUserId(userId) && !isTrainMode()) {
+            notifyAdmin(`🔍 ${finalName} (${userId ? 'compte' : 'invité'}) cherche une partie, ${waiting}/4 en file`);
+        }
 
         // En self-play (TRAIN_MODE), les 4 bots se connectent eux-mêmes :
         // pas de dispatch d'agents externes, sinon connexions surnuméraires.

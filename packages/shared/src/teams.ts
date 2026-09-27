@@ -8,7 +8,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { hasWon } from './board-config.js';
-import type { MarbleColor } from './types.js';
+import type { GameMode, MarbleColor } from './types.js';
 
 /** Les deux équipes du mode 2v2, chacune identifiée par sa paire de couleurs. */
 export const TEAMS: readonly [
@@ -34,6 +34,15 @@ export function getTeammateColor(color: MarbleColor): MarbleColor {
 /** Vrai si les deux couleurs appartiennent à la même équipe (une couleur est dans sa propre équipe). */
 export function sameTeam(a: MarbleColor, b: MarbleColor): boolean {
   return a === b || TEAMMATE[a] === b;
+}
+
+/**
+ * Vrai si `b` est un adversaire de `a` dans ce mode : toute autre couleur en
+ * 1v3, l'équipe d'en face en 2v2. Sert au booster Bounty, qui ne paie que la
+ * capture d'un adversaire (capturer son coéquipier ou soi-même ne rapporte rien).
+ */
+export function areOpponents(a: MarbleColor, b: MarbleColor, mode: GameMode): boolean {
+  return mode === '2v2' ? !sameTeam(a, b) : a !== b;
 }
 
 /**

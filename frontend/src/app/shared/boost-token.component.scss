@@ -1,0 +1,205 @@
+@use "sass:color";
+@use "../styles/palette" as *;
+@use "../styles/coin" as *;
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  Jeton de booster — même objet sur tous les écrans
+// ───────────────────────────────────────────────────────────────────────────
+//  Médaillon frappé comme la pièce (dégradé sphérique, liseré, reflet), mais
+//  qui porte une opération au lieu d'être la monnaie elle-même. Le satellite
+//  en bas à droite nomme ce sur quoi elle porte : sans lui, deux « ×2 » côte à
+//  côte ne se distingueraient que par la couleur.
+// ═══════════════════════════════════════════════════════════════════════════
+
+:host {
+  --bt-size: 32px;
+  // Teinte en composantes : les halos en modulent l'alpha.
+  --bt-rgb: #{$boost-points-rgb};
+
+  position: relative;
+  display: inline-block;
+  flex: none;
+  width: var(--bt-size);
+  height: var(--bt-size);
+  vertical-align: middle;
+  // Le halo « en effet » passe derrière le médaillon sans passer derrière
+  // le fond du parent.
+  isolation: isolate;
+}
+
+:host(.bt--coins) {
+  --bt-rgb: #{$boost-coins-rgb};
+}
+
+:host(.bt--bounty) {
+  --bt-rgb: #{$boost-bounty-rgb};
+}
+
+// ── Médaillon ──────────────────────────────────────────────────────────────
+
+.bt-face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow:
+    0 0 calc(var(--bt-size) * 0.36) rgba(var(--bt-rgb), 0.45),
+    inset 0 0 0 1px rgba(#fff, 0.28),
+    inset 0 calc(var(--bt-size) * -0.08) calc(var(--bt-size) * 0.16) rgba(#000, 0.3);
+
+  // Reflet spéculaire, au-dessus du chiffre : le médaillon reste bombé même
+  // là où le « ×2 » le recouvre.
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    pointer-events: none;
+    background: radial-gradient(circle at 32% 26%, rgba(#fff, 0.42) 0%, rgba(#fff, 0) 42%);
+  }
+}
+
+:host(.bt--points) .bt-face {
+  color: #fff;
+  background: radial-gradient(
+    circle at 34% 30%,
+    color.adjust($boost-points, $lightness: 16%) 0%,
+    $boost-points 48%,
+    color.adjust($boost-points, $lightness: -18%) 82%,
+    color.adjust($boost-points, $lightness: -30%) 100%
+  );
+}
+
+:host(.bt--coins) .bt-face {
+  color: #2a1a04; // même encre sombre que les boutons dorés
+  background: radial-gradient(circle at 34% 30%, $coin-hi 0%, $c-gold 46%, $coin-lo 78%, $coin-deep 100%);
+}
+
+:host(.bt--bounty) .bt-face {
+  color: #fff;
+  background: radial-gradient(
+    circle at 34% 30%,
+    color.adjust($boost-bounty, $lightness: 16%) 0%,
+    $boost-bounty 48%,
+    color.adjust($boost-bounty, $lightness: -16%) 82%,
+    color.adjust($boost-bounty, $lightness: -28%) 100%
+  );
+}
+
+.bt-mult {
+  position: relative;
+  font-size: calc(var(--bt-size) * 0.42);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  // Légèrement remonté vers le haut-gauche : le satellite occupe l'autre coin.
+  transform: translate(-5%, -5%);
+}
+
+:host(.bt--points) .bt-mult,
+:host(.bt--bounty) .bt-mult {
+  text-shadow: 0 1px 2px rgba(#000, 0.45);
+}
+
+:host(.bt--coins) .bt-mult {
+  text-shadow: 0 1px 0 rgba(#fff, 0.35);
+}
+
+.bt-x {
+  font-size: 0.72em;
+  font-weight: 800;
+  margin-right: 0.03em;
+  vertical-align: 0.1em;
+}
+
+// ── Satellite : ce qui est doublé ─────────────────────────────────────────
+
+.bt-emblem {
+  position: absolute;
+  right: -9%;
+  bottom: -9%;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--bt-size) * 0.46);
+  height: calc(var(--bt-size) * 0.46);
+  border-radius: 50%;
+  background: $bg-dark;
+  box-shadow:
+    0 0 0 max(1px, calc(var(--bt-size) * 0.04)) rgba(var(--bt-rgb), 0.9),
+    0 2px 4px rgba(#000, 0.5);
+}
+
+.bt-star {
+  width: 66%;
+  height: 66%;
+  color: color.adjust($boost-points, $lightness: 24%);
+  filter: drop-shadow(0 0 2px rgba(var(--bt-rgb), 0.9));
+}
+
+.bt-coin {
+  @include coin;
+  --coin-size: calc(var(--bt-size) * 0.3);
+
+  // Pas de balayage à cette taille : invisible, mais une couche animée par jeton.
+  &::before {
+    display: none;
+  }
+}
+
+// ── Booster en effet ───────────────────────────────────────────────────────
+// Une orbite en pointillés tourne lentement et un halo respire derrière le
+// médaillon. Les deux n'animent que transform et opacity : le jeton reste
+// visible toute la partie, il ne doit rien coûter au plateau.
+
+:host(.is-live)::before {
+  content: "";
+  position: absolute;
+  inset: calc(var(--bt-size) * -0.16);
+  border-radius: 50%;
+  border: 1px dashed rgba(var(--bt-rgb), 0.6);
+  pointer-events: none;
+  animation: bt-orbit 14s linear infinite;
+}
+
+:host(.is-live)::after {
+  content: "";
+  position: absolute;
+  inset: -34%;
+  z-index: -1;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(var(--bt-rgb), 0.5) 0%, rgba(var(--bt-rgb), 0) 64%);
+  animation: bt-breathe 2.8s ease-in-out infinite;
+}
+
+@keyframes bt-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes bt-breathe {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.92);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :host(.is-live)::before,
+  :host(.is-live)::after {
+    animation: none;
+  }
+}

@@ -7,9 +7,9 @@ import { getLegalAction, findLegalMoveForCard, getLegalSplit7Action, MAIN_PATH, 
 import { MultiWsMessenger, type GameMessenger } from './game-messenger.js';
 import { GameRegistry } from '../session/game-registry.js';
 import { isBotUserId } from '../session/bot-dispatch.js';
-import { updateUserPoints, recomputeRankings, getUserPointsAndRanking, awardCoins } from '../db.js';
+import { updateUserPoints, recomputeRankings, getUserPointsAndRanking, awardCoins, consumeArmedBoosts } from '../db.js';
 import { computeEndGamePointsDeltas } from './points.js';
-import { computeWinCoins } from './coins.js';
+import { computeEndGameCoins, computeWinCoins } from './coins.js';
 import { loadOwnedItems, peekOwnedItems, prefetchOwnedItems } from '../shop/entitlements.js';
 import { isTrainMode } from '../train-mode.js';
 import { getServerGameMode } from '../game-mode.js';
@@ -31,10 +31,15 @@ import {
     SQUARES_TO_DISPLAY,
     emojiItemId,
     isFreeEmoji,
+    boostMultiplier,
+    getConsumable,
+    hasBoost,
+    areOpponents,
+    COINS_PER_CAPTURE,
 } from '@mercury/shared';
 import { REACTION_EMOJIS } from "@mercury/shared";
 import { SNAPSHOT_SCHEMA_VERSION, type GameSnapshot } from './game-snapshot.js';
-import type { Action, Card, ClientMessage, GameConfig, GameMode, GameState, GameStatsMessage, MarbleColor, ReactionEmoji } from "@mercury/shared";
+import type { Action, Card, ClientMessage, ConsumableId, GameConfig, GameMode, GameState, GameStatsMessage, MarbleColor, ReactionEmoji } from "@mercury/shared";
 
 const REACTION_COOLDOWN_MS = 2000;
 
@@ -54,6 +59,11 @@ const RESTORED_RECONNECT_GRACE_MS = 30_000;
  */
 function isDebugEnabled(): boolean {
     return process.env['DEBUG'] === 'true';
+}
+
+/** Id de booster connu du catalogue : filtre ce qui vient de Cosmos ou d'un snapshot. */
+function isConsumableId(id: string): id is ConsumableId {
+    return getConsumable(id) !== undefined;
 }
 
 export class Game {
@@ -140,6 +150,19 @@ export class Game {
      */
     private lastGameStats = new Map<MarbleColor, GameStatsMessage>();
 
+    /**
+     * Boosters de boutique actifs par siège, consommés au lancement (voir
+     * activateBoosts) et appliqués par applyEndGamePoints. Aucune entrée pour
+     * les invités, les IA et les sièges d'agents IA externes.
+     */
+    private boosts = new Map<MarbleColor, ConsumableId[]>();
+
+    /**
+     * Pions adverses capturés par chaque siège (voir areOpponents). Tenu pour
+     * tous les sièges, il ne rapporte qu'à ceux qui ont activé Bounty.
+     */
+    private captureCounts = new Map<MarbleColor, number>();
+
     // ─────────────────────────────────────────────────────────────────────────
 
     constructor(config: GameConfig, messenger: GameMessenger, snapshot?: GameSnapshot) {
@@ -180,6 +203,10 @@ export class Game {
                 .map(p => p.userId!),
         );
 
+        // Une partie restaurée a déjà consommé ses boosters (ils viennent du
+        // snapshot) : les reconsommer débiterait ceux achetés pour la suivante.
+        if (!this.restored) void this.activateBoosts();
+
         // Handler centralisé : toute la logique WS passe par ici
         messenger.onMessage((msg, senderColor) => this.handleClientMessage(msg, senderColor));
 
@@ -210,6 +237,28 @@ export class Game {
 
     getMessenger(): GameMessenger {
         return this.messenger;
+    }
+
+    /** Résumé de la partie pour GET /api/admin/stats. */
+    getAdminSummary() {
+        return {
+            id: this.id,
+            startedAt: new Date(this.startTime).toISOString(),
+            inProgress: !this.gameFinished && !this.aborted,
+            round: this.round,
+            turn: this.turn,
+            players: this.players.map(p => ({
+                name: p.name,
+                color: p.color,
+                kind: this.playerKind(p),
+                connected: p.isConnected,
+            })),
+        };
+    }
+
+    private playerKind(player: Player): 'bot' | 'user' | 'guest' {
+        if (!player.isHuman || this.isBotSeat(player)) return 'bot';
+        return player.userId ? 'user' : 'guest';
     }
 
     setOnPlayerAbandoned(cb: (gameId: string, color: MarbleColor) => void): void {
@@ -261,6 +310,9 @@ export class Game {
         this.penalizedUserIds = new Set(snapshot.penalizedUserIds);
         snapshot.players.forEach((ps, i) => {
             if (ps.isBot) this.botSeatColors.add(ps.color);
+            const boosts = (ps.boosts ?? []).filter(isConsumableId);
+            if (boosts.length > 0) this.boosts.set(ps.color, boosts);
+            if (ps.captures) this.captureCounts.set(ps.color, ps.captures);
             const player = this.players[i]!;
             player.cards = [...ps.cards];
             player.marblePositions = [...ps.marblePositions];
@@ -300,6 +352,8 @@ export class Game {
                 cards: [...p.cards],
                 ...(p.picture !== undefined ? { picture: p.picture } : {}),
                 ...(p.userId !== undefined ? { userId: p.userId } : {}),
+                ...(this.boosts.has(p.color) ? { boosts: [...this.boosts.get(p.color)!] } : {}),
+                ...(this.captureCounts.has(p.color) ? { captures: this.captureCounts.get(p.color)! } : {}),
             })),
         };
     }
@@ -391,6 +445,10 @@ export class Game {
             myColor: color,
         });
 
+        // Le client a perdu son état en mémoire (rechargement, redémarrage de
+        // l'app) : ses boosters doivent rester affichés jusqu'au bout.
+        this.sendBoosts(color);
+
         // La partie est peut-être déjà terminée (le joueur reconnecte pendant
         // ou juste après le calcul des points) : renvoyer son dernier gameStats
         // connu, sinon son écran de victoire reste bloqué sans jamais recevoir
@@ -454,6 +512,45 @@ export class Game {
         }
     }
 
+    // ─── Boosters de boutique ────────────────────────────────────────────────
+
+    /**
+     * Consomme les boosters armés de chaque humain authentifié et les annonce à
+     * son seul siège. Hors de la boucle : la partie démarre sans attendre
+     * Cosmos, et la réponse arrive bien avant la fin de partie.
+     *
+     * Pas de persist() ici : la réponse peut tomber au milieu d'un tour (coup
+     * d'IA appliqué, animation en cours), et un snapshot pris à cet instant
+     * ferait rejouer le coup au restore. Le point de sauvegarde de fin de tour
+     * suivant embarque les boosters.
+     */
+    private async activateBoosts(): Promise<void> {
+        const seats = this.players.filter(p => p.isHuman && p.userId && !this.isBotSeat(p));
+        await Promise.allSettled(seats.map(async p => {
+            try {
+                const boosts = (await consumeArmedBoosts(p.userId!)).filter(isConsumableId);
+                if (boosts.length === 0) return;
+                this.boosts.set(p.color, boosts);
+                console.log(`⚡ Boosters actifs pour ${p.name} (${p.color}) : ${boosts.join(', ')}`);
+                this.sendBoosts(p.color);
+            } catch (err) {
+                console.error(`❌ Failed to activate boosters for ${p.color}:`, err);
+            }
+        }));
+    }
+
+    private sendBoosts(color: MarbleColor): void {
+        const boosts = this.boosts.get(color);
+        if (!boosts) return;
+        this.messenger.sendTo(color, {
+            type: 'boostsActive',
+            color,
+            boosts: [...boosts],
+            // Base du compteur Bounty : non nulle seulement après une reconnexion.
+            ...(hasBoost(boosts, 'capture_coins') ? { captures: this.captureCounts.get(color) ?? 0 } : {}),
+        });
+    }
+
     // ─── Boucle principale ────────────────────────────────────────────────────
 
     private async startGame() {
@@ -464,7 +561,10 @@ export class Game {
             await this.waitForRestoredReconnections();
             if (this.aborted || this.gameFinished) return;
         } else {
-            console.log("🎮 Game started");
+            const roster = this.players
+                .map(p => `${p.name} [${this.playerKind(p)}${p.userId ? `:${p.userId}` : ''}]`)
+                .join(', ');
+            console.log(`🎮 Partie ${this.id} lancée — ${roster}`);
             this.firstPlayerOfRound = 0;
             this.currentPlayerIndex = 0;
             this.dealCards();
@@ -490,9 +590,9 @@ export class Game {
         }
 
         if (!this.aborted) {
-            console.log("🏆 Game over!");
             this.gameFinished = true;
             const winners = this.computeWinners();
+            console.log(`🏆 Partie ${this.id} terminée — gagnant(s): ${winners.join(', ')}`);
             this.messenger.send({ type: 'gameEnded', winners, reason: 'win' });
             // Calculer et envoyer les points AVANT de libérer le slot de
             // reconnexion et de retirer la partie du registre : sinon, un
@@ -826,7 +926,7 @@ export class Game {
         const player = this.players.find(p => p.color === senderColor);
         if (!player || !player.isHuman) return;
 
-        console.log(`🏳️ ${player.name} (${senderColor}) a abandonné la partie`);
+        console.log(`🏳️ ${player.name} (${senderColor}) a abandonné la partie ${this.id}`);
 
         player.isConnected = false;
 
@@ -871,7 +971,7 @@ export class Game {
         this.gameFinished = true;
         this.aborted = true;
 
-        console.log(`🏆 ${winner.name} (${winner.color}) wins — last connected player`);
+        console.log(`🏆 Partie ${this.id} terminée — ${winner.name} (${winner.color}) gagne, dernier humain connecté`);
 
         // En 2v2, le dernier humain connecté fait gagner son ÉQUIPE entière.
         const winners = this.gameMode === '2v2'
@@ -907,7 +1007,7 @@ export class Game {
         this.aborted = true;
         this.gameFinished = true;
 
-        console.log("🚫 Game aborted — no connected human players remain");
+        console.log(`🚫 Partie ${this.id} annulée — plus aucun humain connecté`);
 
         // Notify any still-connected clients (unlikely but possible with bots-only race)
         this.messenger.send({ type: 'gameEnded', winners: [], reason: 'abandoned' });
@@ -1307,6 +1407,11 @@ export class Game {
                     victim.marblePositions[i] = emptyHome;
                     victim.marbleInvincible[i] = false;
                     console.log(`💀 ${activePlayer.name} a capturé un pion de ${victim.name}! Retour à la base (${emptyHome}).`);
+                    // Crédit Bounty : au joueur qui a joué la carte, même quand
+                    // le pion déplacé est celui de son coéquipier (2v2).
+                    if (areOpponents(activePlayer.color, victim.color, this.gameMode)) {
+                        this.captureCounts.set(activePlayer.color, (this.captureCounts.get(activePlayer.color) ?? 0) + 1);
+                    }
                 }
             }
         }
@@ -1320,7 +1425,12 @@ export class Game {
         // not Elo-weighted: they are a behaviour penalty, not a match outcome).
         const participants = this.players
             .filter(p => p.isHuman && p.userId && !this.penalizedUserIds.has(p.userId))
-            .map(p => ({ color: p.color, userId: p.userId! }));
+            .map(p => ({
+                color: p.color,
+                userId: p.userId!,
+                isBot: this.isBotSeat(p),
+                boosts: this.boosts.get(p.color) ?? [],
+            }));
 
         if (participants.length === 0) return;
 
@@ -1333,8 +1443,16 @@ export class Game {
         );
 
         // Compute weighted deltas using the Elo-like formula in points.ts
+        // (les sièges d'agents IA externes gagnent moins qu'un vrai joueur, voir WIN_DELTA_BOT ;
+        // Double Points multiplie le résultat, perte comprise)
         const deltas = computeEndGamePointsDeltas(
-            currentStats.map(p => ({ userId: p.userId, points: p.points, isWinner: p.isWinner }))
+            currentStats.map(p => ({
+                userId: p.userId,
+                points: p.points,
+                isWinner: p.isWinner,
+                isBot: p.isBot,
+                multiplier: boostMultiplier(p.boosts, 'double_points'),
+            }))
         );
 
         // Apply deltas in parallel, then recompute rankings once
@@ -1344,11 +1462,13 @@ export class Game {
         // ── Pièces de boutique ───────────────────────────────────────────────
         // Monnaie cosmétique, indépendante de l'Elo : un échec ici ne doit
         // jamais altérer les points (d'où le bloc séparé et allSettled). Le gain
-        // est l'écart de pions rentrés entre les deux camps ; les perdants ne
-        // touchent rien. Les sièges d'agents IA sont exclus — isBotSeat couvre
-        // aussi le cas post-restauration, contrairement au seul isBotUserId —
-        // tandis que les invités (pas de userId) et les pénalisés le sont déjà
-        // par le filtre `participants`.
+        // de victoire est l'écart de pions rentrés entre les deux camps, réservé
+        // aux vainqueurs ; Bounty y ajoute une prime par pion adverse capturé,
+        // victoire ou défaite ; Double Coins multiplie la somme. Les sièges
+        // d'agents IA sont exclus — isBotSeat couvre aussi le cas
+        // post-restauration, contrairement au seul isBotUserId — tandis que les
+        // invités (pas de userId) et les pénalisés le sont déjà par le filtre
+        // `participants`.
         const arrivedOf = (p: Player) => countArrivedMarbles(p.marblePositions, p.color);
         const winnersArrived = this.players
             .filter(p => winners.includes(p.color))
@@ -1358,18 +1478,29 @@ export class Game {
             .reduce((sum, p) => sum + arrivedOf(p), 0);
         const winCoins = computeWinCoins(winnersArrived, losersArrived);
 
-        const coinRewards = new Map<MarbleColor, { delta: number; newCoins: number }>();
+        const coinRewards = new Map<MarbleColor, {
+            delta: number;
+            newCoins: number;
+            base: { victory: number; captures: number };
+        }>();
         await Promise.allSettled(
             currentStats
-                .filter(p => p.isWinner)
                 .filter(p => {
                     const player = this.players.find(pl => pl.color === p.color);
                     return player !== undefined && !this.isBotSeat(player);
                 })
                 .map(async p => {
+                    const victory = p.isWinner ? winCoins : 0;
+                    const captures = hasBoost(p.boosts, 'capture_coins')
+                        ? (this.captureCounts.get(p.color) ?? 0) * COINS_PER_CAPTURE
+                        : 0;
+                    const coins = computeEndGameCoins(victory, captures, boostMultiplier(p.boosts, 'double_coins'));
+                    if (coins <= 0) return;
                     try {
-                        const newCoins = await awardCoins(p.userId, winCoins);
-                        if (newCoins !== null) coinRewards.set(p.color, { delta: winCoins, newCoins });
+                        const newCoins = await awardCoins(p.userId, coins);
+                        if (newCoins !== null) {
+                            coinRewards.set(p.color, { delta: coins, newCoins, base: { victory, captures } });
+                        }
                     } catch (err) {
                         console.error(`❌ Failed to award coins to ${p.color}:`, err);
                     }
@@ -1394,11 +1525,12 @@ export class Game {
                         newPoints: updated.points,
                         newRanking: updated.ranking,
                         color: p.color,
-                        ...(reward ? { coinsDelta: reward.delta, newCoins: reward.newCoins } : {}),
+                        ...(reward ? { coinsDelta: reward.delta, newCoins: reward.newCoins, coinsBase: reward.base } : {}),
+                        ...(p.boosts.length > 0 ? { boosts: [...p.boosts] } : {}),
                     };
                     this.lastGameStats.set(p.color, statsMsg);
                     this.messenger.sendTo(p.color, statsMsg);
-                    console.log(`📊 gameStats → ${p.color}: delta=${delta}, total=${updated.points}, rank=#${updated.ranking}${reward ? `, coins=+${reward.delta} (${reward.newCoins})` : ''}`);
+                    console.log(`📊 gameStats → ${p.color}: delta=${delta}, total=${updated.points}, rank=#${updated.ranking}${reward ? `, coins=+${reward.delta} (${reward.newCoins})` : ''}${p.boosts.length > 0 ? `, boosts=${p.boosts.join('+')}` : ''}`);
                 } catch (err) {
                     console.error(`❌ Failed to send gameStats to ${p.color}:`, err);
                 }

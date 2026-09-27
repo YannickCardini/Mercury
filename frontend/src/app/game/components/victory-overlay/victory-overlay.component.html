@@ -78,22 +78,62 @@
     @if (!isGuest()) {
       <div class="stats-block">
         @if (pointsDelta() !== null && newPoints() !== null) {
-          <div class="stats-delta" [class.gain]="pointsDelta()! > 0" [class.loss]="pointsDelta()! < 0">
-            {{ pointsDelta()! > 0 ? '+' : '' }}{{ pointsDelta() }} pts
+          <!-- Le sceau du booster se pose à côté du montant qu'il a doublé :
+               c'est là que le joueur se demande pourquoi +8 (ou -2). -->
+          <div class="stats-row">
+            <div class="stats-delta" [class.gain]="pointsDelta()! > 0" [class.loss]="pointsDelta()! < 0">
+              {{ pointsDelta()! > 0 ? '+' : '' }}{{ pointsDelta() }} pts
+            </div>
+            @if (pointsBoosted()) {
+              <span class="stats-seal stats-seal--points">
+                <app-boost-token class="stats-seal-token" [effect]="'double_points'" />
+                Double Points
+              </span>
+            }
           </div>
           <div class="stats-total">New total: {{ newPoints() }} pts</div>
           @if (newRanking() && newRanking()! > 0) {
             <div class="stats-rank">New ranking: #{{ newRanking() }}</div>
           }
           @if (coinsDelta() !== null) {
-            <!-- Présente dès le départ mais transparente : elle réserve sa place
-                 dans la colonne (pas de saut de layout) et sert de cible mesurable
-                 aux pièces avant même d'être visible. -->
-            <div class="stats-coins"
-              [class.is-revealed]="coinsRevealed()"
-              [class.is-complete]="coinsComplete()">
-              <span class="stats-coin" aria-hidden="true"></span>
-              +{{ coinsShown() }} {{ coinsShown() === 1 ? 'coin' : 'coins' }}
+            <div class="stats-row stats-row--coins">
+              <!-- Présente dès le départ mais transparente : elle réserve sa place
+                   dans la colonne (pas de saut de layout) et sert de cible mesurable
+                   aux pièces avant même d'être visible. -->
+              <div class="stats-coins"
+                [class.is-revealed]="coinsRevealed()"
+                [class.is-complete]="coinsComplete()">
+                <span class="stats-coin" aria-hidden="true"></span>
+                +{{ coinsShown() }} {{ coinsShown() === 1 ? 'coin' : 'coins' }}
+              </div>
+              @if (coinsBoosted()) {
+                <!-- Même principe : place réservée, le sceau ne se pose qu'une fois
+                     les pièces de base rentrées, juste avant le doublement. -->
+                <span class="stats-seal stats-seal--coins" [class.is-stamped]="coinsStamped()">
+                  <app-boost-token class="stats-seal-token" [effect]="'double_coins'" />
+                  Double Coins
+                </span>
+              }
+            </div>
+          }
+          @if (captureCoins() > 0) {
+            <!-- D'où viennent les pièces, avant doublement : la prime Bounty
+                 paie aussi sur une défaite, il faut que ça se voie. -->
+            <div class="stats-breakdown" [class.is-revealed]="coinsRevealed()">
+              @if (victoryCoins() > 0) {
+                <span>Victory +{{ victoryCoins() }}</span>
+                <span class="stats-breakdown__sep" aria-hidden="true">·</span>
+              }
+              <span class="stats-breakdown__bounty">
+                <app-boost-token class="stats-breakdown-token" [effect]="'capture_coins'" />
+                Captures +{{ captureCoins() }}
+              </span>
+            </div>
+          }
+          @for (note of unusedBoosts(); track note.effect) {
+            <div class="stats-boost-note">
+              <app-boost-token class="stats-note-token" [effect]="note.effect" />
+              <span>{{ note.text }}</span>
             </div>
           }
         } @else {

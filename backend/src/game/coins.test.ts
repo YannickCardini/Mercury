@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { computeWinCoins } from './coins.js';
+import { computeEndGameCoins, computeWinCoins } from './coins.js';
 import { MAX_COINS_PER_WIN, MIN_COINS_PER_WIN } from '@mercury/shared';
 
 test('2v2 — écart de pions rentrés (cas de référence : 8 contre 6)', () => {
@@ -27,4 +27,17 @@ test('le gain est toujours borné', () => {
             assert.ok(coins >= MIN_COINS_PER_WIN && coins <= MAX_COINS_PER_WIN, `${winners}/${losers} → ${coins}`);
         }
     }
+});
+
+test('Bounty seul — perdant payé pour ses captures', () => {
+    assert.equal(computeEndGameCoins(0, 3, 1), 3);
+});
+
+test('Double Coins double aussi la prime Bounty', () => {
+    // Victoire à 8 contre 6 (2 pièces) + 3 captures, le tout doublé.
+    assert.equal(computeEndGameCoins(2, 3, 2), 10);
+});
+
+test('Double Coins sans rien à doubler : zéro', () => {
+    assert.equal(computeEndGameCoins(0, 0, 2), 0);
 });

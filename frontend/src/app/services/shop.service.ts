@@ -1,9 +1,11 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import {
   getShopItems,
+  isConsumable,
   isEmojiUnlocked,
+  type ConsumableShopItem,
   type ReactionEmoji,
   type ShopItem,
 } from '@mercury/shared';
@@ -13,6 +15,8 @@ import { environment } from 'src/environments/environment';
 interface ShopStateResponse {
   coins: number;
   ownedItems: string[];
+  /** Absent d'un serveur antérieur aux boosters. */
+  armedBoosts?: string[];
   items: ShopItem[];
 }
 
@@ -20,9 +24,16 @@ interface ShopErrorBody {
   code?: string;
   coins?: number;
   ownedItems?: string[];
+  armedBoosts?: string[];
 }
 
-export type PurchaseOutcome = 'ok' | 'insufficient' | 'owned' | 'unauthenticated' | 'error';
+export type PurchaseOutcome =
+  | 'ok'
+  | 'insufficient'
+  | 'owned'
+  | 'armed'
+  | 'unauthenticated'
+  | 'error';
 
 const CACHE_KEY = 'shop_state';
 
@@ -42,8 +53,15 @@ export class ShopService {
   /** null tant que le solde n'est pas connu (invité, ou chargement en cours). */
   readonly coins = signal<number | null>(null);
   readonly owned = signal<ReadonlySet<string>>(new Set<string>());
+  /** Boosters achetés, en attente de la prochaine partie. */
+  readonly armed = signal<ReadonlySet<string>>(new Set<string>());
   /** Catalogue embarqué par défaut, remplacé par celui du serveur au chargement. */
   readonly items = signal<readonly ShopItem[]>(getShopItems());
+
+  /** Boosters armés, dans l'ordre du catalogue : ce qui attend la prochaine partie. */
+  readonly armedBoosts = computed<readonly ConsumableShopItem[]>(() =>
+    this.items().filter(isConsumable).filter(item => this.armed().has(item.id)),
+  );
 
   constructor() {
     this.restoreFromCache();
@@ -67,7 +85,7 @@ export class ShopService {
         headers: { Authorization: `Bearer ${token}` },
       }),
     );
-    this.apply(state.coins, state.ownedItems);
+    this.apply(state.coins, state.ownedItems, state.armedBoosts);
     if (state.items?.length) this.items.set(state.items);
   }
 
@@ -87,14 +105,17 @@ export class ShopService {
           { headers: { Authorization: `Bearer ${token}` } },
         ),
       );
-      this.apply(res.coins, res.ownedItems);
+      this.apply(res.coins, res.ownedItems, res.armedBoosts);
       return 'ok';
     } catch (err) {
       if (err instanceof HttpErrorResponse) {
         const body = err.error as ShopErrorBody | undefined;
-        if (body?.coins !== undefined) this.apply(body.coins, body.ownedItems ?? [...this.owned()]);
+        if (body?.coins !== undefined) {
+          this.apply(body.coins, body.ownedItems ?? [...this.owned()], body.armedBoosts);
+        }
         if (err.status === 401) return 'unauthenticated';
         if (body?.code === 'ALREADY_OWNED') return 'owned';
+        if (body?.code === 'ALREADY_ARMED') return 'armed';
         if (body?.code === 'INSUFFICIENT_FUNDS') return 'insufficient';
       }
       return 'error';
@@ -104,6 +125,19 @@ export class ShopService {
   /** Solde poussé par la fin de partie (message gameStats). */
   setCoins(coins: number): void {
     this.coins.set(coins);
+    this.persist();
+  }
+
+  /**
+   * Le serveur a consommé ces boosters au lancement de la partie : on les
+   * retire du cache local sans attendre le prochain load(), pour que la
+   * boutique et la home ne les affichent plus comme « en attente ».
+   */
+  markConsumed(ids: readonly string[]): void {
+    if (!ids.some(id => this.armed().has(id))) return;
+    const next = new Set(this.armed());
+    for (const id of ids) next.delete(id);
+    this.armed.set(next);
     this.persist();
   }
 
@@ -132,6 +166,10 @@ export class ShopService {
     return this.owned().has(itemId);
   }
 
+  isArmed(itemId: string): boolean {
+    return this.armed().has(itemId);
+  }
+
   isEmojiUnlocked(emoji: ReactionEmoji): boolean {
     return isEmojiUnlocked(emoji, this.owned());
   }
@@ -139,6 +177,7 @@ export class ShopService {
   clear(): void {
     this.coins.set(null);
     this.owned.set(new Set<string>());
+    this.armed.set(new Set<string>());
     try {
       localStorage.removeItem(CACHE_KEY);
     } catch {
@@ -146,9 +185,10 @@ export class ShopService {
     }
   }
 
-  private apply(coins: number, ownedItems: string[]): void {
+  private apply(coins: number, ownedItems: string[], armedBoosts: string[] = []): void {
     this.coins.set(coins);
     this.owned.set(new Set(ownedItems));
+    this.armed.set(new Set(armedBoosts));
     this.auth.patchUser({ coins });
     this.persist();
   }
@@ -157,7 +197,11 @@ export class ShopService {
     try {
       localStorage.setItem(
         CACHE_KEY,
-        JSON.stringify({ coins: this.coins(), ownedItems: [...this.owned()] }),
+        JSON.stringify({
+          coins: this.coins(),
+          ownedItems: [...this.owned()],
+          armedBoosts: [...this.armed()],
+        }),
       );
     } catch {
       /* stockage indisponible : on retombe sur un chargement réseau */
@@ -168,9 +212,14 @@ export class ShopService {
     try {
       const raw = localStorage.getItem(CACHE_KEY);
       if (!raw) return;
-      const cached = JSON.parse(raw) as { coins?: number | null; ownedItems?: string[] };
+      const cached = JSON.parse(raw) as {
+        coins?: number | null;
+        ownedItems?: string[];
+        armedBoosts?: string[];
+      };
       if (typeof cached.coins === 'number') this.coins.set(cached.coins);
       if (Array.isArray(cached.ownedItems)) this.owned.set(new Set(cached.ownedItems));
+      if (Array.isArray(cached.armedBoosts)) this.armed.set(new Set(cached.armedBoosts));
     } catch {
       /* cache illisible : on repart d'un état vide */
     }

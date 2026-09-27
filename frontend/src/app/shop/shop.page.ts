@@ -11,11 +11,12 @@ import {
 import { Location } from '@angular/common';
 import { Capacitor } from '@capacitor/core';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
-import type { ShopItem, ShopItemKind } from '@mercury/shared';
+import { isConsumable, type ShopItem, type ShopItemKind } from '@mercury/shared';
 import { ShopService } from '../services/shop.service';
 import { AuthService } from '../services/auth.service';
 import { ToastService } from '../shared/toast.service';
 import { CoinCountComponent } from '../shared/coin-count.component';
+import { BoostTokenComponent } from '../shared/boost-token.component';
 // SoundService vit sous game/ mais est fourni à la racine et ses préférences
 // (mute, vibration) sont déjà globales : la boutique le consomme tel quel
 // plutôt que de dupliquer une seconde pile audio.
@@ -33,15 +34,32 @@ const BURST_MS = 900;
 
 /** Titre de section par famille d'objets. */
 const KIND_LABEL: Record<ShopItemKind, string> = {
+  consumable: 'Boosters',
   emoji: 'Reactions',
   cardback: 'Card backs',
+};
+
+/**
+ * Ordre des sections, indépendant de celui du catalogue. Les boosters passent
+ * en tête : c'est l'achat qu'on refait avant une partie, il ne doit pas se
+ * trouver sous toute la collection.
+ */
+const KIND_ORDER: readonly ShopItemKind[] = ['consumable', 'emoji', 'cardback'];
+
+/** Ligne d'explication sous le titre, pour les familles qui en ont besoin. */
+const KIND_NOTE: Partial<Record<ShopItemKind, string>> = {
+  consumable: 'Each booster lasts one game. It starts with your next game.',
 };
 
 interface ShopSection {
   readonly kind: ShopItemKind;
   readonly label: string;
+  readonly note: string | undefined;
   readonly items: readonly ShopItem[];
 }
+
+/** État d'une vignette : un mot par langage visuel. */
+type TileState = 'owned' | 'armed' | 'ready' | 'short';
 
 /** Une pièce en vol entre le solde et la tuile achetée. Coordonnées viewport. */
 interface FlyingCoin {
@@ -59,7 +77,7 @@ interface FlyingCoin {
   templateUrl: './shop.page.html',
   styleUrls: ['./shop.page.scss'],
   changeDetection: ChangeDetectionStrategy.Eager,
-  imports: [CoinCountComponent],
+  imports: [CoinCountComponent, BoostTokenComponent],
 })
 export class ShopPage implements OnInit, OnDestroy {
   readonly shop = inject(ShopService);
@@ -84,7 +102,7 @@ export class ShopPage implements OnInit, OnDestroy {
   flyingCoins = signal<readonly FlyingCoin[]>([]);
 
   /**
-   * Id dont l'état « possédé » est retenu jusqu'à l'atterrissage des pièces.
+   * Id dont l'état « possédé » (ou « armé ») est retenu jusqu'à l'atterrissage des pièces.
    * Le serveur peut répondre en 150 ms alors que le vol dure près d'une
    * seconde : sans ce verrou, la tuile bascule en « Owned » avant même que le
    * joueur ait vu sa monnaie partir, et l'achat n'a plus de moment à lui.
@@ -99,7 +117,7 @@ export class ShopPage implements OnInit, OnDestroy {
 
   readonly balance = computed(() => this.shop.coins() ?? 0);
 
-  /** Articles regroupés par famille, dans l'ordre du catalogue. */
+  /** Articles regroupés par famille (ordre KIND_ORDER), dans l'ordre du catalogue. */
   readonly sections = computed<readonly ShopSection[]>(() => {
     const groups = new Map<ShopItemKind, ShopItem[]>();
     for (const item of this.shop.items()) {
@@ -107,18 +125,29 @@ export class ShopPage implements OnInit, OnDestroy {
       if (bucket) bucket.push(item);
       else groups.set(item.kind, [item]);
     }
-    return [...groups].map(([kind, items]) => ({ kind, label: KIND_LABEL[kind], items }));
+    return KIND_ORDER.flatMap(kind => {
+      const items = groups.get(kind);
+      return items ? [{ kind, label: KIND_LABEL[kind], note: KIND_NOTE[kind], items }] : [];
+    });
   });
 
-  /** Article verrouillé le moins cher : la prochaine marche à franchir. */
+  /**
+   * Objet de collection verrouillé le moins cher : la prochaine marche à
+   * franchir. Les boosters n'en sont pas : ils se rachètent sans fin, la
+   * collection ne serait alors jamais « complète ».
+   */
   readonly nextUnlock = computed<ShopItem | null>(() => {
-    const locked = this.shop.items().filter(item => !this.shop.isOwned(item.id));
+    const locked = this.shop
+      .items()
+      .filter(item => !isConsumable(item) && !this.shop.isOwned(item.id));
     if (locked.length === 0) return null;
     return locked.reduce((cheapest, item) => (item.price < cheapest.price ? item : cheapest));
   });
 
   /** Plus rien à débloquer. Dérivé de `nextUnlock`, jamais recompté. */
-  readonly allOwned = computed(() => this.shop.items().length > 0 && this.nextUnlock() === null);
+  readonly allOwned = computed(
+    () => this.shop.items().some(item => !isConsumable(item)) && this.nextUnlock() === null,
+  );
 
   /** Pièces manquantes pour `nextUnlock`, ou 0 s'il est déjà à portée. */
   readonly coinsToNext = computed(() => {
@@ -139,31 +168,33 @@ export class ShopPage implements OnInit, OnDestroy {
     for (const timer of this.timers) clearTimeout(timer);
   }
 
-  isOwned(itemId: string): boolean {
-    if (this.holdOwned() === itemId) return false;
-    return this.shop.isOwned(itemId);
+  /** Possédé (collection) ou armé (booster), hors retenue pendant le vol. */
+  isAcquired(item: ShopItem): boolean {
+    if (this.holdOwned() === item.id) return false;
+    return isConsumable(item) ? this.shop.isArmed(item.id) : this.shop.isOwned(item.id);
   }
 
   canAfford(item: ShopItem): boolean {
     return this.balance() >= item.price;
   }
 
-  /** Aperçu affiché sur la tuile. Les dos de cartes auront le leur. */
+  /** Aperçu affiché sur la tuile. Les boosters ont leur jeton, les dos de cartes auront le leur. */
   previewOf(item: ShopItem): string {
     return item.kind === 'emoji' ? item.emoji : '';
   }
 
   /**
-   * Classe d'état d'une tuile. Un seul mot pour trois langages visuels :
-   * vert « possédé », or « à portée », argent éteint « hors budget ».
+   * Classe d'état d'une tuile. Un mot par langage visuel : vert « possédé »,
+   * teinte du booster « armé » (en attente de la prochaine partie), or « à
+   * portée », argent éteint « hors budget ».
    */
-  stateOf(item: ShopItem): 'owned' | 'ready' | 'short' {
-    if (this.isOwned(item.id)) return 'owned';
+  stateOf(item: ShopItem): TileState {
+    if (this.isAcquired(item)) return isConsumable(item) ? 'armed' : 'owned';
     return this.signedIn() && !this.canAfford(item) ? 'short' : 'ready';
   }
 
   confirm(item: ShopItem): void {
-    if (this.isOwned(item.id) || !this.canAfford(item) || this.busyId()) return;
+    if (this.isAcquired(item) || !this.canAfford(item) || this.busyId()) return;
     this.pending.set(item);
   }
 
@@ -201,6 +232,9 @@ export class ShopPage implements OnInit, OnDestroy {
           // Déjà acheté ailleurs : l'inventaire vient d'être resynchronisé,
           // la tuile bascule d'elle-même en « Owned ».
           this.toast.show('You already own this item.');
+          break;
+        case 'armed':
+          this.toast.show(`${item.label} is already set for your next game.`);
           break;
         case 'unauthenticated':
           this.toast.show('Please sign in again.', 'error');
@@ -269,7 +303,9 @@ export class ShopPage implements OnInit, OnDestroy {
     this.burstId.set(item.id);
     this.sound.playUnlock();
     this.vibrate(ImpactStyle.Medium);
-    this.toast.show(`${item.label} unlocked.`);
+    this.toast.show(
+      isConsumable(item) ? `${item.label} is set for your next game.` : `${item.label} unlocked.`,
+    );
     this.later(() => {
       if (this.burstId() === item.id) this.burstId.set('');
     }, BURST_MS);

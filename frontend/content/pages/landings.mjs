@@ -56,7 +56,7 @@ const CONTENT = {
     free: [
       "<strong>Free in full.</strong> No purchase, no subscription, nothing to unlock.",
       "<strong>No account required.</strong> You can start playing as a guest; signing in with Google only keeps your profile, stats and leaderboard place between sessions.",
-      "<strong>No waiting.</strong> A game seats exactly 4 players, and bots take any seat still empty so a game can start right away.",
+      "<strong>No waiting.</strong> A game starts within seconds, straight from the home screen.",
       `<strong>Browser or Android.</strong> Play in any modern browser, or install the <a href="${PLAY_STORE_URL}" rel="noopener">Android app</a>.`,
     ],
     faq: [
@@ -70,7 +70,7 @@ const CONTENT = {
       },
       {
         q: "How many players does a game of Pegs and Jokers need?",
-        a: "Every game on Mercury seats exactly 4 players. By default those 4 players are split into two teams of 2, red and blue against green and orange. If not enough human players are waiting, bots take the remaining seats so the game starts without delay.",
+        a: "Every game on Mercury seats exactly 4 players. By default those 4 players are split into two teams of 2, red and blue against green and orange.",
       },
       {
         q: "Can I play Pegs and Jokers with friends?",
@@ -115,7 +115,7 @@ const CONTENT = {
     free: [
       "<strong>Entièrement gratuit.</strong> Aucun achat, aucun abonnement, rien à débloquer.",
       "<strong>Sans inscription.</strong> Vous pouvez jouer en invité ; la connexion Google sert uniquement à conserver votre profil, vos statistiques et votre place au classement d'une session à l'autre.",
-      "<strong>Sans attente.</strong> Une partie réunit exactement 4 joueurs, et des bots occupent les sièges encore libres pour que la partie démarre tout de suite.",
+      "<strong>Sans attente.</strong> Une partie se lance en quelques secondes, directement depuis l'écran d'accueil.",
       `<strong>Navigateur ou Android.</strong> Jouez dans n'importe quel navigateur récent, ou installez l'<a href="${PLAY_STORE_URL}" rel="noopener">application Android</a>.`,
     ],
     faq: [
@@ -129,7 +129,7 @@ const CONTENT = {
       },
       {
         q: "Combien de joueurs faut-il pour une partie de Tock en ligne ?",
-        a: "Chaque partie sur Mercury réunit exactement 4 joueurs. Par défaut, ces 4 joueurs sont répartis en deux équipes de 2, rouge et bleu contre vert et orange. Si les joueurs humains ne sont pas assez nombreux, des bots occupent les sièges restants pour que la partie démarre sans attendre.",
+        a: "Chaque partie sur Mercury réunit exactement 4 joueurs. Par défaut, ces 4 joueurs sont répartis en deux équipes de 2, rouge et bleu contre vert et orange.",
       },
       {
         q: "Peut-on jouer au Tock avec ses amis ?",
@@ -174,7 +174,7 @@ const CONTENT = {
     free: [
       "<strong>Volledig gratis.</strong> Geen aankoop, geen abonnement, niets om vrij te spelen.",
       "<strong>Geen account nodig.</strong> Je kunt als gast spelen; inloggen met Google dient alleen om je profiel, je statistieken en je plek in de ranglijst te bewaren.",
-      "<strong>Geen wachttijd.</strong> Een partij telt precies 4 spelers, en bots nemen de nog vrije plaatsen in zodat je meteen kunt beginnen.",
+      "<strong>Geen wachttijd.</strong> Een partij start binnen enkele seconden, rechtstreeks vanaf het startscherm.",
       `<strong>Browser of Android.</strong> Speel in elke moderne browser, of installeer de <a href="${PLAY_STORE_URL}" rel="noopener">Android-app</a>.`,
     ],
     faq: [
@@ -188,7 +188,7 @@ const CONTENT = {
       },
       {
         q: "Met hoeveel spelers speel je een online partij Keezen?",
-        a: "Elke partij op Mercury telt precies 4 spelers. Die 4 spelers worden standaard verdeeld in twee teams van 2: rood en blauw tegen groen en oranje. Zijn er niet genoeg menselijke spelers, dan nemen bots de resterende plaatsen in zodat de partij meteen begint.",
+        a: "Elke partij op Mercury telt precies 4 spelers. Die 4 spelers worden standaard verdeeld in twee teams van 2: rood en blauw tegen groen en oranje.",
       },
       {
         q: "Kun je Keezen met vrienden spelen?",
@@ -233,7 +233,7 @@ const CONTENT = {
     free: [
       "<strong>Vollständig kostenlos.</strong> Kein Kauf, kein Abo, nichts freizuschalten.",
       "<strong>Ohne Anmeldung.</strong> Ihr könnt als Gast spielen; die Anmeldung mit Google dient nur dazu, Profil, Statistiken und Platz in der Rangliste zu behalten.",
-      "<strong>Ohne Wartezeit.</strong> Eine Partie hat genau 4 Plätze, und Bots übernehmen die noch freien, damit sofort gestartet werden kann.",
+      "<strong>Ohne Wartezeit.</strong> Eine Partie startet in wenigen Sekunden, direkt vom Startbildschirm aus.",
       `<strong>Browser oder Android.</strong> Spielt in jedem modernen Browser oder installiert die <a href="${PLAY_STORE_URL}" rel="noopener">Android-App</a>.`,
     ],
     faq: [
@@ -247,7 +247,7 @@ const CONTENT = {
       },
       {
         q: "Wie viele Spieler braucht eine Online-Partie Dog?",
-        a: "Jede Partie auf Mercury wird zu genau 4 Spielern gespielt. Diese 4 Spieler werden standardmäßig in zwei Zweierteams aufgeteilt: Rot und Blau gegen Grün und Orange. Sind nicht genug menschliche Spieler da, übernehmen Bots die freien Plätze, damit die Partie sofort beginnt.",
+        a: "Jede Partie auf Mercury wird zu genau 4 Spielern gespielt. Diese 4 Spieler werden standardmäßig in zwei Zweierteams aufgeteilt: Rot und Blau gegen Grün und Orange.",
       },
       {
         q: "Kann man Dog mit Freunden spielen?",

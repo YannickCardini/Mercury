@@ -547,6 +547,176 @@ $slot-glows: (
   --coin-size: 15px;
 }
 
+// ── Boosters : sceaux posés à côté des montants doublés ───────────────────
+
+// Montant + sceau sur une ligne ; repli sur deux lignes si la card est étroite.
+.stats-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+
+  &--coins {
+    margin-top: 4px;
+
+    .stats-coins {
+      margin-top: 0;
+    }
+  }
+}
+
+.stats-seal {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 10px 3px 4px;
+  border-radius: 999px;
+  background: rgba(var(--seal-rgb), 0.14);
+  border: 1px solid rgba(var(--seal-rgb), 0.45);
+  color: var(--seal-ink);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+
+  // Onde unique au moment où le sceau se pose.
+  &::after {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    border-radius: 999px;
+    border: 2px solid rgba(var(--seal-rgb), 0.8);
+    pointer-events: none;
+    opacity: 0;
+  }
+}
+
+.stats-seal-token {
+  --bt-size: 20px;
+}
+
+// Points : le montant est connu d'emblée, le sceau le frappe juste après
+// l'entrée de la card.
+.stats-seal--points {
+  --seal-rgb: #{$boost-points-rgb};
+  --seal-ink: #{color.adjust($boost-points, $lightness: 20%)};
+
+  animation: seal-stamp 0.55s cubic-bezier(0.2, 1.5, 0.4, 1) 1.05s both;
+
+  &::after {
+    animation: seal-ring 0.7s ease-out 1.25s both;
+  }
+}
+
+// Pièces : invisible (place réservée) jusqu'à ce que les pièces de base soient
+// rentrées, puis frappé au moment où le compteur commence à doubler.
+.stats-seal--coins {
+  --seal-rgb: #{$boost-coins-rgb};
+  --seal-ink: #{$c-gold};
+
+  opacity: 0;
+  transform: scale(0.6);
+
+  &.is-stamped {
+    opacity: 1;
+    transform: none;
+    animation: seal-stamp 0.55s cubic-bezier(0.2, 1.5, 0.4, 1) both;
+
+    &::after {
+      animation: seal-ring 0.7s ease-out 0.2s both;
+    }
+  }
+}
+
+@keyframes seal-stamp {
+  0% {
+    opacity: 0;
+    transform: scale(1.8) rotate(-12deg);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(0.92) rotate(3deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+
+@keyframes seal-ring {
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  20% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+}
+
+// Origine des pièces (victoire / captures), sous la pastille. Elle apparaît
+// avec la pastille, pas avant : sinon elle annonce le montant que le vol des
+// pièces est censé révéler.
+.stats-breakdown {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin-top: 2px;
+  font-size: clamp(0.7rem, 1.7vw, 0.8rem);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: rgba(255, 255, 255, 0.6);
+  font-variant-numeric: tabular-nums;
+  opacity: 0;
+  transition: opacity 0.3s ease-out;
+
+  &.is-revealed {
+    opacity: 1;
+  }
+}
+
+.stats-breakdown__sep {
+  opacity: 0.5;
+}
+
+.stats-breakdown__bounty {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: color.adjust($boost-bounty, $lightness: 14%);
+}
+
+.stats-breakdown-token {
+  --bt-size: 16px;
+}
+
+// Booster consommé sans rien rapporter : on le dit.
+.stats-boost-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: clamp(0.7rem, 1.7vw, 0.8rem);
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.stats-note-token {
+  --bt-size: 18px;
+
+  filter: grayscale(0.7);
+  opacity: 0.7;
+}
+
 // ── Pièces gagnées en vol ─────────────────────────────────────────────────
 
 .coin-flights {
@@ -598,9 +768,11 @@ $slot-glows: (
 @media (prefers-reduced-motion: reduce) {
   // Aucune pièce n'est lancée dans ce mode (le composant cale directement le
   // total) ; il reste à figer l'apparition de la pastille elle-même.
-  .stats-coins {
+  .stats-coins,
+  .stats-seal,
+  .stats-seal::after {
     transition: none;
-    animation: none;
+    animation: none !important;
   }
 }
 

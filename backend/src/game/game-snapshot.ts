@@ -30,6 +30,12 @@ export interface PlayerSnapshot {
     cards: Card[];
     picture?: string;
     userId?: string;
+    /** Boosters consommés au lancement : déjà débités du compte, ils doivent
+     *  survivre au restore pour s'appliquer en fin de partie. Optionnel, donc
+     *  compatible avec les snapshots antérieurs (pas de changement de version). */
+    boosts?: string[];
+    /** Pions adverses capturés par ce siège (prime Bounty). Absent = 0. */
+    captures?: number;
 }
 
 /** Entrée du ReconnectRegistry pour un siège — persistée avec la partie pour

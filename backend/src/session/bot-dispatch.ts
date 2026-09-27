@@ -27,6 +27,20 @@ export function isBotUserId(userId: string | undefined): boolean {
     return userId !== undefined && knownBotUserIds.has(userId);
 }
 
+/** Bots connus de ce process (exclusion des stats d'audience). */
+export function getKnownBotUserIds(): string[] {
+    return [...knownBotUserIds];
+}
+
+/**
+ * Étiquette de log d'un joueur : `bot:<id>`, `user:<id>` ou `guest:<browserId>`.
+ * Rend les lignes de matchmaking/room agrégeables (humains distincts, invités).
+ */
+export function accountTag(userId: string | undefined, browserId?: string): string {
+    if (userId) return `${isBotUserId(userId) ? 'bot' : 'user'}:${userId}`;
+    return `guest:${browserId ?? '?'}`;
+}
+
 /**
  * Réveille un agent IA via POST ${AGENT_URL}/dispatch.
  * `busy` = 503, tous les bots du pool sont déjà actifs (réessayable).

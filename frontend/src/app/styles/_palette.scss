@@ -35,6 +35,18 @@ $c-purple: $p-nebula;
 $c-silver: $p-moon;        // ex-#94a3b8 / #cbd5e1
 $c-bronze: #cd7f32;        // inchangé (médailles)
 
+// ─── Boosters de boutique ─────────────────────────────────────────────────────
+// Chaque booster garde sa teinte sur tous les écrans (boutique, accueil, jeu,
+// fin de partie) : violet nébuleuse pour les points, or de la monnaie pour les
+// pièces, rouge Mars pour la prime de capture. Les versions `-rgb` servent aux
+// halos dont on module l'alpha en CSS.
+$boost-points: $p-nebula;
+$boost-points-rgb: 139, 92, 246;
+$boost-coins: $p-saturn;
+$boost-coins-rgb: 224, 177, 90;
+$boost-bounty: $p-mars-bright; // Bounty — rouge de capture
+$boost-bounty-rgb: 224, 83, 61;
+
 // ─── Fonds (alignés sur le fond spatial app-space-background) ─────────────────
 $bg-dark: #0f172a; // ciel profond
 $bg-mid:  #1a2840; // halo central

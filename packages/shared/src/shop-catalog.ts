@@ -17,6 +17,18 @@ import { REACTION_EMOJIS, type ReactionEmoji } from './types.js';
 /** Prix unitaire d'une réaction emoji (phase 1 de la boutique). */
 export const EMOJI_ITEM_PRICE = 50;
 
+/** Prix unitaire d'un booster « Double … » (consommable d'une partie). */
+export const CONSUMABLE_ITEM_PRICE = 10;
+
+/** Prix du booster Bounty : moins cher, son gain dépend du jeu de chacun. */
+export const BOUNTY_ITEM_PRICE = 5;
+
+/** Pièces gagnées par pion adverse capturé avec Bounty (avant Double Coins). */
+export const COINS_PER_CAPTURE = 1;
+
+/** Facteur appliqué par un booster « Double … ». */
+export const BOOST_MULTIPLIER = 2;
+
 /**
  * Bornes du gain de fin de partie. Le gain brut est l'écart de pions rentrés
  * entre les deux camps : en 2v2 le camp gagnant en a toujours 8, donc le gain
@@ -28,7 +40,7 @@ export const MAX_COINS_PER_WIN = 8;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type ShopItemKind = 'emoji' | 'cardback';
+export type ShopItemKind = 'emoji' | 'cardback' | 'consumable';
 
 interface ShopItemCommon {
   readonly id: string;
@@ -50,7 +62,22 @@ export interface CardBackShopItem extends ShopItemCommon {
   readonly asset: string;
 }
 
-export type ShopItem = EmojiShopItem | CardBackShopItem;
+/** Ce que change un booster au décompte de fin de partie. */
+export type ConsumableEffect = 'double_points' | 'double_coins' | 'capture_coins';
+
+/**
+ * Booster : se rachète à volonté, mais un seul exemplaire de chaque est
+ * « armé » à la fois. Il est consommé au lancement de la partie suivante
+ * (voir consumeArmedBoosts, backend/src/db.ts) et ne vaut que pour elle.
+ */
+export interface ConsumableShopItem extends ShopItemCommon {
+  readonly kind: 'consumable';
+  readonly effect: ConsumableEffect;
+  /** Effet en une ligne, affiché sous le libellé en boutique. */
+  readonly description: string;
+}
+
+export type ShopItem = EmojiShopItem | CardBackShopItem | ConsumableShopItem;
 
 // ── Catalogue ─────────────────────────────────────────────────────────────────
 //
@@ -59,13 +86,52 @@ export type ShopItem = EmojiShopItem | CardBackShopItem;
 // appartient bien à REACTION_EMOJIS. La palette n'est donc jamais dupliquée :
 // seuls les emojis payants sont cités ici, les autres restent gratuits.
 
+//
+// Les six premiers emojis de la palette étaient gratuits avant la boutique :
+// les comptes existants les ont reçus par migration ponctuelle au déploiement
+// (backend/scripts/grant-legacy-emojis.ts), ils ne se paient que pour les
+// nouveaux joueurs.
+
 export const SHOP_CATALOG = [
+  { id: 'emoji.angry', kind: 'emoji', label: 'Angry', price: EMOJI_ITEM_PRICE, emoji: '😡' },
+  { id: 'emoji.cool', kind: 'emoji', label: 'Cool', price: EMOJI_ITEM_PRICE, emoji: '😎' },
+  { id: 'emoji.sleeping', kind: 'emoji', label: 'Sleeping', price: EMOJI_ITEM_PRICE, emoji: '😴' },
+  { id: 'emoji.alarm', kind: 'emoji', label: 'Alarm clock', price: 60, emoji: '⏰' },
+  { id: 'emoji.yawning', kind: 'emoji', label: 'Yawning', price: EMOJI_ITEM_PRICE, emoji: '🥱' },
+  { id: 'emoji.orangutan', kind: 'emoji', label: 'Orangutan', price: 80, emoji: '🦧' },
   { id: 'emoji.wink', kind: 'emoji', label: 'Wink', price: EMOJI_ITEM_PRICE, emoji: '😉' },
   { id: 'emoji.kissing', kind: 'emoji', label: 'Heart eyes', price: EMOJI_ITEM_PRICE, emoji: '😘' },
   { id: 'emoji.smile', kind: 'emoji', label: 'Smile', price: EMOJI_ITEM_PRICE, emoji: '😊' },
+  {
+    id: 'consumable.double_points',
+    kind: 'consumable',
+    label: 'Double Points',
+    price: CONSUMABLE_ITEM_PRICE,
+    effect: 'double_points',
+    description: 'Points won or lost count double.',
+  },
+  {
+    id: 'consumable.double_coins',
+    kind: 'consumable',
+    label: 'Double Coins',
+    price: CONSUMABLE_ITEM_PRICE,
+    effect: 'double_coins',
+    description: 'All coins won this game count double.',
+  },
+  {
+    id: 'consumable.bounty',
+    kind: 'consumable',
+    label: 'Bounty',
+    price: BOUNTY_ITEM_PRICE,
+    effect: 'capture_coins',
+    description: '+1 coin for each enemy marble you capture.',
+  },
 ] as const satisfies readonly ShopItem[];
 
 export type ShopItemId = typeof SHOP_CATALOG[number]['id'];
+
+/** Ids des boosters, seuls ids acceptés dans un inventaire de boosters armés. */
+export type ConsumableId = Extract<typeof SHOP_CATALOG[number], { kind: 'consumable' }>['id'];
 
 /**
  * Forme autorisée d'un id de catalogue. Sert à désinfecter tout id avant son
@@ -122,4 +188,34 @@ export function isEmojiUnlocked(
   const id = PAID_EMOJI_ID.get(emoji);
   if (id === undefined) return true;
   return owned instanceof Set ? owned.has(id) : (owned as readonly string[]).includes(id);
+}
+
+// ── Boosters ──────────────────────────────────────────────────────────────────
+
+/** Vrai pour un booster, faux pour un objet de collection (emoji, dos de carte). */
+export function isConsumable(item: ShopItem): item is ConsumableShopItem {
+  return item.kind === 'consumable';
+}
+
+/** Booster du catalogue, ou undefined si l'id n'en désigne pas un. */
+export function getConsumable(id: string): ConsumableShopItem | undefined {
+  const item = BY_ID.get(id);
+  return item && isConsumable(item) ? item : undefined;
+}
+
+/** Vrai si l'un des boosters actifs d'un joueur a cet effet. */
+export function hasBoost(boosts: readonly string[] | undefined, effect: ConsumableEffect): boolean {
+  return !!boosts?.some(id => getConsumable(id)?.effect === effect);
+}
+
+/**
+ * Facteur à appliquer à un gain d'après les boosters actifs d'un joueur sur
+ * une partie. Seule règle de calcul, partagée par le serveur (décompte) et le
+ * client (écran de fin de partie).
+ */
+export function boostMultiplier(
+  boosts: readonly string[] | undefined,
+  effect: 'double_points' | 'double_coins',
+): number {
+  return hasBoost(boosts, effect) ? BOOST_MULTIPLIER : 1;
 }

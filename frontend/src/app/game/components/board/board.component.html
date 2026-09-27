@@ -18,7 +18,7 @@
 
       @if (!shouldSkip(index)) {
       <ion-col class="tock-col">
-        <div [class]="getSquareClass(index)" [ngClass]="getSquareAnimClass(index)"
+        <div [class]="getSquareClass(index)" [ngClass]="getSquareAnimClass(index)" [attr.data-sq]="index"
           [class.square-preview-path]="isPreviewPath(index)"
           [class.square-preview-path-marble2]="isPreviewPathMarble2(index)"
           [class.square-preview-destination]="isPreviewDestination(index)"

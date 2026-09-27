@@ -17,6 +17,7 @@ import authRouter, { verifyAuth } from './auth/auth-router.js';
 import messagesRouter from './messages/messages-router.js';
 import versionRouter from './version/version-router.js';
 import shopRouter from './shop/shop-router.js';
+import { createAdminRouter } from './admin/admin-router.js';
 import { touchLastSeen } from './db.js';
 
 const DEBUG = process.env['DEBUG'] === 'true';
@@ -60,7 +61,7 @@ app.use(express.json({ limit: '4mb' }));
 
 // Limites globales par IP, plus strictes sur les endpoints d'authentification.
 app.use('/api', rateLimit({ windowMs: 60_000, limit: 300, standardHeaders: true, legacyHeaders: false }));
-app.use(['/api/auth/google', '/api/auth/bot', '/api/auth/worker', '/api/shop/purchase'],
+app.use(['/api/auth/google', '/api/auth/bot', '/api/auth/worker', '/api/shop/purchase', '/api/admin'],
     rateLimit({ windowMs: 60_000, limit: 10, standardHeaders: true, legacyHeaders: false }));
 
 app.use('/api/auth', authRouter);
@@ -82,6 +83,8 @@ app.get('/', (_req: Request, res: Response) => {
 // Nécessaire pour que joinRoom() retrouve la room créée par une autre connexion.
 
 const sessionManager = new SessionManager();
+
+app.use('/api/admin', createAdminRouter(sessionManager, () => wss.clients.size));
 
 // GET /api/active-game — server-authoritative reconnection lookup for signed-in
 // users. Lets a client whose localStorage was wiped (e.g. WebView data loss

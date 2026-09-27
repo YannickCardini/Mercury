@@ -7,6 +7,7 @@ import { getUsersContainer } from '../db.js';
 import { processToWebp, uploadAvatarWebp } from '../storage/blob.js';
 import { signSessionToken, verifySessionToken } from './session-token.js';
 import { registerBotUserId } from '../session/bot-dispatch.js';
+import { notifyAdmin } from '../admin/telegram.js';
 
 const router = Router();
 
@@ -72,6 +73,12 @@ interface UserDoc {
     /** Ids catalogue possédés (emojis, plus tard dos de cartes). Même
      *  optionnalité que `coins`, pour la même raison. */
     ownedItems?: string[];
+    /** Boosters achetés, consommés au lancement de la partie suivante. Même
+     *  optionnalité que `coins`, pour la même raison. */
+    armedBoosts?: string[];
+    /** Compte d'agent IA, posé à chaque POST /api/auth/bot : exclut les bots
+     *  des stats d'audience (getAudienceStats). */
+    isBot?: true;
 }
 
 /**
@@ -156,8 +163,12 @@ router.post('/google', async (req: Request, res: Response) => {
                 createdAt: now,
                 coins: 0,
                 ownedItems: [],
+                armedBoosts: [],
             };
             await container.items.create(user);
+            // Nom seul, pas l'email : la notification transite par les serveurs Telegram.
+            console.log(`🆕 Inscription — ${user.name} [user:${user.id}]`);
+            notifyAdmin(`🆕 Nouvel inscrit : ${user.name || '(sans nom)'}`);
         }
     } catch (err) {
         console.error('❌ Cosmos DB error:', err);
@@ -350,6 +361,7 @@ router.post('/bot', async (req: Request, res: Response) => {
         const ops: PatchOperation[] = [
             { op: 'set', path: '/lastLogin', value: nowIso },
             { op: 'set', path: '/lastSeenAt', value: nowIso },
+            { op: 'set', path: '/isBot', value: true },
         ];
         let resource: UserDoc | undefined;
         try {

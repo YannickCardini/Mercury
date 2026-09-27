@@ -18,6 +18,7 @@ import { GameRulesModalComponent } from "../shared/game-rules-modal.component";
 import { InviteToastComponent } from "../shared/invite-toast.component";
 import { MarbleOrbitComponent } from "../shared/marble-orbit.component";
 import { CoinCountComponent } from "../shared/coin-count.component";
+import { BoostTokenComponent } from "../shared/boost-token.component";
 import { Subscription, firstValueFrom, take } from "rxjs";
 import { version } from "../../../../package.json";
 import { App } from "@capacitor/app";
@@ -29,7 +30,7 @@ import { AuthService, type AuthUser } from "../services/auth.service";
 import { ActiveGameService } from "../services/active-game.service";
 import { PresenceService } from "../services/presence.service";
 import { ShopService } from "../services/shop.service";
-import { TEAMS } from "@mercury/shared";
+import { TEAMS, isConsumable } from "@mercury/shared";
 import type {
   GameInviteMessage,
   MarbleColor,
@@ -89,6 +90,7 @@ interface InviteCandidate {
     InviteToastComponent,
     MarbleOrbitComponent,
     CoinCountComponent,
+    BoostTokenComponent,
   ],
 })
 export class HomePage implements OnInit, OnDestroy {
@@ -540,8 +542,26 @@ export class HomePage implements OnInit, OnDestroy {
   readonly hasAffordableItem = computed(() => {
     const coins = this.shop.coins();
     if (coins === null) return false;
-    return this.shop.items().some(item => !this.shop.isOwned(item.id) && coins >= item.price);
+    // Les boosters se rachètent à chaque partie : les compter allumerait le
+    // point en permanence dès 10 pièces, et il ne signalerait plus rien.
+    return this.shop
+      .items()
+      .some(item => !isConsumable(item) && !this.shop.isOwned(item.id) && coins >= item.price);
   });
+
+  // ── Boosters armés ─────────────────────────────────────────────────────────
+
+  /**
+   * Boosters qui partiront avec la prochaine partie. Affichés au-dessus des
+   * boutons de jeu : c'est là que le joueur décide de lancer une partie, donc
+   * là qu'il doit voir ce qu'il engage (Double Points joue aussi sur la perte).
+   */
+  readonly armedBoosts = this.shop.armedBoosts;
+  readonly armedBoostNames = computed(() =>
+    this.armedBoosts()
+      .map((b) => b.label)
+      .join(" · ")
+  );
 
   onCoinsRolled(delta: number): void {
     if (delta <= 0) return; // une dépense se voit déjà dans la boutique

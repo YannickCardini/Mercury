@@ -14,6 +14,7 @@ import {
 import { TockCardComponent } from 'src/app/shared/tock-card.component';
 import { getCardEffect } from 'src/app/shared/card-effects';
 import { EmojiReactionsComponent } from '../emoji-reactions/emoji-reactions.component';
+import { BoostDockComponent } from '../boost-dock/boost-dock.component';
 import { TableTimerBarComponent } from './table-timer-bar.component';
 import { TimerRingComponent } from './timer-ring.component';
 import type { Card, MarbleColor } from '@mercury/shared';
@@ -42,7 +43,7 @@ enum TURN_PHASE {
   styleUrl: 'table.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, TockCardComponent, EmojiReactionsComponent, TableTimerBarComponent, TimerRingComponent],
+  imports: [CommonModule, TockCardComponent, EmojiReactionsComponent, BoostDockComponent, TableTimerBarComponent, TimerRingComponent],
   // `is-native` : allège en CSS les effets coûteux (backdrop-filter, box-shadow
   // animée) sur WebView Android. Le rendu web/desktop reste inchangé.
   host: { '[class.is-native]': 'isNative' }

@@ -2,12 +2,12 @@
 // backend/src/shop/shop-router.ts
 //
 // API de la boutique, montée sur /api/shop. Deux routes seulement : l'état
-// (catalogue + porte-monnaie) et l'achat. Le prix débité vient TOUJOURS du
-// catalogue serveur, jamais du corps de la requête.
+// (catalogue + porte-monnaie + boosters armés) et l'achat. Le prix débité vient
+// TOUJOURS du catalogue serveur, jamais du corps de la requête.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { Router, type Request, type Response } from 'express';
-import { CATALOG_ID_PATTERN, getCatalogItem, getShopItems } from '@mercury/shared';
+import { CATALOG_ID_PATTERN, getCatalogItem, getShopItems, isConsumable } from '@mercury/shared';
 import { awardCoins, getUserWallet, purchaseItem } from '../db.js';
 import { verifyAuth } from '../auth/auth-router.js';
 import { invalidateOwnedItems } from './entitlements.js';
@@ -52,7 +52,12 @@ router.get('/state', async (req: Request, res: Response) => {
             res.status(404).json({ error: 'User not found', code: 'USER_NOT_FOUND' });
             return;
         }
-        res.json({ coins: wallet.coins, ownedItems: wallet.ownedItems, items: getShopItems() });
+        res.json({
+            coins: wallet.coins,
+            ownedItems: wallet.ownedItems,
+            armedBoosts: wallet.armedBoosts,
+            items: getShopItems(),
+        });
     } catch (err) {
         console.error('❌ Cosmos DB error (GET /shop/state):', err);
         res.status(500).json({ error: 'Database error', code: 'SERVER_ERROR' });
@@ -77,12 +82,22 @@ router.post('/purchase', async (req: Request, res: Response) => {
         return;
     }
 
+    // Un booster s'arme pour la prochaine partie au lieu d'entrer dans la
+    // collection ; il ne concerne pas le cache des réactions emoji.
+    const consumable = isConsumable(item);
+    const inventory = consumable ? 'armedBoosts' : 'ownedItems';
+
     try {
-        const result = await purchaseItem(userId, item.id, item.price);
+        const result = await purchaseItem(userId, item.id, item.price, inventory);
         if (result.ok) {
-            invalidateOwnedItems(userId);
+            if (!consumable) invalidateOwnedItems(userId);
             console.log(`🛒 ${userId} a acheté ${item.id} pour ${item.price} (solde ${result.coins})`);
-            res.json({ itemId: item.id, coins: result.coins, ownedItems: result.ownedItems });
+            res.json({
+                itemId: item.id,
+                coins: result.coins,
+                ownedItems: result.ownedItems,
+                armedBoosts: result.armedBoosts,
+            });
             return;
         }
         if (result.reason === 'not_found') {
@@ -93,22 +108,21 @@ router.post('/purchase', async (req: Request, res: Response) => {
         // Refus atomique : on relit pour dire POURQUOI. Hors chemin critique,
         // donc le coût d'une lecture supplémentaire est sans importance ici.
         const wallet = await getUserWallet(userId);
-        if (wallet?.ownedItems.includes(item.id)) {
-            invalidateOwnedItems(userId);
-            res.status(409).json({
-                error: 'Item already owned',
-                code: 'ALREADY_OWNED',
-                coins: wallet.coins,
-                ownedItems: wallet.ownedItems,
-            });
-            return;
-        }
-        res.status(409).json({
-            error: 'Not enough coins',
-            code: 'INSUFFICIENT_FUNDS',
+        const walletBody = {
             coins: wallet?.coins ?? 0,
             ownedItems: wallet?.ownedItems ?? [],
-        });
+            armedBoosts: wallet?.armedBoosts ?? [],
+        };
+        if (wallet?.[inventory].includes(item.id)) {
+            if (!consumable) invalidateOwnedItems(userId);
+            res.status(409).json(
+                consumable
+                    ? { error: 'Booster already active', code: 'ALREADY_ARMED', ...walletBody }
+                    : { error: 'Item already owned', code: 'ALREADY_OWNED', ...walletBody },
+            );
+            return;
+        }
+        res.status(409).json({ error: 'Not enough coins', code: 'INSUFFICIENT_FUNDS', ...walletBody });
     } catch (err) {
         console.error('❌ Cosmos DB error (POST /shop/purchase):', err);
         res.status(500).json({ error: 'Database error', code: 'SERVER_ERROR' });

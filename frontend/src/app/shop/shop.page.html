@@ -33,6 +33,9 @@
       </section>
     }
 
+    <!-- Seule la liste défile : en-tête et solde restent en place, le solde est
+         aussi le point de départ des pièces en vol lors d'un achat. -->
+    <div class="sh-scroll">
     @if (loading()) {
       <div class="sh-state">
         <div class="sh-spinner"></div>
@@ -53,17 +56,27 @@
             {{ section.label }}
             <span class="sh-section-rule" aria-hidden="true"></span>
           </h2>
+          @if (section.note) {
+            <p class="sh-section-note">{{ section.note }}</p>
+          }
 
           <ul class="sh-grid">
             @for (item of section.items; track item.id; let i = $index) {
               <li class="sh-tile"
                   [attr.data-item]="item.id"
+                  [attr.data-effect]="item.kind === 'consumable' ? item.effect : null"
                   [class.is-owned]="stateOf(item) === 'owned'"
+                  [class.is-armed]="stateOf(item) === 'armed'"
                   [class.is-short]="stateOf(item) === 'short'"
                   [class.is-burst]="burstId() === item.id"
                   [style.--tile-i]="i">
                 <span class="sh-tile-orb" aria-hidden="true">
-                  <span class="sh-tile-glyph">{{ previewOf(item) }}</span>
+                  @if (item.kind === 'consumable') {
+                    <app-boost-token class="sh-tile-token" [effect]="item.effect"
+                      [live]="stateOf(item) === 'armed'" />
+                  } @else {
+                    <span class="sh-tile-glyph">{{ previewOf(item) }}</span>
+                  }
                   <span class="sh-tile-ring"></span>
                   <span class="sh-tile-sparks">
                     @for (s of sparks; track s) {
@@ -82,19 +95,31 @@
                 }
 
                 <span class="sh-tile-label">{{ item.label }}</span>
+                @if (item.kind === 'consumable') {
+                  <span class="sh-tile-desc">{{ item.description }}</span>
+                }
 
-                @if (isOwned(item.id)) {
+                @if (stateOf(item) === 'owned') {
                   <span class="sh-tile-badge">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                     Owned
                   </span>
+                } @else if (stateOf(item) === 'armed') {
+                  <!-- Pas de bouton : un exemplaire de chaque booster à la fois.
+                       Il redevient achetable dès que la partie suivante l'a consommé. -->
+                  <span class="sh-tile-badge sh-tile-badge--armed">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                      <path d="M13 2 4.5 13.5H11L10 22l8.5-11.5H12L13 2Z"></path>
+                    </svg>
+                    Next game
+                  </span>
                 } @else if (signedIn()) {
                   <button class="sh-buy-btn"
                           [disabled]="!canAfford(item) || busyId() === item.id"
                           (click)="confirm(item)"
-                          [attr.aria-label]="'Unlock ' + item.label + ' for ' + item.price + ' coins'">
+                          [attr.aria-label]="(item.kind === 'consumable' ? 'Activate ' : 'Unlock ') + item.label + ' for ' + item.price + ' coins'">
                     @if (busyId() === item.id) {
                       <span class="sh-btn-spinner"></span>
                     } @else {
@@ -114,6 +139,7 @@
         </section>
       }
     }
+    </div>
   </div>
 
   <!-- Pièces en vol : hors de .sh-card, dont le backdrop-filter créerait un bloc
@@ -132,18 +158,33 @@
 
   <div class="modal-overlay" [class.active]="pending() !== null" (click)="cancel()">
     @if (pending(); as item) {
-      <div class="modal-card" (click)="$event.stopPropagation()">
+      <div class="modal-card" (click)="$event.stopPropagation()"
+           [attr.data-effect]="item.kind === 'consumable' ? item.effect : null">
         <span class="sh-confirm-orb" aria-hidden="true">
-          <span class="sh-confirm-glyph">{{ previewOf(item) }}</span>
+          @if (item.kind === 'consumable') {
+            <!-- Pas de [live] : l'orbe de la modale a déjà son orbite. -->
+            <app-boost-token class="sh-confirm-token" [effect]="item.effect" />
+          } @else {
+            <span class="sh-confirm-glyph">{{ previewOf(item) }}</span>
+          }
         </span>
-        <h2 class="sh-confirm-title">Unlock {{ item.label }}</h2>
+        @if (item.kind === 'consumable') {
+          <h2 class="sh-confirm-title">Activate {{ item.label }}</h2>
+          <!-- Le pari se lit avant de payer : Double Points joue aussi sur la perte. -->
+          <p class="sh-confirm-effect">{{ item.description }}</p>
+          <p class="sh-confirm-scope">Applies to your next game only.</p>
+        } @else {
+          <h2 class="sh-confirm-title">Unlock {{ item.label }}</h2>
+        }
         <p class="sh-confirm-text">
           Costs <span class="sh-coin" aria-hidden="true"></span><strong>{{ item.price }}</strong>
           of your <span class="sh-coin" aria-hidden="true"></span><strong>{{ balance() }}</strong> coins.
         </p>
         <div class="sh-confirm-actions">
           <button class="sh-btn sh-btn--ghost" (click)="cancel()">Cancel</button>
-          <button class="sh-btn sh-btn--primary" (click)="buy()">Unlock</button>
+          <button class="sh-btn sh-btn--primary" (click)="buy()">
+            {{ item.kind === 'consumable' ? 'Activate' : 'Unlock' }}
+          </button>
         </div>
       </div>
     }

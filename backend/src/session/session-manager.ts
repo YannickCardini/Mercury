@@ -38,6 +38,15 @@ export class SessionManager {
 
     private customGames = new CustomGameManager(this.reconnect, this.matchmaking, this.presence);
 
+    /** Salles d'attente en mémoire (matchmaking, rooms privées, présence), pour GET /api/admin/stats. */
+    getLobbySummary() {
+        return {
+            matchmaking: this.matchmaking.getQueueSummary(),
+            customRooms: this.customGames.getRoomsSummary(),
+            presenceUsers: this.presence.onlineUserCount(),
+        };
+    }
+
     // Pas de constructeur : `CustomGameManager` s'abonne à
     // `PresenceManager.setOnRegister` pour re-livrer les invitations en attente
     // (liées au cycle de vie de la room) dès qu'un invité réenregistre sa

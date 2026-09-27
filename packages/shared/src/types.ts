@@ -5,6 +5,10 @@
 // Ne jamais dupliquer ces interfaces dans apps/frontend ou apps/backend.
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Import de type uniquement : shop-catalog.ts importe lui-même REACTION_EMOJIS
+// depuis ce fichier, un import de valeur créerait un cycle à l'exécution.
+import type { ConsumableId } from './shop-catalog.js';
+
 // ── Primitives ────────────────────────────────────────────────────────────────
 
 export type MarbleColor = 'red' | 'green' | 'blue' | 'orange';
@@ -241,6 +245,34 @@ export interface GameStatsMessage {
   coinsDelta?: number;
   /** Solde de pièces après crédit. Absent dans les mêmes cas. */
   newCoins?: number;
+  /**
+   * Boosters actifs du destinataire sur cette partie. `pointsDelta` et
+   * `coinsDelta` les intègrent déjà ; la liste sert à expliquer le montant
+   * (et à dire qu'un booster n'a rien rapporté).
+   */
+  boosts?: ConsumableId[];
+  /**
+   * Origine de `coinsDelta`, AVANT Double Coins : gain de victoire et prime
+   * de captures (Bounty). Présent dès que `coinsDelta` l'est.
+   */
+  coinsBase?: { victory: number; captures: number };
+}
+
+/**
+ * Boosters consommés par un joueur au lancement de la partie, envoyés à son
+ * seul siège : ils ne regardent pas les adversaires. Renvoyé à la reconnexion.
+ */
+export interface BoostsActiveMessage {
+  type: 'boostsActive';
+  /** Siège concerné (une seule socket porte plusieurs sièges en single-device). */
+  color: MarbleColor;
+  boosts: ConsumableId[];
+  /**
+   * Bounty : pions adverses déjà capturés par ce siège. Sert de base au
+   * compteur du client après une reconnexion ; les captures suivantes, il les
+   * compte lui-même au fil des animations.
+   */
+  captures?: number;
 }
 
 /**
@@ -358,6 +390,7 @@ export type ServerMessage =
   | WaitingForPlayersMessage
   | GameEndedMessage
   | GameStatsMessage
+  | BoostsActiveMessage
   | MatchmakingStatusMessage
   | CustomRoomStatusMessage
   | GameInviteMessage

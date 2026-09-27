@@ -13,3 +13,12 @@ export function computeWinCoins(winnersArrived: number, losersArrived: number): 
   const raw = winnersArrived - losersArrived;
   return Math.min(MAX_COINS_PER_WIN, Math.max(MIN_COINS_PER_WIN, raw));
 }
+
+/**
+ * Pièces de fin de partie d'un joueur : gain de victoire (vainqueurs
+ * seulement) plus prime Bounty, le tout multiplié par Double Coins. Le
+ * multiplicateur porte sur la somme : les deux boosters se cumulent.
+ */
+export function computeEndGameCoins(victory: number, captureCoins: number, multiplier: number): number {
+  return (victory + captureCoins) * multiplier;
+}

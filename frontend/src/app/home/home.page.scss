@@ -106,6 +106,7 @@
   .home-nav,
   .hero-title-wrap,
   .home-orbit,
+  .boost-ready,
   .hero-actions .action-btn {
     animation: none !important;
     opacity: 1 !important;
@@ -318,6 +319,68 @@
     background: rgba($c-green, 0.22);
     border-color: rgba($c-green, 0.7);
   }
+}
+
+// ─── Boosters armés ───────────────────────────────────────────────────────────
+// Même largeur que les boutons qu'il surmonte : il se lit comme un état de la
+// prochaine partie, pas comme une bannière d'alerte. Fond neutre, ce sont les
+// jetons qui portent la couleur de chaque effet.
+.boost-ready {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  max-width: 340px;
+  box-sizing: border-box;
+  padding: 10px 16px 10px 14px;
+  border-radius: 14px;
+  background:
+    radial-gradient(120% 140% at 0% 50%, rgba($boost-points, 0.12), rgba($boost-points, 0) 60%),
+    rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  animation: entranceUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.14s both;
+}
+
+.boost-ready-tokens {
+  display: flex;
+  align-items: center;
+  flex: none;
+  // Marge pour l'orbite des jetons, qui déborde de leur boîte.
+  padding: 5px;
+}
+
+.boost-ready-token {
+  --bt-size: 28px;
+
+  & + & {
+    margin-left: 12px;
+  }
+}
+
+.boost-ready-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  text-align: left;
+}
+
+.boost-ready-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: $c-silver;
+  opacity: 0.8;
+}
+
+// Retour à la ligne plutôt que points de suspension : avec trois boosters,
+// le dernier nom disparaîtrait, alors que c'est justement ce qui est engagé.
+.boost-ready-names {
+  font-size: 13.5px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: #e2e8f0;
 }
 
 // ─── Action buttons ───────────────────────────────────────────────────────────

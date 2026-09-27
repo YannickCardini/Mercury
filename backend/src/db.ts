@@ -118,10 +118,10 @@ export async function getUserPointsAndRanking(userId: string): Promise<{ points:
 const walletReady = new Set<string>();
 
 /**
- * Crée `coins` et `ownedItems` s'ils manquent. Idempotent, mémorisé par process.
- * Deux patches séparés, chacun conditionné sur SON champ : une condition unique
- * (« l'un OU l'autre est absent ») remettrait `coins` à 0 chez un joueur qui a
- * déjà des pièces mais pas encore d'inventaire.
+ * Crée `coins`, `ownedItems` et `armedBoosts` s'ils manquent. Idempotent,
+ * mémorisé par process. Un patch séparé par champ, chacun conditionné sur SON
+ * champ : une condition unique (« l'un OU l'autre est absent ») remettrait
+ * `coins` à 0 chez un joueur qui a déjà des pièces mais pas encore d'inventaire.
  */
 export async function ensureWalletFields(userId: string): Promise<void> {
     if (walletReady.has(userId)) return;
@@ -129,6 +129,7 @@ export async function ensureWalletFields(userId: string): Promise<void> {
     const seeds: Array<{ path: string; field: string; value: unknown }> = [
         { path: '/coins', field: 'coins', value: 0 },
         { path: '/ownedItems', field: 'ownedItems', value: [] },
+        { path: '/armedBoosts', field: 'armedBoosts', value: [] },
     ];
     for (const { path, field, value } of seeds) {
         try {
@@ -148,7 +149,22 @@ export async function ensureWalletFields(userId: string): Promise<void> {
 
 export interface UserWallet {
     coins: number;
+    /** Objets de collection, acquis pour toujours (emojis, dos de cartes). */
     ownedItems: string[];
+    /** Boosters achetés et pas encore consommés : ils valent pour la PROCHAINE
+     *  partie du joueur (voir consumeArmedBoosts). Un exemplaire de chaque au plus. */
+    armedBoosts: string[];
+}
+
+/** Champ d'inventaire visé par un achat. */
+export type WalletInventory = 'ownedItems' | 'armedBoosts';
+
+function toWallet(resource: Partial<UserWallet>): UserWallet {
+    return {
+        coins: resource.coins ?? 0,
+        ownedItems: resource.ownedItems ?? [],
+        armedBoosts: resource.armedBoosts ?? [],
+    };
 }
 
 export async function getUserWallet(userId: string): Promise<UserWallet | null> {
@@ -156,7 +172,7 @@ export async function getUserWallet(userId: string): Promise<UserWallet | null> 
     try {
         const { resource } = await container.item(userId, userId).read<Partial<UserWallet>>();
         if (!resource) return null;
-        return { coins: resource.coins ?? 0, ownedItems: resource.ownedItems ?? [] };
+        return toWallet(resource);
     } catch (err: unknown) {
         if ((err as { code?: number }).code === 404) return null;
         throw err;
@@ -182,7 +198,7 @@ export async function awardCoins(userId: string, delta: number): Promise<number 
 }
 
 export type PurchaseResult =
-    | { ok: true; coins: number; ownedItems: string[] }
+    | ({ ok: true } & UserWallet)
     | { ok: false; reason: 'not_found' | 'rejected' };
 
 /**
@@ -190,6 +206,11 @@ export type PurchaseResult =
  * La condition porte à la fois sur le solde et sur la non-possession, donc le
  * solde ne peut pas devenir négatif et deux requêtes concurrentes ne peuvent pas
  * débiter deux fois (la seconde échoue en 412, sans application partielle).
+ *
+ * `inventory` choisit le champ : `ownedItems` pour un objet de collection,
+ * `armedBoosts` pour un booster. Même règle dans les deux cas (un exemplaire au
+ * plus), c'est seulement la durée de vie qui diffère : un booster quitte
+ * `armedBoosts` au lancement de la partie suivante et peut alors être racheté.
  *
  * `reason: 'rejected'` couvre indifféremment « pas assez de pièces » et « déjà
  * possédé » : l'appelant relit le porte-monnaie pour distinguer les deux, hors
@@ -202,6 +223,7 @@ export async function purchaseItem(
     userId: string,
     itemId: string,
     price: number,
+    inventory: WalletInventory = 'ownedItems',
 ): Promise<PurchaseResult> {
     await ensureWalletFields(userId);
     const container = await getUsersContainer();
@@ -210,18 +232,61 @@ export async function purchaseItem(
         const { resource } = await container.item(userId, userId).patch<Partial<UserWallet>>({
             operations: [
                 { op: 'incr', path: '/coins', value: -cost },
-                { op: 'add', path: '/ownedItems/-', value: itemId },
+                { op: 'add', path: `/${inventory}/-`, value: itemId },
             ],
-            condition: `FROM c WHERE c.coins >= ${cost} AND NOT ARRAY_CONTAINS(c.ownedItems, "${itemId}")`,
+            condition: `FROM c WHERE c.coins >= ${cost} AND NOT ARRAY_CONTAINS(c.${inventory}, "${itemId}")`,
         });
         if (!resource) return { ok: false, reason: 'not_found' };
-        return { ok: true, coins: resource.coins ?? 0, ownedItems: resource.ownedItems ?? [] };
+        return { ok: true, ...toWallet(resource) };
     } catch (err: unknown) {
         const code = (err as { code?: number }).code;
         if (code === 404) return { ok: false, reason: 'not_found' };
         if (code === 412) return { ok: false, reason: 'rejected' };
         throw err;
     }
+}
+
+/** Tentatives de consommation avant d'abandonner face à des écritures concurrentes. */
+const CONSUME_BOOSTS_ATTEMPTS = 3;
+
+/**
+ * Vide `armedBoosts` et renvoie ce qu'il contenait : ce sont les boosters de la
+ * partie qui démarre. Appelé une seule fois, au lancement.
+ *
+ * La lecture et l'écriture sont liées par l'etag : un achat qui s'intercale
+ * (autre appareil) fait échouer le patch en 412 au lieu d'être effacé sans
+ * avoir été appliqué, et on relit. Les écritures de points et de classement
+ * (recomputeRankings touche tous les comptes à chaque fin de partie) peuvent
+ * produire le même 412, d'où quelques tentatives. Si la contention persiste,
+ * on ne consomme rien : les boosters restent armés pour la partie suivante,
+ * ce qui vaut mieux qu'un booster débité sans effet.
+ */
+export async function consumeArmedBoosts(userId: string): Promise<string[]> {
+    const container = await getUsersContainer();
+    const item = container.item(userId, userId);
+    for (let attempt = 0; attempt < CONSUME_BOOSTS_ATTEMPTS; attempt++) {
+        let resource: (Partial<UserWallet> & { _etag?: string }) | undefined;
+        try {
+            ({ resource } = await item.read<Partial<UserWallet> & { _etag?: string }>());
+        } catch (err: unknown) {
+            if ((err as { code?: number }).code === 404) return [];
+            throw err;
+        }
+        const armed = resource?.armedBoosts ?? [];
+        if (!resource?._etag || armed.length === 0) return [];
+        try {
+            await item.patch([{ op: 'set', path: '/armedBoosts', value: [] }], {
+                accessCondition: { type: 'IfMatch', condition: resource._etag },
+            });
+            return armed;
+        } catch (err: unknown) {
+            const code = (err as { code?: number }).code;
+            if (code === 404) return [];
+            if (code !== 412) throw err;
+        }
+    }
+    console.warn(`⚠️ Boosters de ${userId} non consommés : document modifié en continu`);
+    return [];
 }
 
 export async function recomputeRankings(): Promise<void> {
@@ -238,4 +303,52 @@ export async function recomputeRankings(): Promise<void> {
         const ops: PatchOperation[] = [{ op: 'replace', path: '/ranking', value: rank }];
         await container.item(users[i]!.id, users[i]!.id).patch(ops);
     }
+}
+
+export interface AudienceStats {
+    activeLast24h: number;
+    signupsLast24h: number;
+    totalAccounts: number;
+    lastSeen: { name: string; lastSeenAt: string } | null;
+    recentSignups: { name: string; createdAt: string }[];
+}
+
+/**
+ * Audience des comptes Google (GET /api/admin/stats). Les invités n'ont pas de
+ * document et n'y figurent donc pas. Les bots sont exclus via le flag `isBot`
+ * (posé à chaque login d'agent) et via `excludedIds` : bots connus du process
+ * dont le document n'a pas encore reçu le flag, compte staff.
+ */
+export async function getAudienceStats(excludedIds: string[]): Promise<AudienceStats> {
+    const container = await getUsersContainer();
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const humans = 'NOT IS_DEFINED(c.isBot) AND NOT ARRAY_CONTAINS(@excluded, c.id)';
+    const excluded = { name: '@excluded', value: excludedIds };
+    const sinceParam = { name: '@since', value: since };
+
+    const run = async <T>(query: string, withSince = false): Promise<T[]> => {
+        const parameters = withSince ? [excluded, sinceParam] : [excluded];
+        const { resources } = await container.items.query<T>({ query, parameters }).fetchAll();
+        return resources;
+    };
+
+    // Les dates sont stockées en ISO 8601 UTC (toISOString) : la comparaison
+    // de chaînes suit l'ordre chronologique.
+    const [active, signups, total, lastSeen, recentSignups] = await Promise.all([
+        run<number>(`SELECT VALUE COUNT(1) FROM c WHERE ${humans} AND c.lastSeenAt >= @since`, true),
+        run<number>(`SELECT VALUE COUNT(1) FROM c WHERE ${humans} AND c.createdAt >= @since`, true),
+        run<number>(`SELECT VALUE COUNT(1) FROM c WHERE ${humans}`),
+        run<{ name: string; lastSeenAt: string }>(
+            `SELECT TOP 1 c.name, c.lastSeenAt FROM c WHERE ${humans} AND IS_DEFINED(c.lastSeenAt) ORDER BY c.lastSeenAt DESC`),
+        run<{ name: string; createdAt: string }>(
+            `SELECT TOP 5 c.name, c.createdAt FROM c WHERE ${humans} AND IS_DEFINED(c.createdAt) ORDER BY c.createdAt DESC`),
+    ]);
+
+    return {
+        activeLast24h: active[0] ?? 0,
+        signupsLast24h: signups[0] ?? 0,
+        totalAccounts: total[0] ?? 0,
+        lastSeen: lastSeen[0] ?? null,
+        recentSignups,
+    };
 }

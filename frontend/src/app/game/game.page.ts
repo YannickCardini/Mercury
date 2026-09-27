@@ -15,6 +15,7 @@ import { VictoryOverlayComponent, type VictoryPlayer } from "./components/victor
 import { TeamIntroOverlayComponent, type TeamIntroPlayer } from "./components/team-intro-overlay/team-intro-overlay.component";
 import { TeamVsBannerComponent } from "./components/team-vs-banner/team-vs-banner.component";
 import { TutorialOverlayComponent } from "./components/tutorial-overlay/tutorial-overlay.component";
+import { BountyFxComponent } from "./components/bounty-fx/bounty-fx.component";
 import { GameRulesModalComponent } from "../shared/game-rules-modal.component";
 import { LoadingScreenComponent } from "../shared/loading-screen.component";
 import { GameStateService } from "./services/game-state.service";
@@ -58,6 +59,7 @@ const ENTRANCE_SETTLE_MS = 1400;
     TeamIntroOverlayComponent,
     TeamVsBannerComponent,
     TutorialOverlayComponent,
+    BountyFxComponent,
     GameRulesModalComponent,
     LoadingScreenComponent,
   ],

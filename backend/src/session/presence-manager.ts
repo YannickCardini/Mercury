@@ -52,6 +52,11 @@ export class PresenceManager {
         this.byWs.delete(ws);
     }
 
+    /** Comptes distincts ayant au moins une socket de présence ouverte. */
+    onlineUserCount(): number {
+        return this.byUserId.size;
+    }
+
     /** Returns true if the message was delivered to at least one socket. */
     send(userId: string, msg: ServerMessage): boolean {
         const set = this.byUserId.get(userId);

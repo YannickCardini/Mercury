@@ -13,9 +13,12 @@
 // haut : c'est la « salle de l'or » du jeu, elle doit se reconnaître d'un coup
 // d'œil sans devenir un écran étranger.
 
+// html/body sont en overflow: hidden : la page ne défile jamais d'elle-même.
+// La hauteur est donc bornée à l'écran (height et non min-height) et c'est la
+// liste des articles, dans la carte, qui porte le défilement.
 .sh-wrap {
   width: 100%;
-  min-height: 100%;
+  height: 100%;
   box-sizing: border-box;
   background: transparent; // fond spatial global visible à travers la page
   display: flex;
@@ -23,13 +26,16 @@
   align-items: flex-start;
   padding: 32px calc(16px + var(--sa-right)) calc(48px + var(--sa-bottom))
     calc(16px + var(--sa-left));
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .sh-card {
   position: relative;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   max-width: 560px;
+  max-height: 100%;
   background:
     radial-gradient(120% 60% at 50% -10%, rgba($c-gold, 0.16), rgba($c-gold, 0) 70%),
     rgba(255, 255, 255, 0.04);
@@ -83,6 +89,38 @@
   font-weight: 700;
   color: #e2e8f0;
   letter-spacing: 0.5px;
+}
+
+// ── Zone défilante ───────────────────────────────────────────────────────────
+
+.sh-header,
+.sh-vault {
+  flex: none;
+}
+
+.sh-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  // Barre fine teintée or, dans la famille de la boutique ; le rail reste
+  // transparent pour ne pas dessiner une gouttière grise sur le verre.
+  scrollbar-width: thin;
+  scrollbar-color: rgba($c-gold, 0.4) transparent;
+
+  // WebView Android antérieures au support de scrollbar-color.
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba($c-gold, 0.4);
+    border-radius: 3px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
 }
 
 // ── États de chargement ──────────────────────────────────────────────────────
@@ -244,6 +282,14 @@
   background: linear-gradient(90deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0));
 }
 
+.sh-section-note {
+  margin: -4px 0 12px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: $c-silver;
+  opacity: 0.8;
+}
+
 // ── Grille de vignettes ──────────────────────────────────────────────────────
 // La liste verticale lisait « écran de réglages ». Une collection se montre en
 // grille : l'objet convoité occupe la vignette, l'étiquette et le prix servent.
@@ -279,6 +325,64 @@
     transform: translateY(-2px);
     box-shadow: 0 10px 26px rgba(0, 0, 0, 0.3);
   }
+}
+
+// ── Boosters : teinte propre à chaque effet ──────────────────────────────────
+// Déclaré avant les états (.is-short, .is-armed) : à spécificité égale, c'est
+// l'état qui doit avoir le dernier mot sur --tile-rgb.
+
+.sh-tile[data-effect="double_points"],
+.modal-card[data-effect="double_points"] {
+  --boost-rgb: #{$boost-points-rgb};
+  --boost-ink: #{color.adjust($boost-points, $lightness: 20%)};
+}
+
+.sh-tile[data-effect="double_coins"],
+.modal-card[data-effect="double_coins"] {
+  --boost-rgb: #{$boost-coins-rgb};
+  --boost-ink: #{$c-gold};
+}
+
+.sh-tile[data-effect="capture_coins"],
+.modal-card[data-effect="capture_coins"] {
+  --boost-rgb: #{$boost-bounty-rgb};
+  --boost-ink: #{color.adjust($boost-bounty, $lightness: 14%)};
+}
+
+.sh-tile[data-effect] {
+  --tile-rgb: var(--boost-rgb);
+
+  &:hover {
+    border-color: rgba(var(--boost-rgb), 0.45);
+  }
+
+  .sh-tile-ring {
+    border-color: rgb(var(--boost-rgb));
+  }
+
+  .sh-tile-sparks i {
+    background: linear-gradient(180deg, #fff, rgb(var(--boost-rgb)));
+  }
+}
+
+.sh-tile-token {
+  --bt-size: 42px;
+
+  // Même respiration que les emojis : la grille garde un seul rythme.
+  animation: tile-breathe 5.5s ease-in-out infinite;
+  animation-delay: calc(var(--tile-i, 0) * 0.45s);
+}
+
+// L'effet en une ligne, sous le libellé : on sait ce qu'on achète sans ouvrir
+// la modale.
+.sh-tile-desc {
+  margin-top: -5px;
+  font-size: 11.5px;
+  line-height: 1.35;
+  color: $c-silver;
+  opacity: 0.85;
+  text-align: center;
+  text-wrap: balance;
 }
 
 // Orbe d'aperçu : disque nébuleux qui porte l'objet, dans le vocabulaire des
@@ -473,11 +577,30 @@
   }
 }
 
+// Armé : le booster attend la prochaine partie. Teinte de l'effet plutôt que
+// le vert « possédé » : ce n'est pas une pièce de collection, c'est une
+// charge qui va partir, et le jeton porte déjà son orbite « en effet ».
+.sh-tile.is-armed {
+  border-color: rgba(var(--boost-rgb), 0.45);
+  background: linear-gradient(180deg, rgba(var(--boost-rgb), 0.14), rgba(var(--boost-rgb), 0.04));
+
+  &:hover {
+    border-color: rgba(var(--boost-rgb), 0.6);
+  }
+}
+
+.sh-tile-badge--armed {
+  background: rgba(var(--boost-rgb), 0.16);
+  border-color: rgba(var(--boost-rgb), 0.5);
+  color: var(--boost-ink);
+}
+
 // Hors budget : l'objet reste visible mais éteint, et le halo perd sa couleur.
 .sh-tile.is-short {
   --tile-rgb: 184, 196, 216;
 
-  .sh-tile-glyph {
+  .sh-tile-glyph,
+  .sh-tile-token {
     filter: grayscale(1) brightness(0.85);
     opacity: 0.5;
     animation: none;
@@ -540,8 +663,25 @@
     animation: tile-spark 0.72s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
-  .sh-tile-glyph {
+  .sh-tile-glyph,
+  .sh-tile-token {
     animation: tile-pop 0.72s cubic-bezier(0.2, 1.5, 0.4, 1);
+  }
+
+  // Un booster se pose sur sa propre teinte, pas sur le vert « possédé ».
+  &[data-effect] {
+    animation-name: tile-flash-boost;
+  }
+}
+
+@keyframes tile-flash-boost {
+  0% {
+    box-shadow: 0 0 0 0 rgba(var(--boost-rgb), 0.65);
+    background: rgba(var(--boost-rgb), 0.3);
+  }
+  100% {
+    box-shadow: 0 0 0 22px rgba(var(--boost-rgb), 0);
+    background: rgba(var(--boost-rgb), 0.09);
   }
 }
 
@@ -714,6 +854,40 @@
   filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
 }
 
+.sh-confirm-token {
+  --bt-size: 54px;
+}
+
+// Booster : l'orbe et son orbite prennent la teinte de l'effet.
+.modal-card[data-effect] .sh-confirm-orb {
+  background:
+    radial-gradient(circle at 30% 26%, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0) 55%),
+    radial-gradient(circle at 50% 55%, rgba(var(--boost-rgb), 0.26), rgba(0, 0, 0, 0) 68%),
+    rgba(6, 12, 28, 0.55);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.1),
+    0 0 26px rgba(var(--boost-rgb), 0.32);
+
+  &::before {
+    border-color: rgba(var(--boost-rgb), 0.45);
+  }
+}
+
+.sh-confirm-effect {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--boost-ink, #e2e8f0);
+}
+
+.sh-confirm-scope {
+  margin: 0 0 14px;
+  font-size: 12px;
+  color: $c-silver;
+  opacity: 0.8;
+}
+
 .sh-confirm-title {
   margin: 0 0 8px;
   font-size: 18px;
@@ -784,11 +958,13 @@
   // étincelles de l'éclosion — mais on garde `tile-flash`, qui n'est qu'un
   // changement de couleur : l'achat doit rester confirmé à l'écran.
   .sh-tile-glyph,
+  .sh-tile-token,
   .sh-tile.is-owned::after,
   .sh-confirm-orb::before,
   .sh-tile.is-burst .sh-tile-ring,
   .sh-tile.is-burst .sh-tile-sparks i,
-  .sh-tile.is-burst .sh-tile-glyph {
+  .sh-tile.is-burst .sh-tile-glyph,
+  .sh-tile.is-burst .sh-tile-token {
     animation: none !important;
   }
 
@@ -812,7 +988,6 @@
   .sh-wrap {
     flex: 1;
     min-height: 0;
-    overflow-y: auto;
     padding: 0;
     align-items: stretch;
   }
@@ -873,6 +1048,10 @@
   .sh-tile-glyph {
     font-size: 30px;
   }
+
+  .sh-tile-token {
+    --bt-size: 38px;
+  }
 }
 
 @media (max-width: 360px) {
@@ -908,6 +1087,10 @@
 
   .sh-tile-glyph {
     font-size: 27px;
+  }
+
+  .sh-tile-token {
+    --bt-size: 34px;
   }
 
   .sh-tile-label {

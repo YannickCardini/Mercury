@@ -93,6 +93,21 @@
       </button>
       }
 
+      <!-- Boosters achetés, en attente de la prochaine partie -->
+      @if (armedBoosts().length > 0 && !appResume.hasActiveGame()) {
+      <div class="boost-ready" role="status">
+        <span class="boost-ready-tokens">
+          @for (b of armedBoosts(); track b.id) {
+          <app-boost-token class="boost-ready-token" [effect]="b.effect" [live]="true" />
+          }
+        </span>
+        <span class="boost-ready-text">
+          <span class="boost-ready-label">Active in your next game</span>
+          <span class="boost-ready-names">{{ armedBoostNames() }}</span>
+        </span>
+      </div>
+      }
+
       <!-- Action buttons -->
       <div class="hero-actions">
         <button class="action-btn play-btn" (click)="openMatchmaking()">

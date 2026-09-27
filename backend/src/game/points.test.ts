@@ -43,3 +43,39 @@ test('1 seul humain (vs IA) — gagne +4', () => {
     ]);
     assert.equal(deltaOf(deltas, 'S'), 4);
 });
+
+test('agent IA gagnant reçoit +2 au lieu de +4', () => {
+    const deltas = computeEndGamePointsDeltas([
+        { userId: 'BOT', points: 1000, isWinner: true, isBot: true },
+        { userId: 'L', points: 1000, isWinner: false },
+    ]);
+    assert.equal(deltaOf(deltas, 'BOT'), 2);
+    assert.equal(deltaOf(deltas, 'L'), -1);
+});
+
+test('agent IA perdant garde -1, comme un humain', () => {
+    const deltas = computeEndGamePointsDeltas([
+        { userId: 'W', points: 1000, isWinner: true },
+        { userId: 'BOT', points: 1000, isWinner: false, isBot: true },
+    ]);
+    assert.equal(deltaOf(deltas, 'W'), 4);
+    assert.equal(deltaOf(deltas, 'BOT'), -1);
+});
+
+test('Double Points double le gain du vainqueur', () => {
+    const deltas = computeEndGamePointsDeltas([
+        { userId: 'W', points: 1000, isWinner: true, multiplier: 2 },
+        { userId: 'L', points: 1000, isWinner: false },
+    ]);
+    assert.equal(deltaOf(deltas, 'W'), 8);
+    assert.equal(deltaOf(deltas, 'L'), -1);
+});
+
+test('Double Points double aussi la perte', () => {
+    const deltas = computeEndGamePointsDeltas([
+        { userId: 'W', points: 1000, isWinner: true },
+        { userId: 'L', points: 1000, isWinner: false, multiplier: 2 },
+    ]);
+    assert.equal(deltaOf(deltas, 'W'), 4);
+    assert.equal(deltaOf(deltas, 'L'), -2);
+});

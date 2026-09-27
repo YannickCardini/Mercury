@@ -36,5 +36,7 @@
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
     "skipLibCheck": true,
-  }
+  },
+  // Les scripts ponctuels (scripts/) sont lancés via tsx, hors build.
+  "include": ["src"]
 }

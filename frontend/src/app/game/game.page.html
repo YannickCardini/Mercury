@@ -81,6 +81,13 @@
   </div>
   }
 
+  <!-- Prime Bounty : pièces qui jaillissent des pions adverses capturés.
+       Hors de la table (conteneur qui rognerait le vol), monté seulement
+       quand le booster est actif. -->
+  @if (gameStateService.hasBounty()) {
+  <app-bounty-fx />
+  }
+
   <!-- ═══════════════════════════════════════════════════════════
        ÉCRAN DE VICTOIRE
        ═══════════════════════════════════════════════════════════ -->
@@ -98,6 +105,8 @@
     [newPoints]="gameStateService.gameStats()?.newPoints ?? null"
     [newRanking]="gameStateService.gameStats()?.newRanking ?? null"
     [coinsDelta]="gameStateService.gameStats()?.coinsDelta ?? null"
+    [boosts]="gameStateService.gameStats()?.boosts ?? gameStateService.myBoosts()"
+    [coinsBase]="gameStateService.gameStats()?.coinsBase ?? null"
     (backToMenu)="backToMenu()"
   ></app-victory-overlay>
   }

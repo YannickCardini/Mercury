@@ -1,0 +1,11 @@
+@for (h of hits(); track h.id) {
+<span class="bf-hit" [style.left.px]="h.x" [style.top.px]="h.y" [style.--sq]="h.sq + 'px'"
+  [style.--delay]="popDelayMs + 'ms'">
+  <span class="bf-ring"></span>
+  <span class="bf-label">{{ label }}</span>
+  <span class="bf-coin" [class.bf-coin--fly]="h.dx !== null" [style.--dx]="h.dx + 'px'" [style.--dy]="h.dy + 'px'"
+    [style.--life]="(h.dx !== null ? hopMs + flyMs : hopMs + fadeMs) + 'ms'">
+    <span class="bf-coin__face"></span>
+  </span>
+</span>
+}

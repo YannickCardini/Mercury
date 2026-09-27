@@ -462,7 +462,10 @@ export class BoardComponent implements OnDestroy {
           await applyAndWait(step.to, { marbleClass: 'marble-moving' }, MARBLE_ANIMATION_DURATIONS.move);
         }
         const finalStep = captureSteps[captureSteps.length - 1]!;
+        // Victime lue AVANT le déplacement final, tant qu'elle occupe la case.
+        const victim = this.getMarbleOnSquare(finalStep.to);
         this.soundService.playCapture();
+        if (victim) this.gameStateService.onCaptureAnimated(a.playerColor, victim, finalStep.to);
         this.updateMarblePosition(finalStep);
         await Promise.all([
           applyAndWait(finalStep.from, { marbleClass: 'marble-capturing' }),
@@ -493,6 +496,7 @@ export class BoardComponent implements OnDestroy {
 
         this.soundService.playEnter();
         if (isCapture) {
+          this.gameStateService.onCaptureAnimated(action.playerColor, enemyColor, action.to);
           // Phase 1: enemy marble is still at action.to — eject it + shockwave on square
           await applyAndWait(action.to, { marbleClass: 'marble-ejected', squareClass: 'square-enter-impact' }, MARBLE_EJECTED_DURATION_MS);
           // Remove the captured enemy from the display so the square is empty before the new marble enters

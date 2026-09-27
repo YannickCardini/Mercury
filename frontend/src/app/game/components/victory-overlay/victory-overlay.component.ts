@@ -2,6 +2,7 @@ import {
   Component,
   DestroyRef,
   ElementRef,
+  computed,
   effect,
   inject,
   input,
@@ -11,8 +12,15 @@ import {
   ChangeDetectionStrategy,
 } from "@angular/core";
 import { NgTemplateOutlet } from "@angular/common";
-import { MarbleColor } from "@mercury/shared";
+import {
+  BOOST_MULTIPLIER,
+  MarbleColor,
+  boostMultiplier,
+  hasBoost,
+  type ConsumableEffect,
+} from "@mercury/shared";
 import { SoundService } from "../../services/sound.service";
+import { BoostTokenComponent } from "../../../shared/boost-token.component";
 
 /** Durée du vol d'une pièce, hors décalage de départ. */
 const COIN_FLIGHT_MS = 620;
@@ -32,6 +40,13 @@ const IDLE_TIMEOUT_MS = 900;
  * barème plus généreux ne puisse pas faire naître cent noeuds animés.
  */
 const MAX_FLYING_COINS = 12;
+/**
+ * Double Coins : pause entre l'arrivée de la dernière pièce et le début du
+ * doublement, le temps que le sceau « ×2 » se pose et se lise.
+ */
+const STAMP_MS = 520;
+/** Double Coins : écart entre deux incréments du compteur pendant le doublement. */
+const DOUBLE_STEP_MS = 70;
 
 /** Un joueur affiché sur l'écran de fin de partie (gagnant ou perdant). */
 export interface VictoryPlayer {
@@ -66,7 +81,7 @@ interface FlyingCoin {
   templateUrl: "./victory-overlay.component.html",
   styleUrl: "./victory-overlay.component.scss",
   changeDetection: ChangeDetectionStrategy.Eager,
-  imports: [NgTemplateOutlet],
+  imports: [NgTemplateOutlet, BoostTokenComponent],
 })
 export class VictoryOverlayComponent {
   /** Gagnant(s) : un seul en 1v3, les deux coéquipiers en 2v2. */
@@ -81,6 +96,11 @@ export class VictoryOverlayComponent {
   newRanking = input<number | null>(null);
   /** Pièces de boutique gagnées. null = partie perdue, ou joueur non crédité. */
   coinsDelta = input<number | null>(null);
+  /** Boosters actifs du joueur sur cette partie (ids catalogue). Les montants
+   *  ci-dessus les intègrent déjà ; la liste sert à l'expliquer. */
+  boosts = input<readonly string[]>([]);
+  /** Origine des pièces avant Double Coins (victoire, captures Bounty). */
+  coinsBase = input<{ victory: number; captures: number } | null>(null);
 
   backToMenu = output<void>();
 
@@ -89,6 +109,30 @@ export class VictoryOverlayComponent {
 
   /** Les 4 slots d'arrivée de chaque joueur (index < arrivalCount → rempli). */
   readonly slotIndices = [0, 1, 2, 3] as const;
+
+  // ── Boosters ───────────────────────────────────────────────────────────────
+
+  readonly pointsBoosted = computed(() => boostMultiplier(this.boosts(), "double_points") > 1);
+  readonly coinsBoosted = computed(() => boostMultiplier(this.boosts(), "double_coins") > 1);
+  readonly victoryCoins = computed(() => this.coinsBase()?.victory ?? 0);
+  readonly captureCoins = computed(() => this.coinsBase()?.captures ?? 0);
+  /**
+   * Boosters consommés sans rien rapporter : on le dit, sinon le joueur
+   * cherche en vain le gain qu'il a payé. Seulement une fois les stats reçues.
+   */
+  readonly unusedBoosts = computed<readonly { effect: ConsumableEffect; text: string }[]>(() => {
+    if (this.pointsDelta() === null) return [];
+    const notes: { effect: ConsumableEffect; text: string }[] = [];
+    if (hasBoost(this.boosts(), "capture_coins") && this.captureCoins() === 0) {
+      notes.push({ effect: "capture_coins", text: "Bounty used. No enemy marble captured this game." });
+    }
+    if (this.coinsBoosted() && this.coinsDelta() === null) {
+      notes.push({ effect: "double_coins", text: "Double Coins used. No coins to double this game." });
+    }
+    return notes;
+  });
+  /** Le sceau « ×2 » des pièces s'est posé (après le vol, avant le doublement). */
+  readonly coinsStamped = signal(false);
 
   // ── Récolte des pièces gagnées ─────────────────────────────────────────────
   //
@@ -130,17 +174,27 @@ export class VictoryOverlayComponent {
       return;
     }
 
+    // Double Coins : seul le gain de base vole, le sceau double ensuite. Le
+    // joueur voit ce qu'il aurait eu, puis ce que le booster y a ajouté.
+    const known = this.coinsBase();
+    const base = !this.coinsBoosted()
+      ? total
+      : known
+        ? known.victory + known.captures
+        : Math.max(1, Math.round(total / BOOST_MULTIPLIER));
+
     this.later(() => {
       // requestIdleCallback : les pièces n'arrivent qu'une fois le navigateur
       // libéré. Le timeout garantit qu'elles finissent par se jouer même sur un
       // appareil qui ne respire jamais.
       const idle = window.requestIdleCallback?.bind(window);
-      if (idle) idle(() => this.launchCoins(total), { timeout: IDLE_TIMEOUT_MS });
-      else this.launchCoins(total);
+      if (idle) idle(() => this.launchCoins(base, total), { timeout: IDLE_TIMEOUT_MS });
+      else this.launchCoins(base, total);
     }, SETTLE_MS);
   }
 
-  private launchCoins(total: number): void {
+  /** `base` pièces volent vers le compteur ; si `total` est plus grand, le sceau double ensuite. */
+  private launchCoins(base: number, total: number): void {
     const root = this.host.nativeElement;
     const stage = root.querySelector('.coin-flights');
     const source = root.querySelector('.trophy');
@@ -159,7 +213,7 @@ export class VictoryOverlayComponent {
     const tx = to.left + to.width / 2 - stageRect.left;
     const ty = to.top + to.height / 2 - stageRect.top;
 
-    const count = Math.min(total, MAX_FLYING_COINS);
+    const count = Math.min(base, MAX_FLYING_COINS);
     const coins: FlyingCoin[] = Array.from({ length: count }, (_, i) => {
       // Départ éparpillé dans le trophée, arrivée franche sur la pastille : les
       // pièces jaillissent de la victoire puis se rangent dans le compteur.
@@ -187,22 +241,44 @@ export class VictoryOverlayComponent {
       this.later(() => {
         this.coinsRevealed.set(true);
         this.coinsShown.update(n => n + 1);
-        if (i === count - 1) this.finishCoinFlight(total);
+        if (i === count - 1) this.finishCoinFlight(base, total);
       }, coin.delay + COIN_FLIGHT_MS);
     });
   }
 
   /** Dernière arrivée : on libère les noeuds animés et on cale la vraie valeur. */
-  private finishCoinFlight(total: number): void {
-    this.coinsShown.set(total); // si le plafond a tronqué le vol, le compteur dit vrai
-    this.coinsComplete.set(true);
+  private finishCoinFlight(base: number, total: number): void {
+    this.coinsShown.set(base); // si le plafond a tronqué le vol, le compteur dit vrai
     this.flyingCoins.set([]);
+    if (total > base) {
+      this.stampAndDouble(base, total);
+      return;
+    }
+    this.coinsComplete.set(true);
+  }
+
+  /**
+   * Double Coins : le sceau « ×2 » se pose sur la pastille, puis le compteur
+   * monte de la base au total au rythme d'un tintement par pièce ajoutée.
+   */
+  private stampAndDouble(base: number, total: number): void {
+    this.coinsStamped.set(true);
+    this.sound.playUnlock();
+    const extra = total - base;
+    this.later(() => this.sound.playCoinSpend(extra, DOUBLE_STEP_MS), STAMP_MS);
+    for (let k = 1; k <= extra; k++) {
+      this.later(() => {
+        this.coinsShown.set(base + k);
+        if (k === extra) this.coinsComplete.set(true);
+      }, STAMP_MS + k * DOUBLE_STEP_MS);
+    }
   }
 
   /** Pas d'animation : la pastille prend directement sa valeur finale. */
   private settleInstantly(total: number): void {
     this.coinsShown.set(total);
     this.coinsRevealed.set(true);
+    this.coinsStamped.set(this.coinsBoosted());
     this.coinsComplete.set(true);
   }
 

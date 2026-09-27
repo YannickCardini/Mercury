@@ -18,6 +18,7 @@ import crypto from 'node:crypto';
 import { Game } from '../game/game.js';
 import { MultiWsMessenger, wsSend } from '../game/game-messenger.js';
 import { GameRegistry } from './game-registry.js';
+import { accountTag } from './bot-dispatch.js';
 import { isTrainMode } from '../train-mode.js';
 import { queueSaveSnapshot, queueDeleteSnapshot, isSnapshotStorageConfigured } from '../storage/snapshot-store.js';
 import { TEAMS } from '@mercury/shared';
@@ -71,6 +72,13 @@ export class CustomGameManager {
 
     private rooms = new Map<string, CustomRoom>();
 
+    /** Rooms privées en attente de lancement, pour GET /api/admin/stats. */
+    getRoomsSummary(): { rooms: number; players: number } {
+        let players = 0;
+        for (const room of this.rooms.values()) players += room.players.length;
+        return { rooms: this.rooms.size, players };
+    }
+
     constructor(
         private reconnect: ReconnectRegistry,
         private matchmaking: MatchmakingManager,
@@ -115,7 +123,7 @@ export class CustomGameManager {
         if (info.userId) this.presence.register(info.userId, ws);
 
         this.broadcastStatus(code);
-        console.log(`🏠 Custom room ${code} created by ${info.playerName}`);
+        console.log(`🏠 Custom room ${code} created by ${info.playerName} [${accountTag(info.userId, info.browserId)}]`);
     }
 
     joinRoom(
@@ -164,7 +172,7 @@ export class CustomGameManager {
 
         this.bumpExpiry(room);
         this.broadcastStatus(code);
-        console.log(`➕ ${resolvedInfo.playerName} (${color}) joined custom room ${code}`);
+        console.log(`➕ ${resolvedInfo.playerName} (${color}) [${accountTag(info.userId, info.browserId)}] joined custom room ${code}`);
     }
 
     private findExistingPlayer(
