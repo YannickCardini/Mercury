@@ -507,6 +507,20 @@ export class GamePage implements OnDestroy, AfterViewInit {
     const winners: MarbleColor[] = [...(iWin ? myTeam : otherTeam)];
     this.gameStateService.winners.set(winners);
     this.gameStateService.winReason.set("win");
+    // Stats d'exemple pour la variante la plus haute (booster Double Points +
+    // Double Coins + Bounty) : sans elles le bloc reste sur « Calculating… ».
+    // Visible seulement pour un joueur connecté (les invités n'ont pas de stats).
+    this.gameStateService.gameStats.set({
+      type: "gameStats",
+      pointsDelta: iWin ? 8 : -2,
+      newPoints: iWin ? 1240 : 1230,
+      newRanking: 12,
+      color: myColor ?? undefined,
+      coinsDelta: iWin ? 14 : 4,
+      newCoins: 250,
+      boosts: ["consumable.double_points", "consumable.double_coins", "consumable.bounty"],
+      coinsBase: iWin ? { victory: 4, captures: 3 } : { victory: 0, captures: 2 },
+    });
   }
 
   ngOnDestroy(): void {

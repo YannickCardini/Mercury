@@ -42,6 +42,9 @@
 
   <!-- Card centrale -->
   <div class="victory-card" [class.by-default]="byDefault()">
+    <!-- vc-head / vc-squads / vc-side : transparents (display: contents) en
+         portrait ; en paysage ils deviennent les zones d'une grille (voir le SCSS). -->
+    <div class="vc-head">
     <div class="trophy">{{ byDefault() ? '🏳️' : (isWinner() ? '🏆' : '💀') }}</div>
     <div class="victory-title">
       {{ isWinner() ? 'Team Victory!' : 'Defeat' }}
@@ -55,6 +58,9 @@
       }
     </div>
 
+    </div>
+
+    <div class="vc-squads">
     <!-- Équipe gagnante — mise en lumière -->
     <div class="squad squad--winners">
       @for (p of winners(); track p.color) {
@@ -71,7 +77,9 @@
         }
       </div>
     }
+    </div>
 
+    <div class="vc-side">
     <!-- Points stats block — shown for signed-in players -->
     @if (!isGuest()) {
       <div class="stats-block">
@@ -139,6 +147,8 @@
         }
       </div>
     }
+
+    </div>
 
     <button class="back-btn" (click)="backToMenu.emit()">Back to menu</button>
   </div>

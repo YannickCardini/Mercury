@@ -197,7 +197,11 @@ export class VictoryOverlayComponent {
   private launchCoins(base: number, total: number): void {
     const root = this.host.nativeElement;
     const stage = root.querySelector('.coin-flights');
-    const source = root.querySelector('.trophy');
+    // Le trophée est masqué (display: none) sur les écrans bas : sa boîte est
+    // alors vide et les pièces partiraient du coin de l'écran. Repli sur le titre.
+    const trophy = root.querySelector('.trophy');
+    const source =
+      trophy && trophy.getBoundingClientRect().width > 0 ? trophy : root.querySelector('.victory-title');
     const target = root.querySelector('.stats-coins');
     if (!stage || !source || !target) {
       this.settleInstantly(total);
