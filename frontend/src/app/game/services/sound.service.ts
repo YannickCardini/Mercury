@@ -51,6 +51,7 @@ export class SoundService {
       { key: 'teleport', url: 'assets/sounds/teleport.wav' },
       { key: 'victory', url: 'assets/sounds/victory.wav' },
       { key: 'defeat', url: 'assets/sounds/defeat.wav' },
+      { key: 'coin', url: 'assets/sounds/coin.mp3' },
       { key: 'emoji_clap', url: 'assets/sounds/emojis/clap.mp3' },
       { key: 'emoji_laugh', url: 'assets/sounds/emojis/laugh.mp3' },
       { key: 'emoji_shocked', url: 'assets/sounds/emojis/shocked.mp3' },
@@ -93,14 +94,14 @@ export class SoundService {
     return this.ctx;
   }
 
-  private playBuffer(key: string): boolean {
+  private playBuffer(key: string, when = 0): boolean {
     const buffer = this.buffers.get(key);
     if (!buffer) return false;
     const ctx = this.getCtx();
     const source = ctx.createBufferSource();
     source.buffer = buffer;
     source.connect(ctx.destination);
-    source.start();
+    source.start(when);
     return true;
   }
 
@@ -449,10 +450,11 @@ export class SoundService {
   }
 
   /**
-   * Metallic scatter — coins moving, whether spent in the shop or collected on
-   * the victory screen. Synthesis rather than a sample so the caller can match
-   * the blips to its own animation: `count` is how many coins are in flight and
-   * `stepMs` the spacing between them.
+   * "Coin pickup" chirp, one per coin: two square-wave notes in quick
+   * succession (B5 then E6, the second held and fading). Synthesis so the caller
+   * can match the chirps to its own animation: `count` is how many coins are in
+   * flight and `stepMs` the spacing between them. If assets/sounds/coin.mp3
+   * exists it is played once per coin instead.
    */
   playCoinSpend(count = 6, stepMs = 55): void {
     if (this.muted()) return;
@@ -461,21 +463,28 @@ export class SoundService {
 
     for (let i = 0; i < count; i++) {
       const start = t + (i * stepMs) / 1000;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      // Hauteur montante et légèrement irrégulière : des pièces identiques
-      // sonneraient comme une alarme, pas comme une poignée de monnaie.
-      const freq = 1450 + i * 120 + Math.random() * 90;
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(freq, start);
-      osc.frequency.exponentialRampToValueAtTime(freq * 0.72, start + 0.07);
-      gain.gain.setValueAtTime(0.0, start);
-      gain.gain.linearRampToValueAtTime(0.16, start + 0.008);
-      gain.gain.exponentialRampToValueAtTime(0.01, start + 0.09);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(start);
-      osc.stop(start + 0.09);
+      if (this.playBuffer('coin', start)) continue;
+
+      // Chirps overlap when stepMs < their length, so keep the gain low.
+      const notes = [
+        { freq: 987.77, at: 0, len: 0.04, peak: 0.05 },
+        { freq: 1318.51, at: 0.04, len: 0.11, peak: 0.05 },
+      ];
+      for (const n of notes) {
+        const noteStart = start + n.at;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(n.freq, noteStart);
+        gain.gain.setValueAtTime(0.0, noteStart);
+        gain.gain.linearRampToValueAtTime(n.peak, noteStart + 0.004);
+        gain.gain.setValueAtTime(n.peak, noteStart + n.len * 0.4);
+        gain.gain.exponentialRampToValueAtTime(0.001, noteStart + n.len);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(noteStart);
+        osc.stop(noteStart + n.len);
+      }
     }
   }
 
