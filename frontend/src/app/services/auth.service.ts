@@ -4,6 +4,7 @@ import { BehaviorSubject, Subject, firstValueFrom } from 'rxjs';
 import { GoogleSignIn } from '@capawesome/capacitor-google-sign-in';
 import { Capacitor } from '@capacitor/core';
 import { environment } from 'src/environments/environment';
+import { getOrCreateBrowserId } from '../shared/browser-id';
 
 export interface AuthUser {
     id: string;
@@ -123,9 +124,14 @@ export class AuthService {
     // Extraction de la logique de vérification pour la réutiliser
     private async verifyTokenWithServer(idToken: string): Promise<void> {
         console.log('[Auth] Verifying idToken with server at:', environment.apiUrl);
+        // Identifiant d'installation : à la création d'un compte, le serveur y
+        // lit les parties déjà jouées en invité sur cet appareil. Jamais
+        // bloquant : sans lui, la connexion se fait comme avant.
+        let browserId: string | undefined;
+        try { browserId = getOrCreateBrowserId(); } catch { /* stockage ou crypto indisponible */ }
         try {
             const response = await firstValueFrom(
-                this.http.post<AuthUser & { sessionToken?: string }>(`${environment.apiUrl}/api/auth/google`, { idToken })
+                this.http.post<AuthUser & { sessionToken?: string }>(`${environment.apiUrl}/api/auth/google`, { idToken, browserId })
             );
             const { sessionToken, ...user } = response;
             console.log('[Auth] Server verification success, user:', user.email);

@@ -15,6 +15,7 @@ import { GameRegistry } from './game-registry.js';
 import { isBotUserId, dispatchBotAgent, accountTag } from './bot-dispatch.js';
 import { isTrainMode } from '../train-mode.js';
 import { notifyAdmin } from '../admin/telegram.js';
+import { describeGuest, lookupGuestHistory, trackGuestGameStarts } from './guest-tracking.js';
 import { getServerGameMode } from '../game-mode.js';
 import { queueSaveSnapshot, queueDeleteSnapshot, isSnapshotStorageConfigured } from '../storage/snapshot-store.js';
 import type { ReconnectRegistry } from './reconnect-registry.js';
@@ -132,7 +133,20 @@ export class MatchmakingManager {
         const waiting = this.session.players.length;
         console.log(`🔍 Matchmaking — ${finalName} (${color}) [${accountTag(userId, browserId)}] rejoint (${waiting}/4)`);
         if (!isBotUserId(userId) && !isTrainMode()) {
-            notifyAdmin(`🔍 ${finalName} (${userId ? 'compte' : 'invité'}) cherche une partie, ${waiting}/4 en file`);
+            const announce = (who: string) =>
+                notifyAdmin(`🔍 ${finalName} (${who}) cherche une partie, ${waiting}/4 en file`);
+            if (userId) {
+                announce('compte');
+            } else {
+                // Tous les invités s'appellent « Guest #n » : seul l'historique de
+                // l'installation dit si c'est un nouveau joueur ou un habitué.
+                void lookupGuestHistory(browserId).then(history => {
+                    if (!history) return announce('invité');
+                    const who = describeGuest(history);
+                    console.log(`👤 Matchmaking — ${finalName} [guest:${browserId}] : ${who}`);
+                    announce(who);
+                });
+            }
         }
 
         // En self-play (TRAIN_MODE), les 4 bots se connectent eux-mêmes :
@@ -252,6 +266,7 @@ export class MatchmakingManager {
         console.log(`🚀 Matchmaking — lancement avec 4 joueurs`);
         const game = new Game(config, messenger);
         GameRegistry.register(game.id, game);
+        if (!isTrainMode()) trackGuestGameStarts(game.id, humanPlayers);
 
         // Wire up disconnect callbacks (immediate + permanent)
         messenger.setOnTempDisconnect((color) => game.markTempDisconnected(color));

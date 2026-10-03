@@ -19,6 +19,7 @@ import { Game } from '../game/game.js';
 import { MultiWsMessenger, wsSend } from '../game/game-messenger.js';
 import { GameRegistry } from './game-registry.js';
 import { accountTag } from './bot-dispatch.js';
+import { trackGuestGameStarts } from './guest-tracking.js';
 import { isTrainMode } from '../train-mode.js';
 import { queueSaveSnapshot, queueDeleteSnapshot, isSnapshotStorageConfigured } from '../storage/snapshot-store.js';
 import { TEAMS } from '@mercury/shared';
@@ -481,6 +482,7 @@ export class CustomGameManager {
         console.log(`🚀 Custom room ${room.code} — launching with 4 players`);
         const game = new Game(config, messenger);
         GameRegistry.register(game.id, game);
+        if (!isTrainMode()) trackGuestGameStarts(game.id, players);
         messenger.setOnTempDisconnect((color) => game.markTempDisconnected(color));
         messenger.setOnPermanentDisconnect((color) => game.markDisconnected(color));
 

@@ -3,10 +3,11 @@ import { OAuth2Client } from 'google-auth-library';
 import { createHash, timingSafeEqual } from 'crypto';
 import multer, { MulterError } from 'multer';
 import type { PatchOperation } from '@azure/cosmos';
-import { getUsersContainer } from '../db.js';
+import { getUsersContainer, type GuestHistory } from '../db.js';
 import { processToWebp, uploadAvatarWebp } from '../storage/blob.js';
 import { signSessionToken, verifySessionToken } from './session-token.js';
 import { registerBotUserId } from '../session/bot-dispatch.js';
+import { describeSignupHistory, lookupGuestHistory } from '../session/guest-tracking.js';
 import { notifyAdmin } from '../admin/telegram.js';
 
 const router = Router();
@@ -79,6 +80,10 @@ interface UserDoc {
     /** Compte d'agent IA, posé à chaque POST /api/auth/bot : exclut les bots
      *  des stats d'audience (getAudienceStats). */
     isBot?: true;
+    /** Parties jouées en invité sur l'appareil de l'inscription, figées à la
+     *  création du compte. Absent : compte antérieur, client qui n'envoie pas
+     *  son browser_id, ou historique illisible ce jour-là. */
+    guestHistory?: GuestHistory;
 }
 
 /**
@@ -101,7 +106,8 @@ function toProfileResponse(user: UserDoc) {
 
 // POST /api/auth/google
 router.post('/google', async (req: Request, res: Response) => {
-    const { idToken } = req.body as { idToken?: string };
+    // browserId : identifiant d'installation, absent des clients antérieurs.
+    const { idToken, browserId } = req.body as { idToken?: string; browserId?: unknown };
 
     if (!idToken) {
         res.status(400).json({ error: 'idToken is required' });
@@ -150,7 +156,9 @@ router.post('/google', async (req: Request, res: Response) => {
             const code = (err as { code?: number }).code;
             if (code !== 404) throw err;
 
-            // Nouvel utilisateur → création
+            // Nouvel utilisateur → création. L'historique invité de l'appareil
+            // dit si c'est une toute première partie ou un invité qui s'inscrit.
+            const guestHistory = await lookupGuestHistory(browserId);
             user = {
                 id: userId,
                 email: payload.email ?? '',
@@ -164,11 +172,13 @@ router.post('/google', async (req: Request, res: Response) => {
                 coins: 0,
                 ownedItems: [],
                 armedBoosts: [],
+                ...(guestHistory ? { guestHistory } : {}),
             };
             await container.items.create(user);
+            const guestPast = guestHistory ? ` (${describeSignupHistory(guestHistory)})` : '';
             // Nom seul, pas l'email : la notification transite par les serveurs Telegram.
-            console.log(`🆕 Inscription — ${user.name} [user:${user.id}]`);
-            notifyAdmin(`🆕 Nouvel inscrit : ${user.name || '(sans nom)'}`);
+            console.log(`🆕 Inscription — ${user.name} [user:${user.id}]${guestPast}`);
+            notifyAdmin(`🆕 Nouvel inscrit : ${user.name || '(sans nom)'}${guestPast}`);
         }
     } catch (err) {
         console.error('❌ Cosmos DB error:', err);

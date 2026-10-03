@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import { safeEqual } from '../auth/auth-router.js';
-import { getAudienceStats } from '../db.js';
+import { getAudienceStats, getGuestStats } from '../db.js';
 import { GameRegistry } from '../session/game-registry.js';
 import { getKnownBotUserIds } from '../session/bot-dispatch.js';
 import type { SessionManager } from '../session/session-manager.js';
@@ -42,16 +42,20 @@ export function createAdminRouter(sessionManager: SessionManager, wsConnectionCo
             .filter(g => g.inProgress);
 
         // Une panne Cosmos ne doit pas masquer l'état en mémoire.
-        const audience = await getAudienceStats([...getKnownBotUserIds(), WORKER_USER_ID]).then(
-            stats => ({
-                ...stats,
-                lastSeen: stats.lastSeen && { ...stats.lastSeen, ago: formatAgo(stats.lastSeen.lastSeenAt) },
-            }),
-            (err: unknown) => {
-                console.error('❌ Cosmos DB error (GET /admin/stats):', err);
-                return null;
-            },
-        );
+        const onCosmosError = (err: unknown) => {
+            console.error('❌ Cosmos DB error (GET /admin/stats):', err);
+            return null;
+        };
+        const [audience, guests] = await Promise.all([
+            getAudienceStats([...getKnownBotUserIds(), WORKER_USER_ID]).then(
+                stats => ({
+                    ...stats,
+                    lastSeen: stats.lastSeen && { ...stats.lastSeen, ago: formatAgo(stats.lastSeen.lastSeenAt) },
+                }),
+                onCosmosError,
+            ),
+            getGuestStats().catch(onCosmosError),
+        ]);
 
         res.json({
             generatedAt: new Date().toISOString(),
@@ -62,6 +66,7 @@ export function createAdminRouter(sessionManager: SessionManager, wsConnectionCo
                 wsConnections: wsConnectionCount(),
             },
             audience,
+            guests,
         });
     });
 

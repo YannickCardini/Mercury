@@ -1,0 +1,842 @@
+═══════════════════════════════════════════════════════════════════════
+MERCURY - TODO
+═══════════════════════════════════════════════════════════════════════
+Rewritten 2026-10-03 from the owner's notes (kept verbatim under each
+task). File/line anchors come from the working tree on that date, on
+top of commit c71f5147: if a line has moved, find the symbol by name.
+
+How to read this file
+- [1] to [8] are tasks for an AI agent. [A] and [B] at the end are the
+  owner's own tasks: an AI must not start them.
+- "Open questions" are decisions only the owner can take. Ask them
+  BEFORE writing code. A proposed default is marked "(assumed)" and
+  still needs a yes.
+- "Facts" were read in the code. Anything marked "estimate" was derived
+  from the stylesheets without rendering: nobody can run the app in a
+  session, so treat it as a lead, not as a measurement.
+
+Global constraints (apply to every task)
+- NEVER run the app (no `npm run dev`, no E2E, no screenshots). The
+  whole verification loop is: `npm run build:shared` at the repo root
+  (mandatory first after any change under packages/shared), the
+  `npx tsc` / `npm run build` type checks, and the backend unit tests
+  (`npm test --workspace=backend`, node:test through tsx). The backend
+  CI workflow builds but does not run the tests. The owner validates
+  visually on a real Android device and on desktop.
+- backend/src/game/snapshot.test.ts has been seen failing about one run
+  in five with "Unable to deserialize cloned data", unrelated to any
+  change: rerun it before calling a failure a regression.
+- User-facing text: English, neutral tone, never the em dash character.
+- Game rules and the shop catalog live in packages/shared so client and
+  server cannot drift. Never duplicate an id, a price or a rule in
+  backend/ or frontend/.
+- Cosmos DB is touched only from backend/src/db.ts, with targeted
+  `patch` operations, never read-then-`replace()`. `incr`, `add` and a
+  patch `condition` all fail on a field that does not exist yet
+  (db.ts:108-116): any new field on the user document needs the same
+  kind of guard as ensureWalletFields() (db.ts:126-148).
+- Old clients. An installed Android build keeps talking to a newly
+  deployed backend until the new build is live on Play and
+  LATEST_VERSION_CODE is raised (backend/src/version/
+  version-router.ts:16); only then does the app block behind a
+  mandatory update popup (frontend/src/app/services/
+  app-update.service.ts:56). MIN_VERSION_CODE is served but no client
+  code reads it. A browser tab left open also keeps running the old web
+  bundle. So every new catalog entry, field or WebSocket message must
+  be harmless for the previous build during that window.
+- Snapshots. Add only optional fields to GameSnapshot
+  (backend/src/game/game-snapshot.ts). Bumping SNAPSHOT_SCHEMA_VERSION
+  (:16) discards every in-flight game at the next deploy.
+- Android-only rendering fixes go under `:host(.is-native)` at the end
+  of the component stylesheet and must leave web/desktop untouched.
+
+Suggested order (several tasks edit the same files)
+  [8], [5]     isolated CSS, no dependency.
+  [7]          sound only (sound.service.ts, also touched by [2]).
+  [6]          cleanup; best done before the features, so that no new
+               code is written with a mode branch.
+  [1] then [3] both edit shop-catalog.ts, applyEndGamePoints() in
+               game.ts, GameStatsMessage and the end-of-game screen.
+               Each adds rows to that screen: re-check [8] afterwards.
+  [2]          largest feature (new WebSocket messages + UI).
+  [4]          done on 2026-10-03, see its block.
+
+───────────────────────────────────────────────────────────────────────
+[1] FEATURE - New shop booster: capture stake, +1 / -1 per captured
+     marble (price: 30 coins)
+───────────────────────────────────────────────────────────────────────
+Owner's note (verbatim)
+  "Ajoute un nouveau consommable dans la boutique qui permet d'avoir
+  +1/-1 a chaque pion que le joueur capture pion selon victoire (+1 par
+  capture) ou defaite (-1 par capture). Prix: 30 pieces"
+
+Goal
+  A fourth per-game booster. In the game where it is active, every
+  enemy marble the player captures is worth +1 if the player ends up
+  winning and -1 if the player ends up losing.
+
+Open questions (ask first)
+  Q1. Unit. The note does not say +1/-1 of WHAT. Ranking POINTS
+      (assumed): a coin version would be strictly worse than Bounty,
+      which already pays +1 coin per capture, win or lose, for 5 coins.
+  Q2. Label and one-line description. The description must state the
+      losing side: the confirmation modal shows it before payment
+      (shop.page.html:171-175).
+  Q3. Stacking with Double Points: is the capture part doubled too?
+      (assumed: yes, the multiplier applies to the sum, the way Double
+      Coins already multiplies victory + Bounty in
+      computeEndGameCoins(), backend/src/game/coins.ts:22-24).
+  Q4. Which captures count? (assumed: exactly Bounty's rule, see
+      Facts.)
+  Q5. In-game feedback: only the token in the boost dock, or also a
+      live capture counter like Bounty's?
+  Q6. A player's total has no floor: updateUserPoints() is a raw
+      increment (db.ts:44-53) and new accounts start at 0, so totals
+      can already go negative. With this booster a loss with N captures
+      costs 1 + N (twice that with Double Points). Confirm that no
+      floor is wanted.
+
+Facts
+  Catalog (packages/shared/src/shop-catalog.ts)
+    :43       ShopItemKind = 'emoji' | 'cardback' | 'consumable'
+    :66       ConsumableEffect = 'double_points' | 'double_coins' |
+              'capture_coins'
+    :95-129   SHOP_CATALOG. Ids must match CATALOG_ID_PATTERN (:141);
+              prices are named constants (:18-27).
+    :207-221  hasBoost() / boostMultiplier(), shared by both sides.
+  Booster lifecycle (not changed by this task)
+    purchase → id appended to `armedBoosts` on the user document, one
+    copy of each at most (shop-router.ts:68-130, purchaseItem()
+    db.ts:222-247) → consumed when the next game starts
+    (activateBoosts(), game.ts:527-540; never for guests, bots or
+    AI-agent seats) → announced to that seat only (`boostsActive`,
+    game.ts:542-552) → applied in applyEndGamePoints()
+    (game.ts:1422-1567) → reported in `gameStats`.
+  Capture counting already exists
+    game.ts:160-164    `captureCounts`, kept for EVERY seat whatever
+                       the boosters, and saved in snapshots
+                       (PlayerSnapshot.captures, game-snapshot.ts:
+                       37-38).
+    game.ts:1399-1418  sendVictimsHome(): +1 only when the victim is
+                       an opponent (areOpponents(), teams.ts:44-46: own
+                       and teammate marbles never count), credited to
+                       the player who PLAYED THE CARD even when the
+                       marble moved belongs to the teammate. A Jack
+                       swap is not a capture.
+  Points today (backend/src/game/points.ts)
+    Win +4 (AI-agent seat +2), loss -1, times the Double Points
+    multiplier. Abandon / permanent disconnect is a flat -2 applied
+    elsewhere (game.ts:480-494, 923-953); those players are left out of
+    applyEndGamePoints() (`penalizedUserIds`), so a booster they
+    brought is consumed without effect.
+  Frontend code that switches on the effect
+    shared/boost-token.component.{ts,html,scss}
+        host classes bt--points / bt--coins / bt--bounty, face "×2" or
+        "+1", emblem star (points) or coin.
+    shop/shop.page.scss:334-350      tint per effect.
+    game/components/boost-dock/boost-dock.component.scss:270-280
+        same, in the dock callout.
+    game/components/boost-dock/boost-dock.component.html:8-15, 31-35
+        Bounty-only counter.
+    game/components/victory-overlay/victory-overlay.component.ts:
+        115-133 and .html:83-138
+        seals, breakdown, "booster used for nothing" notes.
+    The shop grid, the home strip "Active in your next game"
+    (home.page.html:96-108) and the dock list need no change: they
+    iterate over the catalog.
+
+Steps
+  1. shop-catalog.ts: add the effect to ConsumableEffect, a price
+     constant (30), a per-capture constant (1) and the catalog entry.
+     Then `npm run build:shared`.
+  2. points.ts: extend PlayerRating with the capture stake and compute
+     it inside computeEndGamePointsDeltas() (keep the function pure).
+  3. game.ts applyEndGamePoints(): pass `captureCounts` for the seats
+     holding the booster. Add an optional breakdown to GameStatsMessage
+     (types.ts:229-259), modelled on `coinsBase`, so the end screen can
+     explain the delta. Extend the log line (:1533).
+  4. Only if Q5 = counter: `boostsActive.captures` is sent for Bounty
+     alone today (game.ts:550) and the client counter is Bounty
+     specific (game-state.service.ts:84-119).
+  5. Frontend: token drawing and tint for the new effect (files above).
+  6. End screen: show the capture part next to `.stats-delta`, and a
+     note when the booster was used with zero captures (pattern:
+     `unusedBoosts`). Mind [8]: every added row makes the card taller.
+  7. Tests: backend/src/game/shop-catalog.test.ts:88-94 asserts the
+     exact list of boosters and prices and must be updated. Add cases
+     to points.test.ts (win, loss, zero capture, with Double Points).
+
+Watch out
+  A build that does not know the effect draws it as "×2" with a coin
+  (the two conditions in boost-token.component.html only know the three
+  existing effects) and leaves it out of the in-game dock
+  (boost-dock.component.ts:51-56 resolves ids against the catalog
+  embedded in the bundle). See "Old clients" above.
+
+Acceptance criteria
+  - The booster is listed under "Boosters" at 30 coins and follows the
+    existing lifecycle: armed for the next game, one copy, consumed at
+    launch, buyable again afterwards.
+  - Win with N counted captures: +4 + N. Loss: -1 - N. Both doubled
+    with Double Points if Q3 = yes.
+  - N = 0: same points as without the booster, and the end screen says
+    the booster brought nothing.
+  - Abandon / disconnect penalty unchanged (-2). Guests and AI-agent
+    seats unaffected.
+  - The effect survives a server restart mid-game (boosters and
+    captures are already in the snapshot: no schema bump).
+  - The purchase confirmation states the losing side in plain words.
+
+───────────────────────────────────────────────────────────────────────
+[2] FEATURE - Quick-chat phrases: send a predefined text during a game
+───────────────────────────────────────────────────────────────────────
+Owner's note (verbatim)
+  "Ajoutez une nouvelle fonctionnalité, qui permet de lancer un texte
+  pré défini durant une partie. Cela déclenche un son .mp3(que je dois
+  ajouter dans les assets) générique pour n'importe quel texte. Ces
+  textes peuvent s'acheter dans le shop."
+
+Goal
+  During a game a player picks a phrase from a closed list; the other
+  players see it and hear one generic sound, the same for every phrase.
+  Phrases are bought in the shop with coins. There is no free typing.
+
+Open questions (ask first)
+  Q1. The list of phrases (English) and the price of each.
+  Q2. Are some phrases free for everyone, guests included, as the six
+      original emojis are?
+  Q3. Audience: all four players (assumed, like emojis) or the teammate
+      only?
+  Q4. Where the picker lives: a second tab inside the emoji palette
+      (assumed: the top-left corner of the table has little room) or a
+      second button.
+  Q5. Sound file name and location (proposed:
+      frontend/src/assets/sounds/phrase.mp3). The owner supplies the
+      file.
+  Q6. Cooldown shared with emojis? (assumed: yes, one shared 2 s
+      cooldown; otherwise alternating emoji and phrase doubles the
+      allowed rate.)
+
+Facts: the emoji reaction path is the model to copy end to end
+  Shared    REACTION_EMOJIS, a closed palette (types.ts:46-48). Paid
+            emojis are catalog entries, free ones are the palette minus
+            the catalog (shop-catalog.ts:168-191).
+  Client → server
+            `{ type: 'reaction', emoji, fromColor? }` (types.ts:
+            616-620), sent by sendReaction() (game-state.service.ts:
+            1114).
+  Server    handleReaction() (game.ts:759-810): rejects anything
+            outside the palette; takes the author from the socket,
+            never from the payload (single-device mode excepted);
+            applies REACTION_COOLDOWN_MS = 2000 (:44) BEFORE the
+            ownership check; checks ownership through the in-memory
+            entitlement cache (backend/src/shop/entitlements.ts), so no
+            Cosmos read happens on this hot path. Guests and AI-agent
+            seats cannot send paid items.
+  Server → all
+            `{ type: 'reactionBroadcast', author, emoji, timestamp }`
+            (types.ts:363-368), echoed to the sender too.
+  Client    reaction$ (game-state.service.ts:679, 891-894) feeds
+            EmojiReactionsComponent (game/components/emoji-reactions/):
+            palette with padlocks on locked entries, client cooldown
+            COOLDOWN_MS (:39), Android ghost-click guard
+            TOGGLE_GUARD_MS (:46), floating glyph anchored on the
+            author's badge through `[data-player-color]` (:175-188),
+            open state published to the tutorial (:95). Mounted at
+            table.component.html:34-37.
+  Sound     SoundService.preloadAssets() (sound.service.ts:45-83) loads
+            a fixed list. A missing file only logs a warning and that
+            sound stays silent, so the code can ship before the owner
+            adds the file. playReaction() (:445-449) is the model.
+  Shop      Owned items live in `ownedItems`. The purchase route
+            already invalidates the entitlement cache for anything that
+            is not a booster (shop-router.ts:87-93).
+
+Steps
+  1. Shared: a new ShopItemKind for phrases carrying the text, the
+     catalog entries, and helpers mirroring emojiItemId() /
+     isEmojiUnlocked(). The phrase TEXT never travels on the socket:
+     the client sends the catalog id, the server validates it against
+     the catalog and broadcasts the id, each client renders the label
+     from its own catalog.
+  2. Protocol (types.ts): one new client message and one new server
+     broadcast, added to the ClientMessage / ServerMessage unions. Keep
+     them separate from `reaction` so older peers ignore them: the
+     client switch has no default branch, and the server only logs an
+     unknown type (game.ts:754-755).
+  3. Server: a handler next to handleReaction(), with the same author,
+     cooldown and ownership rules.
+  4. Client: picker, send method, subscription, and a speech bubble
+     anchored on the author's badge that disappears by itself. Cap the
+     phrase length so the bubble fits on a phone in portrait.
+  5. Sound: register the generic sample, play it once per phrase
+     received, respect `muted()`.
+  6. Shop: section title and order for the new kind (KIND_LABEL,
+     KIND_ORDER, shop.page.ts:36-47), tile preview (previewOf(), :182),
+     sign-in hint (shop.page.html:49).
+  7. Tests for the catalog helpers (shop-catalog.test.ts).
+
+Acceptance criteria
+  - A signed-in player who owns a phrase can send it; every recipient
+    sees it attributed to the right seat and hears the generic sound
+    once; nothing plays when muted.
+  - A phrase the player does not own shows a padlock and cannot be
+    sent, client side AND server side (a forged message is dropped).
+  - No free text can reach another player through any message.
+  - Emoji reactions behave exactly as before.
+  - The app works, silently, while the sound file is still missing.
+  - Buying a phrase unlocks it without restarting the app.
+
+───────────────────────────────────────────────────────────────────────
+[3] FEATURE - Shop bonus: double all coins earned for one week
+     (price: 50 coins)
+───────────────────────────────────────────────────────────────────────
+Owner's note (verbatim)
+  "Ajoutez un bonus dans le shop qui permet de doubler toutes les
+  pieces gagnés pendant une semaine (prix: 50 peices)"
+
+Goal
+  A time-limited pass: for 7 days after purchase, every coin credited
+  at the end of a game is doubled. Not to be confused with the existing
+  "Double Coins" booster (10 coins, one game).
+
+Open questions (ask first)
+  Q1. Label. It must not be mistaken for "Double Coins".
+  Q2. Stacking with the per-game Double Coins: ×4, or ×2 at most? If
+      ×2 at most, should the shop refuse to arm Double Coins while the
+      pass is running?
+  Q3. Buying again while it is active: refused (assumed) or extended by
+      7 days?
+  Q4. Which instant decides: the moment the coins are credited, i.e.
+      game end (assumed, simplest), or game start?
+  Q5. Should the pass be visible during a game (boost dock), or only in
+      the shop, on the home page and on the end screen?
+
+Facts
+  - Coins are credited in one place: applyEndGamePoints(),
+    game.ts:1462-1508. Amount = computeEndGameCoins(victory, captures,
+    multiplier) (coins.ts:22-24): victory coins (winners only, 1 to 8,
+    computeWinCoins() :12-15) plus Bounty coins, times the Double Coins
+    multiplier. "All coins earned" therefore means that sum. The debug
+    credit route (shop-router.ts:134-154) is not a gain.
+  - The per-game model (`armedBoosts`, emptied by consumeArmedBoosts()
+    when a game starts) does not fit a duration. The pass needs its own
+    field on the user document, for instance an expiry timestamp. Dates
+    are stored as ISO 8601 UTC strings, which compare chronologically
+    (db.ts:335-336).
+  - Atomic purchase patterns already in db.ts: one conditional patch
+    (purchaseItem(), :222-247) or read + etag retry
+    (consumeArmedBoosts(), :264-290). Mind the absent-field rule.
+  - applyEndGamePoints() already reads each participant's document once
+    (getUserPointsAndRanking(), game.ts:1438-1443): return the expiry
+    from that same read instead of adding a round trip.
+  - The purchase route picks the inventory field from
+    isConsumable(item) (shop-router.ts:87-88) and answers with
+    `coins, ownedItems, armedBoosts` (:95-100). GET /state returns the
+    same plus the catalog (:55-60). The client mirrors that in
+    ShopService and caches it in localStorage under `shop_state`
+    (shop.service.ts:15-21, 188-226), cleared on sign-out.
+  - End screen: the "Double Coins" seal and the doubling animation are
+    driven by `gameStats.boosts` (victory-overlay.component.ts:116,
+    177-193, 264-275). With only the pass active that list is empty:
+    without a change the screen would show a doubled total with no
+    explanation and a breakdown that does not add up.
+  - User document types are declared twice (backend/src/auth/
+    auth-router.ts:58-82, and frontend auth.service.ts /
+    profile.page.ts).
+
+Steps
+  1. Shared: catalog entry at 50 coins with its duration as a named
+     constant, and one pure helper answering "is the pass active at
+     time T", used by both sides. Decide between a new ShopItemKind
+     (recommended: the booster texts "Applies to your next game only"
+     and "Next game" are wrong for a pass) and a flagged consumable.
+  2. db.ts: the expiry field, its guard, an atomic purchase function,
+     and the expiry returned with the wallet.
+  3. shop-router.ts: a purchase branch for the pass, the expiry in both
+     responses, an explicit error code when it is already active.
+  4. game.ts: apply the pass multiplier where coins are computed,
+     according to Q2 and Q4, and tell the client through an optional
+     GameStatsMessage field.
+  5. Frontend shop: tile state "active, N days left", confirmation
+     text, ShopService and its cache. Home page: an indicator next to
+     the existing booster strip (home.page.html:96-108).
+  6. End screen: seal and doubling animation for the pass.
+  7. Tests: coins.test.ts (pass alone, pass + Bounty, pass + Double
+     Coins per Q2), shop-catalog.test.ts, and the "active at T" helper
+     at the boundary.
+
+Acceptance criteria
+  - Buying costs 50 coins once, atomically: it can never drive the
+    balance below zero, nor be charged twice by two concurrent
+    requests.
+  - From purchase until exactly 7 × 24 h later, every end-of-game coin
+    credit is doubled, Bounty coins included, whoever receives them.
+    After that, credits are back to normal with no action needed.
+  - Expiry is decided by the server clock only.
+  - The shop and the home page show that the pass is active and until
+    when; the end screen shows why the amount was doubled.
+  - Guests and AI-agent seats are unaffected.
+  - The per-game Double Coins behaves as today when no pass is active.
+
+───────────────────────────────────────────────────────────────────────
+[4] DONE 2026-10-03 (not committed, not deployed) - Tell a new guest
+     from a returning one, and know whether a new account had played
+     as a guest before
+───────────────────────────────────────────────────────────────────────
+Owner's note (verbatim)
+  "Il est dur de savoir, avec les logs actuelles, si un joueur "guest"
+  est un nouveua joueur, ou le meme joueur qui enchaine des parties.
+  Chercher pour voir si il y a moyen de tracker l'ip des guest afin
+  d'identifier si c'est un nouveau joueur (toute premiere partie) ou un
+  joueur recurent. Ca pourrait permettre aussi de savoir quand un
+  joueur créé un compte si c'est sa premeire partie, ou si il a créé un
+  compte apres avoir fait de(s) pati(es) en guest."
+
+Decisions taken by the owner
+  - Identifier: `browser_id` only (random UUID already kept in
+    localStorage and already sent with every join). No IP address is
+    read or stored for this.
+  - Storage: a third Cosmos container, `guests` (partition key /id),
+    one document per installation: firstSeenAt, lastSeenAt,
+    gamesStarted.
+  - Retention: 90 days without a guest game (container TTL, restarted
+    by each game).
+
+What was implemented
+  backend/src/db.ts
+    `guests` container; getGuestHistory(), recordGuestGameStart(),
+    getGuestStats().
+  backend/src/session/guest-tracking.ts (+ guest-tracking.test.ts)
+    id validation, wording of the history, best-effort wrappers that
+    never throw into a join, a launch or a sign-up.
+  backend/src/session/matchmaking-manager.ts
+    Queue join: the log and the Telegram alert now say "invité, 1re
+    partie" or "invité récurrent, déjà N parties depuis le <date>".
+    Launch: counts the game for each guest seat.
+  backend/src/session/custom-game-manager.ts
+    Launch: counts the game for each guest seat.
+  backend/src/auth/auth-router.ts
+    Sign-up: reads `browserId` from the login request, stores
+    `guestHistory` on the new user document, and adds "(déjà N parties
+    en invité depuis le <date>)" or "(aucune partie en invité sur cet
+    appareil)" to the log and the alert.
+  backend/src/admin/admin-router.ts
+    GET /api/admin/stats returns
+    `guests: { newLast24h, returningLast24h, known }`.
+  frontend/src/app/shared/browser-id.ts
+    Single helper, used by game-state.service.ts and by
+    auth.service.ts, which now sends the id with the Google login.
+  frontend/src/app/privacy/privacy.page.html
+    Guest paragraph rewritten (identifier, what is stored, 90 days),
+    one purpose added, date updated.
+
+Differences from the original plan
+  - The game-start roster printed by game.ts is unchanged. Each guest
+    gets its own log line right after it ("👤 Partie <id> ...") with
+    the game id, the guest id and the history. This avoided adding the
+    id to PlayerConfig and to the snapshots.
+  - A game is counted at launch only. A guest who joins the queue and
+    leaves before the game starts is not counted.
+
+Known limits
+  - No backfill: after the first deploy every guest is reported as
+    "1re partie" once.
+  - Clearing app data or reinstalling makes a new guest. The web app
+    and the Android app on the same phone are two guests.
+  - Android builds older than this change do not send the id at login:
+    their sign-up alert carries no guest history. Their guest games are
+    counted normally (the id was already sent when joining).
+
+Left for the owner
+  1. Before deploying, check the capacity mode of the Cosmos account in
+     the Azure portal. The `guests` container is created automatically
+     at the first guest join. Serverless or database-level shared
+     throughput: no extra cost. Per-container provisioned throughput:
+     it adds 400 RU/s.
+  2. Google Play Console, Data safety form: the app now keeps an
+     app-generated installation identifier for guests for 90 days.
+     Check whether the declaration must mention it.
+  3. Check after deploy: play two games as a guest (the second alert
+     must say "invité récurrent, déjà 1 partie ..."), then create an
+     account from the same device (the sign-up alert must mention the
+     guest games).
+  4. Unrelated lead, still unverified: Azure App Service may append the
+     source port to x-forwarded-for, which clientIp()
+     (backend/src/index.ts:139-143) does not strip. If so, the cap of
+     20 WebSocket connections per IP is counted per ip:port. A
+     production log line "trop de connexions pour ..." shows the value.
+
+───────────────────────────────────────────────────────────────────────
+[5] UI BUG - Desktop: the "playing for your teammate" capsule does not
+     fit in the table panel
+───────────────────────────────────────────────────────────────────────
+Owner's note (verbatim)
+  "L'affichage desktop, pour quand on joue pour son partner, dans le
+  table.componenet, s'affihce tres mal, ya pas assez de place pour ce
+  texte."
+
+Symptom (as reported; nobody has measured it)
+  On desktop, when the local player has brought their 4 marbles home
+  and now plays their teammate's marbles, the text shown in the table
+  panel is badly laid out: there is not enough room for it.
+
+What it is in the code
+  frontend/src/app/game/components/table/table.component.html:162-188
+    `.context-info` > `.phase-capsule`, one pill with up to two
+    segments:
+    - `.phase-capsule__teammate`: icon + "For your teammate", rendered
+      when gameStateService.isPlayingForTeammate()
+      (game-state.service.ts:240-244);
+    - `.phase-capsule__phase`: the current step, a TURN_PHASE string
+      (table.component.ts:29-38), e.g. "Choose a target marble".
+  frontend/src/app/game/components/table/table.component.scss
+    :115-134  `.context-info`: absolute, centred, just above the
+              footer, `max-width: min(92%, 560px)`. Hidden in portrait
+              when the viewport is at most 780 px wide or 500 px high
+              (phones); shown everywhere else, i.e. in landscape, where
+              the table is a side panel.
+    :136-145  `.phase-capsule`: inline-flex, `border-radius: 99px`,
+              `overflow: hidden`.
+    :147-165  teammate segment: `white-space: nowrap`, uppercase,
+              letter-spacing 0.08em.
+    :167-190  phase segment: allowed to wrap (`text-wrap: balance`).
+    :29-31    the panel is a size container named `game-board`:
+              `@container game-board (...)` queries are available and
+              are the right tool, since the panel width does not follow
+              the viewport width.
+  frontend/src/app/game/game.page.scss:40-59
+    In landscape the table panel is `flex: 3` next to the board
+    (`flex: 7`), with a 4 % right margin.
+
+Likely cause (estimate)
+  At a 1366 px wide viewport the panel is about 370 px wide, so the
+  capsule gets about 340 px. The non-wrapping teammate segment takes
+  roughly half of it; the phase text then wraps onto two or three lines
+  inside a pill with a 99 px radius, and the taller pill sits on top of
+  the lower part of the hand (`.context-info` z-index 15 over
+  `.hand-zone` z-index 10).
+
+Scoping (confirm with the owner, ideally with a screenshot)
+  The longest text of that capsule belongs to another 2v2 state:
+  TURN_PHASE.SOLIDAIRE, "Play an Ace, King or Joker to bring your
+  teammate's marble in" (59 characters, shown without the teammate
+  segment). It has the same room problem and may be the one the owner
+  saw. Fix the capsule for both.
+
+Steps
+  1. Make the capsule hold in a narrow panel. Options: stack the two
+     segments when the container is narrow; shorten the teammate
+     segment (icon + shorter label); or move the teammate information
+     into the footer profile (`.player-profile`, html:205-211), which
+     has free width. Pick one and say why.
+  2. Give the multi-line case a shape that survives wrapping (the 99 px
+     radius does not).
+  3. Check by calculation every TURN_PHASE string, with and without the
+     teammate segment, at panel widths of 320, 370 and 560 px.
+
+Acceptance criteria
+  - On a 1366x768 desktop screen the capsule shows "for your teammate"
+    and every phase text in full, without clipping and without
+    overlapping the cards, the timer ring or the footer.
+  - Same for the solidaire text.
+  - Wide desktop screens keep the current one-line look.
+  - Nothing changes on phones in portrait (capsule still hidden there)
+    nor under `:host(.is-native)`.
+  - Tell the owner exactly which state to reproduce in order to check:
+    2v2 game, own 4 marbles home, own turn, a Jack selected and a
+    source marble chosen.
+
+───────────────────────────────────────────────────────────────────────
+[6] CLEANUP - Remove the 1v3 / free-for-all mode: 2v2 is the only mode
+───────────────────────────────────────────────────────────────────────
+Owner's note (verbatim)
+  "Enlever tous ce qui fait reference au mode 1v3/chacun pour sois.
+  Seul le mode 2v2 est utilisé."
+
+Goal
+  One mode, no switch, no dead branch, no text suggesting that another
+  mode exists. The behaviour of a 2v2 game must not change at all.
+
+Constraints that are easy to break
+  C1. Keep sending `gameState.gameMode: '2v2'` to the clients. Builds
+      already installed test `gameState.gameMode !== '2v2'` directly
+      (game-state.service.ts:234, 256, 300, 335): if the field
+      disappears, they fall back to free-for-all rules for their local
+      move validation. The field can be dropped in a later release,
+      once no older build can connect.
+  C2. Keep `{ gameMode: '2v2' }` in the body posted to the external AI
+      agent (bot-dispatch.ts:48-61). The agent is a separate project
+      that may choose its model from that value; this repository cannot
+      update it.
+  C3. Snapshots written by the previous deployment contain
+      `gameMode: '2v2'`. Ignore the field on read; do not bump
+      SNAPSHOT_SCHEMA_VERSION for this. Ask the owner to confirm that
+      GAME_MODE=1v3 was never set in the Azure app settings (it is
+      absent from .env.example and from the local .env).
+
+Inventory
+  Backend
+    backend/src/game-mode.ts           the whole file is the GAME_MODE
+                                       switch.
+    backend/src/game/game.ts
+      :15, 74-75, 173-175, 288, 336, 409    field and plumbing.
+      :976-979, 1251-1265, 1598-1607, 1610-1620
+                                       `=== '2v2'` branches.
+      :1412                            areOpponents(..., mode).
+    backend/src/session/session-manager.ts:117-119, 156-157
+    backend/src/session/matchmaking-manager.ts:18, 165
+    backend/src/session/game-restore.ts:113-121, 206
+    backend/src/session/bot-dispatch.ts:48-61       (see C2)
+    backend/src/game/game-snapshot.ts:1, 54         (see C3)
+    backend/src/game/ai-strategy.ts:34-44   `teammateColor` treated as
+                                       optional.
+  Shared
+    packages/shared/src/types.ts
+      :16-22 GameMode; :125-129 GameConfig.gameMode; :136-137
+      GameState.gameMode (see C1); :212-216 comment.
+    packages/shared/src/teams.ts:39-46      third parameter of
+                                       areOpponents().
+    packages/shared/src/move-validator.ts
+      :57-62 the optional `teammateColor` is what turns the team rules
+      on; branches at :185-207 (Jack), :489-492 (7 split), :672 (Jack
+      search), :720-722 (solidaire entry).
+  Frontend (under frontend/src/app)
+    game/services/game-state.service.ts:67, 116, 223-224, 234, 256,
+      300, 335, 499-501
+    game/game.page.ts:108-112, 134, 146, 510-516
+    game/game.page.html:47, 77, 94
+    game/components/board/board.component.ts:79-84, 932-949
+    game/components/board/board.component.scss:1770
+    game/components/table/table.component.ts:486, 519
+    game/components/victory-overlay/victory-overlay.component.ts:87-90
+      and .html:46-58 (single-winner wording)
+    shared/game-rules-modal.component.ts:11, 22-27, 39, 47-49
+    shared/game-rules-modal.component.html:37-40
+      the "Basics" tab still says "First player to fill all 4 home
+      slots wins", which is the free-for-all goal.
+    shared/card-effects.ts:29-47, 58-68     non-team texts for J and 7.
+  Tests (backend/src/game)
+    1v3-only cases: jack-team.test.ts:84-95, 103-104, 117;
+      seven-team.test.ts:126-136; solidaire.test.ts:91-101;
+      shop-catalog.test.ts:102-108; snapshot.test.ts:78 and 180-183 (a
+      board "won" by one colour alone).
+    king.test.ts, seven-split.test.ts and
+      promote-invincible-block.test.ts build a context WITHOUT
+      teammateColor.
+  Docs
+    CLAUDE.md, Project Overview ("toggled server-side via GAME_MODE"),
+    and the code comments at the lines above.
+
+Open questions (ask first)
+  Q1. Rules modal: keep the two tabs "Basics" / "Teams 2v2" and only
+      fix the goal sentence (assumed), or merge them?
+  Q2. The public SEO pages say "2v2 by default", which implies another
+      mode: frontend/content/pages/landings.mjs:35, 73, 94, 132, 153,
+      212; rules-pegs.mjs:6; rules-tock.mjs:6, 10, 112;
+      frontend/content/lib/blocks.mjs:202, 214. Reword them (four
+      languages) or leave them? Sentences about the TRADITIONAL game
+      ("usually every player for themselves") do not describe a Mercury
+      mode and stay as they are.
+
+Steps
+  1. Shared first: make `teammateColor` required, drop the non-team
+     branches, drop the mode parameter of areOpponents(), narrow or
+     remove GameMode while respecting C1. Then `npm run build:shared`.
+  2. Backend: delete game-mode.ts and the mode plumbing; keep only the
+     2v2 code paths.
+  3. Frontend: remove every `gameMode() === '2v2'` test and the
+     non-team branches. The `[gameMode]` input of the rules modal and
+     the `teamMode` parameters of card-effects.ts go away.
+  4. Tests: delete the 1v3-only cases. For the three files that build a
+     context without teammateColor, do not just add the field: the team
+     rules switch on (any marble can be a Jack source, a 7 can be split
+     onto a teammate's marble), so re-read each expectation. Rewrite
+     the "won board" case of snapshot.test.ts as a team win.
+  5. Texts: rules modal goal sentence, CLAUDE.md, comments; SEO pages
+     according to Q2.
+
+Acceptance criteria
+  - `grep -rn -i -E "1v3|GAME_MODE|chacun.pour.soi" backend/src
+    frontend/src packages/shared/src CLAUDE.md` returns nothing.
+  - No comparison of a game mode against '2v2' remains anywhere.
+  - C1, C2 and C3 hold.
+  - All backend tests pass, and no test was weakened to make it pass.
+  - A 2v2 game behaves exactly as before: team win condition, end-game
+    switch to the teammate's marbles, shared 7, free Jack, solidaire
+    entry, diamond / circle badges, team intro and team banner.
+
+───────────────────────────────────────────────────────────────────────
+[7] SOUND - Replace the coin sound with a classic "coin pickup" chirp,
+     one per coin
+───────────────────────────────────────────────────────────────────────
+Owner's note (verbatim)
+  "Remplacer le son des pieces (par exemple quand on gagne une partie),
+  par un son de piece similaire a celui de Mario (un bruit par peice
+  gagné). Si cela n'est pas possible, s'appuyer sur une asset (.mp3 ou
+  autres), que je dois fournir."
+
+Goal
+  Each coin makes its own short, bright, two-note "coin pickup" sound,
+  in the style of the classic platform-game coin, instead of the
+  current metallic scatter.
+
+Facts
+  - The coin sound is synthesised, there is no sample:
+    SoundService.playCoinSpend(count = 6, stepMs = 55)
+    (frontend/src/app/game/services/sound.service.ts:451-480) schedules
+    `count` triangle-wave blips of rising pitch, `stepMs` apart.
+  - Four call sites:
+      end screen, coins flying to the counter
+        victory-overlay.component.ts:238   playCoinSpend(count, 85)
+        (count is capped by MAX_FLYING_COINS = 12, :42)
+      end screen, Double Coins doubling
+        victory-overlay.component.ts:268   playCoinSpend(extra, 70)
+      in game, Bounty coin
+        bounty-fx.component.ts:115         playCoinSpend(1)
+      shop, coins SPENT on a purchase
+        shop.page.ts:216                   playCoinSpend(6)
+  - Feasibility: yes, without any asset. The target sound is two
+    square-wave notes in quick succession (about B5 then E6, the second
+    one held and fading), which the Web Audio API already used in this
+    file can produce. The asset fallback mentioned in the note is
+    therefore not needed for technical reasons.
+  - The file already follows a "sample first, synthesis as fallback"
+    pattern, e.g. `if (this.playBuffer('capture')) return;` (:162).
+    playBuffer() (:96-105) starts immediately and takes no start time.
+
+Open questions (ask first)
+  Q1. Scope: every coin sound, including coins spent in the shop
+      (assumed: the note says "le son des pieces"), or only coins
+      earned?
+
+Steps
+  1. Rewrite the per-coin voice inside playCoinSpend() as the two-note
+     chirp. Keep the signature, so that the callers and their timing
+     constants stay untouched. Keep the `muted()` check.
+  2. Chirps are spaced 55 to 85 ms apart and up to a dozen play in a
+     row: keep each one short and the gain low enough that the sum does
+     not clip. Do not change the spacing: it belongs to the animations
+     (COIN_STAGGER_MS, DOUBLE_STEP_MS).
+  3. Make it overridable by a file: if assets/sounds/coin.mp3 (name to
+     confirm with the owner) is present, play that sample once per coin
+     instead. This needs a start-time parameter on playBuffer(). The
+     owner can then drop a file in if the synthesised result does not
+     convince, with no further code change. Note that preloadAssets()
+     logs one console warning per missing file at startup.
+  4. Write an original synthesised imitation. Do not download or embed
+     the original game audio: the app is published on Google Play.
+
+Acceptance criteria
+  - N coins produce N distinct chirps, in time with the N visual coins:
+    on the end screen (flight and doubling), on a Bounty capture and,
+    according to Q1, in the shop.
+  - Nothing plays when muted.
+  - No other sound of the game changes.
+  - Say in the hand-over that the owner must listen on a phone and on
+    desktop: an AI cannot judge the result.
+
+───────────────────────────────────────────────────────────────────────
+[8] UI BUG - End-of-game screen overflows on a 1366x768 display
+───────────────────────────────────────────────────────────────────────
+Owner's note (verbatim)
+  "L'ecran de victoire, du moins sur mon ecran (1366*768), a du mal a
+  tout afficher et ca debore un peu."
+
+Symptom (as reported)
+  On a 1366x768 laptop screen the victory screen cannot show everything
+  and overflows slightly.
+
+Files
+  frontend/src/app/game/components/victory-overlay/
+    victory-overlay.component.{html,scss,ts}
+  Mounted from game.page.html:97-112.
+
+Facts
+  - `.victory-card` (scss:114-142): one column, `width: min(92vw,
+    460px)`, `max-height` = viewport minus safe areas, and
+    `overflow-y: auto` meant only as a safety net.
+  - Short screens are handled by two tiers (scss:852-883):
+    `max-height: 620px` hides the trophy; `max-height: 540px` hides the
+    subtitle and the divider and tightens the rest. The comment there
+    already targets this very screen ("1366x768 with the browser chrome
+    is about 600 to 660 px of usable viewport").
+  - Those tiers predate the shop. Commit c71f5147 (2026-09-27) added to
+    the stats block (html:77-143) a coins row, the two "Double" seals,
+    the "Victory +N · Captures +N" breakdown and up to two "booster
+    used for nothing" notes.
+
+Likely cause (estimate)
+  Between 621 and about 720 px of viewport height no tier applies,
+  while the full card (trophy, title, subtitle, winners, divider,
+  losers, stats block with coins, button) now needs roughly 680 to
+  720 px. The card then scrolls inside itself, which reads as
+  "overflowing a bit".
+
+Ask the owner first
+  Which variant overflowed (victory or defeat, signed in or guest, with
+  boosters or not), in the browser or in the Android app, and whether
+  the page itself scrolls or only the card.
+
+Steps
+  1. Enumerate the variants and size for the tallest one (signed-in
+     player with boosters), plus whatever rows [1] and [3] add. Prefer
+     using the unused width before removing content: a 460 px card on a
+     1366 px screen leaves room for a two-column layout (squads on one
+     side, stats on the other) when the viewport is wide and short.
+  2. Otherwise raise or add height tiers so that something gives way
+     before a scrollbar appears.
+  3. The debug preview cannot reproduce the tall case: the 🏆 / 💀
+     buttons (game.page.html:51-62; debugForceGameEnd(),
+     game.page.ts:504-519) set the winners only, so the stats block
+     stays on "Calculating…". Let the debug preview inject sample stats
+     (points, ranking, coins, boosters), so that the owner can check
+     every variant without playing a game.
+
+Watch out
+  The coin flight starts from `.trophy`
+  (victory-overlay.component.ts:200) and only checks that the element
+  exists. Where a tier hides the trophy (`display: none`), its measured
+  box is empty and the coins would start from the top-left corner of
+  the screen. If the new layout hides the trophy at more sizes, give
+  the flight another origin. (Read from the code, not observed.)
+
+Acceptance criteria
+  - At a 1366 px wide viewport, for every height from 560 to 768 px,
+    every variant shows the title, both squads, the full stats block
+    and the "Back to menu" button, with no scrollbar and nothing
+    clipped.
+  - Phones in portrait look the same as today.
+  - The coin flight and the doubling animation still land on the coin
+    counter.
+  - List for the owner the variants and sizes to check by eye.
+
+═══════════════════════════════════════════════════════════════════════
+RESERVED FOR THE OWNER - NOT FOR AN AI
+═══════════════════════════════════════════════════════════════════════
+Owner's heading (verbatim): "A faire par moi et non pas par l'ia"
+An AI agent must not start, design or prepare these two. They are kept
+here so that the context is not lost.
+
+[A] Add new animated emojis (reactions).
+    Owner's note (verbatim): "Ajoutez des nouveaux emojis animé"
+    Context for later: a reaction is a Unicode glyph listed in
+    REACTION_EMOJIS (packages/shared/src/types.ts:47); its animation is
+    the CSS float over the sender's badge
+    (game/components/emoji-reactions/). Each one has a sound sample
+    (frontend/src/assets/sounds/emojis/, mapped in
+    sound.service.ts:4-20) and, when it is paid, a catalog entry
+    (shop-catalog.ts:95-104).
+
+[B] Add a marble design to the shop, to replace the current planet
+    design.
+    Owner's note (verbatim): "Ajouter un design de bille dans le shop,
+    pour remplacer le design des planetes actuelles."
+    Context for later: marbles are drawn in CSS as planets
+    (frontend/src/app/styles/_planets.scss: red = Mars, green = Earth,
+    blue = Neptune, orange = Jupiter). The catalog has no marble kind
+    yet; `cardback` (shop-catalog.ts:58-63) is a declared but
+    unimplemented placeholder of the same nature.
+    Still to be specified by the owner: whether the new design replaces
+    the planets for everyone or is a purchasable skin, and who sees a
+    player's skin.

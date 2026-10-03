@@ -3,6 +3,7 @@ import { BehaviorSubject, Subject } from 'rxjs';
 import { TabLockService } from './tab-lock.service';
 import { AuthService } from '../../services/auth.service';
 import { ShopService } from '../../services/shop.service';
+import { getOrCreateBrowserId } from '../../shared/browser-id';
 import {
   Action,
   Card,
@@ -1049,11 +1050,7 @@ export class GameStateService {
   }
 
   sendJoinMatchmaking(playerName?: string, picture?: string, authToken?: string, debug?: boolean): void {
-    let browserId = localStorage.getItem('browser_id');
-    if (!browserId) {
-      browserId = crypto.randomUUID();
-      localStorage.setItem('browser_id', browserId);
-    }
+    const browserId = getOrCreateBrowserId();
     this.send(JSON.stringify({ type: 'joinMatchmaking', playerName, browserId, picture, authToken, debug }));
   }
 
@@ -1061,20 +1058,11 @@ export class GameStateService {
     this.send(JSON.stringify({ type: 'selectMatchmakingSlot', color }));
   }
 
-  private getOrCreateBrowserId(): string {
-    let id = localStorage.getItem('browser_id');
-    if (!id) {
-      id = crypto.randomUUID();
-      localStorage.setItem('browser_id', id);
-    }
-    return id;
-  }
-
   sendCreateCustomRoom(playerName: string, picture?: string, authToken?: string): void {
     this.send(JSON.stringify({
       type: 'createCustomRoom',
       playerName,
-      browserId: this.getOrCreateBrowserId(),
+      browserId: getOrCreateBrowserId(),
       ...(picture ? { picture } : {}),
       ...(authToken ? { authToken } : {}),
     }));
@@ -1085,7 +1073,7 @@ export class GameStateService {
       type: 'joinCustomRoom',
       code,
       playerName,
-      browserId: this.getOrCreateBrowserId(),
+      browserId: getOrCreateBrowserId(),
       ...(picture ? { picture } : {}),
       ...(authToken ? { authToken } : {}),
     }));

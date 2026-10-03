@@ -40,7 +40,7 @@ npm workspaces: `packages/shared`, `backend`, `frontend`. Build order matters �
   - `src/session/` — everything above a single game: `session-manager.ts` (entry point used by `index.ts`), `matchmaking-manager.ts`, `custom-game-manager.ts`, `game-registry.ts` (in-memory `gameId → Game`), `reconnect-registry.ts` (guest/user → active game, survives socket drops), `presence-manager.ts` (userId → open sockets, for pushing invites), `bot-dispatch.ts`, `game-restore.ts` (rehydrates `GameRegistry` from blob snapshots on boot).
   - `src/auth/` — `auth-router.ts` (Google/bot/worker login, profile CRUD, avatar upload, leaderboard — all under `/api/auth`), `session-token.ts` (hand-rolled HS256 JWT, no external JWT lib).
   - `src/storage/` — `blob.ts` (Azure Blob: avatars), `snapshot-store.ts` (Azure Blob: per-turn game snapshots for crash/redeploy recovery).
-  - `src/db.ts` — the only file that touches Cosmos DB; owns both containers (`users`, `messages`) and all cross-cutting user-document writes (points, ranking, activity). Prefer adding a function here over reading/writing `Container` objects ad hoc elsewhere.
+  - `src/db.ts` — the only file that touches Cosmos DB; owns all three containers (`users`, `messages`, `guests`) and all cross-cutting user-document writes (points, ranking, activity). Prefer adding a function here over reading/writing `Container` objects ad hoc elsewhere.
   - `src/messages/` — simple inbox/DM feature (`messages-router.ts`), separate Cosmos container.
   - `src/game-mode.ts` / `train-mode.ts` — server-wide mode switches (2v2 teams, training/debug mode).
 
@@ -51,7 +51,7 @@ npm workspaces: `packages/shared`, `backend`, `frontend`. Build order matters �
   - `frontend/content/` — a **separate**, non-Angular static site for SEO (landing pages, `/rules/*`), built by `content/build.mjs`, not part of the Angular app bundle.
 
 ### Persistence — Azure only, no SQL
-- **Cosmos DB (SQL/Core API)**, not Table Storage: database `mercury-db`, containers `users` (partition key `/id`) and `messages` (partition key `/toUserId`). Local dev uses the Cosmos emulator via Azurite-compatible connection string (`COSMOS_CONNECTION_STRING`), TLS verification disabled outside `NODE_ENV=production`.
+- **Cosmos DB (SQL/Core API)**, not Table Storage: database `mercury-db`, containers `users` (partition key `/id`), `messages` (partition key `/toUserId`) and `guests` (partition key `/id`, one record per guest installation keyed by its `browser_id`, deleted by a 90-day TTL that restarts at each guest game). Local dev uses the Cosmos emulator via Azurite-compatible connection string (`COSMOS_CONNECTION_STRING`), TLS verification disabled outside `NODE_ENV=production`.
 - **Azure Blob Storage** for binary/large state: avatar images (`avatars` container, public blob read) and per-turn game snapshots (used to rehydrate `GameRegistry` after a restart, see project memory on snapshot persistence).
 - Write style matters here: prefer targeted Cosmos `patch` ops over read-then-`replace()` of the whole user document — a full replace from a stale read can silently clobber fields (`points`, `ranking`, `lastSeenAt`, …) written concurrently by another request (e.g. `recomputeRankings()` runs after every game end/disconnect/abandon and touches every user document).
 

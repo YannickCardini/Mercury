@@ -41,6 +41,30 @@ export async function getMessagesContainer(): Promise<Container> {
     return container;
 }
 
+/**
+ * Durée de vie d'une fiche invité sans nouvelle partie. Cosmos compte le TTL
+ * depuis la dernière écriture du document : chaque partie lancée le fait
+ * repartir. Engagement repris dans la politique de confidentialité (90 jours).
+ */
+const GUEST_RETENTION_SECONDS = 90 * 24 * 60 * 60;
+
+let guestsContainer: Container | null = null;
+
+// Conteneur séparé de `users` : recomputeRankings, le classement et les stats
+// d'audience parcourent `users` en entier, des fiches invités les fausseraient.
+async function getGuestsContainer(): Promise<Container> {
+    if (guestsContainer) return guestsContainer;
+
+    const { database } = await getClient().databases.createIfNotExists({ id: 'mercury-db' });
+    const { container } = await database.containers.createIfNotExists({
+        id: 'guests',
+        partitionKey: { paths: ['/id'] },
+        defaultTtl: GUEST_RETENTION_SECONDS,
+    });
+    guestsContainer = container;
+    return container;
+}
+
 export async function updateUserPoints(userId: string, delta: number): Promise<void> {
     const container = await getUsersContainer();
     const ops: PatchOperation[] = [{ op: 'incr', path: '/points', value: delta }];
@@ -351,4 +375,109 @@ export async function getAudienceStats(excludedIds: string[]): Promise<AudienceS
         lastSeen: lastSeen[0] ?? null,
         recentSignups,
     };
+}
+
+// ── Invités : nouveau joueur ou joueur récurrent ─────────────────────────────
+//
+// Un invité n'a pas de compte : il est reconnu par le `browser_id` de son
+// installation (UUID tiré par le client et gardé en localStorage). Sa fiche ne
+// porte que des dates et un compteur, jamais de nom ni d'adresse IP.
+
+interface GuestDoc {
+    /** browser_id de l'installation. */
+    id: string;
+    firstSeenAt: string;
+    lastSeenAt: string;
+    gamesStarted: number;
+}
+
+/** Ce qu'on savait d'une installation AVANT l'événement en cours. */
+export interface GuestHistory {
+    /** Parties déjà lancées en invité. 0 = installation jamais vue. */
+    gamesStarted: number;
+    /** Date ISO de la première partie, null si jamais vue. */
+    firstSeenAt: string | null;
+}
+
+const UNKNOWN_GUEST: GuestHistory = { gamesStarted: 0, firstSeenAt: null };
+
+/** Historique d'une installation, sans rien écrire. */
+export async function getGuestHistory(browserId: string): Promise<GuestHistory> {
+    const container = await getGuestsContainer();
+    try {
+        const { resource } = await container.item(browserId, browserId).read<GuestDoc>();
+        return resource
+            ? { gamesStarted: resource.gamesStarted, firstSeenAt: resource.firstSeenAt }
+            : UNKNOWN_GUEST;
+    } catch (err: unknown) {
+        if ((err as { code?: number }).code === 404) return UNKNOWN_GUEST;
+        throw err;
+    }
+}
+
+/**
+ * Compte une partie lancée par cet invité et renvoie son historique d'AVANT
+ * cette partie. `incr` est sûr ici : la fiche naît toujours avec son compteur.
+ */
+export async function recordGuestGameStart(browserId: string): Promise<GuestHistory> {
+    const container = await getGuestsContainer();
+    const now = new Date().toISOString();
+
+    const bump = async (): Promise<GuestHistory> => {
+        const { resource } = await container.item(browserId, browserId).patch<GuestDoc>([
+            { op: 'incr', path: '/gamesStarted', value: 1 },
+            { op: 'set', path: '/lastSeenAt', value: now },
+        ]);
+        if (!resource) throw new Error(`Fiche invité ${browserId} illisible après patch`);
+        return { gamesStarted: resource.gamesStarted - 1, firstSeenAt: resource.firstSeenAt };
+    };
+
+    try {
+        return await bump();
+    } catch (err: unknown) {
+        if ((err as { code?: number }).code !== 404) throw err;
+    }
+
+    try {
+        const doc: GuestDoc = { id: browserId, firstSeenAt: now, lastSeenAt: now, gamesStarted: 1 };
+        await container.items.create(doc);
+        return UNKNOWN_GUEST;
+    } catch (err: unknown) {
+        // 409 : un autre lancement de la même installation a créé la fiche
+        // entre-temps (deux onglets), on compte donc par-dessus.
+        if ((err as { code?: number }).code !== 409) throw err;
+        return bump();
+    }
+}
+
+export interface GuestStats {
+    /** Installations dont la toute première partie date de moins de 24 h. */
+    newLast24h: number;
+    /** Installations déjà connues avant, qui ont rejoué dans les 24 h. */
+    returningLast24h: number;
+    /** Fiches conservées, soit les invités vus sur la durée de rétention. */
+    known: number;
+}
+
+/** Invités nouveaux et récurrents (GET /api/admin/stats). */
+export async function getGuestStats(): Promise<GuestStats> {
+    const container = await getGuestsContainer();
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+    // Dates en ISO 8601 UTC : la comparaison de chaînes suit l'ordre chronologique.
+    const count = async (filter?: string): Promise<number> => {
+        const { resources } = await container.items
+            .query<number>(filter
+                ? { query: `SELECT VALUE COUNT(1) FROM c WHERE ${filter}`, parameters: [{ name: '@since', value: since }] }
+                : 'SELECT VALUE COUNT(1) FROM c')
+            .fetchAll();
+        return resources[0] ?? 0;
+    };
+
+    const [newLast24h, returningLast24h, known] = await Promise.all([
+        count('c.firstSeenAt >= @since'),
+        count('c.lastSeenAt >= @since AND c.firstSeenAt < @since'),
+        count(),
+    ]);
+    return { newLast24h, returningLast24h, known };
 }

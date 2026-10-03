@@ -189,6 +189,30 @@
     }
 }
 
+/* Panneau étroit (desktop paysage, panneau table ~370px à 1366px) : le segment
+   « coéquipier » (nowrap) et la phase ne tiennent plus côte à côte. On les
+   empile, et le rayon 99px (qui déforme une capsule sur plusieurs lignes) est
+   remplacé par un rayon fixe. Les écrans larges et le natif restent inchangés. */
+@container game-board (max-width: 480px) {
+    :host(:not(.is-native)) {
+        .phase-capsule {
+            flex-direction: column;
+            border-radius: 16px;
+        }
+
+        .phase-capsule__teammate {
+            justify-content: center;
+            border-right: none;
+            border-bottom: 1px solid rgba(251, 191, 36, 0.22);
+        }
+
+        .phase-capsule__phase {
+            justify-content: center;
+            text-align: center;
+        }
+    }
+}
+
 @keyframes phase-swap {
     from {
         opacity: 0;
