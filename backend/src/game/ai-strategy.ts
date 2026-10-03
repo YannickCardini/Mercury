@@ -30,18 +30,17 @@ const AI_CARD_PRIORITY: Card['value'][] = [
     '10', '9', '8', '7', '6', '5', '4', '3', '2',
 ];
 
-/** Couleur alliée du point de vue du contexte : soi-même, plus le coéquipier en 2v2. */
+/** Couleur alliée du point de vue du contexte : soi-même, plus le coéquipier. */
 function isAllyColor(color: MarbleColor | null, ctx: LegalMoveContext): boolean {
     return color !== null && (color === ctx.playerColor || color === ctx.teammateColor);
 }
 
 /**
- * Vrai si l'action mange un pion allié (le sien ou celui du coéquipier en 2v2).
+ * Vrai si l'action mange un pion allié (le sien ou celui du coéquipier).
  * L'IA évite ces coups tant qu'une alternative existe — mais ils restent
  * légaux et sont joués en dernier recours (pas d'immunité d'équipe).
  */
 function capturesAlly(action: Action, ctx: LegalMoveContext): boolean {
-    if (ctx.teammateColor === undefined) return false;
     const victimPositions: number[] = [];
     if (action.type === 'capture') victimPositions.push(action.to);
     if (action.splitType === 'capture' && action.splitTo !== undefined) victimPositions.push(action.splitTo);

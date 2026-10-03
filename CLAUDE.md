@@ -2,7 +2,7 @@
 
 ## 📌 Project Overview
 Mercury is a real-time multiplayer board game (similar to Tock / Keezen) played with cards and marbles.
-- Requires exactly 4 players per board (solo, custom room or matchmaking); a 2v2 team mode also exists (unnamed teams: red+blue vs green+orange), toggled server-side via `GAME_MODE`.
+- Requires exactly 4 players per board (solo, custom room or matchmaking). It is always played as 2v2 teams (unnamed teams: red+blue vs green+orange).
 - Frontend ships as a web app and as a native Android app (Capacitor).
 
 ---
@@ -42,7 +42,7 @@ npm workspaces: `packages/shared`, `backend`, `frontend`. Build order matters �
   - `src/storage/` — `blob.ts` (Azure Blob: avatars), `snapshot-store.ts` (Azure Blob: per-turn game snapshots for crash/redeploy recovery).
   - `src/db.ts` — the only file that touches Cosmos DB; owns all three containers (`users`, `messages`, `guests`) and all cross-cutting user-document writes (points, ranking, activity). Prefer adding a function here over reading/writing `Container` objects ad hoc elsewhere.
   - `src/messages/` — simple inbox/DM feature (`messages-router.ts`), separate Cosmos container.
-  - `src/game-mode.ts` / `train-mode.ts` — server-wide mode switches (2v2 teams, training/debug mode).
+  - `src/train-mode.ts` — server-wide training/debug mode switch.
 
 - **`frontend/`** — Angular (standalone components) + Ionic, deployed both as a responsive web app and, via Capacitor, as the Android app (`frontend/android/`).
   - `src/app/home/`, `src/app/game/`, `src/app/profile/`, `src/app/leaderboard/`, `src/app/delete-account/`, `src/app/privacy/` — one folder per route/page.

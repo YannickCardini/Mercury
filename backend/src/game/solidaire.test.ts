@@ -88,18 +88,6 @@ test('solidaire — coéquipier sans pion en réserve → pas d\'exception', () 
     assert.equal(findSolidaireEntry([card('K')], buildTeamCtx('red', marbles)), null);
 });
 
-test('solidaire — mode 1v3 (pas de teammateColor) → jamais d\'exception', () => {
-    const marbles = { ...BLOCKED_RED, blue: [HOME_POSITIONS.blue[0]!] };
-    const ctx: LegalMoveContext = {
-        ownMarbles: [...marbles.red],
-        allMarbles: Object.values(marbles).flat(),
-        playerColor: 'red',
-        marblesByColor: marbles,
-        invincibleMarblesByColor: emptyByColor(),
-    };
-    assert.equal(findSolidaireEntry([card('K')], ctx), null);
-});
-
 test('solidaire — priorité de la carte sacrifiée : A > K > Joker', () => {
     // On sacrifie la carte la plus faible en premier : l'As (+1) avant le Roi
     // (+13), et le Joker (+18 et rejeu) en tout dernier.

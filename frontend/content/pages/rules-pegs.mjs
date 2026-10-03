@@ -3,7 +3,7 @@ import { renderRules, rulesPage } from "../lib/rules-layout.mjs";
 const FAQ = [
   {
     q: "How many players do you need for Pegs and Jokers?",
-    a: "Pegs and Jokers is traditionally played by 4, 6 or 8 players depending on the board. On Mercury, every game seats exactly 4 players, split by default into two teams of 2.",
+    a: "Pegs and Jokers is traditionally played by 4, 6 or 8 players depending on the board. On Mercury, every game seats exactly 4 players, split into two teams of 2.",
   },
   {
     q: "What is the difference between Pegs and Jokers and Ludo or Parcheesi?",
@@ -105,7 +105,7 @@ const SECTIONS = `<section class="rp-section">
       <section class="rp-section">
         <h2>2v2 Team Mode</h2>
         <p>
-          On Mercury, the default mode pits two teams of two players against each other, sitting across from their
+          On Mercury, two teams of two players play against each other, sitting across from their
           partner: <strong>Red &amp; Blue</strong> versus <strong>Green &amp; Orange</strong>. Your team wins once
           both you and your partner have all 4 marbles home.
         </p>

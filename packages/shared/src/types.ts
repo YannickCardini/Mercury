@@ -13,14 +13,6 @@ import type { ConsumableId } from './shop-catalog.js';
 
 export type MarbleColor = 'red' | 'green' | 'blue' | 'orange';
 
-/**
- * Mode de jeu, choisi côté serveur (variable d'environnement GAME_MODE) :
- *  - '1v3' : chacun pour soi — le premier joueur qui rentre ses 4 pions gagne.
- *  - '2v2' : par équipes (red+blue vs green+orange) — l'équipe gagne quand ses
- *    DEUX joueurs ont rentré leurs 4 pions. Voir teams.ts.
- */
-export type GameMode = '1v3' | '2v2';
-
 export type ActionType =
   | 'move'     // déplacement simple sur le chemin
   | 'enter'    // entrée en jeu depuis la maison
@@ -124,8 +116,6 @@ export interface PlayerConfig {
 
 export interface GameConfig {
   players: PlayerConfig[];
-  /** Mode de jeu. Absent = '2v2' (défaut serveur, voir getServerGameMode). */
-  gameMode?: GameMode;
 }
 
 // ── État de jeu ───────────────────────────────────────────────────────────────
@@ -133,8 +123,11 @@ export interface GameConfig {
 export interface GameState {
   players: Player[];
   currentTurn: MarbleColor;
-  /** Mode de jeu de la partie — le front en a besoin pour la validation locale et l'affichage. */
-  gameMode: GameMode;
+  /**
+   * Champ historique, toujours '2v2'. À conserver tant que des builds installés
+   * testent `gameMode !== '2v2'` pour leur validation locale.
+   */
+  gameMode: '2v2';
   /** Durée du tour en secondes (ex: 30) */
   timer: number;
   /**
@@ -211,8 +204,8 @@ export interface ActionRejectedMessage {
 
 /**
  * Envoyé par le serveur quand la partie se termine (victoire ou abandon).
- * `winners` contient une couleur en 1v3, les deux couleurs de l'équipe
- * gagnante en 2v2, et est vide en cas d'abandon sans vainqueur.
+ * `winners` contient les deux couleurs de l'équipe
+ * gagnante, et est vide en cas d'abandon sans vainqueur.
  */
 export interface GameEndedMessage {
   type: 'gameEnded';

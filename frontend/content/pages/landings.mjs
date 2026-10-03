@@ -32,7 +32,7 @@ const CONTENT = {
     playCta: "Play now",
     resumeCta: "Resume your game →",
     facts: {
-      players: "4 players, 2v2 teams by default",
+      players: "4 players, 2v2 teams",
       free: "100% free, no sign-up",
       platform: "Browser or Android",
     },
@@ -70,7 +70,7 @@ const CONTENT = {
       },
       {
         q: "How many players does a game of Pegs and Jokers need?",
-        a: "Every game on Mercury seats exactly 4 players. By default those 4 players are split into two teams of 2, red and blue against green and orange.",
+        a: "Every game on Mercury seats exactly 4 players. Those 4 players are split into two teams of 2, red and blue against green and orange.",
       },
       {
         q: "Can I play Pegs and Jokers with friends?",
@@ -91,7 +91,7 @@ const CONTENT = {
     playCta: "Jouer maintenant",
     resumeCta: "Reprendre la partie →",
     facts: {
-      players: "4 joueurs, équipes 2v2 par défaut",
+      players: "4 joueurs, équipes 2v2",
       free: "100 % gratuit, sans inscription",
       platform: "Navigateur ou Android",
     },
@@ -129,7 +129,7 @@ const CONTENT = {
       },
       {
         q: "Combien de joueurs faut-il pour une partie de Tock en ligne ?",
-        a: "Chaque partie sur Mercury réunit exactement 4 joueurs. Par défaut, ces 4 joueurs sont répartis en deux équipes de 2, rouge et bleu contre vert et orange.",
+        a: "Chaque partie sur Mercury réunit exactement 4 joueurs. Ces 4 joueurs sont répartis en deux équipes de 2, rouge et bleu contre vert et orange.",
       },
       {
         q: "Peut-on jouer au Tock avec ses amis ?",
@@ -145,12 +145,12 @@ const CONTENT = {
   nl: {
     title: "Keezen online spelen — gratis, met 4 spelers | Mercury",
     description:
-      "Speel Keezen gratis online met 4 spelers, standaard 2 tegen 2. Het kaart- en knikkerspel in je browser of op Android, zonder account en zonder download.",
+      "Speel Keezen gratis online met 4 spelers, 2 tegen 2. Het kaart- en knikkerspel in je browser of op Android, zonder account en zonder download.",
     h1: "Keezen online spelen gratis en met 4 spelers",
     playCta: "Speel nu",
     resumeCta: "Ga verder met je partij →",
     facts: {
-      players: "4 spelers, standaard 2v2-teams",
+      players: "4 spelers, 2v2-teams",
       free: "100% gratis, zonder account",
       platform: "Browser of Android",
     },
@@ -188,7 +188,7 @@ const CONTENT = {
       },
       {
         q: "Met hoeveel spelers speel je een online partij Keezen?",
-        a: "Elke partij op Mercury telt precies 4 spelers. Die 4 spelers worden standaard verdeeld in twee teams van 2: rood en blauw tegen groen en oranje.",
+        a: "Elke partij op Mercury telt precies 4 spelers. Die 4 spelers worden verdeeld in twee teams van 2: rood en blauw tegen groen en oranje.",
       },
       {
         q: "Kun je Keezen met vrienden spelen?",
@@ -204,12 +204,12 @@ const CONTENT = {
   de: {
     title: "Dog online spielen — kostenlos, zu viert | Mercury",
     description:
-      "Spielt Dog kostenlos online zu viert, standardmäßig 2 gegen 2. Das Karten- und Murmelspiel im Browser oder auf Android, ohne Anmeldung und ohne Download.",
+      "Spielt Dog kostenlos online zu viert, 2 gegen 2. Das Karten- und Murmelspiel im Browser oder auf Android, ohne Anmeldung und ohne Download.",
     h1: "Dog online spielen kostenlos und zu viert",
     playCta: "Jetzt spielen",
     resumeCta: "Partie fortsetzen →",
     facts: {
-      players: "4 Spieler, standardmäßig 2v2-Teams",
+      players: "4 Spieler, 2v2-Teams",
       free: "100% kostenlos, ohne Anmeldung",
       platform: "Browser oder Android",
     },
@@ -247,7 +247,7 @@ const CONTENT = {
       },
       {
         q: "Wie viele Spieler braucht eine Online-Partie Dog?",
-        a: "Jede Partie auf Mercury wird zu genau 4 Spielern gespielt. Diese 4 Spieler werden standardmäßig in zwei Zweierteams aufgeteilt: Rot und Blau gegen Grün und Orange.",
+        a: "Jede Partie auf Mercury wird zu genau 4 Spielern gespielt. Diese 4 Spieler werden in zwei Zweierteams aufgeteilt: Rot und Blau gegen Grün und Orange.",
       },
       {
         q: "Kann man Dog mit Freunden spielen?",

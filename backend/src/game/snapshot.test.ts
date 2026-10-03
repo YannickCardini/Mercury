@@ -35,7 +35,6 @@ function fakeMessenger() {
 }
 
 const CONFIG: GameConfig = {
-    gameMode: '2v2',
     players: [
         { name: 'Human', color: 'red', isHuman: true, userId: 'u-red' },
         { name: 'Bot1', color: 'blue', isHuman: false },
@@ -75,7 +74,6 @@ function baseSnapshot(overrides: Partial<GameSnapshot> = {}): GameSnapshot {
         schemaVersion: SNAPSHOT_SCHEMA_VERSION,
         savedAt: Date.now(),
         gameId: 'test-game',
-        gameMode: '1v3',
         turn: 7,
         round: 2,
         firstPlayerOfRound: 1,
@@ -177,9 +175,10 @@ test('validateSnapshot — rejette version de schéma, âge, forme et partie gag
     assert.match(validateSnapshot(validSnapshot({ players: validSnapshot().players.slice(0, 3) }))!, /players/);
     assert.match(validateSnapshot(validSnapshot({ currentPlayerIndex: 7 }))!, /index/);
 
-    // Plateau gagné (1v3) : les 4 pions rouges sur les cases d'arrivée.
+    // Plateau gagné par l'équipe red+blue : les 8 pions sur les cases d'arrivée.
     const won = validSnapshot();
     won.players[0]!.marblePositions = [...ARRIVAL_POSITIONS.red];
+    won.players[1]!.marblePositions = [...ARRIVAL_POSITIONS.blue];
     assert.match(validateSnapshot(won)!, /gagnée/);
 });
 

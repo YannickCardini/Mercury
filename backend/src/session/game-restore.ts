@@ -6,7 +6,7 @@ import { dispatchBotAgent } from './bot-dispatch.js';
 import { isTrainMode } from '../train-mode.js';
 import { listSnapshots, queueSaveSnapshot, queueDeleteSnapshot, whenWritesIdle } from '../storage/snapshot-store.js';
 import { SNAPSHOT_SCHEMA_VERSION, type GameSnapshot } from '../game/game-snapshot.js';
-import { hasWon, hasTeamWon } from '@mercury/shared';
+import { hasTeamWon } from '@mercury/shared';
 import type { MarbleColor } from '@mercury/shared';
 import type { SessionManager } from './session-manager.js';
 
@@ -111,13 +111,10 @@ export function validateSnapshot(snap: GameSnapshot): string | null {
 }
 
 function snapshotIsWon(snap: GameSnapshot): boolean {
-    if (snap.gameMode === '2v2') {
-        const marblesByColor = Object.fromEntries(
-            snap.players.map(p => [p.color, p.marblePositions])
-        ) as Record<MarbleColor, number[]>;
-        return snap.players.some(p => hasTeamWon(marblesByColor, p.color));
-    }
-    return snap.players.some(p => hasWon(p.marblePositions, p.color));
+    const marblesByColor = Object.fromEntries(
+        snap.players.map(p => [p.color, p.marblePositions])
+    ) as Record<MarbleColor, number[]>;
+    return snap.players.some(p => hasTeamWon(marblesByColor, p.color));
 }
 
 /** Reconstruit une partie : câblage identique aux sites de lancement normaux. */
@@ -203,7 +200,7 @@ function scheduleBotRedispatch(gameId: string, snap: GameSnapshot): void {
             }
             return;
         }
-        for (let i = 0; i < pending; i++) void dispatchBotAgent(snap.gameMode);
+        for (let i = 0; i < pending; i++) void dispatchBotAgent();
     };
     const timer = setInterval(tick, BOT_RESEAT_RETRY_MS);
     timer.unref();

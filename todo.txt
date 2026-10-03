@@ -548,7 +548,7 @@ Acceptance criteria
     source marble chosen.
 
 ───────────────────────────────────────────────────────────────────────
-[6] CLEANUP - Remove the 1v3 / free-for-all mode: 2v2 is the only mode
+[6] DONE 2026-10-03 (not committed) CLEANUP - Remove the 1v3 / free-for-all mode: 2v2 is the only mode
 ───────────────────────────────────────────────────────────────────────
 Owner's note (verbatim)
   "Enlever tous ce qui fait reference au mode 1v3/chacun pour sois.

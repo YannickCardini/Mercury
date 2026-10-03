@@ -39,6 +39,7 @@ function buildCtx(
         ownMarbles: [...marblesByColor.red],
         allMarbles: Object.values(marblesByColor).flat(),
         playerColor: 'red',
+        teammateColor: 'blue',
         marblesByColor,
         invincibleMarblesByColor: invincible,
     };

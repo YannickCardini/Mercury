@@ -84,9 +84,9 @@ interface FlyingCoin {
   imports: [NgTemplateOutlet, BoostTokenComponent],
 })
 export class VictoryOverlayComponent {
-  /** Gagnant(s) : un seul en 1v3, les deux coéquipiers en 2v2. */
+  /** Gagnant(s) : les deux coéquipiers. */
   winners = input.required<ReadonlyArray<VictoryPlayer>>();
-  /** Perdant(s) : trois en 1v3, les deux coéquipiers adverses en 2v2. */
+  /** Perdant(s) : les deux coéquipiers adverses. */
   losers = input<ReadonlyArray<VictoryPlayer>>([]);
   isWinner = input.required<boolean>();
   byDefault = input<boolean>(false);

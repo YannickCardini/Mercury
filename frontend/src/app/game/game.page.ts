@@ -102,13 +102,10 @@ export class GamePage implements OnDestroy, AfterViewInit {
    * peuvent être montés derrière le masque désormais figé, sans risque de
    * saccade visible pendant le montage. */
   private entranceSettled = signal(false);
-  /** Vrai pour un vrai démarrage de partie 2v2 (annonce nécessaire) — faux
-   * pour les autres modes ou une reconnexion mi-partie (comportement
-   * identique à aujourd'hui : spinner jusqu'à boardReady(), pas d'annonce). */
+  /** Vrai pour un vrai démarrage de partie (annonce nécessaire) — faux
+   * pour une reconnexion mi-partie (spinner jusqu'à boardReady(), pas d'annonce). */
   private needsAnnounce = computed(
-    () =>
-      this.gameStateService.gameMode() === "2v2" &&
-      this.gameStateService.data()?.message !== "Reconnected"
+    () => this.gameStateService.data()?.message !== "Reconnected"
   );
   /** Pilote le montage d'app-board/app-table. */
   mountBoard = computed(() => {
@@ -131,7 +128,7 @@ export class GamePage implements OnDestroy, AfterViewInit {
       : "Connecting to the server...";
   });
 
-  /** Gagnant(s) avec avatar et pions rentrés : un en 1v3, les deux coéquipiers en 2v2. */
+  /** Gagnant(s) avec avatar et pions rentrés : les deux coéquipiers. */
   winnersInfo = computed<VictoryPlayer[]>(() => {
     // Le serveur passe de `actionPlayed` (animation du coup gagnant, qui ne
     // touche que la copie locale du board) directement à `gameEnded`, sans
@@ -143,7 +140,7 @@ export class GamePage implements OnDestroy, AfterViewInit {
     return this.gameStateService.winners().map((color) => this.victoryPlayer(color, realWin));
   });
 
-  /** Perdant(s), dans l'ordre des sièges : trois en 1v3, les deux coéquipiers adverses en 2v2. */
+  /** Perdant(s), dans l'ordre des sièges : les deux coéquipiers adverses. */
   losersInfo = computed<VictoryPlayer[]>(() => {
     const winners = this.gameStateService.winners();
     if (winners.length === 0) return [];
@@ -505,15 +502,9 @@ export class GamePage implements OnDestroy, AfterViewInit {
     const players = this.gameStateService.data()?.gameState.players ?? [];
     if (players.length === 0) return;
     const myColor = this.gameStateService.myPlayerColor();
-    const fallback = players[0]!.color;
-    let winners: MarbleColor[];
-    if (this.gameStateService.gameMode() === "2v2") {
-      const myTeam = TEAMS.find((team) => !!myColor && team.includes(myColor)) ?? TEAMS[0];
-      const otherTeam = myTeam === TEAMS[0] ? TEAMS[1] : TEAMS[0];
-      winners = [...(iWin ? myTeam : otherTeam)];
-    } else {
-      winners = [iWin ? (myColor ?? fallback) : (players.find((p) => p.color !== myColor)?.color ?? fallback)];
-    }
+    const myTeam = TEAMS.find((team) => !!myColor && team.includes(myColor)) ?? TEAMS[0];
+    const otherTeam = myTeam === TEAMS[0] ? TEAMS[1] : TEAMS[0];
+    const winners: MarbleColor[] = [...(iWin ? myTeam : otherTeam)];
     this.gameStateService.winners.set(winners);
     this.gameStateService.winReason.set("win");
   }

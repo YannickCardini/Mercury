@@ -55,11 +55,10 @@ export interface LegalMoveContext {
      */
     invincibleMarblesByColor: Record<MarbleColor, number[]>;
     /**
-     * Mode 2v2 uniquement : couleur du coéquipier de `playerColor`. Sa présence
-     * active toutes les règles d'équipe du validateur (Valet libre, 7 partagé,
-     * mise en jeu solidaire). Absent = mode 1v3, comportement historique.
+     * Couleur du coéquipier de `playerColor`, pour les règles d'équipe du
+     * validateur (Valet libre, 7 partagé, mise en jeu solidaire).
      */
-    teammateColor?: MarbleColor;
+    teammateColor: MarbleColor;
 }
 
 function isInvincible(
@@ -183,14 +182,11 @@ export function getLegalAction(
 
     if (card.value === 'J') {
         if (!isOnMainPath(marblePosition)) return null;
-        // 1v3 : la source de l'échange doit être un pion du joueur actif.
-        // 2v2 : la source peut être n'importe quel pion (le sien, celui du
-        // coéquipier, ou un pion adverse) — mais l'échange doit impliquer au
-        // moins un pion de l'équipe active (voir filtre swappableTargets
-        // ci-dessous) : un échange adverse ↔ adverse est interdit.
-        const sourceColor = ctx.teammateColor !== undefined
-            ? colorAtPosition(marblePosition, ctx.marblesByColor)
-            : (ownMarbles.includes(marblePosition) ? playerColor : null);
+        // La source peut être n'importe quel pion (le sien, celui du coéquipier,
+        // ou un pion adverse) — mais l'échange doit impliquer au moins un pion
+        // de l'équipe active (voir filtre swappableTargets ci-dessous) : un
+        // échange adverse ↔ adverse est interdit.
+        const sourceColor = colorAtPosition(marblePosition, ctx.marblesByColor);
         if (sourceColor === null) return null;
         // Un pion fraîchement entré via A/K/Joker (invincible) ne peut être ni
         // source ni cible tant qu'il n'a pas bougé.
@@ -202,9 +198,9 @@ export function getLegalAction(
             const targetColor = colorAtPosition(pos, ctx.marblesByColor);
             if (targetColor === null || targetColor === sourceColor) return false;
             if (isInvincible(pos, targetColor, ctx.invincibleMarblesByColor)) return false;
-            // 2v2 : refuser un échange où ni la source ni la cible n'appartient
+            // Refuser un échange où ni la source ni la cible n'appartient
             // à l'équipe active (échange adverse ↔ adverse).
-            if (ctx.teammateColor !== undefined && !sourceIsOwnTeam && !sameTeam(targetColor, playerColor)) return false;
+            if (!sourceIsOwnTeam && !sameTeam(targetColor, playerColor)) return false;
             return !isOnAnyArrivalPosition(pos) && !isOnAnyHomePosition(pos);
         });
 
@@ -482,12 +478,11 @@ export function getValidSevenStepsForMarble(
 
 /**
  * Candidats possibles pour le SECOND pion d'un split de 7 : les pions
- * contrôlés, plus ceux du coéquipier en 2v2 (« le joueur actif doit bouger
+ * contrôlés, plus ceux du coéquipier (« le joueur actif doit bouger
  * l'un de ses pions en premier, puis peut utiliser les points restants pour
  * bouger un pion de son coéquipier »).
  */
 function splitSecondMarbleCandidates(ctx: LegalMoveContext): number[] {
-    if (ctx.teammateColor === undefined) return ctx.ownMarbles;
     return [...ctx.ownMarbles, ...ctx.marblesByColor[ctx.teammateColor]];
 }
 
@@ -664,12 +659,12 @@ export function findLegalMoveForCard(
         const action = getLegalAction(card, marblePos, ctx);
         if (action !== null) return action;
     }
-    // 2v2 : un swap légal peut avoir une source qui n'est pas un pion contrôlé
+    // Un swap légal peut avoir une source qui n'est pas un pion contrôlé
     // (pion du coéquipier échangé contre un adverse, ou pion adverse échangé
     // contre un pion de l'équipe) — donc un swap peut exister même quand aucun
     // pion contrôlé ne peut être la source. (L'échange adverse ↔ adverse reste
     // interdit, filtré dans getLegalAction.)
-    if (card.value === 'J' && ctx.teammateColor !== undefined) {
+    if (card.value === 'J') {
         for (const pos of ctx.allMarbles) {
             if (ctx.ownMarbles.includes(pos)) continue;
             const action = getLegalAction(card, pos, ctx);
@@ -688,7 +683,7 @@ export function findLegalMoveForCard(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Mise en jeu solidaire (2v2)
+// Mise en jeu solidaire
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Vrai si aucune carte de la main n'a de coup légal (défausse normalement forcée). */
@@ -704,7 +699,7 @@ export function isHandBlocked(hand: Card[], ctx: LegalMoveContext): boolean {
 const SOLIDAIRE_CARD_PRIORITY = ['A', 'K', 'Joker'] as const;
 
 /**
- * Mise en jeu solidaire (2v2 uniquement) : quand la main du joueur actif est
+ * Mise en jeu solidaire : quand la main du joueur actif est
  * complètement bloquée (il devrait défausser) mais qu'il possède un As, un Roi
  * ou un Joker, que son coéquipier a encore des pions en réserve ET que la case
  * de départ du coéquipier est TOTALEMENT libre (aucun pion d'aucune couleur),
@@ -712,14 +707,13 @@ const SOLIDAIRE_CARD_PRIORITY = ['A', 'K', 'Joker'] as const;
  * lieu de se défausser.
  *
  * Retourne l'action `enter` obligatoire, ou null si l'exception ne s'applique
- * pas (mode 1v3, main non bloquée, pas de carte d'entrée, pas de réserve chez
+ * pas (main non bloquée, pas de carte d'entrée, pas de réserve chez
  * le coéquipier, ou case de départ occupée). Après le switch de fin de jeu, le
  * `teammateColor` du contexte désigne le joueur fini : il n'a plus de pion en
  * réserve, l'exception ne se déclenche donc jamais deux fois.
  */
 export function findSolidaireEntry(hand: Card[], ctx: LegalMoveContext): Action | null {
     const teammate = ctx.teammateColor;
-    if (teammate === undefined) return null;
 
     const card = SOLIDAIRE_CARD_PRIORITY
         .map(value => hand.find(c => c.value === value))

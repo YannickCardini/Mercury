@@ -44,16 +44,14 @@
   <div class="victory-card" [class.by-default]="byDefault()">
     <div class="trophy">{{ byDefault() ? '🏳️' : (isWinner() ? '🏆' : '💀') }}</div>
     <div class="victory-title">
-      {{ isWinner() ? (winners().length > 1 ? 'Team Victory!' : 'Victory!') : 'Defeat' }}
+      {{ isWinner() ? 'Team Victory!' : 'Defeat' }}
     </div>
 
     <div class="winner-subtitle">
       @if (byDefault()) {
         All other players have left the game
-      } @else if (winners().length > 1) {
-        {{ isWinner() ? 'Your team brought all 8 marbles home!' : 'They brought all 8 marbles home.' }}
       } @else {
-        {{ isWinner() ? 'You brought all 4 marbles home!' : displayName(winners()[0]?.name ?? '') + ' won the game.' }}
+        {{ isWinner() ? 'Your team brought all 8 marbles home!' : 'They brought all 8 marbles home.' }}
       }
     </div>
 

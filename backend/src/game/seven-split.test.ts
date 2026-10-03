@@ -12,6 +12,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+    getTeammateColor,
     findLegalMoveForCard,
     getLegalSplit7Action,
     getValidSevenStepsForMarble,
@@ -35,6 +36,7 @@ function buildCtx(
         ownMarbles: [...marblesByColor[ownColor]],
         allMarbles: Object.values(marblesByColor).flat(),
         playerColor: ownColor,
+        teammateColor: getTeammateColor(ownColor),
         marblesByColor,
         invincibleMarblesByColor,
     };

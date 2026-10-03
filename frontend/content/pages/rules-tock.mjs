@@ -3,11 +3,11 @@ import { renderRules, rulesPage } from "../lib/rules-layout.mjs";
 const FAQ = [
   {
     q: "Combien de joueurs faut-il pour jouer au Tock ?",
-    a: "Le Tock se joue traditionnellement à 2, 4 ou 6 joueurs selon le plateau utilisé. Sur Mercury, chaque partie réunit exactement 4 joueurs, répartis par défaut en deux équipes de 2.",
+    a: "Le Tock se joue traditionnellement à 2, 4 ou 6 joueurs selon le plateau utilisé. Sur Mercury, chaque partie réunit exactement 4 joueurs, répartis en deux équipes de 2.",
   },
   {
     q: "Le Tock se joue-t-il obligatoirement en équipe ?",
-    a: "Non, il existe une variante du Tock où chaque joueur joue pour lui-même. Sur Mercury, le mode par défaut est le mode équipes 2 contre 2, mais l'effet des cartes reste identique dans les deux cas.",
+    a: "Non, il existe une variante du Tock où chaque joueur joue pour lui-même. Sur Mercury, on joue toujours en équipes 2 contre 2, mais l'effet des cartes reste identique dans les deux variantes.",
   },
   {
     q: "Quelle est la différence entre le Tock et le jeu des petits chevaux ?",
@@ -109,7 +109,7 @@ const SECTIONS = `<section class="rp-section">
       <section class="rp-section">
         <h2>Le mode équipes 2 contre 2</h2>
         <p>
-          Sur Mercury, le mode par défaut oppose deux équipes de deux joueurs assis face à face :
+          Sur Mercury, deux équipes de deux joueurs s'opposent, assis face à face :
           <strong>Rouge &amp; Bleu</strong> contre <strong>Vert &amp; Orange</strong>. Votre équipe gagne quand vous
           et votre partenaire avez chacun vos 4 billes arrivées dans votre maison.
         </p>

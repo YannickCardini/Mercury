@@ -1,14 +1,14 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // packages/shared/src/teams.ts
 //
-// Mode équipes 2v2 : les équipes sont fixes et déterminées par la couleur
+// Équipes 2v2 : les équipes sont fixes et déterminées par la couleur
 // (= le siège). red (siège 1) + blue (siège 3) forment une équipe,
 // green (siège 2) + orange (siège 4) l'autre. Les équipes n'ont pas de nom :
 // une équipe est identifiée par sa paire de couleurs.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { hasWon } from './board-config.js';
-import type { GameMode, MarbleColor } from './types.js';
+import type { MarbleColor } from './types.js';
 
 /** Les deux équipes du mode 2v2, chacune identifiée par sa paire de couleurs. */
 export const TEAMS: readonly [
@@ -37,12 +37,11 @@ export function sameTeam(a: MarbleColor, b: MarbleColor): boolean {
 }
 
 /**
- * Vrai si `b` est un adversaire de `a` dans ce mode : toute autre couleur en
- * 1v3, l'équipe d'en face en 2v2. Sert au booster Bounty, qui ne paie que la
+ * Vrai si `b` est un adversaire de `a` : une couleur de l'équipe d'en face. Sert au booster Bounty, qui ne paie que la
  * capture d'un adversaire (capturer son coéquipier ou soi-même ne rapporte rien).
  */
-export function areOpponents(a: MarbleColor, b: MarbleColor, mode: GameMode): boolean {
-  return mode === '2v2' ? !sameTeam(a, b) : a !== b;
+export function areOpponents(a: MarbleColor, b: MarbleColor): boolean {
+  return !sameTeam(a, b);
 }
 
 /**

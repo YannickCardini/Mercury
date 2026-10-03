@@ -1,4 +1,3 @@
-import type { GameMode } from '@mercury/shared';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Dispatch des agents IA externes — partagé entre le matchmaking (remplir la
@@ -45,7 +44,7 @@ export function accountTag(userId: string | undefined, browserId?: string): stri
  * Réveille un agent IA via POST ${AGENT_URL}/dispatch.
  * `busy` = 503, tous les bots du pool sont déjà actifs (réessayable).
  */
-export async function dispatchBotAgent(gameMode: GameMode): Promise<'ok' | 'busy' | 'failed'> {
+export async function dispatchBotAgent(): Promise<'ok' | 'busy' | 'failed'> {
     const url = process.env['AGENT_URL'];
     const secret = process.env['BOT_SECRET'];
     if (!url || !secret) {
@@ -53,12 +52,12 @@ export async function dispatchBotAgent(gameMode: GameMode): Promise<'ok' | 'busy
         return 'failed';
     }
     try {
-        // Le mode de jeu est transmis pour que l'agent choisisse le modèle
-        // adapté (1v3 chacun-pour-soi vs 2v2 par équipes).
+        // `gameMode` est toujours '2v2' : l'agent externe peut choisir son
+        // modèle d'après cette valeur, ne pas la retirer sans l'accord du projet agent.
         const res = await fetch(`${url.replace(/\/$/, '')}/dispatch`, {
             method: 'POST',
             headers: { 'X-Bot-Secret': secret, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ gameMode }),
+            body: JSON.stringify({ gameMode: '2v2' }),
         });
         if (res.ok) {
             console.log('🤖 Bot agent dispatched');

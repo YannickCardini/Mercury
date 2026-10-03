@@ -99,12 +99,11 @@ test('hasBoost reconnaît Bounty, boostMultiplier ne le confond pas avec un doub
     assert.equal(boostMultiplier(['consumable.bounty'], 'double_coins'), 1);
 });
 
-test('areOpponents : tout le monde en 1v3, l\'équipe d\'en face en 2v2', () => {
-    assert.equal(areOpponents('red', 'blue', '1v3'), true);
-    assert.equal(areOpponents('red', 'red', '1v3'), false);
-    assert.equal(areOpponents('red', 'blue', '2v2'), false); // coéquipiers
-    assert.equal(areOpponents('red', 'green', '2v2'), true);
-    assert.equal(areOpponents('red', 'red', '2v2'), false);
+test('areOpponents : seule l\'équipe d\'en face compte', () => {
+    assert.equal(areOpponents('red', 'blue'), false); // coéquipiers
+    assert.equal(areOpponents('red', 'green'), true);
+    assert.equal(areOpponents('red', 'orange'), true);
+    assert.equal(areOpponents('red', 'red'), false);
 });
 
 test('getConsumable ne répond que pour un booster', () => {

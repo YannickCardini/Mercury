@@ -34,6 +34,7 @@ test('Joker (+18) — un pion invincible sur le trajet bloque la promotion', () 
         ownMarbles: [8],
         allMarbles: [8, 9],
         playerColor: 'green',
+        teammateColor: 'orange',
         marblesByColor,
         invincibleMarblesByColor,
     };
@@ -52,6 +53,7 @@ test('Joker (+18) — un pion invincible de SA couleur sur SON start ne bloque P
         ownMarbles: [8, 135],
         allMarbles: [8, 135],
         playerColor: 'green',
+        teammateColor: 'orange',
         marblesByColor,
         invincibleMarblesByColor,
     };
@@ -70,6 +72,7 @@ test('Joker (+18) — sans pion invincible sur le trajet, la promotion reste lé
         ownMarbles: [8],
         allMarbles: [8],
         playerColor: 'green',
+        teammateColor: 'orange',
         marblesByColor,
         invincibleMarblesByColor: emptyByColor(),
     };

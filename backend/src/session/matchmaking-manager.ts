@@ -16,7 +16,6 @@ import { isBotUserId, dispatchBotAgent, accountTag } from './bot-dispatch.js';
 import { isTrainMode } from '../train-mode.js';
 import { notifyAdmin } from '../admin/telegram.js';
 import { describeGuest, lookupGuestHistory, trackGuestGameStarts } from './guest-tracking.js';
-import { getServerGameMode } from '../game-mode.js';
 import { queueSaveSnapshot, queueDeleteSnapshot, isSnapshotStorageConfigured } from '../storage/snapshot-store.js';
 import type { ReconnectRegistry } from './reconnect-registry.js';
 import type { ClientMessage, GameConfig, MarbleColor } from '@mercury/shared';
@@ -176,7 +175,7 @@ export class MatchmakingManager {
         if (Math.random() >= this.session.botDispatchChance) return;
 
         this.session.botDispatchChance /= 2;
-        void dispatchBotAgent(getServerGameMode());
+        void dispatchBotAgent();
     }
 
     /**

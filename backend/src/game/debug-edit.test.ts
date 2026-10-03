@@ -32,7 +32,6 @@ function fakeMessenger() {
 }
 
 const CONFIG: GameConfig = {
-    gameMode: '2v2',
     players: [
         { name: 'Human', color: 'red', isHuman: true },
         { name: 'Bot1', color: 'blue', isHuman: false },

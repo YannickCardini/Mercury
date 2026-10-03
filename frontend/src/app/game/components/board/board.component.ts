@@ -76,11 +76,8 @@ export interface SquareAnimation {
   imports: [IonCol, IonRow, IonGrid, CommonModule, TockCardComponent, PlayerBadgeComponent],
   // `is-native` : permet d'alléger en CSS les effets coûteux/flashants sur WebView
   // Android (filtres SVG sur l'anneau-timer des badges).
-  // `is-2v2` : permet de décaler légèrement le plateau vers le bas en portrait
-  // étroit pour laisser de la place à `app-team-vs-banner` (voir board.component.scss).
   host: {
     '[class.is-native]': '!isWeb',
-    '[class.is-2v2]': "gameStateService.gameMode() === '2v2'",
   },
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -155,7 +152,7 @@ export class BoardComponent implements OnDestroy {
     const solidaire = this.gameStateService.forcedSolidaireEntry();
     if (solidaire) {
       if (!ENTER_CARDS.includes(card.value)) return empty;
-      const teammate = ctx.teammateColor!;
+      const teammate = ctx.teammateColor;
       const isReserve = HOME_POSITIONS[teammate].includes(focusedMarble)
         && ctx.marblesByColor[teammate].includes(focusedMarble);
       return isReserve
@@ -931,19 +928,18 @@ export class BoardComponent implements OnDestroy {
   /**
    * Sièges des pastilles joueur, mappés sur le coin physique de chaque couleur
    * (cf. HOME_POSITIONS / PLAYER_INFO_STARTS après la reconfiguration du plateau).
-   * En 2v2, la forme distingue les équipes : rouge/bleu en losange, orange/vert
-   * en cercle. En 1v3 (chacun pour soi), tous les badges sont circulaires.
+   * La forme distingue les équipes : rouge/bleu en losange, orange/vert
+   * en cercle.
    */
   readonly cornerSlots = computed<ReadonlyArray<{
     color: MarbleColor;
     corner: 'tl' | 'tr' | 'bl' | 'br';
     shape: 'circle' | 'diamond';
   }>>(() => {
-    const teamMode = this.gameStateService.gameMode() === '2v2';
     return [
       { color: 'orange', corner: 'tl', shape: 'circle' },
-      { color: 'red', corner: 'tr', shape: teamMode ? 'diamond' : 'circle' },
-      { color: 'blue', corner: 'bl', shape: teamMode ? 'diamond' : 'circle' },
+      { color: 'red', corner: 'tr', shape: 'diamond' },
+      { color: 'blue', corner: 'bl', shape: 'diamond' },
       { color: 'green', corner: 'br', shape: 'circle' },
     ];
   });

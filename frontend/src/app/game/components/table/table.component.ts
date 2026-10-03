@@ -135,9 +135,7 @@ enum TURN_PHASE {
     if (!card || card.value !== '7') return [];
     const ctx = this.gameStateService.legalCtx();
     if (!ctx) return [];
-    const candidates2 = ctx.teammateColor !== undefined
-      ? [...ctx.ownMarbles, ...ctx.marblesByColor[ctx.teammateColor]]
-      : ctx.ownMarbles;
+    const candidates2 = [...ctx.ownMarbles, ...ctx.marblesByColor[ctx.teammateColor]];
     const allValid = getValidSevenStepsForMarble(marble1, ctx);
     return allValid.filter(steps => {
       if (steps === 7) return false; // full move — not a split
@@ -483,7 +481,7 @@ enum TURN_PHASE {
     const idx = myTurn ? this.selectedCardIndex() : this.infoCardIndex();
     if (idx === null) return null;
     const card = this.getPlayerHand()[idx];
-    return card ? getCardEffect(card.value, this.gameStateService.gameMode() === '2v2') : null;
+    return card ? getCardEffect(card.value) : null;
   });
 
   /** Appareil capable de survol réel (souris desktop) → active l'aide au survol.
@@ -516,7 +514,7 @@ enum TURN_PHASE {
     const card = this.getPlayerHand()[index];
     if (!card) return;
 
-    const effect = getCardEffect(card.value, this.gameStateService.gameMode() === '2v2');
+    const effect = getCardEffect(card.value);
     const rect = el.getBoundingClientRect();
     // Ancrage horizontal clampé pour ne pas déborder de l'écran (≈ demi-largeur max).
     const HALF = 150;

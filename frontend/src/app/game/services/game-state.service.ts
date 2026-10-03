@@ -44,7 +44,6 @@ import {
   areOpponents,
   hasBoost,
   type ConsumableId,
-  type GameMode,
   type LegalMoveContext,
 } from '@mercury/shared';
 
@@ -65,7 +64,7 @@ export class GameStateService {
   // ── État serveur ──────────────────────────────────────────────────────────
   data = signal<GameStateMessage | null>(null);
   isConnected = signal(false);
-  /** Couleur(s) gagnante(s) : une en 1v3, les deux de l'équipe en 2v2. Vide = partie en cours. */
+  /** Couleur(s) gagnante(s) : les deux de l'équipe. Vide = partie en cours. */
   winners = signal<MarbleColor[]>([]);
   winReason = signal<'win' | 'win_by_default' | null>(null);
   /** Points stats received after game end. null until the server sends gameStats. */
@@ -114,7 +113,7 @@ export class GameStateService {
    */
   onCaptureAnimated(capturer: MarbleColor, victim: MarbleColor, square: number): void {
     if (!this.hasBounty() || capturer !== this.myPlayerColor()) return;
-    if (!areOpponents(capturer, victim, this.gameMode())) return;
+    if (!areOpponents(capturer, victim)) return;
     this.bountyLocal.update(n => n + 1);
     this.bountyCapture$.next({ square });
   }
@@ -221,18 +220,14 @@ export class GameStateService {
     return this.data()?.gameState.currentTurn === color;
   });
 
-  /** Mode de jeu de la partie (décidé par le serveur, voir GameState.gameMode). */
-  gameMode = computed<GameMode>(() => this.data()?.gameState.gameMode ?? '2v2');
-
   /**
-   * Couleur des pions contrôlés par le joueur local. En 2v2, un joueur qui a
+   * Couleur des pions contrôlés par le joueur local. Un joueur qui a
    * rentré ses 4 pions contrôle ceux de son coéquipier (switch de fin de jeu).
    */
   controlledColor = computed<MarbleColor | null>(() => {
     const myColor = this.myPlayerColor();
     const data = this.data();
     if (!myColor || !data) return myColor;
-    if (data.gameState.gameMode !== '2v2') return myColor;
     const me = data.gameState.players.find(p => p.color === myColor);
     if (!me) return myColor;
     return getControlledColor(myColor, me.marblePositions);
@@ -245,7 +240,7 @@ export class GameStateService {
   });
 
   /**
-   * Couleurs (2v2 uniquement) dont les 4 pions sont actuellement dans leur
+   * Couleurs dont les 4 pions sont actuellement dans leur
    * zone d'arrivée — état persistant, entièrement dérivé du gameState courant
    * (donc correct dès l'affichage après une reconnexion, pas seulement au
    * moment de la transition). Sert à l'effet visuel "pions ancrés" sur le
@@ -254,7 +249,7 @@ export class GameStateService {
   finishedColors = computed<Set<MarbleColor>>(() => {
     const data = this.data();
     const result = new Set<MarbleColor>();
-    if (!data || data.gameState.gameMode !== '2v2') return result;
+    if (!data) return result;
     for (const p of data.gameState.players) {
       if (hasWon(p.marblePositions, p.color)) result.add(p.color);
     }
@@ -263,7 +258,7 @@ export class GameStateService {
 
   /**
    * Couleur de REPRÉSENTATION d'un joueur hors plateau (badge, bannière de
-   * tour, footer, bannières timeout/auto-play…) : en 2v2, un joueur qui a
+   * tour, footer, bannières timeout/auto-play…) : un joueur qui a
    * rentré ses 4 pions est affiché avec la couleur de son coéquipier — il
    * joue désormais pour lui. Les billes du board, elles, gardent leur couleur
    * réelle (état « ancré »), et l'écran de victoire les couleurs d'origine.
@@ -285,8 +280,7 @@ export class GameStateService {
    */
   private finishedColorsSeen = new Set<MarbleColor>();
   /**
-   * Émet la couleur d'un joueur qui vient tout juste de rentrer son 4e pion
-   * (2v2 uniquement) — déclenche la célébration one-shot côté board. N'émet
+   * Émet la couleur d'un joueur qui vient tout juste de rentrer son 4e pion — déclenche la célébration one-shot côté board. N'émet
    * PAS lors d'une reconnexion à une partie où ce switch a déjà eu lieu avant
    * la coupure (l'état persistant `finishedColors` suffit alors à l'affichage).
    */
@@ -298,7 +292,6 @@ export class GameStateService {
    * (hors reconnexion), pour permettre à l'appelant de réagir à cette transition.
    */
   private syncFinishedColors(state: GameStateMessage): boolean {
-    if (state.gameState.gameMode !== '2v2') return false;
     const isReconnect = state.message === 'Reconnected';
     let justFinished = false;
     for (const p of state.gameState.players) {
@@ -326,21 +319,18 @@ export class GameStateService {
     const invincibleMarblesByColor = Object.fromEntries(
       players.map(p => [p.color, p.marblePositions.filter((_, i) => p.marbleInvincible[i])])
     ) as Record<MarbleColor, number[]>;
-    const ctx: LegalMoveContext = {
+    return {
       ownMarbles: marblesByColor[controlled] ?? [],
       allMarbles: players.flatMap(p => p.marblePositions),
       playerColor: controlled,
+      teammateColor: getTeammateColor(controlled),
       marblesByColor,
       invincibleMarblesByColor,
     };
-    if (data.gameState.gameMode === '2v2') {
-      ctx.teammateColor = getTeammateColor(controlled);
-    }
-    return ctx;
   });
 
   /**
-   * Mise en jeu solidaire (2v2) : action `enter` obligatoire du pion du
+   * Mise en jeu solidaire : action `enter` obligatoire du pion du
    * coéquipier quand la main est bloquée avec un A/K/Joker, que le coéquipier
    * a des pions en réserve et que sa case de départ est totalement libre.
    * null si l'exception ne s'applique pas.
@@ -443,7 +433,7 @@ export class GameStateService {
     const solidaire = this.forcedSolidaireEntry();
     if (solidaire) {
       if (!ENTER_CARDS.includes(card.value)) return false;
-      const teammate = ctx.teammateColor!;
+      const teammate = ctx.teammateColor;
       return HOME_POSITIONS[teammate].includes(marblePos)
         && ctx.marblesByColor[teammate].includes(marblePos);
     }
@@ -486,7 +476,7 @@ export class GameStateService {
     if (solidaire) {
       const playable = new Set<number>();
       if (ENTER_CARDS.includes(card.value)) {
-        const teammate = ctx.teammateColor!;
+        const teammate = ctx.teammateColor;
         for (const pos of ctx.marblesByColor[teammate]) {
           if (HOME_POSITIONS[teammate].includes(pos)) playable.add(pos);
         }
@@ -497,11 +487,10 @@ export class GameStateService {
     if (card.value === 'J') {
       const selectedSource = this.selectedMarblePosition();
       if (selectedSource === null) {
-        // Phase 1 : sources possibles du swap. En 2v2 n'importe quel pion du
-        // plateau peut être échangé ; en 1v3 seulement les pions contrôlés.
-        const sources = ctx.teammateColor !== undefined ? ctx.allMarbles : ctx.ownMarbles;
+        // Phase 1 : sources possibles du swap. N'importe quel pion du
+        // plateau peut être échangé.
         const playable = new Set<number>();
-        for (const pos of sources) {
+        for (const pos of ctx.allMarbles) {
           if (getLegalAction(card, pos, ctx) !== null) playable.add(pos);
         }
         return playable;
@@ -531,10 +520,8 @@ export class GameStateService {
       const steps1 = this.sevenFirstSteps();
       if (steps1 === 7) return null; // coup simple, pas de second pion
       // Phase 2 : second pion parmi les billes contrôlées + celles du
-      // coéquipier en 2v2 (hors premier pion)
-      const candidates = ctx.teammateColor !== undefined
-        ? [...ctx.ownMarbles, ...ctx.marblesByColor[ctx.teammateColor]]
-        : ctx.ownMarbles;
+      // coéquipier (hors premier pion)
+      const candidates = [...ctx.ownMarbles, ...ctx.marblesByColor[ctx.teammateColor]];
       const playable = new Set<number>();
       for (const pos of candidates) {
         if (pos === marble1) continue;
@@ -571,7 +558,7 @@ export class GameStateService {
     if (solidaire) {
       const playable = new Set<number>();
       if (ENTER_CARDS.includes(card.value)) {
-        const teammate = ctx.teammateColor!;
+        const teammate = ctx.teammateColor;
         for (const pos of ctx.marblesByColor[teammate]) {
           if (HOME_POSITIONS[teammate].includes(pos)) playable.add(pos);
         }
@@ -579,8 +566,8 @@ export class GameStateService {
       return playable;
     }
 
-    // En 2v2, le Valet peut prendre n'importe quel pion du plateau comme source.
-    const candidates = card.value === 'J' && ctx.teammateColor !== undefined
+    // Le Valet peut prendre n'importe quel pion du plateau comme source.
+    const candidates = card.value === 'J'
       ? ctx.allMarbles
       : ctx.ownMarbles;
 
@@ -602,10 +589,8 @@ export class GameStateService {
     if (!card || card.value !== '7') return false;
     const ctx = this.legalCtx();
     if (!ctx) return false;
-    // Second pion : billes contrôlées + celles du coéquipier en 2v2.
-    const candidates2 = ctx.teammateColor !== undefined
-      ? [...ctx.ownMarbles, ...ctx.marblesByColor[ctx.teammateColor]]
-      : ctx.ownMarbles;
+    // Second pion : billes contrôlées + celles du coéquipier.
+    const candidates2 = [...ctx.ownMarbles, ...ctx.marblesByColor[ctx.teammateColor]];
     for (const m1 of ctx.ownMarbles) {
       const steps = getValidSevenStepsForMarble(m1, ctx).filter(s => s !== 7);
       for (const s of steps) {

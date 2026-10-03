@@ -12,7 +12,6 @@ import { computeEndGamePointsDeltas } from './points.js';
 import { computeEndGameCoins, computeWinCoins } from './coins.js';
 import { loadOwnedItems, peekOwnedItems, prefetchOwnedItems } from '../shop/entitlements.js';
 import { isTrainMode } from '../train-mode.js';
-import { getServerGameMode } from '../game-mode.js';
 import {
     getHomePositions,
     hasWon,
@@ -39,7 +38,7 @@ import {
 } from '@mercury/shared';
 import { REACTION_EMOJIS } from "@mercury/shared";
 import { SNAPSHOT_SCHEMA_VERSION, type GameSnapshot } from './game-snapshot.js';
-import type { Action, Card, ClientMessage, ConsumableId, GameConfig, GameMode, GameState, GameStatsMessage, MarbleColor, ReactionEmoji } from "@mercury/shared";
+import type { Action, Card, ClientMessage, ConsumableId, GameConfig, GameState, GameStatsMessage, MarbleColor, ReactionEmoji } from "@mercury/shared";
 
 const REACTION_COOLDOWN_MS = 2000;
 
@@ -71,8 +70,6 @@ export class Game {
     readonly id: string;
 
     private players: Player[];
-    /** Mode de jeu de la partie — fixé à la création (voir getServerGameMode). */
-    private readonly gameMode: GameMode;
     private turn: number = 0;
     private round: number = 0;
     private readonly startTime: number;
@@ -170,9 +167,6 @@ export class Game {
         this.id = snapshot?.gameId ?? crypto.randomUUID();
         this.startTime = snapshot?.startTime ?? Date.now();
         this.restored = snapshot !== undefined;
-        // Le mode vient du snapshot (restauration — l'env a pu changer entre
-        // deux déploiements), de la config (tests) ou de l'env serveur (GAME_MODE).
-        this.gameMode = snapshot?.gameMode ?? config.gameMode ?? getServerGameMode();
 
         this.players = config.players.map(cfg => {
             const player = new Player(
@@ -285,7 +279,6 @@ export class Game {
      */
     static fromSnapshot(snapshot: GameSnapshot, messenger: GameMessenger): Game {
         const config: GameConfig = {
-            gameMode: snapshot.gameMode,
             // L'ordre de players[] doit être celui du snapshot : les index
             // currentPlayerIndex/firstPlayerOfRound s'y réfèrent.
             players: snapshot.players.map(p => ({
@@ -333,7 +326,6 @@ export class Game {
             schemaVersion: SNAPSHOT_SCHEMA_VERSION,
             savedAt: Date.now(),
             gameId: this.id,
-            gameMode: this.gameMode,
             turn: this.turn,
             round: this.round,
             firstPlayerOfRound: this.firstPlayerOfRound,
@@ -406,7 +398,7 @@ export class Game {
                 ...(p.userId !== undefined ? { userId: p.userId } : {}),
             })),
             currentTurn: currentPlayer.color,
-            gameMode: this.gameMode,
+            gameMode: '2v2',
             timer: TURN_DURATION_SECONDS,
             discardedCards: this.discardedCards,
             canDiscard: this.computeCanDiscard(currentPlayer),
@@ -973,10 +965,8 @@ export class Game {
 
         console.log(`🏆 Partie ${this.id} terminée — ${winner.name} (${winner.color}) gagne, dernier humain connecté`);
 
-        // En 2v2, le dernier humain connecté fait gagner son ÉQUIPE entière.
-        const winners = this.gameMode === '2v2'
-            ? [winner.color, getTeammateColor(winner.color)]
-            : [winner.color];
+        // Le dernier humain connecté fait gagner son ÉQUIPE entière.
+        const winners = [winner.color, getTeammateColor(winner.color)];
         this.messenger.send({ type: 'gameEnded', winners, reason: 'win_by_default' });
 
         if (this.pendingHumanActionResolve) {
@@ -1235,7 +1225,7 @@ export class Game {
      * pour la stratégie (humain/IA), la validation serveur, le fallback timeout
      * et le calcul de `canDiscard`.
      *
-     * En 2v2, un joueur qui a rentré ses 4 pions contrôle ceux de son
+     * Un joueur qui a rentré ses 4 pions contrôle ceux de son
      * coéquipier : `ownMarbles`/`playerColor` désignent alors le coéquipier
      * (ses pions, son start, ses arrivées), et `teammateColor` active les
      * règles d'équipe du validateur (Valet libre, 7 partagé, solidaire).
@@ -1248,20 +1238,12 @@ export class Game {
             invincibleMarblesByColor: this.buildInvincibleMarblesByColor(),
         };
 
-        if (this.gameMode === '2v2') {
-            const controlled = getControlledColor(player.color, player.marblePositions);
-            return {
-                ...base,
-                ownMarbles: [...marblesByColor[controlled]],
-                playerColor: controlled,
-                teammateColor: getTeammateColor(controlled),
-            };
-        }
-
+        const controlled = getControlledColor(player.color, player.marblePositions);
         return {
             ...base,
-            ownMarbles: [...marblesByColor[player.color]],
-            playerColor: player.color,
+            ownMarbles: [...marblesByColor[controlled]],
+            playerColor: controlled,
+            teammateColor: getTeammateColor(controlled),
         };
     }
 
@@ -1408,8 +1390,8 @@ export class Game {
                     victim.marbleInvincible[i] = false;
                     console.log(`💀 ${activePlayer.name} a capturé un pion de ${victim.name}! Retour à la base (${emptyHome}).`);
                     // Crédit Bounty : au joueur qui a joué la carte, même quand
-                    // le pion déplacé est celui de son coéquipier (2v2).
-                    if (areOpponents(activePlayer.color, victim.color, this.gameMode)) {
+                    // le pion déplacé est celui de son coéquipier.
+                    if (areOpponents(activePlayer.color, victim.color)) {
                         this.captureCounts.set(activePlayer.color, (this.captureCounts.get(activePlayer.color) ?? 0) + 1);
                     }
                 }
@@ -1595,27 +1577,21 @@ export class Game {
     }
 
     private gameIsOver(): boolean {
-        if (this.gameMode === '2v2') {
-            // Victoire d'équipe : les DEUX coéquipiers ont rentré leurs 4 pions.
-            // Un joueur fini seul continue de jouer (il contrôle les pions de
-            // son coéquipier, voir buildLegalMoveContext).
-            const marblesByColor = Object.fromEntries(
-                this.players.map(p => [p.color, p.marblePositions])
-            ) as Record<MarbleColor, number[]>;
-            return this.players.some(p => hasTeamWon(marblesByColor, p.color));
-        }
-        return this.players.some(p => hasWon(p.marblePositions, p.color));
+        // Victoire d'équipe : les DEUX coéquipiers ont rentré leurs 4 pions.
+        // Un joueur fini seul continue de jouer (il contrôle les pions de
+        // son coéquipier, voir buildLegalMoveContext).
+        const marblesByColor = Object.fromEntries(
+            this.players.map(p => [p.color, p.marblePositions])
+        ) as Record<MarbleColor, number[]>;
+        return this.players.some(p => hasTeamWon(marblesByColor, p.color));
     }
 
-    /** Couleur(s) gagnante(s) à la fin naturelle : une en 1v3, les deux de l'équipe en 2v2. */
+    /** Couleur(s) gagnante(s) à la fin naturelle : les deux de l'équipe. */
     private computeWinners(): MarbleColor[] {
         const finished = this.players
             .filter(p => hasWon(p.marblePositions, p.color))
             .map(p => p.color);
-        if (this.gameMode === '2v2') {
-            const winner = finished.find(color => finished.includes(getTeammateColor(color)));
-            return winner !== undefined ? [winner, getTeammateColor(winner)] : [];
-        }
-        return finished.length > 0 ? [finished[0]!] : [];
+        const winner = finished.find(color => finished.includes(getTeammateColor(color)));
+        return winner !== undefined ? [winner, getTeammateColor(winner)] : [];
     }
 }

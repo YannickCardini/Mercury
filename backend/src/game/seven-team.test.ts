@@ -122,15 +122,3 @@ test('7 (2v2) — les deux moitiés du split ne peuvent pas atterrir sur la mêm
     const ctx = buildTeamCtx('red', marbles);
     assert.equal(getLegalSplit7Action(SEVEN, 10, 2, 7, ctx), null, 'to1 === to2 doit rester illégal');
 });
-
-test('7 (1v3) — le split reste limité aux pions propres (pas de teammateColor)', () => {
-    const marbles = { ...emptyByColor(), red: [10], blue: [86] };
-    const ctx: LegalMoveContext = {
-        ownMarbles: [10],
-        allMarbles: [10, 86],
-        playerColor: 'red',
-        marblesByColor: marbles,
-        invincibleMarblesByColor: emptyByColor(),
-    };
-    assert.equal(getLegalSplit7Action(SEVEN, 10, 1, 86, ctx), null);
-});

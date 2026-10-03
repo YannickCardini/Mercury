@@ -41,12 +41,9 @@
       @if (mountBoard()) {
       <app-board (ready)="boardReady.set(true)"></app-board>
       }
-      <!-- Bandeau "équipe vs équipe" au-dessus du plateau (mode 2v2 uniquement,
-           masqué en CSS sur les écrans trop bas/larges — voir
-           team-vs-banner.component.scss). -->
-      @if (gameStateService.gameMode() === '2v2') {
+      <!-- Bandeau "équipe vs équipe" au-dessus du plateau (masqué en CSS sur
+           les écrans trop bas/larges — voir team-vs-banner.component.scss). -->
       <app-team-vs-banner [leftTeam]="introTopTeam()" [rightTeam]="introBottomTeam()" />
-      }
       <!-- Boutons discrets pour prévisualiser les écrans de fin de partie -->
       @if (debug) {
       <div class="debug-result-buttons">
@@ -74,10 +71,8 @@
          (indépendant du board-wrapper), derrière lequel board/table sont
          montés une fois son animation d'entrée entièrement figée — voir
          mountBoard() dans game.page.ts. + bouton replay discret (debug). -->
-    @if (gameStateService.gameMode() === '2v2') {
     <app-team-intro-overlay [topTeam]="introTopTeam()" [bottomTeam]="introBottomTeam()"
       [contentReady]="boardPainted()" />
-    }
   </div>
   }
 
@@ -91,7 +86,7 @@
   <!-- ═══════════════════════════════════════════════════════════
        ÉCRAN DE VICTOIRE
        ═══════════════════════════════════════════════════════════ -->
-  <app-game-rules-modal [show]="showRules()" [gameMode]="gameStateService.gameMode()"
+  <app-game-rules-modal [show]="showRules()"
     (closeModal)="showRules.set(false)"></app-game-rules-modal>
 
   @if (gameStateService.winners().length > 0) {

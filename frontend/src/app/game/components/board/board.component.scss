@@ -1767,7 +1767,7 @@ $colors: (
    Même seuil que le bandeau (team-vs-banner.component.scss) pour rester
    synchronisé avec son apparition/disparition.
    ========================================================================== */
-:host(.is-2v2) {
+:host {
     @media (max-aspect-ratio: 12/25) {
         .board-container {
             transform: translateY(clamp(8px, 3.5vh, 32px));

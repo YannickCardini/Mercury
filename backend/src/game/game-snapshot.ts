@@ -1,4 +1,4 @@
-import type { Card, GameMode, MarbleColor } from '@mercury/shared';
+import type { Card, MarbleColor } from '@mercury/shared';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GameSnapshot — état complet d'une partie en cours, persisté dans Azure Blob
@@ -51,7 +51,6 @@ export interface GameSnapshot {
     /** Date.now() à l'écriture — filtre de fraîcheur au boot. */
     savedAt: number;
     gameId: string;
-    gameMode: GameMode;
     turn: number;
     round: number;
     /** Index dans players[] — l'ordre de players[] doit être préservé. */
