@@ -18,7 +18,9 @@ import messagesRouter from './messages/messages-router.js';
 import versionRouter from './version/version-router.js';
 import shopRouter from './shop/shop-router.js';
 import { createAdminRouter } from './admin/admin-router.js';
-import { touchLastSeen } from './db.js';
+import { touchLastSeen, setUserClientInfo } from './db.js';
+import { detectClientInfo, getSocketClientInfo, sanitizeClientInfo, setSocketClientInfo } from './admin/client-info.js';
+import { isBotUserId } from './session/bot-dispatch.js';
 
 const DEBUG = process.env['DEBUG'] === 'true';
 
@@ -157,6 +159,7 @@ wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
     }
 
     socketAlive.set(ws, true);
+    setSocketClientInfo(ws, detectClientInfo({ origin, userAgent: req.headers['user-agent'] }));
     (ws as unknown as import('ws').WebSocket).on('pong', () => socketAlive.set(ws, true));
 
     const ip = clientIp(req);
@@ -221,6 +224,14 @@ async function handleSetupMessage(ws: WebSocket, msg: ClientMessage): Promise<vo
                 // un userId forgé par le client n'est jamais pris en compte.
                 const userId = (await verifyAuth(msg.authToken)) ?? undefined;
                 markSeen(userId);
+                // Déclaration du client (builds récents) par-dessus les en-têtes de la connexion.
+                const clientInfo = { ...getSocketClientInfo(ws), ...sanitizeClientInfo(msg.client) };
+                setSocketClientInfo(ws, clientInfo);
+                if (userId && !isBotUserId(userId)) {
+                    void setUserClientInfo(userId, clientInfo).catch((err: unknown) => {
+                        console.error('⚠️ setUserClientInfo a échoué:', err);
+                    });
+                }
                 if (DEBUG && msg.debug === true) {
                     sessionManager.startDebugGameVsBots(ws, msg.playerName, userId, msg.picture);
                 } else {

@@ -9,6 +9,8 @@ import { signSessionToken, verifySessionToken } from './session-token.js';
 import { registerBotUserId } from '../session/bot-dispatch.js';
 import { describeSignupHistory, lookupGuestHistory } from '../session/guest-tracking.js';
 import { notifyAdmin } from '../admin/telegram.js';
+import { formatClientLabel, resolveClientInfo } from '../admin/client-info.js';
+import type { ClientInfo } from '@mercury/shared';
 
 const router = Router();
 
@@ -84,6 +86,9 @@ interface UserDoc {
      *  création du compte. Absent : compte antérieur, client qui n'envoie pas
      *  son browser_id, ou historique illisible ce jour-là. */
     guestHistory?: GuestHistory;
+    /** Dernier client connu (appli ou navigateur, format d'appareil), cf.
+     *  setUserClientInfo (db.ts). Absent des comptes antérieurs. */
+    client?: Partial<ClientInfo>;
 }
 
 /**
@@ -107,7 +112,7 @@ function toProfileResponse(user: UserDoc) {
 // POST /api/auth/google
 router.post('/google', async (req: Request, res: Response) => {
     // browserId : identifiant d'installation, absent des clients antérieurs.
-    const { idToken, browserId } = req.body as { idToken?: string; browserId?: unknown };
+    const { idToken, browserId, client: declaredClient } = req.body as { idToken?: string; browserId?: unknown; client?: unknown };
 
     if (!idToken) {
         res.status(400).json({ error: 'idToken is required' });
@@ -133,6 +138,10 @@ router.post('/google', async (req: Request, res: Response) => {
     // ── 2. Upsert utilisateur dans Cosmos DB ────────────────────────────────
     const userId = payload.sub;
     const now = new Date().toISOString();
+    // Client déclaré (builds récents) ou deviné depuis les en-têtes : pour
+    // l'alerte d'inscription et la répartition des stats admin.
+    const clientInfo = resolveClientInfo(declaredClient, { origin: req.headers.origin, userAgent: req.headers['user-agent'] });
+    const hasClientInfo = Boolean(clientInfo.platform || clientInfo.device);
 
     let user: UserDoc;
 
@@ -148,6 +157,7 @@ router.post('/google', async (req: Request, res: Response) => {
             const ops: PatchOperation[] = [
                 { op: 'set', path: '/lastLogin', value: now },
                 { op: 'set', path: '/lastSeenAt', value: now },
+                ...(hasClientInfo ? [{ op: 'set' as const, path: '/client', value: clientInfo }] : []),
             ];
             const { resource } = await container.item(userId, userId).patch<UserDoc>(ops);
             if (!resource) throw Object.assign(new Error('Not found'), { code: 404 });
@@ -173,12 +183,14 @@ router.post('/google', async (req: Request, res: Response) => {
                 ownedItems: [],
                 armedBoosts: [],
                 ...(guestHistory ? { guestHistory } : {}),
+                ...(hasClientInfo ? { client: clientInfo } : {}),
             };
             await container.items.create(user);
             const guestPast = guestHistory ? ` (${describeSignupHistory(guestHistory)})` : '';
             // Nom seul, pas l'email : la notification transite par les serveurs Telegram.
-            console.log(`🆕 Inscription — ${user.name} [user:${user.id}]${guestPast}`);
-            notifyAdmin(`🆕 Nouvel inscrit : ${user.name || '(sans nom)'}${guestPast}`);
+            const clientLabel = formatClientLabel(clientInfo);
+            console.log(`🆕 Inscription — ${user.name} [user:${user.id}]${guestPast} [${clientLabel}]`);
+            notifyAdmin(`🆕 Nouvel inscrit : ${user.name || '(sans nom)'}${guestPast} [${clientLabel}]`);
         }
     } catch (err) {
         console.error('❌ Cosmos DB error:', err);

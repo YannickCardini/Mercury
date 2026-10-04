@@ -403,6 +403,22 @@ export interface StartMessage {
   config: GameConfig;
 }
 
+/** Où tourne le client : l'appli Android (Capacitor) ou un navigateur. */
+export type ClientPlatform = 'android-app' | 'browser';
+
+/** Format de l'appareil du joueur. */
+export type DeviceType = 'mobile' | 'tablet' | 'desktop';
+
+/**
+ * Ce que le client déclare de lui-même (alertes admin et stats d'audience).
+ * Facultatif : les builds antérieurs ne l'envoient pas, le serveur retombe
+ * alors sur les en-têtes de la requête.
+ */
+export interface ClientInfo {
+  platform: ClientPlatform;
+  device: DeviceType;
+}
+
 /**
  * Rejoint la file d'attente matchmaking publique.
  * Le serveur assigne une couleur et lance la partie dès que 4 joueurs sont présents
@@ -420,6 +436,8 @@ export interface JoinMatchmakingMessage {
    * n'est jamais accepté tel quel.
    */
   authToken?: string;
+  /** Plateforme et format d'appareil déclarés par le client. Absent des builds antérieurs. */
+  client?: Partial<ClientInfo>;
   /** En mode debug, demande au serveur de lancer immédiatement une partie contre 3 bots IA. Honoré uniquement si le backend est lui-même en DEBUG. */
   debug?: boolean;
 }

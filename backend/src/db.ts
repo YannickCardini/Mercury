@@ -1,4 +1,5 @@
 import { CosmosClient, type Container, type PatchOperation } from '@azure/cosmos';
+import type { ClientInfo } from '@mercury/shared';
 
 let client: CosmosClient | null = null;
 
@@ -113,6 +114,24 @@ export async function touchLastSeen(userId: string): Promise<void> {
         // Échec → on retire la marque pour retenter au prochain passage plutôt
         // que d'attendre la fin de la fenêtre de throttle.
         lastSeenWrites.delete(userId);
+        if ((err as { code?: number }).code === 404) return;
+        throw err;
+    }
+}
+
+/**
+ * Dernier client connu du compte (appli ou navigateur, format d'appareil), pour
+ * la répartition de GET /api/admin/stats. Valeur écrasée à chaque appel : un
+ * joueur qui alterne appli et navigateur reflète son dernier usage. `set` crée
+ * le champ s'il est absent, pas de migration.
+ */
+export async function setUserClientInfo(userId: string, info: Partial<ClientInfo>): Promise<void> {
+    if (!info.platform && !info.device) return;
+    const container = await getUsersContainer();
+    const ops: PatchOperation[] = [{ op: 'set', path: '/client', value: info }];
+    try {
+        await container.item(userId, userId).patch(ops);
+    } catch (err: unknown) {
         if ((err as { code?: number }).code === 404) return;
         throw err;
     }
@@ -335,6 +354,8 @@ export interface AudienceStats {
     totalAccounts: number;
     lastSeen: { name: string; lastSeenAt: string } | null;
     recentSignups: { name: string; createdAt: string }[];
+    /** Comptes par dernier client connu. platform / device absents : 'unknown'. */
+    clients: { platform: string; device: string; count: number }[];
 }
 
 /**
@@ -358,7 +379,7 @@ export async function getAudienceStats(excludedIds: string[]): Promise<AudienceS
 
     // Les dates sont stockées en ISO 8601 UTC (toISOString) : la comparaison
     // de chaînes suit l'ordre chronologique.
-    const [active, signups, total, lastSeen, recentSignups] = await Promise.all([
+    const [active, signups, total, lastSeen, recentSignups, clients] = await Promise.all([
         run<number>(`SELECT VALUE COUNT(1) FROM c WHERE ${humans} AND c.lastSeenAt >= @since`, true),
         run<number>(`SELECT VALUE COUNT(1) FROM c WHERE ${humans} AND c.createdAt >= @since`, true),
         run<number>(`SELECT VALUE COUNT(1) FROM c WHERE ${humans}`),
@@ -366,6 +387,8 @@ export async function getAudienceStats(excludedIds: string[]): Promise<AudienceS
             `SELECT TOP 1 c.name, c.lastSeenAt FROM c WHERE ${humans} AND IS_DEFINED(c.lastSeenAt) ORDER BY c.lastSeenAt DESC`),
         run<{ name: string; createdAt: string }>(
             `SELECT TOP 5 c.name, c.createdAt FROM c WHERE ${humans} AND IS_DEFINED(c.createdAt) ORDER BY c.createdAt DESC`),
+        run<{ platform?: string; device?: string; count: number }>(
+            `SELECT c.client.platform AS platform, c.client.device AS device, COUNT(1) AS count FROM c WHERE ${humans} GROUP BY c.client.platform, c.client.device`),
     ]);
 
     return {
@@ -374,6 +397,7 @@ export async function getAudienceStats(excludedIds: string[]): Promise<AudienceS
         totalAccounts: total[0] ?? 0,
         lastSeen: lastSeen[0] ?? null,
         recentSignups,
+        clients: clients.map(c => ({ platform: c.platform ?? 'unknown', device: c.device ?? 'unknown', count: c.count })),
     };
 }
 

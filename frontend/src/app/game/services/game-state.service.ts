@@ -4,6 +4,7 @@ import { TabLockService } from './tab-lock.service';
 import { AuthService } from '../../services/auth.service';
 import { ShopService } from '../../services/shop.service';
 import { getOrCreateBrowserId } from '../../shared/browser-id';
+import { getClientInfo } from '../../shared/client-info';
 import {
   Action,
   Card,
@@ -1036,7 +1037,7 @@ export class GameStateService {
 
   sendJoinMatchmaking(playerName?: string, picture?: string, authToken?: string, debug?: boolean): void {
     const browserId = getOrCreateBrowserId();
-    this.send(JSON.stringify({ type: 'joinMatchmaking', playerName, browserId, picture, authToken, debug }));
+    this.send(JSON.stringify({ type: 'joinMatchmaking', playerName, browserId, picture, authToken, debug, client: getClientInfo() }));
   }
 
   sendSelectMatchmakingSlot(color: MarbleColor): void {
