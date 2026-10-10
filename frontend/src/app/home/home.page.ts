@@ -212,6 +212,30 @@ export class HomePage implements OnInit, OnDestroy {
     readonly appResume: AppResumeService
   ) { }
 
+  // Premier focus du menu d'accueil : Play Now, une seule fois à l'apparition.
+  private menuFocused = false;
+  @ViewChild("heroActions") set heroActions(el: ElementRef<HTMLDivElement> | undefined) {
+    if (el && !this.menuFocused) {
+      this.menuFocused = true;
+      setTimeout(() => el.nativeElement.querySelector<HTMLElement>(".action-btn")?.focus());
+    }
+  }
+
+  onMenuHover(e: Event): void {
+    (e.target as HTMLElement).closest<HTMLElement>(".action-btn")?.focus();
+  }
+
+  onMenuKey(e: KeyboardEvent): void {
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    const btns = Array.from(
+      (e.currentTarget as HTMLElement).querySelectorAll<HTMLElement>(".action-btn"),
+    );
+    const i = btns.indexOf(document.activeElement as HTMLElement);
+    const next = e.key === "ArrowDown" ? (i + 1) % btns.length : (i - 1 + btns.length) % btns.length;
+    btns[i < 0 ? 0 : next].focus();
+    e.preventDefault();
+  }
+
   ngOnInit(): void {
     if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android") {
       void App.getInfo()

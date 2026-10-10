@@ -109,7 +109,7 @@
       }
 
       <!-- Action buttons -->
-      <div class="hero-actions">
+      <div class="hero-actions" #heroActions (mouseover)="onMenuHover($event)" (keydown)="onMenuKey($event)">
         <button class="action-btn play-btn" (click)="openMatchmaking()">
           <span class="ab-marble ab-green"></span>
           <span class="ab-text">Play Now</span>
@@ -160,7 +160,7 @@
     <!-- Deux vues dans la même carte : 'main' = fiche profil + conversations,
          'thread' = une conversation ouverte (plein cadre, avec retour). -->
     <div class="modal-overlay" [class.active]="showLogin" (click)="closeLogin()">
-      <div class="modal-card login-card" [class.login-card--thread]="loginView === 'thread'"
+      <div class="modal-card login-card m-paper" [class.login-card--thread]="loginView === 'thread'"
         (click)="$event.stopPropagation()">
         <button class="modal-close" (click)="closeLogin()" aria-label="Close">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
@@ -414,7 +414,7 @@
 
     <!-- ══════════════ SETTINGS / INFO MODAL ══════════════ -->
     <div class="modal-overlay" [class.active]="showSettings" (click)="closeSettings()">
-      <div class="modal-card settings-card" (click)="$event.stopPropagation()">
+      <div class="modal-card settings-card m-paper" (click)="$event.stopPropagation()">
         <button class="modal-close" (click)="closeSettings()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
             stroke-linecap="round" stroke-linejoin="round">
@@ -583,6 +583,7 @@
     </ng-template>
 
     <!-- ══════════════ MATCHMAKING MODAL ══════════════ -->
+    <!-- Seule carte sans `m-paper` : elle reste sombre (voir home.page.scss). -->
     <div class="modal-overlay" [class.active]="showMatchmaking">
       <div class="modal-card matchmaking-card" (click)="$event.stopPropagation()">
         <button class="modal-close" (click)="cancelMatchmaking()">
@@ -598,7 +599,7 @@
 
     <!-- ══════════════ CUSTOM GAME MODAL ══════════════ -->
     <div class="modal-overlay" [class.active]="showCustomGame">
-      <div class="modal-card custom-card" [class.custom-card--in-room]="customStage === 'in-room'"
+      <div class="modal-card custom-card m-paper" [class.custom-card--in-room]="customStage === 'in-room'"
         [class.custom-card--searching]="customStage === 'searching'" (click)="$event.stopPropagation()">
         <button class="modal-close" (click)="cancelCustomGame()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"

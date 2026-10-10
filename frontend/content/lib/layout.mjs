@@ -7,25 +7,10 @@
  * où ces balises n'existaient qu'après exécution du bundle.
  */
 
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-
 import { SITE_NAME, OG_LOCALE, OG_IMAGE_PATH, BUILD_DATE, url } from "./site.mjs";
 import { UI, langSwitch, footer } from "./blocks.mjs";
 import { graph } from "./schema.mjs";
-
-/**
- * La feuille est inlinée dans les 8 pages : commentaires et indentation sont
- * retirés au passage. Les seules chaînes de la feuille (`content: "+ "`) ne
- * contiennent qu'une espace simple, que ce repliage laisse intacte.
- */
-const CSS = readFileSync(
-  fileURLToPath(new URL("../assets/content.css", import.meta.url)),
-  "utf8",
-)
-  .replace(/\/\*[\s\S]*?\*\//g, "")
-  .replace(/\s+/g, " ")
-  .trim();
+import { CSS, FONT_PRELOADS, LOGO_PATH } from "./styles.mjs";
 
 /** Échappe une valeur destinée à un attribut ou à du texte. */
 const esc = (s) =>
@@ -129,16 +114,20 @@ export function renderPage({
   <meta name="theme-color" content="#0f172a" />
   <meta name="color-scheme" content="dark" />
   <link rel="icon" type="image/svg+xml" href="/assets/icon/favicon.svg" />
+  ${FONT_PRELOADS}
   ${headScripts}
   <style>${CSS}</style>
   ${jsonLdScript(jsonLd)}
 </head>
 <body>
   <div class="rp-wrap">
-    <article class="rp-card">
+    <article class="rp-card m-paper">
 
       <div class="rp-topbar">
-        <a class="rp-brand" href="/">Mercury</a>
+        <a class="hp-brand" href="/">
+          <img class="hp-brand-logo" src="${LOGO_PATH}" alt="" width="32" height="32" />
+          <span class="hp-brand-name">${SITE_NAME}</span>
+        </a>
         ${langSwitch(lang, cluster)}
       </div>
 

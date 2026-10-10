@@ -32,6 +32,8 @@ Before implementing:
 ### Monorepo layout
 npm workspaces: `packages/shared`, `backend`, `frontend`. Build order matters — `packages/shared` compiles to JS that both other workspaces import as `@mercury/shared`, so it must be built first (`npm run build:shared` at the repo root) whenever its source changes, before `tsc`/`ng build` in `backend` or `frontend` will pick up the new types.
 
+**Versioning rule**: whenever you modify any file in `packages/shared`, before finishing your task, increment the **patch** version in `packages/shared/package.json` (e.g. `2.2.10` -> `2.2.11`). Do it once per task, not once per edited file.
+
 - **`packages/shared/src/`** — code shared verbatim by client and server: `types.ts` (WebSocket protocol messages, `ClientMessage`/`ServerMessage`), `board-config.ts`, `move-validator.ts`, `teams.ts`, `constants.ts`. Game **rules** live here so client-side UI checks and server-side authority can't drift apart. It does **not** hold user/account types — those are declared separately (and currently duplicated) in `backend/src/auth/auth-router.ts` and `frontend/src/app/services/auth.service.ts` / `frontend/src/app/profile/profile.page.ts`.
 
 - **`backend/`** — Node/Express + `ws` (raw WebSocket, no socket.io), TypeScript, run via `tsx` in dev / compiled to `dist` for prod.

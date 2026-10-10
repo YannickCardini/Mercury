@@ -1,4 +1,4 @@
-@use "../styles/palette" as *; // palette « Système solaire » centralisée
+@use "../styles/tokens" as m; // recettes « papier crème sur ciel »
 
 :host {
   display: block;
@@ -19,14 +19,12 @@
     calc(16px + var(--sa-left));
 }
 
+// Feuille de papier posée sur le ciel (le template lui donne `m-paper`).
 .pp-card {
+  @include m.above-sky;
   width: 100%;
   max-width: 640px;
-  background: rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
+  @include m.slab;
   overflow: hidden;
 }
 
@@ -34,65 +32,52 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 20px 20px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 20px 20px 14px;
+  border-bottom: 1px solid var(--m-line);
 }
 
 .pp-back {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  background: none;
-  border: none;
-  color: $c-silver;
-  cursor: pointer;
+  @include m.btn(6px 12px 6px 8px);
+  @include m.btn-quiet;
+  gap: 2px;
   font-size: 14px;
-  padding: 6px 10px;
-  border-radius: 8px;
-  transition: background 0.15s, color 0.15s;
 
   svg {
     width: 16px;
     height: 16px;
-  }
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.08);
-    color: #e2e8f0;
   }
 }
 
 .pp-title {
   flex: 1;
   margin: 0;
-  font-size: 20px;
-  font-weight: 700;
-  color: #e2e8f0;
-  letter-spacing: 0.5px;
+  @include m.display(700);
+  font-size: 28px;
+  color: var(--m-fg);
 }
 
 .pp-body {
   padding: 24px 28px 32px;
-  color: #cbd5e1;
-  font-size: 14px;
+  color: var(--m-fg-2);
+  font-size: 14.5px;
   line-height: 1.7;
 }
 
 .pp-updated {
   margin: 0 0 24px;
-  font-size: 12px;
-  color: $c-silver;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--m-fg-3);
 }
 
 .pp-section {
   margin-bottom: 28px;
 
   h2 {
-    margin: 0 0 10px;
-    font-size: 15px;
-    font-weight: 600;
-    color: #e2e8f0;
-    letter-spacing: 0.3px;
+    margin: 0 0 8px;
+    @include m.display(700);
+    font-size: 19px;
+    color: var(--m-fg);
   }
 
   p {
@@ -113,25 +98,47 @@
   }
 
   a {
-    color: $c-blue;
-    text-decoration: none;
-
-    &:hover {
-      text-decoration: underline;
-    }
+    color: var(--m-blue-fg);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    overflow-wrap: anywhere;
   }
 
   code {
     font-family: monospace;
     font-size: 13px;
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--m-well-2);
     padding: 1px 5px;
     border-radius: 4px;
-    color: #e2e8f0;
+    color: var(--m-fg);
   }
 
   strong {
-    color: #e2e8f0;
-    font-weight: 600;
+    color: var(--m-fg);
+    font-weight: 700;
+  }
+}
+
+@media (max-width: 480px) {
+  .pp-wrap {
+    padding: 12px calc(10px + var(--sa-right)) calc(32px + var(--sa-bottom))
+      calc(10px + var(--sa-left));
+  }
+
+  .pp-card {
+    border-radius: var(--m-r-lg);
+  }
+
+  .pp-header {
+    padding: 14px 14px 12px;
+  }
+
+  .pp-title {
+    font-size: 24px;
+  }
+
+  .pp-body {
+    padding: 20px 18px 26px;
   }
 }

@@ -10,9 +10,6 @@
  * scroll normal : « au-dessus du pli » ne veut rien dire sur un écran étroit.
  */
 
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-
 import {
   SITE_NAME,
   OG_LOCALE,
@@ -24,13 +21,10 @@ import {
 import { UI, langSwitch, footer, namesTable, vsTable, faqSection } from "./blocks.mjs";
 import { graph } from "./schema.mjs";
 import { spaceBackground } from "./space-bg.mjs";
-
-/**
- * Logo du jeu (les 4 billes). Déjà déclaré en <link rel="icon"> plus bas :
- * le réutiliser en <img> ne coûte aucune requête supplémentaire, le
- * navigateur dédoublonne sur l'URL.
- */
-const LOGO_PATH = "/assets/icon/favicon.svg";
+// LOGO_PATH : déjà déclaré en <link rel="icon"> plus bas, le réutiliser en
+// <img> ne coûte aucune requête supplémentaire, le navigateur dédoublonne
+// sur l'URL.
+import { CSS, FONT_PRELOADS, LOGO_PATH } from "./styles.mjs";
 
 /**
  * Aperçu vidéo de la partie, dans la carte « jouer ». Hébergée hors du repo
@@ -45,14 +39,6 @@ const PREVIEW_VIDEO_URL = "https://mercurystockage.blob.core.windows.net/media/p
 const PLAY_ICON = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.2a1 1 0 0 1 1.53-.85l9 6.8a1 1 0 0 1 0 1.7l-9 6.8A1 1 0 0 1 8 18.8V5.2Z"/></svg>`;
 
 const DOWNLOAD_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg>`;
-
-const CSS = readFileSync(
-  fileURLToPath(new URL("../assets/content.css", import.meta.url)),
-  "utf8",
-)
-  .replace(/\/\*[\s\S]*?\*\//g, "")
-  .replace(/\s+/g, " ")
-  .trim();
 
 const esc = (s) =>
   String(s)
@@ -125,7 +111,7 @@ export function renderLandingPage({
 
   const highlightsHtml = highlights
     .map(
-      (h) => `<li class="hp-highlight"><span class="hp-hl-icon" aria-hidden="true">${h.icon}</span><span>${h.text}</span></li>`,
+      (h) => `<li class="hp-highlight m-paper"><span class="hp-hl-icon" aria-hidden="true">${h.icon}</span><span>${h.text}</span></li>`,
     )
     .join("\n          ");
 
@@ -156,6 +142,7 @@ export function renderLandingPage({
   <meta name="theme-color" content="#0f172a" />
   <meta name="color-scheme" content="dark" />
   <link rel="icon" type="image/svg+xml" href="/assets/icon/favicon.svg" />
+  ${FONT_PRELOADS}
   ${boot(appPath, resumeCta)}
   <style>${CSS}</style>
   ${jsonLdScript(jsonLd)}
@@ -167,7 +154,7 @@ export function renderLandingPage({
 
     <header class="hp-topbar">
       <a class="hp-brand" href="${path}">
-        <img class="hp-brand-logo" src="${LOGO_PATH}" alt="" width="30" height="30" />
+        <img class="hp-brand-logo" src="${LOGO_PATH}" alt="" width="32" height="32" />
         <span class="hp-brand-name">${SITE_NAME}</span>
       </a>
       ${langSwitch(lang, cluster)}
@@ -187,7 +174,7 @@ export function renderLandingPage({
         </section>
 
         <aside class="hp-side">
-          <a class="hp-play-card" href="${appPath}">
+          <a class="hp-play-card m-paper" href="${appPath}">
             <span class="hp-play-thumb" aria-hidden="true">
               <span class="hp-play-spinner"></span>
               <video id="hp-play-video" class="hp-play-video" muted loop playsinline preload="none" data-src="${PREVIEW_VIDEO_URL}"></video>
@@ -199,8 +186,8 @@ export function renderLandingPage({
             </span>
           </a>
 
-          <a class="hp-store" href="${PLAY_STORE_URL}" rel="noopener">
-            <span class="hp-store-icon" aria-hidden="true"><img src="${LOGO_PATH}" alt="" width="24" height="24" /></span>
+          <a class="hp-store m-paper" href="${PLAY_STORE_URL}" rel="noopener">
+            <span class="hp-store-icon" aria-hidden="true"><img src="${LOGO_PATH}" alt="" width="26" height="26" /></span>
             <span class="hp-store-text">
               <span class="hp-store-label">${t.androidCta}</span>
               <span class="hp-store-sub">${t.androidSub}</span>
@@ -224,7 +211,7 @@ export function renderLandingPage({
   </div>
 
   <div class="hp-below">
-    <div class="hp-below-inner">
+    <div class="hp-below-inner m-paper">
 
       <section class="rp-section">
         <h2>${free.heading}</h2>

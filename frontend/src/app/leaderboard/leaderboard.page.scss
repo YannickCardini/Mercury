@@ -1,5 +1,4 @@
-@use "sass:color";
-@use "../styles/palette" as *; // palette « Système solaire » centralisée
+@use "../styles/tokens" as m; // recettes « papier crème sur ciel »
 
 :host {
   display: block;
@@ -20,14 +19,12 @@
   overflow-y: auto;
 }
 
+// Feuille de papier posée sur le ciel (le template lui donne `m-paper`).
 .lb-card {
+  @include m.above-sky;
   width: 100%;
   max-width: 560px;
-  background: rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
+  @include m.slab;
   overflow: hidden;
 }
 
@@ -35,41 +32,27 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 20px 20px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 20px 20px 14px;
 }
 
 .lb-back {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  background: none;
-  border: none;
-  color: $c-silver;
-  cursor: pointer;
+  @include m.btn(6px 12px 6px 8px);
+  @include m.btn-quiet;
+  gap: 2px;
   font-size: 14px;
-  padding: 6px 10px;
-  border-radius: 8px;
-  transition: background 0.15s, color 0.15s;
 
   svg {
     width: 16px;
     height: 16px;
-  }
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.08);
-    color: #e2e8f0;
   }
 }
 
 .lb-title {
   flex: 1;
   margin: 0;
-  font-size: 20px;
-  font-weight: 700;
-  color: #e2e8f0;
-  letter-spacing: 0.5px;
+  @include m.display(700);
+  font-size: 28px;
+  color: var(--m-fg);
 }
 
 .lb-state {
@@ -77,20 +60,17 @@
   justify-content: center;
   align-items: center;
   padding: 48px 20px;
-  color: $c-silver;
+  color: var(--m-fg-2);
   font-size: 14px;
+  font-weight: 600;
 
   &--error {
-    color: #f87171;
+    color: var(--m-red-fg);
   }
 }
 
 .lb-spinner {
-  width: 28px;
-  height: 28px;
-  border: 3px solid rgba(255, 255, 255, 0.15);
-  border-top-color: $c-blue;
-  border-radius: 50%;
+  @include m.spinner(28px);
   animation: spin 0.7s linear infinite;
 }
 
@@ -98,33 +78,46 @@
   to { transform: rotate(360deg); }
 }
 
+// Champ de recherche : un vrai champ arrondi dans la feuille, plus une bande
+// pleine largeur.
 .lb-search-wrap {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.02);
+  margin: 0 16px 10px;
+  padding: 10px 14px;
+  background: var(--m-field);
+  border: 1.5px solid var(--m-line-2);
+  border-radius: var(--m-r-pill);
+  transition: border-color 0.18s, box-shadow 0.18s;
+
+  &:focus-within {
+    border-color: var(--m-blue-fg);
+    box-shadow: var(--m-focus);
+  }
 }
 
 .lb-search-icon {
   width: 16px;
   height: 16px;
-  color: $c-silver;
+  color: var(--m-fg-3);
   flex-shrink: 0;
 }
 
 .lb-search {
   flex: 1;
+  min-width: 0;
   background: none;
   border: none;
   outline: none;
-  color: #e2e8f0;
+  color: var(--m-fg);
   font-size: 14px;
+  font-weight: 600;
   line-height: 1.4;
 
   &::placeholder {
-    color: rgba(148, 163, 184, 0.5);
+    color: var(--m-fg-4);
+    font-weight: 500;
   }
 }
 
@@ -134,10 +127,10 @@
   justify-content: center;
   background: none;
   border: none;
-  color: $c-silver;
+  color: var(--m-fg-3);
   cursor: pointer;
   padding: 2px;
-  border-radius: 4px;
+  border-radius: 50%;
   transition: color 0.15s;
   flex-shrink: 0;
 
@@ -147,29 +140,18 @@
   }
 
   &:hover {
-    color: #e2e8f0;
+    color: var(--m-fg);
   }
 }
 
 .lb-list {
   list-style: none;
   margin: 0;
-  padding: 8px 0;
+  padding: 0 0 8px;
   max-height: 480px;
   overflow-y: auto;
-
-  &::-webkit-scrollbar {
-    width: 4px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.12);
-    border-radius: 2px;
-  }
+  border-top: 1px solid var(--m-line);
+  @include m.scrollbar;
 }
 
 .lb-row {
@@ -177,35 +159,51 @@
   align-items: center;
   gap: 12px;
   padding: 10px 20px;
+  border-bottom: 1px solid var(--m-line);
   transition: background 0.15s;
   cursor: pointer;
   outline: none;
 
+  &:last-child {
+    border-bottom: 0;
+  }
+
   &:hover {
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--m-well);
   }
 
   &:focus-visible {
-    background: rgba(255, 255, 255, 0.06);
-    box-shadow: inset 0 0 0 2px $c-blue;
-  }
-
-  &--top3 {
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--m-well);
+    box-shadow: inset 0 0 0 2px var(--m-blue-fg);
   }
 }
 
+// Le rang se lit comme un chiffre ; seuls les trois premiers reçoivent une
+// médaille pleine, c'est elle qui distingue le podium (plus de fond de rangée).
 .lb-rank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 28px;
-  text-align: center;
-  font-size: 14px;
+  height: 28px;
+  border-radius: 50%;
+  font-family: var(--m-font-display);
+  font-size: 16px;
   font-weight: 700;
-  color: $c-silver;
+  line-height: 1;
+  color: var(--m-fg-3);
   flex-shrink: 0;
 
-  &--gold   { color: $c-gold; font-size: 16px; }
-  &--silver { color: $c-silver; font-size: 15px; }
-  &--bronze { color: $c-bronze; font-size: 15px; }
+  &--gold,
+  &--silver,
+  &--bronze {
+    color: var(--m-ink-solid);
+    box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.16);
+  }
+
+  &--gold   { background: var(--m-gold); }
+  &--silver { background: var(--m-silver); }
+  &--bronze { background: var(--m-bronze); }
 }
 
 .lb-avatar {
@@ -216,26 +214,33 @@
   flex-shrink: 0;
 
   &--fallback {
-    background: rgba(255, 255, 255, 0.15);
+    background: var(--m-well-3);
   }
 }
 
 .lb-name {
   flex: 1;
+  min-width: 0;
   font-size: 14px;
-  color: #e2e8f0;
+  font-weight: 600;
+  color: var(--m-fg);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .lb-points {
-  font-size: 13px;
-  font-weight: 600;
-  color: $c-gold;
+  font-family: var(--m-font-display);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--m-fg-2);
   flex-shrink: 0;
 }
 
+// Téléphone : la feuille occupe presque tout l'écran mais garde une marge,
+// pour que le ciel reste visible autour d'elle. C'est .lb-wrap qui dégage la
+// barre de navigation ; la liste défile à l'intérieur de la feuille.
 @media (max-width: 480px) {
   :host {
     display: flex;
@@ -246,7 +251,8 @@
     flex: 1;
     min-height: 0;
     overflow-y: hidden;
-    padding: 0;
+    padding: 10px calc(10px + var(--sa-right)) calc(14px + var(--sa-bottom))
+      calc(10px + var(--sa-left));
     align-items: stretch;
   }
 
@@ -255,16 +261,13 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
-    border-radius: 0;
+    border-radius: var(--m-r-lg);
     max-width: 100%;
   }
 
   .lb-list {
     flex: 1;
     max-height: none;
-    // En mobile .lb-wrap passe en padding 0 : c'est la liste qui affleure le bas
-    // du viewport, donc c'est elle qui doit dégager la barre de navigation.
-    padding-bottom: calc(8px + var(--sa-bottom));
   }
 
   .lb-header {
@@ -273,16 +276,19 @@
   }
 
   .lb-title {
-    font-size: 17px;
+    font-size: 24px;
   }
 
   .lb-back {
     font-size: 13px;
-    padding: 5px 8px;
+  }
+
+  .lb-search-wrap {
+    margin: 0 12px 10px;
   }
 
   .lb-row {
-    padding: 8px 14px;
+    padding: 9px 14px;
     gap: 10px;
   }
 
@@ -296,13 +302,14 @@
   }
 
   .lb-points {
-    font-size: 12px;
+    font-size: 15px;
   }
 }
 
 @media (max-width: 360px) {
   .lb-wrap {
-    padding: 8px 4px 24px;
+    padding: 8px calc(6px + var(--sa-right)) calc(12px + var(--sa-bottom))
+      calc(6px + var(--sa-left));
   }
 
   .lb-header {
@@ -310,21 +317,18 @@
   }
 
   .lb-title {
-    font-size: 15px;
+    font-size: 22px;
   }
 
   .lb-row {
-    padding: 7px 10px;
+    padding: 8px 10px;
     gap: 8px;
   }
 
   .lb-rank {
-    width: 22px;
-    font-size: 13px;
-
-    &--gold   { font-size: 15px; }
-    &--silver { font-size: 14px; }
-    &--bronze { font-size: 14px; }
+    width: 24px;
+    height: 24px;
+    font-size: 14px;
   }
 
   .lb-avatar {
@@ -337,6 +341,6 @@
   }
 
   .lb-points {
-    font-size: 11px;
+    font-size: 14px;
   }
 }

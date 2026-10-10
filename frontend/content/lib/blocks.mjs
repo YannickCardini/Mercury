@@ -323,7 +323,7 @@ const CONTACT_EMAIL = "yannick.cardini@gmail.com";
 function contactDialog(lang) {
   const t = UI[lang];
   return `<dialog id="rp-contact-dialog" class="rp-dialog">
-      <form method="dialog" class="rp-dialog-card">
+      <form method="dialog" class="rp-dialog-card m-paper">
         <button type="submit" class="rp-dialog-close" aria-label="${t.contactClose}">✕</button>
         <h2>${t.contactDialogTitle}</h2>
         <p>${t.contactDialogBody}</p>

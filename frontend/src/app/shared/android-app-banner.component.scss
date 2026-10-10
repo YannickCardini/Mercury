@@ -1,10 +1,9 @@
-@use "sass:color";
-@use "../styles/palette" as *;
+@use "../styles/tokens" as m; // recettes « papier crème sur ciel »
 
 :host {
   position: fixed;
-  left: 12px;
-  right: 12px;
+  left: calc(12px + var(--sa-left));
+  right: calc(12px + var(--sa-right));
   // Au-dessus des modales de page (z-index 100), sous le popup de mise à jour
   // obligatoire (300) et le toast global (10000).
   bottom: calc(12px + var(--sa-bottom));
@@ -12,6 +11,7 @@
   pointer-events: none;
 }
 
+// Plaque de papier (le template lui donne `m-paper`).
 .android-promo {
   pointer-events: auto;
   display: flex;
@@ -20,12 +20,8 @@
   max-width: 420px;
   margin: 0 auto;
   padding: 10px 12px;
-  border: 1px solid rgba($c-green, 0.35);
-  border-radius: 14px;
-  background: rgba(15, 23, 42, 0.94);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  box-sizing: border-box;
+  @include m.slab(var(--m-r-lg), var(--m-shadow-pop));
   animation: android-promo-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
@@ -42,59 +38,35 @@
 
 .android-promo-title {
   margin: 0;
-  font-size: 0.85rem;
-  font-weight: 700;
+  font-size: 0.88rem;
+  font-weight: 800;
   line-height: 1.3;
-  color: #e2e8f0;
+  color: var(--m-fg);
 }
 
 .android-promo-sub {
   margin: 1px 0 0;
-  font-size: 0.72rem;
+  font-size: 0.74rem;
+  font-weight: 500;
   line-height: 1.3;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--m-fg-3);
 }
 
 .android-promo-cta {
+  @include m.btn(7px 14px);
+  @include m.btn-fill(green);
   flex-shrink: 0;
-  padding: 7px 14px;
-  border-radius: 50px;
-  background: $c-green;
-  color: #0b1220;
+  // Réserve pour la tranche du bouton.
+  margin-bottom: 3px;
   font-size: 0.8rem;
-  font-weight: 700;
-  text-decoration: none;
   white-space: nowrap;
-  transition: background 0.2s, transform 0.12s;
-
-  &:hover {
-    background: color.adjust($c-green, $lightness: 6%);
-  }
-
-  &:active {
-    transform: scale(0.96);
-  }
 }
 
 .android-promo-close {
+  @include m.icon-btn(28px);
   flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  padding: 0;
-  border: none;
-  border-radius: 8px;
   background: transparent;
-  color: rgba(255, 255, 255, 0.4);
-  cursor: pointer;
-  transition: background 0.2s, color 0.2s;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.08);
-    color: rgba(255, 255, 255, 0.8);
-  }
+  border-color: transparent;
 }
 
 @keyframes android-promo-in {

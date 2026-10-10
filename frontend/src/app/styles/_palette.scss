@@ -1,10 +1,19 @@
 // ═══════════════════════════════════════════════════════════════════════════
-//  Palette « Système solaire » — thème partagé
+//  Palette « Système solaire » — objets du jeu
 // ───────────────────────────────────────────────────────────────────────────
-//  Source unique de vérité pour les couleurs de l'app. Chaque page fait :
+//  Périmètre : la partie (/game) et les objets du monde qui gardent leurs
+//  teintes sur tous les écrans, à savoir la pièce (_coin.scss), les billes
+//  planètes (_planets.scss) et les jetons de booster ($boost-*).
+//
+//  L'interface hors partie (accueil, modales, classement, profil, boutique,
+//  pages légales) ne lit plus ces variables : ses couleurs, polices, rayons
+//  et ombres sont les custom properties --m-* de tokens.css, mises en forme
+//  par les mixins de _tokens.scss. Ne pas ajouter ici une couleur d'interface.
+//
+//  Usage :
 //      @use "../styles/palette" as *;
-//  et utilise directement $c-green, $bg-dark, etc. (rôles sémantiques
-//  conservés, teintes ré-habillées en tons « planètes »).
+//  puis $c-green, $bg-dark, etc. (rôles sémantiques conservés, teintes
+//  ré-habillées en tons « planètes »).
 //
 //  Mapping rôle → planète :
 //    Jouer        → Terre    (émeraude)

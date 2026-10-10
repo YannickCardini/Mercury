@@ -2,6 +2,7 @@
 @use "../styles/palette" as *; // palette « Système solaire » centralisée
 @use "../styles/planets" as *; // rendu billes « planètes » partagé
 @use "../styles/coin" as *; // recette partagée de la pièce
+@use "../styles/tokens" as m; // recettes « papier crème sur ciel »
 
 // ─── Host ────────────────────────────────────────────────────────────────────
 :host {
@@ -26,49 +27,9 @@
   flex-direction: column;
   overflow: hidden;
   background: transparent; // fond spatial global visible à travers la page
-
-  /*   // Grid pattern
-  &::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background-image:
-      linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
-    background-size: 40px 40px;
-    pointer-events: none;
-    z-index: 0;
-  }*/
-
-  // Central blue halo
-  &::after {
-    content: '';
-    position: absolute;
-    width: 700px;
-    height: 700px;
-    border-radius: 50%;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: radial-gradient(circle, rgba($c-blue, 0.10) 0%, transparent 65%);
-    animation: haloPulse 5s ease-in-out infinite;
-    pointer-events: none;
-    z-index: 0;
-  }
-}
-
-@keyframes haloPulse {
-
-  0%,
-  100% {
-    opacity: 0.6;
-    transform: translate(-50%, -50%) scale(1);
-  }
-
-  50% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1.18);
-  }
+  // Tout ce qui est posé directement sur le ciel (titre, liens du pied de
+  // page) hérite du texte crème ; les surfaces papier le redéfinissent.
+  color: var(--m-fg);
 }
 
 // ─── Entrance animations ────────────────────────────────────────────────────
@@ -132,7 +93,7 @@
   // Insets latéraux : en paysage avec navigation à 3 boutons, la barre passe
   // sur un côté et masquerait le bouton de retour / l'avatar.
   padding: 16px calc(20px + var(--sa-right)) 16px calc(20px + var(--sa-left));
-  animation: entranceDown 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: entranceDown 0.5s var(--m-ease) both;
 }
 
 .nav-brand {
@@ -141,17 +102,16 @@
 }
 
 .nav-letter {
+  @include m.display(800);
   font-size: 1.1rem;
-  font-weight: 900;
-  color: rgba(255, 255, 255, 0.55);
-  letter-spacing: 0.05em;
+  color: var(--m-fg-2);
   animation: navLetterFloat 3s ease-in-out infinite;
   animation-delay: calc(var(--i) * 0.1s);
   display: inline-block;
   transition: color 0.3s;
 
   &:hover {
-    color: white;
+    color: var(--m-fg);
   }
 }
 
@@ -167,26 +127,13 @@
   }
 }
 
+// Pastille papier : le profil et le solde sont deux objets posés sur le ciel.
 .nav-login-btn {
   position: relative; // ancre la pastille de messages non lus
+  @include m.btn(8px 16px);
+  @include m.btn-paper;
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 50px;
-  color: rgba(255, 255, 255, 0.75);
   font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s, border-color 0.2s, color 0.2s;
-
-  &:hover {
-    background: rgba($c-blue, 0.15);
-    border-color: rgba($c-blue, 0.4);
-    color: white;
-  }
 }
 
 // ─── Hero ─────────────────────────────────────────────────────────────────────
@@ -207,24 +154,23 @@
 // ─── Animated title ───────────────────────────────────────────────────────────
 .hero-title-wrap {
   text-align: center;
-  animation: entranceUp 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.05s both;
+  animation: entranceUp 0.55s var(--m-ease) 0.05s both;
 }
 
 .hero-title {
   display: flex;
   justify-content: center;
-  gap: 6px;
-  margin: 0 0 10px;
+  gap: 4px;
+  margin: 0 0 6px;
 }
 
+// Lettres crème posées sur le ciel : une tranche pleine sous chaque lettre,
+// même vocabulaire que les surfaces, à la place de l'ancien halo lumineux.
 .hero-letter {
-  font-size: clamp(2.8rem, 9vw, 5.5rem);
-  font-weight: 900;
-  color: white;
-  letter-spacing: 0.04em;
-  text-shadow:
-    0 0 30px rgba($c-blue, 0.8),
-    0 0 60px rgba($c-blue, 0.35);
+  @include m.display(800);
+  font-size: clamp(3.4rem, 11.5vw, 6.6rem);
+  color: var(--m-cream);
+  text-shadow: 0 0.05em 0 rgba(var(--m-night-rgb), 0.7);
   animation: heroLetterFloat 2.6s ease-in-out infinite;
   animation-delay: calc(var(--i) * 0.13s);
   display: inline-block;
@@ -251,17 +197,15 @@
 
 .hero-tagline {
   margin: 0;
-  font-size: clamp(0.8rem, 2.5vw, 1rem);
+  font-size: clamp(0.9rem, 2.6vw, 1.05rem);
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.45);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  color: var(--m-fg-2);
 }
 
 // ─── Marble orbit decoration ──────────────────────────────────────────────────
 .home-orbit {
   flex-shrink: 0;
-  animation: entranceUp 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both;
+  animation: entranceUp 0.55s var(--m-ease) 0.15s both;
 
   @media (orientation: landscape) {
     display: none;
@@ -269,16 +213,19 @@
 }
 
 // ─── Duplicate tab banner ────────────────────────────────────────────────────
+// Bandeaux d'état : un petit carton papier, l'accent ne colore que le texte et
+// le filet de gauche.
 .duplicate-tab-banner {
-  background: rgba($c-orange, 0.15);
-  border: 1px solid rgba($c-orange, 0.4);
-  color: $c-orange;
+  @include m.slab(var(--m-r-md), var(--m-shadow-pop));
+  border-left: 4px solid var(--m-orange);
+  color: var(--m-orange-ink);
   padding: 10px 16px;
-  border-radius: 10px;
   font-size: 0.85rem;
+  font-weight: 600;
   text-align: center;
   max-width: 340px;
   width: 100%;
+  box-sizing: border-box;
   animation: fadeInBanner 0.3s ease;
 }
 
@@ -295,30 +242,19 @@
 }
 
 .connection-error-banner {
-  background: rgba($c-red, 0.15);
-  border-color: rgba($c-red, 0.4);
-  color: $c-red;
+  border-left-color: var(--m-red);
+  color: var(--m-red-ink);
 }
 
 // ─── Resume game banner ───────────────────────────────────────────────────────
 .resume-game-banner {
-  background: rgba($c-green, 0.12);
-  border: 1px solid rgba($c-green, 0.4);
-  color: $c-green;
-  padding: 10px 16px;
-  border-radius: 10px;
-  font-size: 0.85rem;
+  @include m.btn(12px 16px, var(--m-r-md));
+  @include m.btn-fill(green);
+  font-size: 0.9rem;
   text-align: center;
   max-width: 340px;
   width: 100%;
-  cursor: pointer;
-  font-family: inherit;
   animation: fadeInBanner 0.3s ease;
-
-  &:hover {
-    background: rgba($c-green, 0.22);
-    border-color: rgba($c-green, 0.7);
-  }
 }
 
 // ─── Boosters armés ───────────────────────────────────────────────────────────
@@ -326,6 +262,7 @@
 // prochaine partie, pas comme une bannière d'alerte. Fond neutre, ce sont les
 // jetons qui portent la couleur de chaque effet.
 .boost-ready {
+  @include m.slab(var(--m-r-lg), var(--m-shadow-pop));
   display: flex;
   align-items: center;
   gap: 14px;
@@ -333,12 +270,7 @@
   max-width: 340px;
   box-sizing: border-box;
   padding: 10px 16px 10px 14px;
-  border-radius: 14px;
-  background:
-    radial-gradient(120% 140% at 0% 50%, rgba($boost-points, 0.12), rgba($boost-points, 0) 60%),
-    rgba(255, 255, 255, 0.045);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  animation: entranceUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.14s both;
+  animation: entranceUp 0.5s var(--m-ease) 0.14s both;
 }
 
 .boost-ready-tokens {
@@ -360,18 +292,15 @@
 .boost-ready-text {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
   min-width: 0;
   text-align: left;
 }
 
 .boost-ready-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: $c-silver;
-  opacity: 0.8;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--m-ink-3);
 }
 
 // Retour à la ligne plutôt que points de suspension : avec trois boosters,
@@ -380,32 +309,32 @@
   font-size: 13.5px;
   font-weight: 700;
   line-height: 1.3;
-  color: #e2e8f0;
+  color: var(--m-ink);
 }
 
 // ─── Action buttons ───────────────────────────────────────────────────────────
 .hero-actions {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
   width: 100%;
   max-width: 340px;
 }
 
+// Trois plaques : une pleine (l'action principale), deux en papier. La
+// couleur des deux autres n'est portée que par leur bille.
 .action-btn {
+  @include m.btn(14px 20px, var(--m-r-lg));
+  @include m.display(700);
   display: flex;
-  align-items: center;
+  justify-content: flex-start;
   gap: 14px;
-  padding: 15px 20px;
-  border-radius: 16px;
-  cursor: pointer;
-  font-size: 1rem;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  transition: transform 0.18s, box-shadow 0.18s, background 0.18s;
+  font-size: 1.18rem;
+  line-height: 1.25;
   position: relative;
-  overflow: hidden;
-  animation: entranceUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  // `backwards` et non `both` : une fois l'entrée jouée, l'animation doit
+  // rendre la main, sinon son `transform` final masquerait celui de l'appui.
+  animation: entranceUp 0.5s var(--m-ease) backwards;
 
   // Stagger : chaque bouton apparaît un peu après le précédent.
   @for $i from 1 through 3 {
@@ -413,115 +342,62 @@
       animation-delay: #{0.22 + ($i - 1) * 0.08}s;
     }
   }
-
-  // Shine on hover
-  &::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, transparent 60%);
-    opacity: 0;
-    transition: opacity 0.2s;
-  }
-
-  &:hover::before {
-    opacity: 1;
-  }
-
-  &:hover {
-    transform: translateY(-2px) scale(1.01);
-  }
-
-  &:active {
-    transform: translateY(0) scale(0.98);
-  }
 }
 
-// Play Now
-.play-btn {
-  background: linear-gradient(135deg,
-      rgba($c-green, 0.22) 0%,
-      rgba($c-green, 0.10) 100%);
-  border: 1px solid rgba($c-green, 0.45);
-  color: white;
-  box-shadow: 0 4px 20px rgba($c-green, 0.18);
+// Menu à focus unique : les trois plaques sont au repos « papier » (texte
+// sombre) ; celle qui a le focus (survol ou flèches haut/bas) passe en vert
+// avec un texte clair. Play Now reçoit le focus à l'ouverture.
+.action-btn {
+  @include m.btn-paper;
+  color: var(--m-ink-solid);
 
-  &:hover {
-    box-shadow: 0 6px 30px rgba($c-green, 0.35),
-      inset 0 1px 0 rgba(255, 255, 255, 0.12);
-    border-color: rgba($c-green, 0.7);
+  &:focus,
+  &:focus-visible {
+    outline: none;
+    background: var(--m-green);
+    color: var(--m-cream);
+    border-color: transparent;
+    box-shadow: 0 3px 0 0 var(--m-green-deep);
   }
-}
 
-// Custom Game
-.custom-btn {
-  background: linear-gradient(135deg,
-      rgba($c-orange, 0.18) 0%,
-      rgba($c-orange, 0.08) 100%);
-  border: 1px solid rgba($c-orange, 0.38);
-  color: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 4px 20px rgba($c-orange, 0.12);
-
-  &:hover {
-    box-shadow: 0 6px 30px rgba($c-orange, 0.32),
-      inset 0 1px 0 rgba(255, 255, 255, 0.12);
-    border-color: rgba($c-orange, 0.7);
+  &:focus:active:not(:disabled) {
+    box-shadow: 0 1px 0 0 var(--m-green-deep);
   }
 }
 
 .ab-badge {
+  @include m.tint(orange);
+  font-family: var(--m-font-text);
   font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: $c-orange;
-  background: rgba($c-orange, 0.15);
-  border: 1px solid rgba($c-orange, 0.35);
-  border-radius: 4px;
-  padding: 2px 6px;
+  font-weight: 700;
+  border-radius: var(--m-r-pill);
+  padding: 2px 8px;
   white-space: nowrap;
-}
-
-// Leaderboard
-.leaderboard-btn {
-  background: linear-gradient(135deg,
-      rgba($c-gold, 0.14) 0%,
-      rgba($c-gold, 0.06) 100%);
-  border: 1px solid rgba($c-gold, 0.35);
-  color: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 4px 20px rgba($c-gold, 0.1);
-
-  &:hover {
-    box-shadow: 0 6px 28px rgba($c-gold, 0.28),
-      inset 0 1px 0 rgba(255, 255, 255, 0.1);
-    border-color: rgba($c-gold, 0.65);
-  }
 }
 
 // Marble badges on buttons
 .ab-marble {
   position: relative;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   flex-shrink: 0;
 
   @include planet-base;
   @include planet-variants("ab"); // green→Terre, orange→Jupiter, blue→Neptune
-  box-shadow: 0 0 8px 1px var(--planet-glow, transparent);
 
   // Saturne (or) — hors du mapping planètes : conserve le disque doré
   &.ab-gold {
     background: radial-gradient(circle at 35% 35%, color.adjust($c-gold, $lightness: 12%), $c-gold 60%, color.adjust($c-gold, $lightness: -12%));
-    box-shadow: 0 0 8px rgba($c-gold, 0.6);
   }
 }
 
 .ab-text {
   flex: 1;
+  text-align: left;
 }
 
 .ab-arrow {
-  opacity: 0.5;
+  opacity: 0.45;
   transition: transform 0.2s, opacity 0.2s;
 }
 
@@ -552,37 +428,26 @@
 }
 
 .how-to-play-link {
-  color: rgba(255, 255, 255, 0.4);
-  font-size: 0.78rem;
-  font-weight: 600;
-  text-decoration: none;
+  color: var(--m-fg-2);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-color: var(--m-line-3);
+  text-underline-offset: 4px;
   padding: 7px 4px;
-  transition: color 0.2s;
+  transition: color 0.2s, text-decoration-color 0.2s;
 
   &:hover {
-    color: rgba(255, 255, 255, 0.8);
+    color: var(--m-fg);
+    text-decoration-color: currentColor;
   }
 }
 
 .settings-btn {
-  display: flex;
-  align-items: center;
+  @include m.btn(7px 14px);
+  @include m.btn-quiet;
   gap: 7px;
-  padding: 7px 14px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 50px;
-  color: rgba(255, 255, 255, 0.4);
   font-size: 0.78rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s, color 0.2s, border-color 0.2s;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.2);
-    color: rgba(255, 255, 255, 0.8);
-  }
 }
 
 // ─── Modal overlay ────────────────────────────────────────────────────────────
@@ -597,9 +462,7 @@
   // la carte doit rester centrée dans la zone sûre.
   padding: calc(20px + var(--sa-top)) calc(20px + var(--sa-right)) calc(20px + var(--sa-bottom))
     calc(20px + var(--sa-left));
-  background: rgba(5, 12, 28, 0.7);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  @include m.scrim;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.25s;
@@ -616,17 +479,15 @@
 }
 
 // ─── Modal card ───────────────────────────────────────────────────────────────
+// Plaque de papier. Le template lui donne aussi `m-paper`, qui fait passer
+// tout son contenu en texte encre ; la carte de matchmaking ne la porte pas
+// et reste une fenêtre sur le ciel (voir plus bas).
 .modal-card {
   position: relative;
   width: 100%;
   max-width: 380px;
-  background: rgba(15, 23, 42, 0.92);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 24px;
+  @include m.slab;
   padding: 28px 24px 24px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.04);
   transform: translateY(24px) scale(0.96);
   opacity: 0;
   transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
@@ -637,22 +498,7 @@
   position: absolute;
   top: 14px;
   right: 14px;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.5);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.2s, color 0.2s;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.12);
-    color: white;
-  }
+  @include m.icon-btn(32px);
 }
 
 // ─── Modal header ─────────────────────────────────────────────────────────────
@@ -676,7 +522,6 @@
 
   @include planet-base;
   @include planet-variants("mm"); // red→Mars, green→Terre, blue→Neptune, orange→Jupiter
-  box-shadow: 0 0 6px var(--planet-glow, transparent);
 
   // Saturne (or) — hors du mapping planètes : conserve le disque doré
   &.mm-gold {
@@ -687,10 +532,9 @@
 
 .modal-title {
   margin: 0;
-  font-size: 1.3rem;
-  font-weight: 800;
-  color: white;
-  letter-spacing: 0.02em;
+  @include m.display(700);
+  font-size: 1.5rem;
+  color: var(--m-fg);
 }
 
 // ─── Login form ───────────────────────────────────────────────────────────────
@@ -708,56 +552,20 @@
 }
 
 .form-label {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.5);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  @include m.label;
 }
 
 .form-input {
+  @include m.field;
   padding: 11px 14px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  color: white;
   font-size: 0.95rem;
-  outline: none;
-  transition: border-color 0.2s, background 0.2s;
-
-  &::placeholder {
-    color: rgba(255, 255, 255, 0.28);
-  }
-
-  &:focus {
-    border-color: rgba($c-blue, 0.6);
-    background: rgba($c-blue, 0.06);
-  }
 }
 
 .form-submit {
+  @include m.btn(13px, var(--m-r-md));
+  @include m.btn-fill(blue);
   margin-top: 6px;
-  padding: 13px;
-  background: linear-gradient(135deg, $c-blue, color.adjust($c-blue, $lightness: -10%));
-  border: none;
-  border-radius: 12px;
-  color: white;
   font-size: 0.95rem;
-  font-weight: 700;
-  cursor: pointer;
-  letter-spacing: 0.03em;
-  box-shadow: 0 4px 18px rgba($c-blue, 0.4);
-  transition: transform 0.15s, box-shadow 0.15s;
-
-  &:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 24px rgba($c-blue, 0.55);
-  }
-
-  &:active {
-    transform: translateY(0);
-    box-shadow: 0 2px 10px rgba($c-blue, 0.35);
-  }
 }
 
 // ─── Modal footer (login) ─────────────────────────────────────────────────────
@@ -771,21 +579,17 @@
 .btn-switch {
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--m-fg-3);
   font-size: 0.83rem;
   cursor: pointer;
   transition: color 0.2s;
 
   b {
-    color: rgba($c-blue, 0.9);
+    color: var(--m-blue-fg);
   }
 
   &:hover {
-    color: rgba(255, 255, 255, 0.75);
-
-    b {
-      color: $c-blue;
-    }
+    color: var(--m-fg-2);
   }
 }
 
@@ -794,7 +598,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  color: rgba(255, 255, 255, 0.2);
+  color: var(--m-fg-3);
   font-size: 0.78rem;
 
   &::before,
@@ -802,33 +606,37 @@
     content: '';
     flex: 1;
     height: 1px;
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--m-line-2);
   }
 }
 
+// Action discrète de bas de carte (invité, annuler). Suit le contexte : elle
+// sert dans les cartes papier comme dans la carte de matchmaking.
 .btn-guest {
-  padding: 10px 18px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  color: rgba(255, 255, 255, 0.55);
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
+  @include m.btn(10px 18px, var(--m-r-md));
+  @include m.btn-quiet;
   width: 100%;
-  transition: background 0.2s, color 0.2s, border-color 0.2s;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.2);
-    color: rgba(255, 255, 255, 0.85);
-  }
+  font-size: 0.85rem;
 }
 
 // ─── Matchmaking card ─────────────────────────────────────────────────────────
+// Élément conservé tel quel : la recherche de partie reste une carte de verre
+// sombre, premier pas vers le plateau. Elle ne porte pas `m-paper`, son
+// contenu garde donc les alias « ciel » (texte crème). Seuls le rayon et la
+// typographie suivent le reste de l'app.
 .matchmaking-card {
   max-width: 340px;
   text-align: center;
+  background: var(--m-ink-night);
+  border: 1px solid var(--m-line);
+  color: var(--m-fg);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(var(--m-cream-rgb), 0.04);
+
+  // Sur la nuit, les billes gardent leur halo coloré (retiré sur le papier,
+  // où il ne ferait qu'une tache).
+  .mm {
+    box-shadow: 0 0 6px var(--planet-glow, transparent);
+  }
 }
 
 // Shared "finding players" panel — rendered both in .matchmaking-card (already
@@ -842,7 +650,7 @@
   margin: -10px 0 16px;
   font-size: 0.78rem;
   line-height: 1.4;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--m-fg-3);
 }
 
 .mq-slots {
@@ -856,7 +664,7 @@
   width: 52px;
   height: 52px;
   border-radius: 50%;
-  border: 2px dashed rgba(255, 255, 255, 0.15);
+  border: 2px dashed var(--m-line-2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -873,24 +681,23 @@
   }
 
   &.mq-mine {
-    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.12),
-      0 0 18px rgba(255, 255, 255, 0.08);
+    box-shadow: 0 0 0 3px var(--m-line-2);
   }
 
   &.mq-slot-red.mq-filled {
-    border-color: rgba($c-red, 0.7);
+    border-color: rgba(var(--m-red-rgb), 0.7);
   }
 
   &.mq-slot-green.mq-filled {
-    border-color: rgba($c-green, 0.7);
+    border-color: rgba(var(--m-green-rgb), 0.7);
   }
 
   &.mq-slot-blue.mq-filled {
-    border-color: rgba($c-blue, 0.7);
+    border-color: rgba(var(--m-blue-rgb), 0.7);
   }
 
   &.mq-slot-orange.mq-filled {
-    border-color: rgba($c-orange, 0.7);
+    border-color: rgba(var(--m-orange-rgb), 0.7);
   }
 }
 
@@ -898,7 +705,7 @@
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--m-well-3);
   animation: mqEmptyPulse 1.8s ease-in-out infinite;
 }
 
@@ -918,20 +725,20 @@
   margin: 0 0 6px;
   font-size: 1.05rem;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--m-fg);
 }
 
 .mq-hint {
   margin: 0 0 16px;
   font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.38);
+  color: var(--m-fg-3);
 
   strong {
-    color: rgba(255, 255, 255, 0.6);
+    color: var(--m-fg-2);
   }
 
   &.mq-hint-launch {
-    color: rgba($c-green, 0.7);
+    color: var(--m-green-fg);
   }
 }
 
@@ -945,7 +752,7 @@
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.25);
+    background: var(--m-fg-3);
     animation: mqDotBounce 1.2s ease-in-out infinite;
 
     &:nth-child(2) {
@@ -973,286 +780,18 @@
   }
 }
 
-// ─── Rules card ───────────────────────────────────────────────────────────────
-.rules-card {
-  max-width: 440px;
-  max-height: 82vh;
-  display: flex;
-  flex-direction: column;
-  padding-bottom: 0;
-}
 
-.rules-subtitle {
-  margin: 4px 0 0;
-  font-size: 0.78rem;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.35);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.rules-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0 4px 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-
-  &::-webkit-scrollbar {
-    width: 4px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 4px;
-  }
-}
-
-.rules-section {
-  padding: 14px 16px;
-  background: rgba(255, 255, 255, 0.025);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.rules-section-header {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-}
-
-.rules-icon {
-  font-size: 1rem;
-  line-height: 1;
-  flex-shrink: 0;
-}
-
-.rules-section-title {
-  margin: 0;
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.85);
-  letter-spacing: 0.02em;
-}
-
-.rules-text {
-  margin: 0;
-  font-size: 0.84rem;
-  color: rgba(255, 255, 255, 0.6);
-  line-height: 1.55;
-
-  strong {
-    color: rgba(255, 255, 255, 0.85);
-  }
-}
-
-.rules-list {
-  margin: 0;
-  padding-left: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-
-  li {
-    font-size: 0.84rem;
-    color: rgba(255, 255, 255, 0.58);
-    line-height: 1.5;
-
-    strong {
-      color: rgba(255, 255, 255, 0.85);
-    }
-
-    em {
-      color: rgba(255, 255, 255, 0.38);
-      font-style: italic;
-    }
-  }
-}
-
-.rules-note {
-  margin: 0;
-  font-size: 0.78rem;
-  color: rgba(255, 255, 255, 0.38);
-  font-style: italic;
-  line-height: 1.4;
-}
-
-// Players banner
-.rules-team-banner {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 6px 0 2px;
-
-  .mm {
-    width: 20px;
-    height: 20px;
-  }
-}
-
-// ─── Card actions tiles ───────────────────────────────────────────────────────
-.ca-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 7px;
-}
-
-.ca-tile {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  padding: 12px 8px;
-  border-radius: 12px;
-  border: 1px solid;
-  text-align: center;
-  transition: transform 0.15s;
-
-  &:hover {
-    transform: translateY(-1px);
-  }
-
-  &.ca-wide {
-    grid-column: span 2;
-    flex-direction: row;
-    gap: 10px;
-  }
-
-  &.ca-green {
-    background: rgba($c-green, 0.09);
-    border-color: rgba($c-green, 0.28);
-
-    .ca-val {
-      color: $c-green;
-    }
-  }
-
-  &.ca-blue {
-    background: rgba($c-blue, 0.09);
-    border-color: rgba($c-blue, 0.28);
-
-    .ca-val {
-      color: $c-blue;
-    }
-  }
-
-  &.ca-orange {
-    background: rgba($c-orange, 0.09);
-    border-color: rgba($c-orange, 0.28);
-
-    .ca-val {
-      color: $c-orange;
-    }
-  }
-
-  &.ca-purple {
-    background: rgba(139, 92, 246, 0.09);
-    border-color: rgba(139, 92, 246, 0.28);
-
-    .ca-val {
-      color: #a78bfa;
-    }
-  }
-
-  &.ca-red {
-    background: rgba($c-red, 0.09);
-    border-color: rgba($c-red, 0.28);
-
-    .ca-val {
-      color: $c-red;
-    }
-  }
-
-  &.ca-muted {
-    background: rgba(255, 255, 255, 0.04);
-    border-color: rgba(255, 255, 255, 0.1);
-
-    .ca-val {
-      color: rgba(255, 255, 255, 0.55);
-    }
-  }
-}
-
-.ca-val {
-  font-size: 1.6rem;
-  font-weight: 900;
-  line-height: 1;
-  letter-spacing: -0.02em;
-  flex-shrink: 0;
-
-  &.ca-val-sm {
-    font-size: 1.1rem;
-  }
-}
-
-.ca-action {
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.5);
-  line-height: 1.35;
-
-  em {
-    font-style: italic;
-    color: rgba(255, 255, 255, 0.3);
-  }
-}
-
-// Important rules alerts
-.rules-alerts {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.rules-alert {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 10px;
-  font-size: 0.82rem;
-  color: rgba(255, 255, 255, 0.55);
-  line-height: 1.45;
-
-  strong {
-    color: rgba(255, 255, 255, 0.8);
-  }
-}
-
-.alert-badge {
-  font-size: 1rem;
-  flex-shrink: 0;
-  line-height: 1.4;
-}
 
 // ─── Settings rules button ────────────────────────────────────────────────────
+// Rangée cliquable des réglages : papier, libellé à gauche, chevron à droite.
 .settings-rules-btn {
-  display: flex;
-  align-items: center;
+  @include m.btn(12px 16px, var(--m-r-md));
+  @include m.btn-paper;
+  justify-content: flex-start;
   gap: 10px;
   width: 100%;
-  padding: 12px 16px;
-  margin-bottom: 16px;
-  background: rgba($c-blue, 0.07);
-  border: 1px solid rgba($c-blue, 0.25);
-  border-radius: 14px;
-  color: rgba(255, 255, 255, 0.75);
+  margin-bottom: 14px;
   font-size: 0.88rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s, border-color 0.2s, color 0.2s;
 
   span {
     flex: 1;
@@ -1264,28 +803,15 @@
     transition: transform 0.2s, opacity 0.2s;
   }
 
-  &:hover {
-    background: rgba($c-blue, 0.14);
-    border-color: rgba($c-blue, 0.5);
-    color: white;
-
-    .chevron {
-      transform: translateX(3px);
-      opacity: 0.7;
-    }
+  &:hover .chevron {
+    transform: translateX(3px);
+    opacity: 0.7;
   }
 }
 
+// Action destructive : plaque pleine rouge, libellé clair.
 .settings-delete-btn {
-  background: rgba(239, 68, 68, 0.07);
-  border-color: rgba(239, 68, 68, 0.25);
-  color: rgba(239, 68, 68, 0.85);
-
-  &:hover {
-    background: rgba(239, 68, 68, 0.14);
-    border-color: rgba(239, 68, 68, 0.5);
-    color: #ef4444;
-  }
+  @include m.btn-fill(red);
 }
 
 // ─── Settings card ────────────────────────────────────────────────────────────
@@ -1294,8 +820,8 @@
   flex-direction: column;
   gap: 0;
   margin-bottom: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 14px;
+  border: 1px solid var(--m-line-2);
+  border-radius: var(--m-r-md);
   overflow: hidden;
 }
 
@@ -1304,7 +830,7 @@
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--m-line);
 
   &:last-child {
     border-bottom: none;
@@ -1315,49 +841,50 @@
   flex: 1;
   font-size: 0.85rem;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--m-fg-3);
 }
 
 .info-val {
   font-size: 0.85rem;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.75);
+  font-weight: 700;
+  color: var(--m-fg);
 }
 
 .info-link {
   font-size: 0.85rem;
-  font-weight: 600;
-  color: rgba($c-blue, 0.85);
+  font-weight: 700;
+  color: var(--m-blue-fg);
   text-decoration: none;
-  transition: color 0.2s;
+  // Une adresse e-mail longue ne doit pas pousser la carte hors de l'écran.
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-align: right;
 
   &:hover {
-    color: $c-blue;
+    text-decoration: underline;
   }
 }
 
 // ─── Google Sign-In nav button ────────────────────────────────────────────────
+// Les teintes du bouton Google (fond blanc, filet et texte gris) sont celles
+// imposées par sa charte : elles ne passent pas par les tokens. Seuls la forme
+// et le relief suivent le reste de l'app.
 .btn-google-nav {
+  @include m.btn(7px 14px);
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 14px;
   background: #fff;
   border: 1px solid #dadce0;
-  border-radius: 50px;
   color: #3c4043;
+  box-shadow: var(--m-ledge);
   font-size: 0.82rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s, box-shadow 0.15s;
 
-  &:hover {
+  &:hover:not(:disabled) {
     background: #f8f8f8;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
   }
 
-  &:active {
-    background: #f1f1f1;
+  &:active:not(:disabled) {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 0 var(--m-paper-edge);
   }
 }
 
@@ -1371,28 +898,23 @@
 
 // ─── Google Sign-In modal button ──────────────────────────────────────────────
 .btn-google {
+  @include m.btn(11px 16px, var(--m-r-md));
   display: flex;
-  align-items: center;
-  justify-content: center;
   gap: 10px;
   width: 100%;
-  padding: 11px 16px;
   background: #fff;
   border: 1px solid #dadce0;
-  border-radius: 12px;
   color: #3c4043;
+  box-shadow: var(--m-ledge);
   font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s, box-shadow 0.15s;
 
-  &:hover {
+  &:hover:not(:disabled) {
     background: #f8f8f8;
-    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.2);
   }
 
-  &:active {
-    background: #f1f1f1;
+  &:active:not(:disabled) {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 0 var(--m-paper-edge);
   }
 }
 
@@ -1416,25 +938,21 @@
 
 // ─── Auth error banner ────────────────────────────────────────────────────────
 .login-error-banner {
+  @include m.tint(red);
   padding: 10px 14px;
-  background: rgba($c-red, 0.12);
-  border: 1px solid rgba($c-red, 0.3);
-  border-radius: 10px;
-  color: rgba($c-red, 0.9);
+  border-radius: var(--m-r-sm);
   font-size: 0.85rem;
-  font-weight: 500;
+  font-weight: 600;
   text-align: center;
   margin-bottom: 4px;
 }
 
 .login-info-banner {
+  @include m.tint(blue);
   padding: 10px 14px;
-  background: rgba($c-blue, 0.12);
-  border: 1px solid rgba($c-blue, 0.3);
-  border-radius: 10px;
-  color: rgba($c-blue, 0.9);
+  border-radius: var(--m-r-sm);
   font-size: 0.85rem;
-  font-weight: 500;
+  font-weight: 600;
   text-align: center;
   margin-bottom: 4px;
 }
@@ -1451,6 +969,7 @@
   flex-shrink: 0; // la liste de messages défile, pas la fiche
 }
 
+// Anneau plein autour de l'avatar : le liseré de la surface le détache.
 .profile-avatar-wrap {
   position: relative;
   width: 80px;
@@ -1462,7 +981,7 @@
     position: absolute;
     inset: -3px;
     border-radius: 50%;
-    background: linear-gradient(135deg, rgba($c-blue, 0.5), rgba($c-green, 0.3));
+    background: var(--m-line-3);
     z-index: 0;
   }
 
@@ -1478,7 +997,9 @@
   height: 80px;
   border-radius: 50%;
   object-fit: cover;
-  border: 3px solid rgba(15, 23, 42, 1);
+  border: 3px solid var(--m-surface);
+  background: var(--m-surface);
+  box-sizing: border-box;
   transition: opacity 0.2s;
 }
 
@@ -1493,24 +1014,23 @@
   justify-content: center;
   gap: 3px;
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--m-fg);
   font-size: 0.65rem;
   font-weight: 700;
-  letter-spacing: 0.03em;
 }
 
 .profile-name {
-  margin: 0 0 5px;
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.92);
+  margin: 0 0 2px;
+  @include m.display(700);
+  font-size: 1.3rem;
+  color: var(--m-fg);
 }
 
 .profile-stats {
   margin: 0 0 20px;
-  font-size: 0.78rem;
-  color: rgba(255, 255, 255, 0.38);
-  letter-spacing: 0.02em;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--m-fg-3);
 }
 
 .profile-edit-fields {
@@ -1522,44 +1042,30 @@
 }
 
 .edit-name-input {
+  @include m.field;
   width: 100%;
   padding: 9px 12px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 10px;
-  color: rgba(255, 255, 255, 0.85);
   font-size: 0.9rem;
+  font-weight: 600;
   text-align: center;
-  outline: none;
   box-sizing: border-box;
-  transition: border-color 0.15s;
-
-  &::placeholder {
-    color: rgba(255, 255, 255, 0.22);
-  }
-
-  &:focus {
-    border-color: rgba($c-blue, 0.5);
-  }
 }
 
 .edit-error {
+  @include m.tint(red, 0.08, 0.22);
   font-size: 0.78rem;
-  color: rgba($c-red, 0.9);
+  font-weight: 600;
   padding: 7px 10px;
-  background: rgba($c-red, 0.08);
-  border-radius: 8px;
-  border: 1px solid rgba($c-red, 0.2);
+  border-radius: var(--m-r-sm);
   text-align: left;
 }
 
 .edit-status {
+  @include m.tint(blue, 0.08, 0.22);
   font-size: 0.78rem;
-  color: rgba($c-blue, 0.9);
+  font-weight: 600;
   padding: 7px 10px;
-  background: rgba($c-blue, 0.08);
-  border-radius: 8px;
-  border: 1px solid rgba($c-blue, 0.2);
+  border-radius: var(--m-r-sm);
   text-align: left;
 }
 
@@ -1570,56 +1076,22 @@
 }
 
 .btn-action {
+  @include m.btn(9px 14px);
   flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   gap: 6px;
-  padding: 9px 14px;
-  border-radius: 10px;
   font-size: 0.82rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
   white-space: nowrap;
 
-  &:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-  }
-
   &.btn-action-secondary {
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.11);
-    color: rgba(255, 255, 255, 0.6);
-
-    &:hover:not(:disabled) {
-      background: rgba(255, 255, 255, 0.1);
-      color: rgba(255, 255, 255, 0.85);
-    }
+    @include m.btn-paper;
   }
 
   &.btn-action-primary {
-    background: rgba($c-blue, 0.18);
-    border: 1px solid rgba($c-blue, 0.35);
-    color: rgba($c-blue, 0.95);
-
-    &:hover:not(:disabled) {
-      background: rgba($c-blue, 0.28);
-      border-color: rgba($c-blue, 0.55);
-    }
+    @include m.btn-fill(green);
   }
 
   &.btn-action-danger {
-    background: rgba($c-red, 0.08);
-    border: 1px solid rgba($c-red, 0.2);
-    color: rgba($c-red, 0.8);
-
-    &:hover:not(:disabled) {
-      background: rgba($c-red, 0.15);
-      border-color: rgba($c-red, 0.4);
-      color: $c-red;
-    }
+    @include m.btn-tint(red);
   }
 }
 
@@ -1651,41 +1123,30 @@
 
 // ─── Coin balance / shop entry (in nav) ───────────────────────────────────────
 // Le solde et la porte d'entrée de la boutique sont le même objet : une monnaie
-// qu'on ne voit pas est une monnaie qu'on oublie.
+// qu'on ne voit pas est une monnaie qu'on oublie. Même pastille papier que le
+// profil : c'est la pièce qui porte l'or, pas le fond.
 .nav-coins-btn {
   position: relative;
-  display: inline-flex;
-  align-items: center;
+  @include m.btn(0 12px);
+  @include m.btn-paper;
   gap: 6px;
-  padding: 0 12px;
   box-sizing: border-box;
-  background: rgba($c-gold, 0.1);
-  border: 1px solid rgba($c-gold, 0.3);
-  border-radius: 999px;
-  color: $c-gold;
-  font-size: 13px;
+  font-family: var(--m-font-display);
+  font-size: 15px;
   font-weight: 700;
-  cursor: pointer;
-  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
-
-  &:hover {
-    background: rgba($c-gold, 0.18);
-    border-color: rgba($c-gold, 0.55);
-  }
 
   // Point de rappel : au moins un article de la boutique est à portée du solde.
   // Placé sur le bord haut-droit, il reste lisible sans élargir la pastille.
   &.has-offer::after {
     content: "";
     position: absolute;
-    top: -2px;
-    right: -2px;
-    width: 8px;
-    height: 8px;
+    top: -3px;
+    right: -3px;
+    width: 9px;
+    height: 9px;
     border-radius: 50%;
-    background: $c-green;
-    border: 1.5px solid $bg-dark;
-    box-shadow: 0 0 8px rgba($c-green, 0.8);
+    background: var(--m-green);
+    border: 2px solid var(--m-paper);
     animation: nav-offer-throb 2.4s ease-in-out infinite;
   }
 
@@ -1702,16 +1163,16 @@
   50%      { transform: scale(1.3); opacity: 0.75; }
 }
 
+// La tranche de la pastille est répétée dans les deux images clés : sans
+// elle, l'animation remplacerait tout le box-shadow et le bouton s'aplatirait.
 @keyframes nav-coins-pulse {
   0% {
-    background: rgba($c-gold, 0.45);
-    border-color: rgba($c-gold, 0.95);
-    box-shadow: 0 0 0 0 rgba($c-gold, 0.6);
+    background: var(--m-gold-light);
+    box-shadow: 0 3px 0 0 var(--m-paper-edge), 0 0 0 0 rgba(var(--m-gold-rgb), 0.7);
   }
   100% {
-    background: rgba($c-gold, 0.1);
-    border-color: rgba($c-gold, 0.3);
-    box-shadow: 0 0 0 14px rgba($c-gold, 0);
+    background: var(--m-paper-hi);
+    box-shadow: 0 3px 0 0 var(--m-paper-edge), 0 0 0 14px rgba(var(--m-gold-rgb), 0);
   }
 }
 
@@ -1725,7 +1186,7 @@
 @media (max-width: 360px) {
   .nav-coins-btn {
     padding: 0 9px;
-    font-size: 12px;
+    font-size: 14px;
   }
 }
 
@@ -1734,23 +1195,21 @@
 // pour rester lisible quel que soit le prénom affiché.
 .nav-unread-badge {
   position: absolute;
-  top: -5px;
-  right: -4px;
-  min-width: 18px;
-  height: 18px;
+  top: -6px;
+  right: -5px;
+  min-width: 19px;
+  height: 19px;
   padding: 0 5px;
   box-sizing: border-box;
-  background: linear-gradient(135deg, #ef4444, #b91c1c);
-  color: white;
+  background: var(--m-red);
+  color: var(--m-on-red);
   font-size: 10px;
-  font-weight: 700;
-  border-radius: 9px;
+  font-weight: 800;
+  border-radius: var(--m-r-pill);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid #0b1120;
-  letter-spacing: 0;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+  border: 2px solid var(--m-paper);
 }
 
 // ─── Profile modal (profil + messages fusionnés) ──────────────────────────────
@@ -1764,6 +1223,7 @@
   // dvh mesure l'écran barres système comprises : on retranche les insets.
   max-height: min(85dvh - var(--sa-top) - var(--sa-bottom), 720px);
   overflow-y: auto; // filet de sécurité : la vue 'main' ne doit jamais déborder
+  @include m.scrollbar;
 }
 
 .login-card--thread {
@@ -1776,8 +1236,8 @@
   flex-direction: column;
   min-height: 0;
   margin-top: 20px;
-  padding-top: 14px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 16px;
+  border-top: 1px solid var(--m-line-2);
 }
 
 .login-messages-head {
@@ -1789,11 +1249,9 @@
 
 .login-messages-title {
   margin: 0;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.42);
+  @include m.display(700);
+  font-size: 1.1rem;
+  color: var(--m-fg);
 }
 
 .inbox-body {
@@ -1805,6 +1263,7 @@
   overflow-y: auto;
   margin: 0 -4px;
   padding: 0 4px;
+  @include m.scrollbar;
 }
 
 .inbox-state {
@@ -1813,18 +1272,18 @@
   align-items: center;
   justify-content: center;
   padding: 26px 16px;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--m-fg-2);
   font-size: 0.88rem;
   text-align: center;
   gap: 8px;
 
   &--error {
-    color: #f87171;
+    color: var(--m-red-fg);
   }
 }
 
 .inbox-empty svg {
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--m-fg-4);
 }
 
 .inbox-empty p {
@@ -1832,18 +1291,14 @@
 }
 
 .inbox-empty-hint {
-  font-size: 0.76rem;
-  color: rgba(255, 255, 255, 0.35);
-  max-width: 24ch;
+  font-size: 0.78rem;
+  color: var(--m-fg-3);
+  max-width: 26ch;
   line-height: 1.4;
 }
 
 .inbox-spinner {
-  width: 28px;
-  height: 28px;
-  border: 3px solid rgba(255, 255, 255, 0.15);
-  border-top-color: $c-blue;
-  border-radius: 50%;
+  @include m.spinner(28px);
   animation: inboxSpin 0.7s linear infinite;
 }
 
@@ -1867,28 +1322,22 @@
   gap: 12px;
   align-items: center;
   padding: 12px 12px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
+  @include m.inset;
   transition: background 0.15s, border-color 0.15s;
   cursor: pointer;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.06);
-    border-color: rgba(255, 255, 255, 0.12);
+    background: var(--m-well-2);
+    border-color: var(--m-line-2);
   }
 
   &--unread {
-    background: rgba($c-blue, 0.08);
-    border-color: rgba($c-blue, 0.25);
-
-    .inbox-from {
-      color: white;
-    }
+    background: rgba(var(--m-blue-rgb), 0.08);
+    border-color: rgba(var(--m-blue-rgb), 0.28);
 
     .inbox-preview {
-      color: rgba(255, 255, 255, 0.95);
-      font-weight: 500;
+      color: var(--m-fg);
+      font-weight: 600;
     }
   }
 }
@@ -1902,7 +1351,7 @@
   flex-shrink: 0;
 
   &--fallback {
-    background: rgba(255, 255, 255, 0.15);
+    background: var(--m-well-3);
   }
 }
 
@@ -1920,7 +1369,7 @@
 }
 
 .inbox-from {
-  color: #e2e8f0;
+  color: var(--m-fg);
   font-size: 0.9rem;
   font-weight: 700;
   white-space: nowrap;
@@ -1930,14 +1379,14 @@
 
 .inbox-date {
   flex-shrink: 0;
-  font-size: 0.7rem;
-  color: rgba(255, 255, 255, 0.45);
+  font-size: 0.72rem;
+  color: var(--m-fg-3);
 }
 
 .inbox-preview {
   margin: 0;
   font-size: 0.82rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--m-fg-2);
   line-height: 1.35;
   white-space: nowrap;
   overflow: hidden;
@@ -1945,7 +1394,7 @@
 }
 
 .inbox-preview-prefix {
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--m-fg-3);
 }
 
 .inbox-unread-pill {
@@ -1954,11 +1403,11 @@
   height: 20px;
   padding: 0 6px;
   box-sizing: border-box;
-  background: linear-gradient(135deg, #ef4444, #b91c1c);
-  color: white;
+  background: var(--m-red);
+  color: var(--m-on-red);
   font-size: 0.7rem;
-  font-weight: 700;
-  border-radius: 10px;
+  font-weight: 800;
+  border-radius: var(--m-r-pill);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1972,27 +1421,13 @@
   // Réserve à droite : le bouton de fermeture flotte au-dessus de la carte.
   padding: 0 34px 14px 0;
   margin-bottom: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--m-line);
   flex-shrink: 0;
 }
 
 .thread-back {
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 50%;
-  color: rgba(255, 255, 255, 0.7);
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.12);
-    color: white;
-  }
+  @include m.icon-btn(32px);
+  flex-shrink: 0;
 }
 
 .thread-peer {
@@ -2010,7 +1445,7 @@
   transition: background 0.15s;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--m-well);
   }
 }
 
@@ -2022,7 +1457,7 @@
 .thread-peer-name {
   font-size: 0.95rem;
   font-weight: 700;
-  color: white;
+  color: var(--m-fg);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2061,17 +1496,18 @@
 .bubble {
   max-width: 78%;
   padding: 8px 12px 6px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  background: var(--m-well-2);
+  border: 1px solid var(--m-line);
   position: relative;
   display: flex;
   flex-direction: column;
   gap: 2px;
 
+  // Mes messages : aplat bleu plein, texte crème.
   .bubble-row--mine & {
-    background: linear-gradient(135deg, rgba($c-blue, 0.95), rgba($c-blue, 0.7));
-    border-color: rgba($c-blue, 0.3);
+    background: var(--m-blue);
+    border-color: transparent;
     border-bottom-right-radius: 4px;
   }
 
@@ -2084,18 +1520,22 @@
   margin: 0;
   font-size: 0.88rem;
   line-height: 1.4;
-  color: white;
+  color: var(--m-fg);
   word-break: break-word;
   white-space: pre-wrap;
+
+  .bubble-row--mine & {
+    color: var(--m-on-blue);
+  }
 }
 
 .bubble-time {
-  font-size: 0.65rem;
-  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.66rem;
+  color: var(--m-fg-3);
   align-self: flex-end;
 
   .bubble-row--mine & {
-    color: rgba(255, 255, 255, 0.85);
+    color: rgba(var(--m-cream-rgb), 0.8);
   }
 }
 
@@ -2104,7 +1544,7 @@
   gap: 8px;
   align-items: flex-end;
   padding: 12px 0 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--m-line);
   margin-top: 8px;
   flex-shrink: 0;
 }
@@ -2114,25 +1554,11 @@
   resize: none;
   max-height: 120px;
   min-height: 40px;
-  padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 18px;
-  color: white;
+  padding: 10px 14px;
+  @include m.field;
+  border-radius: 20px;
   font-size: 0.88rem;
-  font-family: inherit;
   line-height: 1.4;
-  outline: none;
-  transition: border-color 0.15s, background 0.15s;
-
-  &::placeholder {
-    color: rgba(255, 255, 255, 0.4);
-  }
-
-  &:focus {
-    border-color: rgba($c-blue, 0.5);
-    background: rgba(255, 255, 255, 0.09);
-  }
 
   &:disabled {
     opacity: 0.6;
@@ -2140,29 +1566,13 @@
 }
 
 .thread-composer-send {
+  @include m.btn(0, 50%);
+  @include m.btn-fill(blue);
   width: 40px;
   height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, $c-blue, color.adjust($c-blue, $lightness: -10%));
-  border: none;
-  border-radius: 50%;
-  color: white;
-  cursor: pointer;
   flex-shrink: 0;
-  transition: transform 0.1s, opacity 0.15s;
-  box-shadow: 0 4px 12px rgba($c-blue, 0.3);
-
-  &:hover:not(:disabled) {
-    transform: translateY(-1px);
-  }
-
-  &:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-    box-shadow: none;
-  }
+  // La tranche du bouton dépasse de 3px : on la garde dans la rangée.
+  margin-bottom: 3px;
 
   svg {
     transform: translateX(-1px);
@@ -2231,6 +1641,7 @@
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
+  @include m.scrollbar;
 }
 
 // Fallback to the public queue: same footprint as the Play Now modal, since it
@@ -2240,113 +1651,79 @@
 }
 
 .custom-create-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  @include m.btn(14px 16px, var(--m-r-md));
+  @include m.btn-fill(orange);
+  @include m.display(700);
   gap: 10px;
-  padding: 14px 16px;
-  background: linear-gradient(135deg, rgba($c-orange, 0.85), color.adjust($c-orange, $lightness: -10%));
-  color: white;
-  font-size: 0.95rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  border: none;
-  border-radius: 14px;
-  cursor: pointer;
-  box-shadow: 0 6px 18px rgba($c-orange, 0.35);
-  transition: transform 0.1s, box-shadow 0.15s;
+  font-size: 1.08rem;
+  line-height: 1.25;
+  // Réserve pour la tranche du bouton, que le défilement de la carte rognerait.
+  margin-bottom: 3px;
 
   .ab-marble {
     width: 18px;
     height: 18px;
-  }
-
-  &:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 8px 22px rgba($c-orange, 0.45);
   }
 }
 
 .custom-divider {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   margin: 14px 0;
-  color: rgba(255, 255, 255, 0.4);
-  font-size: 0.75rem;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  color: var(--m-fg-3);
+  font-size: 0.8rem;
+  font-weight: 600;
 
   &::before,
   &::after {
     content: '';
     flex: 1;
     height: 1px;
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--m-line-2);
   }
 }
 
 .custom-join {
   display: flex;
   gap: 8px;
+  // Réserve pour la tranche du bouton « Join ».
+  padding-bottom: 3px;
 }
 
+// Le code de salon reste en chasse fixe : six caractères à recopier, où un O
+// ne doit pas se confondre avec un 0.
 .custom-join-input {
+  @include m.field;
   flex: 1;
+  min-width: 0;
   padding: 11px 14px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 10px;
-  color: white;
   font-size: 1.05rem;
   font-weight: 700;
   letter-spacing: 0.2em;
   text-align: center;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  outline: none;
-  transition: border-color 0.15s, background 0.15s;
   text-transform: uppercase;
 
   &::placeholder {
-    color: rgba(255, 255, 255, 0.25);
     letter-spacing: 0.2em;
-  }
-
-  &:focus {
-    border-color: rgba($c-blue, 0.5);
-    background: rgba(255, 255, 255, 0.09);
   }
 }
 
 .custom-join-btn {
-  padding: 0 18px;
-  background: rgba($c-blue, 0.85);
-  color: white;
-  font-weight: 700;
+  @include m.btn(0 20px, var(--m-r-md));
+  @include m.btn-fill(blue);
   font-size: 0.9rem;
-  border: none;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: background 0.15s, opacity 0.15s;
-
-  &:hover:not(:disabled) {
-    background: $c-blue;
-  }
-
-  &:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
 }
 
+// Sert aussi dans la carte de matchmaking : couleurs par alias de contexte.
 .custom-error {
+  @include m.tint(red, 0.1, 0.3);
   margin-top: 12px;
   padding: 8px 12px;
-  background: rgba(248, 113, 113, 0.1);
-  border: 1px solid rgba(248, 113, 113, 0.3);
-  border-radius: 8px;
-  color: #f87171;
+  border-radius: var(--m-r-sm);
   font-size: 0.82rem;
+  font-weight: 600;
 }
 
 // ─── In-room view ────────────────────────────────────────────────────────────
@@ -2356,17 +1733,12 @@
   align-items: center;
   gap: 6px;
   padding: 14px 16px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
+  @include m.inset;
   margin-bottom: 14px;
 }
 
 .custom-code-label {
-  font-size: 0.72rem;
-  color: rgba(255, 255, 255, 0.45);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
+  @include m.label;
 }
 
 .custom-code-row {
@@ -2380,33 +1752,18 @@
   font-size: 1.5rem;
   font-weight: 800;
   letter-spacing: 0.25em;
-  color: white;
+  color: var(--m-fg);
   user-select: all;
 }
 
 .custom-copy-btn {
-  display: inline-flex;
-  align-items: center;
+  @include m.btn(5px 11px);
+  @include m.btn-quiet;
   gap: 5px;
-  padding: 5px 10px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
-  color: rgba(255, 255, 255, 0.7);
   font-size: 0.72rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.12);
-    color: white;
-  }
 
   &.copied {
-    background: rgba(34, 197, 94, 0.18);
-    border-color: rgba(34, 197, 94, 0.4);
-    color: #4ade80;
+    @include m.tint(green, 0.14, 0.4);
   }
 }
 
@@ -2414,6 +1771,7 @@
   margin: 6px 0;
 }
 
+// Les trois règles qui suivent habillent aussi la carte de matchmaking.
 .custom-teams {
   display: flex;
   align-items: center;
@@ -2430,18 +1788,16 @@
 }
 
 .custom-team-label {
-  font-size: 0.7rem;
+  font-size: 0.74rem;
   font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--m-fg-3);
 }
 
 .custom-teams-vs {
-  font-size: 0.75rem;
+  font-family: var(--m-font-display);
+  font-size: 0.95rem;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.25);
-  text-transform: uppercase;
+  color: var(--m-fg-3);
   margin-top: 14px;
 }
 
@@ -2449,7 +1805,7 @@
   cursor: pointer;
 
   &:hover {
-    border-color: rgba(255, 255, 255, 0.4);
+    border-color: var(--m-line-3);
     transform: scale(1.05);
   }
 }
@@ -2467,11 +1823,12 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 10px;
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 8px;
+  padding: 7px 10px;
+  background: var(--m-well);
+  border-radius: var(--m-r-sm);
   font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.85);
+  font-weight: 600;
+  color: var(--m-fg);
 }
 
 .custom-player-marble {
@@ -2488,7 +1845,7 @@
   flex-shrink: 0;
 
   &--fallback {
-    background: rgba(255, 255, 255, 0.15);
+    background: var(--m-well-3);
   }
 }
 
@@ -2501,28 +1858,22 @@
 }
 
 .custom-player-tag {
+  @include m.tint(gold, 0.2, 0.45);
   flex-shrink: 0;
   padding: 2px 8px;
-  background: rgba($c-gold, 0.18);
-  border: 1px solid rgba($c-gold, 0.4);
-  color: $c-gold;
-  font-size: 0.65rem;
+  font-size: 0.68rem;
   font-weight: 700;
-  border-radius: 6px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  border-radius: var(--m-r-pill);
 
   &--mine {
-    background: rgba($c-blue, 0.18);
-    border-color: rgba($c-blue, 0.4);
-    color: color.adjust($c-blue, $lightness: 10%);
+    @include m.tint(blue, 0.12, 0.35);
   }
 }
 
 .custom-invite {
   margin-top: 4px;
   padding-top: 14px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--m-line-2);
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
@@ -2532,29 +1883,17 @@
 
 .custom-invite-title {
   margin: 0 0 8px;
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.85);
+  @include m.display(700);
+  font-size: 1.05rem;
+  color: var(--m-fg);
 }
 
 .custom-invite-search {
+  @include m.field;
   width: 100%;
   box-sizing: border-box;
   padding: 8px 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  color: white;
   font-size: 0.85rem;
-  outline: none;
-
-  &::placeholder {
-    color: rgba(255, 255, 255, 0.4);
-  }
-
-  &:focus {
-    border-color: rgba($c-blue, 0.4);
-  }
 }
 
 .custom-invite-list {
@@ -2567,6 +1906,7 @@
   display: flex;
   flex-direction: column;
   gap: 3px;
+  @include m.scrollbar;
 }
 
 .custom-invite-row {
@@ -2574,11 +1914,11 @@
   align-items: center;
   gap: 9px;
   padding: 6px 8px;
-  border-radius: 8px;
+  border-radius: var(--m-r-sm);
   transition: background 0.15s;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--m-well-2);
   }
 }
 
@@ -2590,7 +1930,7 @@
   flex-shrink: 0;
 
   &--fallback {
-    background: rgba(255, 255, 255, 0.15);
+    background: var(--m-well-3);
   }
 }
 
@@ -2598,7 +1938,8 @@
   flex: 1;
   min-width: 0;
   font-size: 0.82rem;
-  color: #e2e8f0;
+  font-weight: 600;
+  color: var(--m-fg);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2606,8 +1947,8 @@
 
 .custom-invite-points {
   flex-shrink: 0;
-  font-size: 0.7rem;
-  color: $c-gold;
+  font-size: 0.72rem;
+  color: var(--m-gold-fg);
   font-weight: 700;
 }
 
@@ -2623,18 +1964,18 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   padding: 0;
-  background: rgba(248, 113, 113, 0.18);
-  color: #f87171;
+  background: rgba(var(--m-red-rgb), 0.12);
+  color: var(--m-red-fg);
   border: none;
-  border-radius: 7px;
+  border-radius: 50%;
   cursor: pointer;
   transition: background 0.15s;
 
   &:hover {
-    background: rgba(248, 113, 113, 0.32);
+    background: rgba(var(--m-red-rgb), 0.22);
   }
 }
 
@@ -2644,17 +1985,17 @@
   align-items: center;
   justify-content: center;
   padding: 0;
-  width: 26px;
-  height: 26px;
-  background: rgba($c-blue, 0.85);
-  color: white;
+  width: 28px;
+  height: 28px;
+  background: var(--m-blue);
+  color: var(--m-on-blue);
   border: none;
-  border-radius: 7px;
+  border-radius: 50%;
   cursor: pointer;
   transition: background 0.15s, opacity 0.15s, color 0.15s;
 
   &:hover:not(:disabled) {
-    background: $c-blue;
+    background: var(--m-blue-deep);
   }
 
   &:disabled {
@@ -2662,22 +2003,22 @@
   }
 
   &.sending {
-    background: rgba($c-blue, 0.6);
+    opacity: 0.6;
   }
 
   &.pending {
-    background: rgba(234, 179, 8, 0.18);
-    color: #facc15;
+    background: rgba(var(--m-gold-rgb), 0.22);
+    color: var(--m-gold-fg);
   }
 
   &.accepted {
-    background: rgba(34, 197, 94, 0.22);
-    color: #4ade80;
+    background: rgba(var(--m-green-rgb), 0.16);
+    color: var(--m-green-fg);
   }
 
   &.error {
-    background: rgba(248, 113, 113, 0.22);
-    color: #f87171;
+    background: rgba(var(--m-red-rgb), 0.14);
+    color: var(--m-red-fg);
   }
 }
 
@@ -2697,15 +2038,15 @@
 
 .custom-invite-empty {
   padding: 14px 8px;
-  font-size: 0.78rem;
-  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.8rem;
+  color: var(--m-fg-3);
   text-align: center;
 }
 
 .custom-invite-state {
   padding: 14px 8px;
-  font-size: 0.78rem;
-  color: rgba(255, 255, 255, 0.45);
+  font-size: 0.8rem;
+  color: var(--m-fg-3);
   text-align: center;
 }
 
@@ -2713,44 +2054,27 @@
   display: flex;
   gap: 8px;
   margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  // 3px de plus en bas : la tranche du bouton « Start » dépasse de sa boîte.
+  padding: 12px 0 3px;
+  border-top: 1px solid var(--m-line-2);
   flex-shrink: 0;
 }
 
 // Warns the host, BEFORE the tap, what "Start anyway" actually does.
 .custom-start-hint {
   margin: 8px 0 0;
-  font-size: 0.75rem;
+  font-size: 0.76rem;
   line-height: 1.4;
   text-align: center;
-  color: rgba(255, 255, 255, 0.42);
+  color: var(--m-fg-3);
   flex-shrink: 0;
 }
 
 .custom-start-btn {
+  @include m.btn(11px 16px, var(--m-r-md));
+  @include m.btn-fill(green);
   flex: 1;
-  padding: 11px 16px;
-  background: linear-gradient(135deg, $c-green, color.adjust($c-green, $lightness: -10%));
-  color: white;
   font-size: 0.9rem;
-  font-weight: 700;
-  border: none;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: transform 0.1s, opacity 0.15s, box-shadow 0.15s;
-  box-shadow: 0 4px 12px rgba($c-green, 0.3);
-
-  &:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 16px rgba($c-green, 0.4);
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    box-shadow: none;
-  }
 }
 
 // ─── Worker (staff) login ─────────────────────────────────────────────────────
@@ -2760,73 +2084,35 @@
   gap: 8px;
   margin-top: 4px;
   padding: 14px 16px;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.02);
+  @include m.inset;
 }
 
 .worker-login-label {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.3);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  @include m.label;
   margin: 0 0 2px;
 }
 
 .worker-login-input {
+  @include m.field;
   width: 100%;
   padding: 9px 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  color: rgba(255, 255, 255, 0.85);
   font-size: 0.87rem;
-  outline: none;
   box-sizing: border-box;
-  transition: border-color 0.2s;
-
-  &::placeholder {
-    color: rgba(255, 255, 255, 0.25);
-  }
-
-  &:focus {
-    border-color: rgba($c-blue, 0.5);
-  }
 }
 
 .worker-login-error {
   font-size: 0.8rem;
-  color: rgba(#ef4444, 0.85);
+  font-weight: 600;
+  color: var(--m-red-fg);
   margin: 0;
 }
 
 .worker-login-btn {
+  @include m.btn(9px 12px, var(--m-r-md));
+  @include m.btn-tint(blue);
   width: 100%;
-  padding: 9px 12px;
-  background: rgba($c-blue, 0.15);
-  border: 1px solid rgba($c-blue, 0.3);
-  border-radius: 10px;
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 0.87rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s, border-color 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   gap: 6px;
-
-  &:hover:not(:disabled) {
-    background: rgba($c-blue, 0.25);
-    border-color: rgba($c-blue, 0.5);
-    color: white;
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
+  font-size: 0.87rem;
 }
 
 // ─── Custom modal — responsive small screens ──────────────────────────────────
@@ -2840,7 +2126,7 @@
       display: none;
     }
 
-    // Push code block below the close button (top:14px + height:30px = 44px)
+    // Push code block below the close button (top:14px + height:32px = 46px)
     // to avoid visual overlap once .modal-header is gone.
     .custom-code-block {
       margin-top: 20px;

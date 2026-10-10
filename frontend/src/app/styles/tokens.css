@@ -1,0 +1,212 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+ *  Mercury design tokens — « ardoise mat sur ciel »
+ * ───────────────────────────────────────────────────────────────────────────
+ *  Source unique de vérité, en CSS pur pour être lue par les deux mondes :
+ *    • l'app Angular     → chargée par angular.json (avant styles.scss) ;
+ *    • les pages statiques → inlinée par content/lib/*.mjs devant content.css.
+ *  Ne jamais recopier une de ces valeurs ailleurs : on référence le token.
+ *
+ *  Deux niveaux :
+ *    1. tokens absolus (--m-paper, --m-ink, --m-green…) : une teinte, un nom ;
+ *    2. alias de contexte (--m-fg, --m-line, --m-well, --m-*-fg…) : ce qu'un
+ *       composant doit utiliser. Ils valent « ciel » par défaut (texte crème
+ *       sur le fond spatial) et basculent en « papier » (texte encre) dès
+ *       qu'un ancêtre porte .m-paper. Un même composant est ainsi lisible
+ *       posé sur le ciel comme dans une carte.
+ *
+ *  Les triplets *-rgb servent aux teintes à alpha : rgba(var(--m-ink-rgb), .1).
+ *  color-mix() est évité volontairement (WebView Android anciens).
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Polices embarquées (OFL-1.1, voir assets/fonts/OFL-*.txt) ────────────── */
+@font-face {
+  font-family: "Baloo 2";
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url("/assets/fonts/baloo-2-latin-wght-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Baloo 2";
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url("/assets/fonts/baloo-2-latin-ext-wght-normal.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url("/assets/fonts/plus-jakarta-sans-latin-wght-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url("/assets/fonts/plus-jakarta-sans-latin-ext-wght-normal.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* ── 1. Tokens absolus ────────────────────────────────────────────────────── */
+:root {
+  /* Typographie : Baloo 2 pour les titres et les chiffres, Plus Jakarta Sans
+     pour tout le reste. */
+  --m-font-display: "Baloo 2", ui-rounded, "Segoe UI", system-ui, sans-serif;
+  --m-font-text: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  /* Ardoise : la matière de toutes les surfaces. Aplats opaques et mats, sans
+     transparence ni flou. Les noms --m-paper* sont conservés : ce sont ceux
+     que référencent les composants. */
+  --m-paper: #1d4459; /* carte, modale, panneau : bleu ardoise sombre */
+  --m-paper-hi: #265670; /* champ de saisie, bouton secondaire */
+  --m-paper-lo: #16374a; /* creux, rangée survolée */
+  --m-paper-edge: #0f2938; /* tranche sous un bouton */
+  --m-glass-line: #2e637e; /* filet d'une surface : bleu acier mat */
+  --m-ink-night: #16374a; /* bleu nuit d'encre : second fond opaque */
+
+  /* Texte sur verre : blanc cassé, quatre niveaux. Les trois premiers tiennent
+     4.5:1 sur le verre ; le quatrième est réservé aux placeholders et aux états
+     désactivés. */
+  --m-ink: #f0f8ff;
+  --m-ink-rgb: 240, 248, 255;
+  --m-ink-2: rgba(240, 248, 255, 0.78);
+  --m-ink-3: rgba(240, 248, 255, 0.62);
+  --m-ink-4: rgba(240, 248, 255, 0.4);
+  /* Encre sombre : seulement pour un libellé posé sur un aplat clair (médaille,
+     bouton orange ou or). */
+  --m-ink-solid: #0c2230;
+
+  /* Crème : le texte posé directement sur le ciel. */
+  --m-cream: #f0f8ff;
+  --m-cream-rgb: 240, 248, 255;
+
+  /* Nuit : le ciel et les rares surfaces sombres conservées. */
+  --m-night: #0f172a;
+  --m-night-rgb: 15, 23, 42;
+  --m-night-deep: #05070f;
+  --m-night-glow: #1a2840;
+  --m-scrim: rgba(6, 8, 16, 0.68);
+
+  /* Accents. Pour chacun :
+       (nu)    aplat d'un bouton plein ;
+       -deep   tranche du bouton, état enfoncé ;
+       -ink    texte et icônes sur papier ;
+       -light  texte et icônes sur ciel ;
+       -rgb    triplet de l'aplat, pour les teintes à alpha. */
+  --m-green: #00c885;
+  --m-green-rgb: 0, 200, 133;
+  --m-green-deep: #008f5f;
+  --m-green-ink: #1b6e50;
+  --m-green-light: #6fd0a9;
+
+  --m-blue: #0477bd;
+  --m-blue-rgb: 4, 119, 189;
+  --m-blue-deep: #0c5d8c;
+  --m-blue-ink: #0b639a;
+  --m-blue-light: #7fc4f0;
+
+  --m-orange: #f7914e;
+  --m-orange-rgb: 247, 145, 78;
+  --m-orange-deep: #c96a2b;
+  --m-orange-ink: #a8501a;
+  --m-orange-light: #f9a56c;
+
+  --m-red: #c8452f;
+  --m-red-rgb: 200, 69, 47;
+  --m-red-deep: #9c3220;
+  --m-red-ink: #b53a25;
+  --m-red-light: #f08a76;
+
+  --m-gold: #ffb703;
+  --m-gold-rgb: 255, 183, 3;
+  --m-gold-deep: #c78a00;
+  --m-gold-ink: #8a6400;
+  --m-gold-light: #ffc83d;
+
+  /* Boosters : ex-violet, banni. Le nom --m-violet est conservé pour les
+     composants, la teinte est un cyan vif. */
+  --m-violet: #22b8cf;
+  --m-violet-rgb: 34, 184, 207;
+  --m-violet-deep: #168499;
+  --m-violet-ink: #168499;
+  --m-violet-light: #6fdcec;
+
+  /* Médailles du classement (l'or est --m-gold). Libellé encre sur les trois. */
+  --m-silver: #cfcac0;
+  --m-bronze: #d39a62;
+
+  /* Libellé posé sur un aplat d'accent. */
+  --m-on-green: var(--m-ink-solid);
+  --m-on-blue: var(--m-cream);
+  --m-on-red: var(--m-cream);
+  --m-on-violet: var(--m-ink-solid);
+  --m-on-orange: var(--m-ink-solid);
+  --m-on-gold: var(--m-ink-solid);
+
+  /* Rayons. */
+  --m-r-sm: 10px;
+  --m-r-md: 14px;
+  --m-r-lg: 20px;
+  --m-r-xl: 28px;
+  --m-r-pill: 999px;
+
+  /* Ombres. Sur le ciel une ombre portée ne se voit pas : l'épaisseur d'une
+     surface est donc dite par sa tranche (un liseré plein sous la carte),
+     l'ombre diffuse ne fait que la détacher. */
+  --m-ledge: 0 3px 0 0 var(--m-paper-edge);
+  --m-shadow-slab: 0 4px 0 0 var(--m-paper-edge), 0 22px 40px -22px rgba(0, 0, 0, 0.7);
+  --m-shadow-pop: 0 2px 0 0 var(--m-paper-edge), 0 12px 24px -14px rgba(0, 0, 0, 0.6);
+  --m-focus: 0 0 0 3px rgba(var(--m-blue-rgb), 0.3);
+
+  /* Mouvement. */
+  --m-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --m-press: 90ms;
+}
+
+/* ── 2. Alias de contexte ─────────────────────────────────────────────────── */
+
+/* Ciel : défaut de l'app (le fond spatial est derrière tout). .m-sky permet
+   de le rétablir à l'intérieur d'une surface papier. */
+:root,
+.m-sky {
+  --m-surface: var(--m-night);
+  --m-fg: var(--m-cream);
+  --m-fg-2: rgba(var(--m-cream-rgb), 0.74);
+  --m-fg-3: rgba(var(--m-cream-rgb), 0.52);
+  --m-fg-4: rgba(var(--m-cream-rgb), 0.34);
+  --m-line: rgba(var(--m-cream-rgb), 0.1);
+  --m-line-2: rgba(var(--m-cream-rgb), 0.18);
+  --m-line-3: rgba(var(--m-cream-rgb), 0.32);
+  --m-well: rgba(var(--m-cream-rgb), 0.05);
+  --m-well-2: rgba(var(--m-cream-rgb), 0.09);
+  --m-well-3: rgba(var(--m-cream-rgb), 0.14);
+  --m-field: rgba(var(--m-cream-rgb), 0.07);
+  --m-green-fg: var(--m-green-light);
+  --m-blue-fg: var(--m-blue-light);
+  --m-orange-fg: var(--m-orange-light);
+  --m-red-fg: var(--m-red-light);
+  --m-gold-fg: var(--m-gold-light);
+  --m-violet-fg: var(--m-violet-light);
+}
+
+/* Ardoise : à poser sur toute surface opaque (carte, modale, panneau, toast).
+   Les alias restent ceux du ciel (texte crème) : un composant se lit pareil
+   posé sur le fond ou dans une carte. Seuls le fond et le champ changent. */
+.m-paper {
+  --m-surface: var(--m-paper);
+  --m-field: var(--m-paper-hi);
+  background-color: var(--m-paper);
+  color: var(--m-fg);
+}

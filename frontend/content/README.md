@@ -40,11 +40,29 @@ an SEO regression doesn't show up on the rendered page, it must break CI.
 
 - `lib/site.mjs` — site URL, hreflang clusters, canonical entity definition
 - `lib/layout.mjs` — the full document: head, Open Graph, JSON-LD, inlined CSS
+- `lib/styles.mjs` — the inlined stylesheet (design tokens, then `content.css`)
+  and the font preload tags
 - `lib/schema.mjs` — schema.org constructors
 - `lib/blocks.mjs` — UI labels and shared blocks (tables, FAQ, footer)
 - `lib/rules-layout.mjs` — common skeleton for the 4 rules pages
 - `pages/` — editorial content, one entry per page
-- `assets/content.css` — stylesheet inlined into each page
+- `assets/content.css` — page layout, inlined into each page
+
+## Design tokens
+
+These pages share their palette, fonts, radii and shadows with the Angular
+app: `lib/styles.mjs` inlines `src/app/styles/tokens.css` (the same file
+`angular.json` loads) in front of `assets/content.css`, which declares no
+colour or font of its own and only references the `--m-*` custom properties.
+Change a token there and both the app and these pages follow.
+
+The page background stays the night sky; every block of content is a cream
+"paper" surface. A paper surface carries the `m-paper` class in the markup:
+it switches the context aliases (`--m-fg`, `--m-line`, `--m-well`...) from
+cream text to ink text for everything inside it.
+
+The two fonts (Baloo 2, Plus Jakarta Sans) are served from
+`/assets/fonts/`, copied by the assets glob of `angular.json`.
 
 ## Points of attention
 

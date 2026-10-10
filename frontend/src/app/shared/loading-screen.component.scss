@@ -1,6 +1,4 @@
-@use "sass:color";
-@use "../styles/palette" as *; // palette « Système solaire » centralisée
-@use "../styles/planets" as *; // rendu billes « planètes » partagé
+@use "../styles/tokens" as m; // recettes « papier crème sur ciel »
 
 :host {
     position: fixed;
@@ -20,6 +18,9 @@
 /* ═══════════════════════════════════════════════════════════════
    ÉCRAN DE CHARGEMENT
    ═══════════════════════════════════════════════════════════════ */
+// Même dégradé de nuit que la base du fond spatial : quand l'écran s'efface,
+// le ciel est déjà là, sans saut de teinte. Police déclarée ici et non
+// héritée : dans /game, l'hôte de la page neutralise la police globale.
 .loading-screen {
     position: absolute;
     inset: 0;
@@ -28,38 +29,23 @@
     align-items: center;
     justify-content: center;
     gap: 32px;
-    background: radial-gradient(ellipse at 50% 40%, #1e3a5f 0%, #0a1628 100%);
+    background: radial-gradient(ellipse at 50% 0%, var(--m-night-glow) 0%, var(--m-night) 45%, var(--m-night-deep) 100%);
+    font-family: var(--m-font-text);
     overflow: hidden;
-
-    /* Halo central lumineux */
-    &::after {
-        content: '';
-        position: absolute;
-        width: 500px;
-        height: 500px;
-        border-radius: 50%;
-        background: radial-gradient(circle, rgba(59, 130, 246, 0.12) 0%, transparent 70%);
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        animation: haloPulse 3s ease-in-out infinite;
-        pointer-events: none;
-    }
 }
 
 /* ── Titre animé lettre par lettre ───────────────────────────── */
 .loading-title {
     display: flex;
-    gap: 6px;
+    gap: 4px;
     z-index: 1;
 }
 
 .title-letter {
-    font-size: clamp(2.5rem, 8vw, 5rem);
-    font-weight: 900;
-    color: white;
-    letter-spacing: 0.05em;
-    text-shadow: 0 0 30px rgba($c-blue, 0.8), 0 0 60px rgba($c-blue, 0.4);
+    @include m.display(800);
+    font-size: clamp(3rem, 10.5vw, 6rem);
+    color: var(--m-cream);
+    text-shadow: 0 0.05em 0 rgba(var(--m-night-rgb), 0.7);
     animation: letterFloat 2.4s ease-in-out infinite;
     animation-delay: calc(var(--i) * 0.12s);
     display: inline-block;
@@ -89,27 +75,11 @@ app-marble-orbit {
     z-index: 1;
 }
 
-@keyframes haloPulse {
-
-    0%,
-    100% {
-        opacity: 0.5;
-        transform: translate(-50%, -50%) scale(1);
-    }
-
-    50% {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(1.2);
-    }
-}
-
 /* ── Texte de statut ─────────────────────────────────────────── */
 .loading-status {
-    color: rgba(255, 255, 255, 0.65);
-    font-size: 0.95rem;
-    font-weight: 500;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    color: rgba(var(--m-cream-rgb), 0.74);
+    font-size: 1rem;
+    font-weight: 600;
     z-index: 1;
     margin: 0;
 }
@@ -124,7 +94,7 @@ app-marble-orbit {
         width: 8px;
         height: 8px;
         border-radius: 50%;
-        background: $c-blue;
+        background: var(--m-cream);
         animation: dotBounce 0.9s ease-in-out infinite;
         animation-delay: var(--d);
     }

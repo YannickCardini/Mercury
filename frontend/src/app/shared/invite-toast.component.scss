@@ -1,29 +1,26 @@
-@use "sass:color";
-
-$bg: #1a2840;
-$accent: #f0c040;
+@use "../styles/tokens" as m; // recettes « papier crème sur ciel »
 
 :host {
   position: fixed;
   bottom: calc(24px + var(--sa-bottom));
   right: calc(24px + var(--sa-right));
+  // Sur un écran étroit le toast ne doit pas dépasser à gauche.
+  max-width: calc(100vw - 24px - var(--sa-left) - var(--sa-right));
   z-index: 1000;
   pointer-events: none;
 }
 
+// Carton d'invitation : une plaque de papier (le template lui donne `m-paper`).
 .invite-toast {
   pointer-events: auto;
   display: flex;
   align-items: center;
   gap: 12px;
-  background: linear-gradient(135deg, $bg 0%, color.adjust($bg, $lightness: -4%) 100%);
-  border: 1px solid rgba($accent, 0.45);
-  border-radius: 12px;
+  @include m.slab(var(--m-r-lg), var(--m-shadow-pop));
   padding: 12px 14px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
-  color: #e2e8f0;
+  box-sizing: border-box;
   max-width: 360px;
-  min-width: 280px;
+  min-width: min(280px, 100%);
   animation: invite-toast-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
@@ -33,10 +30,11 @@ $accent: #f0c040;
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
-  border: 2px solid rgba($accent, 0.6);
+  border: 2px solid var(--m-line-3);
+  box-sizing: border-box;
 
   &--fallback {
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--m-well-2);
   }
 }
 
@@ -48,24 +46,27 @@ $accent: #f0c040;
 .invite-toast-title {
   margin: 0 0 2px 0;
   font-size: 13px;
+  font-weight: 500;
   line-height: 1.3;
-  color: #e2e8f0;
+  color: var(--m-fg-2);
 
   strong {
-    color: $accent;
+    color: var(--m-fg);
+    font-weight: 800;
   }
 }
 
 .invite-toast-code {
   margin: 0;
-  font-size: 11px;
-  color: #94a3b8;
-  letter-spacing: 0.04em;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--m-fg-3);
 
   span {
     font-family: "SF Mono", Menlo, Consolas, monospace;
-    font-weight: 600;
-    color: #cbd5e1;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--m-fg);
     margin-left: 4px;
   }
 }
@@ -75,47 +76,24 @@ $accent: #f0c040;
   align-items: center;
   gap: 6px;
   flex-shrink: 0;
+  // Réserve pour la tranche du bouton « Join ».
+  padding-bottom: 3px;
 }
 
 .invite-toast-decline {
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: #cbd5e1;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+  @include m.icon-btn(30px);
 
   &:hover {
-    background: rgba(239, 68, 68, 0.18);
-    color: #fca5a5;
-    border-color: rgba(239, 68, 68, 0.45);
+    background: rgba(var(--m-red-rgb), 0.12);
+    border-color: rgba(var(--m-red-rgb), 0.4);
+    color: var(--m-red-fg);
   }
 }
 
 .invite-toast-join {
-  background: $accent;
-  color: #1a1a1a;
-  border: none;
-  font-weight: 600;
+  @include m.btn(6px 16px);
+  @include m.btn-fill(green);
   font-size: 13px;
-  padding: 6px 14px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 120ms ease, transform 120ms ease;
-
-  &:hover {
-    background: color.adjust($accent, $lightness: 6%);
-    transform: translateY(-1px);
-  }
-
-  &:active {
-    transform: translateY(0);
-  }
 }
 
 @keyframes invite-toast-in {

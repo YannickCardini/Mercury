@@ -12,6 +12,14 @@
     display: block;
     width: 100%;
     height: 100%;
+    // La typographie globale de l'app (body, voir styles.scss) ne s'applique
+    // pas à la partie : plateau, overlays et bandeaux gardent celle sur
+    // laquelle leurs dimensions ont été réglées. Ces trois valeurs rétablissent
+    // ce qu'ils héritaient avant que body ne déclare une police.
+    font-family: initial;
+    -webkit-font-smoothing: auto;
+    -moz-osx-font-smoothing: auto;
+    text-rendering: auto;
 }
 
 .grid-container {
