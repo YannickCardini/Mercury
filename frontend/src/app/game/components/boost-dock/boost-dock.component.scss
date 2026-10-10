@@ -1,11 +1,7 @@
-@use "sass:color";
-@use "../../../styles/palette" as *;
-@use "../../../styles/coin" as *;
-
 /* =========================================
    BOOSTERS ACTIFS — jetons + bulle d'explication
-   Même gabarit que les boutons de réactions et de menu (32px de large, rayon
-   8px, verre discret).
+   Même gabarit que les boutons de réactions et de menu : pastille ardoise de
+   40px avec tranche pleine ; la bulle est une plaque ardoise opaque.
 
    Deux placements, selon la présence de l'anneau-timer au centre du haut :
    • anneau visible (desktop, paysage) : colonne sous le bouton de réactions,
@@ -24,16 +20,20 @@
 
 .boost-dock {
   position: absolute;
-  // Bouton de réactions : 32px à 0.75rem du bord, puis 8px d'écart.
-  top: calc(0.75rem + 32px + 8px);
+  // Bouton de réactions : 40px à 0.75rem du bord, puis 8px d'écart.
+  top: calc(0.75rem + 40px + 8px);
   left: 0.75rem;
   // Un cran sous les réactions (30) : leur palette s'ouvre vers le bas,
   // par-dessus la colonne des boosters, et doit rester au premier plan.
   z-index: 29;
+  // Calque stable : évite le flash Android à la (dé)sélection d'une carte.
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 
   @include timer-ring-hidden {
     top: 0.75rem;
-    left: calc(0.75rem + 32px + 8px);
+    left: calc(0.75rem + 40px + 8px);
   }
 }
 
@@ -41,31 +41,39 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px; // place pour l'orbite de chaque jeton
-  width: 32px;
-  padding: 10px 0;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(8px);
+  gap: 12px; // place pour l'anneau de chaque jeton
+  width: 40px;
+  box-sizing: border-box;
+  padding: 12px 0;
+  border-radius: var(--m-r-pill);
+  border: 1px solid var(--m-glass-line);
+  background: var(--m-paper-hi);
+  box-shadow: 0 3px 0 0 var(--m-paper-edge);
   cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease, transform 0.12s ease;
+  touch-action: manipulation;
+  transition: transform var(--m-press) var(--m-ease), box-shadow var(--m-press) var(--m-ease),
+    border-color 0.15s ease;
 
   @include timer-ring-hidden {
     flex-direction: row;
     width: auto;
-    height: 32px;
-    padding: 0 10px;
+    height: 40px;
+    padding: 0 14px;
   }
 
-  &:hover,
-  &.is-open {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.2);
+  &:hover:not(.is-open) {
+    border-color: rgba(var(--m-ink-rgb), 0.3);
   }
 
+  &.is-open,
   &:active {
-    transform: scale(0.94);
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 0 var(--m-paper-edge);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 3px 0 0 var(--m-paper-edge), var(--m-focus);
   }
 }
 
@@ -80,30 +88,29 @@
 
 // ── Compteur Bounty ────────────────────────────────────────────────────────
 // Pastille dorée en coin du jeton : les pièces venues des captures s'y
-// rangent. Elle rebondit à chaque arrivée, et une onde dorée part du jeton.
+// rangent. Elle rebondit à chaque arrivée, et un anneau doré part du jeton.
 
 .boost-dock__count {
   position: absolute;
-  top: -7px;
-  right: -9px;
+  top: -8px;
+  right: -10px;
   z-index: 2;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 15px;
-  height: 15px;
+  min-width: 16px;
+  height: 16px;
   padding: 0 4px;
   box-sizing: border-box;
-  border-radius: 999px;
-  font-size: 9.5px;
-  font-weight: 900;
+  border-radius: var(--m-r-pill);
+  font-family: var(--m-font-display);
+  font-size: 11px;
+  font-weight: 700;
   line-height: 1;
   font-variant-numeric: tabular-nums;
-  color: #2a1a04;
-  background: linear-gradient(135deg, $coin-hi, $c-gold 55%, $coin-lo);
-  box-shadow:
-    0 0 0 1.5px $bg-dark,
-    0 2px 5px rgba(0, 0, 0, 0.5);
+  color: var(--m-on-gold);
+  background: var(--m-gold);
+  box-shadow: 0 0 0 1.5px var(--m-paper-hi), 0 2px 0 1.5px var(--m-gold-deep);
   animation: count-bump 0.45s cubic-bezier(0.2, 1.6, 0.4, 1);
 }
 
@@ -125,7 +132,7 @@
   position: absolute;
   inset: -4px;
   border-radius: 50%;
-  border: 2px solid rgba($c-gold, 0.9);
+  border: 2px solid var(--m-gold);
   pointer-events: none;
   opacity: 0;
   animation: dock-ring 0.6s cubic-bezier(0.16, 1, 0.3, 1);
@@ -136,10 +143,6 @@
 // bulle explique ce qu'ils font.
 
 .is-popping {
-  .boost-dock__trigger {
-    animation: dock-glow 1.1s ease-out;
-  }
-
   .boost-dock__slot {
     animation: dock-pop 0.7s cubic-bezier(0.2, 1.5, 0.4, 1) both;
     animation-delay: calc(var(--i, 0) * 120ms);
@@ -149,7 +152,7 @@
       position: absolute;
       inset: -3px;
       border-radius: 50%;
-      border: 2px solid rgba(255, 255, 255, 0.85);
+      border: 2px solid var(--m-ink-2);
       pointer-events: none;
       animation: dock-ring 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
       animation-delay: calc(var(--i, 0) * 120ms + 80ms);
@@ -186,16 +189,6 @@
   }
 }
 
-@keyframes dock-glow {
-  0% {
-    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.35);
-  }
-
-  100% {
-    box-shadow: 0 0 0 14px rgba(255, 255, 255, 0);
-  }
-}
-
 // ── Bulle d'explication ────────────────────────────────────────────────────
 
 .boost-callout {
@@ -205,14 +198,15 @@
   width: max-content;
   max-width: 260px;
   box-sizing: border-box;
-  padding: 12px 14px 13px;
-  border-radius: 12px;
-  background: rgba(15, 23, 42, 0.96);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(16px);
+  padding: 12px 14px 14px;
+  border-radius: var(--m-r-lg);
+  background: var(--m-paper);
+  color: var(--m-fg);
+  border: 1px solid var(--m-glass-line);
+  box-shadow: var(--m-shadow-pop);
+  font-family: var(--m-font-text);
   transform-origin: 22px 0;
-  animation: callout-in 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: callout-in 0.22s var(--m-ease);
 }
 
 @keyframes callout-in {
@@ -230,27 +224,25 @@
 .boost-callout__arrow {
   position: absolute;
   top: -6px;
-  // Centrée sous la colonne de 32px ; sous le premier jeton en rangée.
-  left: 11px;
+  // Centrée sous la colonne de 40px ; sous le premier jeton en rangée.
+  left: 15px;
   width: 10px;
   height: 10px;
-  background: rgba(15, 23, 42, 0.96);
-  border-left: 1px solid rgba(255, 255, 255, 0.1);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--m-paper);
+  border-left: 1px solid var(--m-glass-line);
+  border-top: 1px solid var(--m-glass-line);
   transform: rotate(45deg);
 
   @include timer-ring-hidden {
-    left: 15px;
+    left: 19px;
   }
 }
 
 .boost-callout__title {
   margin: 0 0 10px;
-  font-size: 0.62rem;
+  font-size: 0.78rem;
   font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: rgba(226, 232, 240, 0.6);
+  color: var(--m-fg-3);
 }
 
 .boost-callout__list {
@@ -268,15 +260,15 @@
   gap: 12px;
 
   &[data-effect="double_points"] {
-    --ink: #{color.adjust($boost-points, $lightness: 20%)};
+    --ink: var(--m-violet-fg);
   }
 
   &[data-effect="double_coins"] {
-    --ink: #{$boost-coins};
+    --ink: var(--m-gold-fg);
   }
 
   &[data-effect="capture_coins"] {
-    --ink: #{color.adjust($boost-bounty, $lightness: 14%)};
+    --ink: var(--m-red-fg);
   }
 }
 
@@ -292,42 +284,31 @@
 }
 
 .boost-callout__name {
-  font-size: 0.85rem;
-  font-weight: 800;
-  color: var(--ink, #e2e8f0);
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--ink, var(--m-fg));
 }
 
 .boost-callout__desc {
   font-size: 0.74rem;
   line-height: 1.35;
-  color: rgba(226, 232, 240, 0.75);
+  color: var(--m-fg-2);
 }
 
 .boost-callout__progress {
   margin-top: 2px;
-  font-size: 0.7rem;
+  font-size: 0.74rem;
   font-weight: 700;
-  color: $c-gold;
+  color: var(--m-gold-fg);
   font-variant-numeric: tabular-nums;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .is-popping .boost-dock__trigger,
   .is-popping .boost-dock__slot,
   .is-popping .boost-dock__slot::after,
   .boost-dock__count,
   .boost-dock__flash,
   .boost-callout {
     animation: none;
-  }
-}
-
-/* Allègement natif (WebView Android) : pas de flou recomposé à chaque frame,
-   les fonds sont déjà quasi opaques. */
-:host(.is-native) {
-  .boost-dock__trigger,
-  .boost-callout {
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
   }
 }

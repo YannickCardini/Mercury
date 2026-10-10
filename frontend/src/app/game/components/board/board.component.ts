@@ -944,6 +944,12 @@ export class BoardComponent implements OnDestroy {
     ];
   });
 
+  /** Couleur du coéquipier du joueur local ; `null` en spectateur. */
+  readonly partnerColor = computed<MarbleColor | null>(() => {
+    const me = this.gameStateService.myPlayerColor();
+    return me ? getTeammateColor(me) : null;
+  });
+
   /** Rang au classement par couleur, alimenté à la demande via l'API profil. */
   playerRankings = signal<Partial<Record<MarbleColor, number>>>({});
   private fetchedRankingUserIds = new Set<string>();

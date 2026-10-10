@@ -30,7 +30,7 @@
           }
         </div>
         <div class="new-turn-text">
-          <span class="new-turn-label">{{ isReplayBanner() ? 'Bonus Turn · Joker' : 'New Turn' }}</span>
+          <span class="new-turn-label">{{ isReplayBanner() ? 'Bonus turn, Joker' : 'New turn' }}</span>
           <span class="new-turn-name">{{ isReplayBanner() && gameStateService.isMyTurn() ? 'Play Again!' : newTurnName() }}</span>
         </div>
       </div>

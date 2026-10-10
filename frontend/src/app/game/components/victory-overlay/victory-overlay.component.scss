@@ -583,10 +583,8 @@ $slot-glows: (
   background: rgba(var(--seal-rgb), 0.14);
   border: 1px solid rgba(var(--seal-rgb), 0.45);
   color: var(--seal-ink);
-  font-size: 0.62rem;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-size: 0.74rem;
+  font-weight: 700;
   white-space: nowrap;
 
   // Onde unique au moment où le sceau se pose.
@@ -608,8 +606,8 @@ $slot-glows: (
 // Points : le montant est connu d'emblée, le sceau le frappe juste après
 // l'entrée de la card.
 .stats-seal--points {
-  --seal-rgb: #{$boost-points-rgb};
-  --seal-ink: #{color.adjust($boost-points, $lightness: 20%)};
+  --seal-rgb: var(--m-violet-rgb);
+  --seal-ink: var(--m-violet-fg);
 
   animation: seal-stamp 0.55s cubic-bezier(0.2, 1.5, 0.4, 1) 1.05s both;
 
@@ -621,8 +619,8 @@ $slot-glows: (
 // Pièces : invisible (place réservée) jusqu'à ce que les pièces de base soient
 // rentrées, puis frappé au moment où le compteur commence à doubler.
 .stats-seal--coins {
-  --seal-rgb: #{$boost-coins-rgb};
-  --seal-ink: #{$c-gold};
+  --seal-rgb: var(--m-gold-rgb);
+  --seal-ink: var(--m-gold-fg);
 
   opacity: 0;
   transform: scale(0.6);
@@ -698,7 +696,7 @@ $slot-glows: (
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  color: color.adjust($boost-bounty, $lightness: 14%);
+  color: var(--m-red-fg);
 }
 
 .stats-breakdown-token {

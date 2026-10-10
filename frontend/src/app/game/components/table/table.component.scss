@@ -36,10 +36,12 @@
     height: 100%;
     max-height: 100%;
     overflow: hidden;
-    background: radial-gradient(ellipse at 20% 80%, rgba(124, 58, 237, 0.12) 0%, transparent 50%),
-        radial-gradient(ellipse at 80% 10%, rgba(16, 185, 129, 0.08) 0%, transparent 50%),
-        radial-gradient(circle at 50% 50%, #1a2440, #0a0f1e);
-    border-radius: 20px;
+    /* Plaque ardoise de l'accueil, un cran plus creuse (paper-lo) que le footer
+       (paper) pour que le plateau se lise comme un puits sous la plaque. */
+    background: var(--m-paper-lo);
+    border: 1px solid var(--m-glass-line);
+    border-radius: var(--m-r-xl);
+    box-shadow: var(--m-shadow-slab);
     box-sizing: border-box;
     position: relative;
     /* Aucune sélection de texte dans tout l'écran de jeu : évite la poignée bleue
@@ -59,14 +61,14 @@
         --fan-height: clamp(7rem, 22cqh, 12rem);
     }
 
-    &::before {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Ccircle cx='1' cy='1' r='0.5' fill='rgba(255,255,255,0.015)'/%3E%3C/svg%3E");
-        border-radius: 20px;
-        pointer-events: none;
-        z-index: 0;
+    /* Mobile portrait : la barre du haut (emoji, pastille du timer, menu) occupe
+       ~52px. On les réserve en haut pour que la main, centrée dans le reste,
+       ne remonte jamais dessus quand une carte est sélectionnée (elle se
+       soulève de 2rem). */
+    @media (max-aspect-ratio: 1/1) {
+        @media (max-width: 780px) {
+            padding-top: 3.5rem;
+        }
     }
 }
 
@@ -89,7 +91,9 @@
     position: absolute;
     top: 1.25rem;
     left: 50%;
-    transform: translateX(-50%);
+    transform: translate3d(-50%, 0, 0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
     z-index: 30;
     display: flex;
     flex-direction: column;
@@ -136,11 +140,10 @@
 .phase-capsule {
     display: inline-flex;
     align-items: stretch;
-    border-radius: 99px;
-    background: rgba(10, 15, 30, 0.72);
-    border: 1px solid var(--border);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
-    backdrop-filter: blur(10px);
+    border-radius: var(--m-r-pill);
+    background: var(--m-paper);
+    border: 1px solid var(--m-glass-line);
+    box-shadow: 0 3px 0 0 var(--m-paper-edge);
     overflow: hidden;
 }
 
@@ -148,43 +151,41 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 5px 12px 5px 14px;
-    background: rgba(251, 191, 36, 0.08);
-    border-right: 1px solid rgba(251, 191, 36, 0.22);
-    color: var(--gold);
-    font-size: 0.66rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+    padding: 7px 12px 7px 14px;
+    background: rgba(var(--m-gold-rgb), 0.12);
+    border-right: 1px solid rgba(var(--m-gold-rgb), 0.3);
+    color: var(--m-gold-fg);
+    font-family: var(--m-font-text);
+    font-size: 0.82rem;
+    font-weight: 700;
     white-space: nowrap;
 
     svg {
         flex-shrink: 0;
-        opacity: 0.9;
+        width: 14px;
+        height: 14px;
     }
 }
 
 .phase-capsule__phase {
     display: inline-flex;
     align-items: center;
-    gap: 7px;
-    padding: 5px 14px;
-    color: rgba(226, 232, 240, 0.92);
-    font-size: 0.66rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    line-height: 1.5;
+    gap: 8px;
+    padding: 7px 16px;
+    color: var(--m-fg);
+    font-family: var(--m-font-text);
+    font-size: 0.82rem;
+    font-weight: 700;
+    line-height: 1.4;
     text-wrap: balance;
-    animation: phase-swap 0.3s ease;
+    animation: phase-swap 0.3s var(--m-ease);
 
     .phase-dot {
         flex-shrink: 0;
-        width: 5px;
-        height: 5px;
+        width: 7px;
+        height: 7px;
         border-radius: 50%;
-        background: var(--accent);
-        box-shadow: 0 0 6px var(--accent-glow);
+        background: var(--m-green);
         animation: blink 1.6s ease-in-out infinite;
     }
 }
@@ -197,13 +198,13 @@
     :host(:not(.is-native)) {
         .phase-capsule {
             flex-direction: column;
-            border-radius: 16px;
+            border-radius: var(--m-r-md);
         }
 
         .phase-capsule__teammate {
             justify-content: center;
             border-right: none;
-            border-bottom: 1px solid rgba(251, 191, 36, 0.22);
+            border-bottom: 1px solid rgba(var(--m-gold-rgb), 0.3);
         }
 
         .phase-capsule__phase {
@@ -383,12 +384,19 @@
    FOOTER — TABLEAU DE BORD
    ========================================= */
 .control-dashboard {
-    background: var(--surface);
-    backdrop-filter: blur(24px) saturate(1.8);
-    border-top: 3px solid var(--border);
-    transition: border-top-color 0.3s ease, box-shadow 0.3s ease, opacity 0.25s ease, filter 0.25s ease;
-    padding: 1rem 1.25rem;
-    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+    /* Plaque ardoise de l'accueil : aplat opaque, filet bleu acier, tranche
+       claire en haut. La couleur du joueur ne marque que le liseré du haut
+       (border-top-color inline), sans halo. */
+    background: var(--m-paper);
+    color: var(--m-fg);
+    border: 1px solid var(--m-glass-line);
+    border-top: 4px solid var(--m-glass-line);
+    border-bottom: 0;
+    border-radius: var(--m-r-xl) var(--m-r-xl) 0 0;
+    box-shadow: 0 -18px 32px -22px rgba(0, 0, 0, 0.7);
+    transition: border-top-color 0.3s var(--m-ease), opacity 0.25s ease, filter 0.25s ease;
+    padding: 0.85rem 1.25rem;
+    padding-bottom: calc(0.85rem + env(safe-area-inset-bottom));
     z-index: 20;
     position: absolute;
     bottom: 0;
@@ -400,22 +408,6 @@
         opacity: 0.45;
         filter: grayscale(0.5);
         pointer-events: none;
-    }
-
-    &.turn-active {
-        animation: dashboardActivePulse 1.8s ease-in-out infinite;
-    }
-}
-
-@keyframes dashboardActivePulse {
-
-    0%,
-    100% {
-        box-shadow: 0 -3px 14px var(--turn-glow, transparent);
-    }
-
-    50% {
-        box-shadow: 0 -8px 30px var(--turn-glow, transparent);
     }
 }
 
@@ -436,7 +428,7 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    color: white;
+    color: var(--m-fg);
     flex: 1;
     min-width: 0;
 
@@ -448,18 +440,11 @@
 .avatar {
     width: 42px;
     height: 42px;
-    border-radius: 12px;
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1), 0 4px 12px rgba(0, 0, 0, 0.4);
+    border-radius: var(--m-r-sm);
+    border: 2px solid var(--m-paper-edge);
+    box-shadow: 0 3px 0 0 var(--m-paper-edge);
     flex-shrink: 0;
-    position: relative;
-
-    &::after {
-        content: '';
-        position: absolute;
-        inset: 0;
-        border-radius: inherit;
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), transparent);
-    }
+    box-sizing: border-box;
 }
 
 .player-info {
@@ -468,20 +453,21 @@
     min-width: 0;
 
     .label {
-        font-size: 0.65rem;
-        color: var(--text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-        font-weight: 500;
+        font-family: var(--m-font-text);
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: var(--m-fg-3);
     }
 
     strong {
-        font-size: 1rem;
-        font-weight: 600;
+        font-family: var(--m-font-display);
+        font-size: 1.2rem;
+        font-weight: 700;
+        line-height: 1.1;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        color: white;
+        color: var(--m-fg);
     }
 }
 
@@ -493,6 +479,12 @@
     top: 0.75rem;
     right: 0.75rem;
     z-index: 30;
+    /* Calque de composition stable : sans lui, WebView Android re-rastérise ces
+       boutons à chaque (dé)sélection de carte (la carte promue/animée passe
+       dans le même groupe de calques) → flash d'une frame. */
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
 }
 
 .menu-backdrop {
@@ -502,47 +494,59 @@
 }
 
 .menu-trigger {
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(255, 255, 255, 0.05);
-    color: var(--text-muted);
+    width: 40px;
+    height: 40px;
+    border-radius: var(--m-r-pill);
+    background: var(--m-paper-hi);
+    color: var(--m-fg-2);
+    border: 1px solid var(--m-glass-line);
+    box-shadow: 0 3px 0 0 var(--m-paper-edge);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s ease;
-    backdrop-filter: blur(8px);
+    transition: transform var(--m-press) var(--m-ease), box-shadow var(--m-press) var(--m-ease), border-color 0.15s ease, color 0.15s ease;
+    touch-action: manipulation;
 
-    &:hover,
+    &:hover {
+        border-color: rgba(var(--m-ink-rgb), 0.3);
+        color: var(--m-fg);
+    }
+
     &.is-open {
-        background: rgba(255, 255, 255, 0.1);
-        border-color: rgba(255, 255, 255, 0.18);
-        color: rgba(255, 255, 255, 0.8);
+        color: var(--m-fg);
+        border-color: rgba(var(--m-ink-rgb), 0.3);
+        transform: translateY(2px);
+        box-shadow: 0 1px 0 0 var(--m-paper-edge);
     }
 
     &:active {
-        transform: scale(0.92);
+        transform: translateY(2px);
+        box-shadow: 0 1px 0 0 var(--m-paper-edge);
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: 0 3px 0 0 var(--m-paper-edge), var(--m-focus);
     }
 }
 
 .menu-dropdown {
     position: absolute;
-    top: calc(100% + 6px);
+    top: calc(100% + 10px);
     right: 0;
     z-index: 29;
     display: flex;
     flex-direction: column;
     gap: 2px;
-    background: rgba(15, 23, 42, 0.96);
-    backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 10px;
-    padding: 4px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-    min-width: 140px;
-    animation: menuFadeIn 0.15s ease;
+    background: var(--m-paper);
+    border: 1px solid var(--m-glass-line);
+    border-radius: var(--m-r-lg);
+    padding: 6px;
+    box-shadow: var(--m-shadow-pop);
+    min-width: 188px;
+    transform-origin: top right;
+    animation: menuFadeIn 0.18s var(--m-ease);
 }
 
 @keyframes menuFadeIn {
@@ -560,29 +564,32 @@
 .menu-item {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     width: 100%;
-    padding: 7px 10px;
-    border-radius: 7px;
-    border: none;
+    min-height: 40px;
+    padding: 8px 12px;
+    border-radius: var(--m-r-sm);
+    border: 0;
     background: transparent;
-    color: rgba(255, 255, 255, 0.6);
-    font-family: 'DM Sans', sans-serif;
-    font-size: 0.8rem;
-    font-weight: 500;
+    color: var(--m-fg-2);
+    font-family: var(--m-font-text);
+    font-size: 0.9rem;
+    font-weight: 700;
     cursor: pointer;
     text-align: left;
-    transition: all 0.15s ease;
+    transition: background-color 0.15s ease, color 0.15s ease, transform var(--m-press) var(--m-ease);
     touch-action: manipulation;
 
     svg {
         flex-shrink: 0;
-        opacity: 0.8;
+        width: 18px;
+        height: 18px;
+        opacity: 0.85;
     }
 
     &:hover {
-        background: rgba(255, 255, 255, 0.07);
-        color: white;
+        background: var(--m-well-2);
+        color: var(--m-fg);
 
         svg {
             opacity: 1;
@@ -590,36 +597,27 @@
     }
 
     &:active {
-        transform: scale(0.97);
+        background: var(--m-well-3);
+        transform: translateY(1px);
+    }
+
+    /* Réglage coupé (son, vibration, aide) : teinte or, comme les états
+       « en attente » ailleurs dans l'app. */
+    &--muted {
+        color: var(--m-gold-fg);
+
+        &:hover {
+            background: rgba(var(--m-gold-rgb), 0.12);
+            color: var(--m-gold-fg);
+        }
     }
 
     &--danger {
-        color: rgba(248, 113, 113, 0.7);
-
-        svg {
-            opacity: 0.7;
-        }
+        color: var(--m-red-fg);
 
         &:hover {
-            background: rgba(248, 113, 113, 0.12);
-            color: var(--danger);
-
-            svg {
-                opacity: 1;
-            }
-        }
-    }
-
-    &--muted {
-        color: rgba(251, 191, 36, 0.8);
-
-        svg {
-            opacity: 0.8;
-        }
-
-        &:hover {
-            background: rgba(251, 191, 36, 0.08);
-            color: var(--gold);
+            background: rgba(var(--m-red-rgb), 0.16);
+            color: var(--m-red-fg);
         }
     }
 }
@@ -634,73 +632,67 @@
 .action-btn {
     flex: 0 0 auto;
     width: clamp(110px, 30%, 200px);
-    padding: 0.85rem 1.25rem;
-    border-radius: 12px;
-    border: none;
-    background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
-    color: white;
+    padding: 0.8rem 1.25rem;
+    border-radius: var(--m-r-pill);
+    border: 0;
+    background: var(--m-green);
+    color: var(--m-on-green);
     font-weight: 700;
-    font-size: 0.95rem;
-    font-family: 'DM Sans', sans-serif;
+    font-size: 1rem;
+    font-family: var(--m-font-display);
     cursor: pointer;
-    box-shadow: 0 4px 20px var(--accent-glow);
-    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-    letter-spacing: 0.02em;
+    box-shadow: 0 3px 0 0 var(--m-green-deep);
+    transition: transform var(--m-press) var(--m-ease), box-shadow var(--m-press) var(--m-ease), filter 0.15s ease;
     user-select: none;
     -webkit-user-select: none;
     -webkit-touch-callout: none;
     touch-action: manipulation;
 
     &:disabled {
-        background: rgba(51, 65, 85, 0.6);
-        color: var(--text-muted);
-        box-shadow: none;
+        background: var(--m-paper-hi);
+        color: var(--m-fg-4);
+        border: 1px solid var(--m-glass-line);
+        box-shadow: 0 3px 0 0 var(--m-paper-edge);
         cursor: not-allowed;
-        transform: none !important;
     }
 
     &:not(:disabled):hover {
-        transform: translateY(-2px) scale(1.02);
-        box-shadow: 0 8px 28px var(--accent-glow);
+        filter: brightness(1.07);
     }
 
     &:not(:disabled):active {
-        transform: translateY(0) scale(0.98);
+        transform: translateY(2px);
+        box-shadow: 0 1px 0 0 var(--m-green-deep);
     }
 
+    /* Défausse : action secondaire, plaque or plutôt que vert. */
+    &--discard:not(:disabled) {
+        background: var(--m-gold);
+        color: var(--m-on-gold);
+        box-shadow: 0 3px 0 0 var(--m-gold-deep);
+
+        &:active {
+            box-shadow: 0 1px 0 0 var(--m-gold-deep);
+        }
+    }
+
+    /* Confirmation du 7 prête : le bouton est entouré d'un anneau or fixe,
+       la flèche à côté porte le mouvement. */
     &--highlighted:not(:disabled) {
-        box-shadow:
-            0 0 0 3px rgba(255, 211, 77, 0.95),
-            0 0 18px 4px rgba(255, 211, 77, 0.45);
-        animation: confirmHighlightPulse 1.3s ease-in-out infinite;
+        outline: 3px solid var(--m-gold);
+        outline-offset: 3px;
     }
 }
 
 .confirm-arrow {
     display: flex;
     align-items: center;
-    color: #ffd34d;
+    color: var(--m-gold-light);
     pointer-events: none;
 
     svg {
         display: block;
         animation: confirmArrowBob 1.1s ease-in-out infinite;
-    }
-}
-
-@keyframes confirmHighlightPulse {
-
-    0%,
-    100% {
-        box-shadow:
-            0 0 0 3px rgba(255, 211, 77, 0.95),
-            0 0 18px 4px rgba(255, 211, 77, 0.45);
-    }
-
-    50% {
-        box-shadow:
-            0 0 0 5px rgba(255, 211, 77, 1),
-            0 0 26px 8px rgba(255, 211, 77, 0.65);
     }
 }
 
@@ -762,21 +754,23 @@
     box-sizing: border-box;
     text-align: center;
 
-    padding: 0.6rem 1.2rem;
-    border-radius: 20px;
-    font-size: 0.85rem;
-    font-weight: 600;
+    padding: 0.65rem 1.25rem;
+    border-radius: var(--m-r-lg);
+    font-family: var(--m-font-text);
+    font-size: 0.9rem;
+    font-weight: 700;
     line-height: 1.35;
     pointer-events: none;
 
-    background: rgba(248, 113, 113, 0.15);
-    border: 1px solid rgba(248, 113, 113, 0.5);
-    color: #fca5a5;
-    box-shadow: 0 4px 20px rgba(248, 113, 113, 0.2);
-    backdrop-filter: blur(8px);
+    // Plaque ardoise de l'accueil ; la couleur concernée ne teinte que le
+    // filet et la tranche (rouge par défaut : le temps est écoulé).
+    background: var(--m-paper);
+    border: 1px solid rgba(var(--m-red-rgb), 0.7);
+    color: var(--m-fg);
+    box-shadow: 0 3px 0 0 var(--m-paper-edge);
 
     animation:
-        bannerSlideIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards,
+        bannerSlideIn 0.35s var(--m-ease) forwards,
         bannerFadeOut 4s ease forwards;
 
     .timeout-icon {
@@ -785,27 +779,16 @@
         vertical-align: -0.1em;
     }
 
-    // Teinte spécifique par couleur de joueur (optionnel)
-    &.timeout-banner--red {
-        border-color: rgba(220, 38, 38, 0.5);
-    }
-
     &.timeout-banner--green {
-        border-color: rgba(34, 197, 94, 0.5);
-        color: #86efac;
-        background: rgba(34, 197, 94, 0.12);
+        border-color: rgba(var(--m-green-rgb), 0.7);
     }
 
     &.timeout-banner--blue {
-        border-color: rgba(59, 130, 246, 0.5);
-        color: #93c5fd;
-        background: rgba(59, 130, 246, 0.12);
+        border-color: rgba(var(--m-blue-rgb), 0.8);
     }
 
     &.timeout-banner--orange {
-        border-color: rgba(251, 146, 60, 0.5);
-        color: #fdba74;
-        background: rgba(251, 146, 60, 0.12);
+        border-color: rgba(var(--m-orange-rgb), 0.7);
     }
 }
 
@@ -860,30 +843,33 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background: rgba(255, 255, 255, 0.06);
-        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: var(--m-paper-hi);
+        border: 1px solid var(--m-glass-line);
         border-radius: 50%;
-        color: rgba(255, 255, 255, 0.85);
+        box-shadow: 0 3px 0 0 var(--m-paper-edge);
+        color: var(--m-fg-2);
         padding: 0;
         cursor: pointer;
-        transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+        touch-action: manipulation;
+        transition: border-color 0.15s ease, color 0.15s ease, transform var(--m-press) var(--m-ease), box-shadow var(--m-press) var(--m-ease);
 
         &:hover {
-            background: rgba(255, 255, 255, 0.12);
-            color: white;
+            border-color: rgba(var(--m-ink-rgb), 0.3);
+            color: var(--m-fg);
         }
 
         &:active {
-            transform: translateY(-50%) scale(0.94);
+            transform: translateY(calc(-50% + 2px));
+            box-shadow: 0 1px 0 0 var(--m-paper-edge);
         }
     }
 
     &__title {
-        font-size: clamp(0.95rem, 2.4cqh, 1.15rem);
+        font-family: var(--m-font-display);
+        font-size: clamp(1.15rem, 2.8cqh, 1.4rem);
         font-weight: 700;
-        color: white;
+        color: var(--m-fg);
         margin: 0;
-        letter-spacing: 0.02em;
     }
 
     &__body {
@@ -899,21 +885,33 @@
     }
 
     &__rule {
-        font-size: clamp(0.75rem, 1.8cqh, 0.9rem);
-        color: var(--text-muted);
+        font-family: var(--m-font-text);
+        font-size: clamp(0.8rem, 1.9cqh, 0.95rem);
+        font-weight: 600;
+        color: var(--m-fg-2);
         margin: 0;
         text-align: center;
-        line-height: 1.35;
+        line-height: 1.4;
         max-width: 28rem;
     }
 
+    // Aide d'étape : plaque ardoise au filet or, pour qu'elle se lise comme
+    // une consigne et non comme du texte de fond.
     &__hint {
-        font-size: clamp(0.8rem, 1.9cqh, 0.95rem);
-        color: #fbbf24;
+        font-family: var(--m-font-text);
+        font-size: clamp(0.85rem, 2cqh, 1rem);
+        font-weight: 700;
+        line-height: 1.4;
+        color: var(--m-fg);
         margin: 0;
+        padding: 0.6rem 1.1rem;
         text-align: center;
-        font-weight: 500;
         max-width: 28rem;
+        background: var(--m-paper);
+        border: 1px solid rgba(var(--m-gold-rgb), 0.55);
+        border-radius: var(--m-r-lg);
+        box-shadow: 0 3px 0 0 var(--m-paper-edge);
+        animation: cardHelpPop 0.25s var(--m-ease);
     }
 }
 
@@ -927,17 +925,15 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.6rem 1.25rem;
-    background: rgba(15, 23, 42, 0.75);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 999px;
+    background: var(--m-paper);
+    border: 1px solid var(--m-glass-line);
+    border-radius: var(--m-r-pill);
+    box-shadow: var(--m-shadow-pop);
     z-index: 12;
-    animation: sevenBarSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    animation: sevenBarSlideIn 0.4s var(--m-ease) both;
 
     &.seven-split-bar--split-active {
-        border-color: rgba(192, 132, 252, 0.3);
-        box-shadow: 0 0 20px rgba(192, 132, 252, 0.1);
+        border-color: rgba(var(--m-blue-rgb), 0.6);
     }
 
     &.turn-inactive {
@@ -982,26 +978,23 @@
     border-radius: 2px;
     flex-shrink: 0;
     pointer-events: none;
-    background: rgba(255, 255, 255, 0.12);
-    transition: background 0.3s ease, box-shadow 0.3s ease;
+    background: var(--m-well-3);
+    transition: background 0.3s ease;
 
     &.dot-connector--full {
-        background: rgba(192, 132, 252, 0.25);
+        background: rgba(var(--m-green-rgb), 0.45);
     }
 
     &.dot-connector--marble1 {
-        background: var(--accent);
-        box-shadow: 0 0 6px var(--accent-glow);
+        background: var(--m-blue);
     }
 
     &.dot-connector--marble2 {
-        background: var(--gold);
-        box-shadow: 0 0 6px rgba(251, 191, 36, 0.3);
+        background: var(--m-gold);
     }
 
     &.dot-connector--split-point {
         background: transparent;
-        box-shadow: none;
         position: relative;
 
         &::after {
@@ -1013,7 +1006,7 @@
             width: 3px;
             height: 12px;
             border-radius: 2px;
-            background: rgba(255, 255, 255, 0.2);
+            background: var(--m-line-3);
         }
     }
 }
@@ -1024,41 +1017,38 @@
     width: 2.00rem;
     height: 2.00rem;
     border-radius: 50%;
-    border: 2px solid rgba(255, 255, 255, 0.15);
-    background: rgba(255, 255, 255, 0.06);
+    border: 2px solid var(--m-line-2);
+    background: var(--m-well);
     pointer-events: none;
     flex-shrink: 0;
     padding: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-family: 'Playfair Display', serif;
+    font-family: var(--m-font-display);
     transition:
-        background 0.25s ease,
+        background-color 0.25s ease,
         border-color 0.25s ease,
-        transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
-        box-shadow 0.25s ease;
+        transform 0.25s var(--m-ease);
 
     &.split-dot--full {
-        border-color: rgba(192, 132, 252, 0.25);
-        background: rgba(192, 132, 252, 0.08);
+        border-color: rgba(var(--m-green-rgb), 0.45);
+        background: rgba(var(--m-green-rgb), 0.1);
     }
 
     &.split-dot--full.split-dot--is-seven {
-        border-color: rgba(192, 132, 252, 0.45);
-        background: rgba(192, 132, 252, 0.15);
+        border-color: rgba(var(--m-green-rgb), 0.7);
+        background: rgba(var(--m-green-rgb), 0.2);
     }
 
     &.split-dot--marble1 {
-        border-color: var(--accent);
-        background: rgba(192, 132, 252, 0.3);
-        box-shadow: 0 0 8px var(--accent-glow);
+        border-color: var(--m-blue);
+        background: rgba(var(--m-blue-rgb), 0.3);
     }
 
     &.split-dot--marble2 {
-        border-color: var(--gold);
-        background: rgba(251, 191, 36, 0.2);
-        box-shadow: 0 0 8px rgba(251, 191, 36, 0.25);
+        border-color: var(--m-gold);
+        background: rgba(var(--m-gold-rgb), 0.22);
     }
 
     &.split-dot--active {
@@ -1066,53 +1056,53 @@
         z-index: 2;
 
         &.split-dot--marble1 {
-            background: var(--accent);
-            box-shadow: 0 0 16px var(--accent-glow), 0 0 32px rgba(192, 132, 252, 0.2);
+            background: var(--m-blue);
         }
 
         &.split-dot--marble2 {
-            background: var(--gold);
-            border-color: var(--gold);
-            box-shadow: 0 0 16px rgba(251, 191, 36, 0.45), 0 0 32px rgba(251, 191, 36, 0.15);
+            background: var(--m-gold);
         }
 
         &.split-dot--full {
-            background: var(--accent);
-            border-color: var(--accent);
-            box-shadow: 0 0 14px var(--accent-glow);
+            background: var(--m-green);
+            border-color: var(--m-green);
         }
     }
 
     &:disabled {
-        opacity: 0.2;
+        opacity: 0.25;
         transform: none !important;
-        box-shadow: none !important;
     }
 }
 
 /* ── Dot Number Label ── */
 .split-dot__number {
-    font-size: 0.75rem;
+    font-size: 0.95rem;
     font-weight: 700;
-    color: rgba(255, 255, 255, 0.7);
+    color: var(--m-fg-2);
     line-height: 1;
     pointer-events: none;
     transition: color 0.25s ease;
 
     .split-dot--marble1 & {
-        color: white;
+        color: var(--m-fg);
     }
 
     .split-dot--marble2 & {
-        color: #1a1a2e;
+        color: var(--m-gold-light);
     }
 
-    .split-dot--active & {
-        color: #0f172a;
+    .split-dot--active.split-dot--marble1 & {
+        color: var(--m-on-blue);
+    }
+
+    .split-dot--active.split-dot--marble2 &,
+    .split-dot--active.split-dot--full & {
+        color: var(--m-ink-solid);
     }
 
     .split-dot:disabled & {
-        color: rgba(255, 255, 255, 0.25);
+        color: var(--m-fg-4);
     }
 }
 
@@ -1203,8 +1193,7 @@
     position: absolute;
     inset: 0;
     z-index: 200;
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(6px);
+    background: var(--m-scrim);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1223,79 +1212,102 @@
 }
 
 .resign-dialog {
-    background: linear-gradient(145deg, #1e293b, #0f172a);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 16px;
-    padding: 1.5rem 2rem;
+    background: var(--m-paper);
+    color: var(--m-fg);
+    border: 1px solid var(--m-glass-line);
+    border-radius: var(--m-r-xl);
+    padding: 1.5rem 1.5rem 1.25rem;
     text-align: center;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-    max-width: 300px;
+    box-shadow: var(--m-shadow-slab);
+    font-family: var(--m-font-text);
+    max-width: 320px;
     width: 85%;
 
     &__title {
-        font-size: 1.1rem;
+        font-family: var(--m-font-display);
+        font-size: 1.4rem;
         font-weight: 700;
-        color: white;
-        margin: 0 0 0.4rem;
-    }
-
-    &__text {
-        font-size: 0.8rem;
-        color: var(--text-muted);
+        line-height: 1.1;
+        color: var(--m-fg);
         margin: 0 0 0.5rem;
     }
 
+    &__text {
+        font-size: 0.88rem;
+        line-height: 1.4;
+        color: var(--m-fg-2);
+        margin: 0 0 0.75rem;
+    }
+
+    // Simple ligne de texte teintée : l'avertissement pèse sur le classement.
     &__warning {
-        font-size: 0.75rem;
-        color: #fbbf24;
-        margin: 0 0 1.25rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+        line-height: 1.4;
+        color: var(--m-red-fg);
+        margin: 0 0 1.1rem;
     }
 
     &__actions {
         display: flex;
         gap: 0.75rem;
         justify-content: center;
+        margin-top: 1.1rem;
+    }
+
+    &__warning + &__actions {
+        margin-top: 0;
     }
 
     &__cancel,
     &__confirm {
         flex: 1;
-        padding: 0.65rem 1rem;
-        border-radius: 10px;
-        border: none;
-        font-weight: 600;
-        font-size: 0.85rem;
-        font-family: 'DM Sans', sans-serif;
+        padding: 11px 18px;
+        border-radius: var(--m-r-pill);
+        border: 1px solid transparent;
+        font-weight: 700;
+        font-size: 0.9rem;
+        line-height: 1.2;
+        font-family: var(--m-font-text);
         cursor: pointer;
-        transition: all 0.15s ease;
+        transition: transform var(--m-press) var(--m-ease), box-shadow var(--m-press) var(--m-ease), filter 0.15s ease;
         user-select: none;
         -webkit-user-select: none;
         -webkit-touch-callout: none;
         touch-action: manipulation;
+
+        &:active {
+            transform: translateY(2px);
+        }
+
+        &:focus-visible {
+            outline: 2px solid var(--m-blue-fg);
+            outline-offset: 2px;
+        }
     }
 
     &__cancel {
-        background: rgba(255, 255, 255, 0.08);
-        color: rgba(255, 255, 255, 0.7);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: var(--m-paper-hi);
+        color: var(--m-fg);
+        border-color: var(--m-glass-line);
+        box-shadow: 0 3px 0 0 var(--m-paper-edge);
 
-        &:hover {
-            background: rgba(255, 255, 255, 0.12);
+        &:active {
+            box-shadow: 0 1px 0 0 var(--m-paper-edge);
         }
     }
 
     &__confirm {
-        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-        color: white;
-        box-shadow: 0 4px 16px rgba(239, 68, 68, 0.3);
+        background: var(--m-red);
+        color: var(--m-on-red);
+        box-shadow: 0 3px 0 0 var(--m-red-deep);
 
         &:hover {
-            box-shadow: 0 6px 24px rgba(239, 68, 68, 0.4);
-            transform: translateY(-1px);
+            filter: brightness(1.07);
         }
 
         &:active {
-            transform: translateY(0);
+            box-shadow: 0 1px 0 0 var(--m-red-deep);
         }
     }
 }
@@ -1345,26 +1357,27 @@
     gap: 4px;
     max-width: min(78vw, 290px);
     padding: 12px 16px;
-    border-radius: 14px;
-    background: rgba(10, 18, 40, 0.96);
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    border-radius: var(--m-r-lg);
+    background: var(--m-paper);
+    border: 1px solid var(--m-glass-line);
+    box-shadow: var(--m-shadow-pop);
     pointer-events: none; // les taps traversent vers le backdrop → ferme
-    animation: cardHelpPop 0.16s ease-out both;
+    animation: cardHelpPop 0.16s var(--m-ease) both;
 
     .chp-title {
-        font-size: 0.95rem;
-        font-weight: 800;
-        letter-spacing: 0.02em;
-        color: #fff;
+        font-family: var(--m-font-display);
+        font-size: 1.1rem;
+        font-weight: 700;
+        line-height: 1.1;
+        color: var(--m-fg);
     }
 
     .chp-text {
-        font-size: 0.8rem;
-        line-height: 1.35;
-        color: rgba(255, 255, 255, 0.75);
+        font-family: var(--m-font-text);
+        font-size: 0.85rem;
+        font-weight: 500;
+        line-height: 1.4;
+        color: var(--m-fg-2);
     }
 
     .chp-arrow {
@@ -1374,9 +1387,9 @@
         transform: translateX(-50%) rotate(45deg);
         width: 14px;
         height: 14px;
-        background: rgba(10, 18, 40, 0.96);
-        border-right: 1px solid rgba(255, 255, 255, 0.16);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+        background: var(--m-paper);
+        border-right: 1px solid var(--m-glass-line);
+        border-bottom: 1px solid var(--m-glass-line);
     }
 }
 
@@ -1409,17 +1422,17 @@
     animation: cardHelpPop 0.18s ease-out both;
 
     .dch-title {
-        font-size: 1rem;
-        font-weight: 800;
-        letter-spacing: 0.02em;
-        color: #fff;
-        line-height: 1.2;
+        font-family: var(--m-font-display);
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: var(--m-fg);
+        line-height: 1.1;
     }
 
     .dch-text {
         font-size: 0.85rem;
         line-height: 1.3;
-        color: rgba(255, 255, 255, 0.78);
+        color: var(--m-fg-2);
     }
 }
 
@@ -1429,26 +1442,10 @@
    ========================================================================== */
 :host(.is-native) {
 
-    /* Le dashboard est visible en permanence : son backdrop-filter blur(24px)
-       saturate(1.8) recompose le flou à chaque frame. → fond mat opaque. */
-    .control-dashboard {
-        backdrop-filter: none;
-        -webkit-backdrop-filter: none;
-        background: rgba(15, 23, 42, 0.94);
-
-        /* Pendant le tour, dashboardActivePulse anime une box-shadow en boucle
-           (repaint/frame). → halo statique, aucune re-peinture. */
-        &.turn-active {
-            animation: none;
-            box-shadow: 0 -6px 22px var(--turn-glow, transparent);
-        }
-    }
-
     /* Overlays à la demande (fonds déjà quasi opaques) : on retire juste le
        flou coûteux. */
     .menu-dropdown,
     .card-help-popover,
-    .resign-dialog,
     .phase-capsule .resign-overlay {
         backdrop-filter: none;
         -webkit-backdrop-filter: none;

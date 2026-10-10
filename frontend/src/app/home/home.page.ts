@@ -1,5 +1,6 @@
 import {
   Component,
+  DoCheck,
   OnInit,
   OnDestroy,
   computed,
@@ -93,7 +94,7 @@ interface InviteCandidate {
     BoostTokenComponent,
   ],
 })
-export class HomePage implements OnInit, OnDestroy {
+export class HomePage implements OnInit, OnDestroy, DoCheck {
   readonly titleLetters = ["M", "E", "R", "C", "U", "R", "Y"];
   readonly appVersion = signal(version);
   /** Lien Play Store du footer (visible partout, y compris desktop). */
@@ -223,6 +224,27 @@ export class HomePage implements OnInit, OnDestroy {
 
   onMenuHover(e: Event): void {
     (e.target as HTMLElement).closest<HTMLElement>(".action-btn")?.focus();
+  }
+
+  // Le menu repose sur :focus : un overlay le vole en s'ouvrant. On retient la
+  // dernière plaque active et on la refocalise quand le dernier overlay se ferme.
+  private lastMenuBtn: HTMLElement | null = null;
+  private overlayWasOpen = false;
+
+  onMenuFocusIn(e: Event): void {
+    this.lastMenuBtn = (e.target as HTMLElement).closest<HTMLElement>(".action-btn");
+  }
+
+  ngDoCheck(): void {
+    const open =
+      this.showLogin || this.showSettings || this.showMatchmaking || this.showCustomGame;
+    if (this.overlayWasOpen && !open) {
+      setTimeout(() => {
+        const btn = this.lastMenuBtn;
+        if (btn?.isConnected) btn.focus();
+      });
+    }
+    this.overlayWasOpen = open;
   }
 
   onMenuKey(e: KeyboardEvent): void {

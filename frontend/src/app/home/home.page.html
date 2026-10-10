@@ -109,7 +109,7 @@
       }
 
       <!-- Action buttons -->
-      <div class="hero-actions" #heroActions (mouseover)="onMenuHover($event)" (keydown)="onMenuKey($event)">
+      <div class="hero-actions" #heroActions (mouseover)="onMenuHover($event)" (focusin)="onMenuFocusIn($event)" (keydown)="onMenuKey($event)">
         <button class="action-btn play-btn" (click)="openMatchmaking()">
           <span class="ab-marble ab-green"></span>
           <span class="ab-text">Play Now</span>

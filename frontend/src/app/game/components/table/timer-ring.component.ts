@@ -37,9 +37,9 @@ export class TimerRingComponent {
   /** Couleur de l'arc : vert → orange → rouge */
   timerColor = computed(() => {
     const r = this.timeRatio();
-    if (r > 0.5) return '#34d399'; // vert émeraude
-    if (r > 0.25) return '#fbbf24'; // ambre
-    return '#f87171'; // rouge
+    if (r > 0.5) return 'var(--m-green-light)';
+    if (r > 0.25) return 'var(--m-gold-light)';
+    return 'var(--m-red-light)';
   });
 
   timerDashOffset = computed(() => this.timerCircumference * (1 - this.timeRatio()));

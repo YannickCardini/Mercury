@@ -1,3 +1,17 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   BADGE JOUEUR — un pion de jeu : un jeton épais à la couleur du siège, emboîté
+   dans un socle ardoise qui porte le nom.
+
+   Même vocabulaire que le reste de l'app (tokens --m-*) : aplats mats opaques,
+   épaisseur dite par une tranche pleine, jamais de flou ni de halo.
+     • jeton  : photo incrustée dans un liseré coloré, qui EST le timer (dessiné
+                par <app-player-badge-ring>, sur sa propre couche) ;
+     • main   : deux cartes en éventail, le compte sur celle du dessus ;
+     • socle  : plaque ardoise, à la couleur du siège quand c'est son tour ;
+     • les petites pièces posées sur la photo (main, étiquette, déconnexion)
+       s'en détachent par un filet sombre, pas par une ombre portée.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 :host {
     /* Diamètre dérivé de la taille d'une case du plateau (héritée du board-container). */
     --pb-size: calc(var(--square-size, 32px) * 2.7);
@@ -12,40 +26,71 @@
     position: relative;
     width: 100%;
     height: 100%;
-    --pb-color: #94a3b8;
+    /* Toutes les mesures sont des centièmes du diamètre : le badge garde ses
+       proportions quelle que soit la taille des cases. */
+    --pb-u: calc(var(--pb-size) / 100);
+    --pb-key: calc(var(--pb-u) * 1.6); /* filet sombre autour d'une pièce */
+    --pb-ledge: calc(var(--pb-u) * 3); /* tranche sous une pièce */
+    /* Siège sans couleur connue : jeton ardoise. */
+    --pb-color: var(--m-paper-hi);
+    --pb-deep: var(--m-paper-edge);
+    --pb-on: var(--m-fg);
 }
 
-/* Teinte de l'anneau au repos, alignée sur les couleurs des billes. */
+/* Couleur du siège : l'aplat (liseré, socle du joueur actif), sa teinte « deep »
+   (tranche) et le libellé qui se pose sur l'aplat. */
 .pb--red {
-    --pb-color: #dc2626;
+    --pb-color: var(--m-red);
+    --pb-deep: var(--m-red-deep);
+    --pb-on: var(--m-on-red);
 }
 
 .pb--green {
-    --pb-color: #22c55e;
+    --pb-color: var(--m-green);
+    --pb-deep: var(--m-green-deep);
+    --pb-on: var(--m-on-green);
 }
 
 .pb--blue {
-    --pb-color: #3b82f6;
+    --pb-color: var(--m-blue);
+    --pb-deep: var(--m-blue-deep);
+    --pb-on: var(--m-on-blue);
 }
 
 .pb--orange {
-    --pb-color: #fb923c;
+    --pb-color: var(--m-orange);
+    --pb-deep: var(--m-orange-deep);
+    --pb-on: var(--m-on-orange);
 }
 
-/* ── Avatar ───────────────────────────────────────────────────────────────── */
+/* Petite pièce posée sur le jeton : filet sombre tout autour, tranche dessous
+   ($deep = la teinte de la tranche, sombre par défaut). */
+@mixin piece($deep: var(--m-paper-edge)) {
+    box-shadow:
+        0 var(--pb-ledge) 0 0 #{$deep},
+        0 0 0 var(--pb-key) var(--m-paper-edge),
+        0 var(--pb-ledge) 0 var(--pb-key) var(--m-paper-edge);
+}
+
+/* ── Photo ────────────────────────────────────────────────────────────────── */
 .pb-avatar {
     position: absolute;
-    inset: 8%;
+    /* Rayon 43,1 (viewBox du jeton) : déborde de 0,6 sur le bord intérieur du
+       liseré (42,5), pour un raccord sans jour. */
+    inset: 6.9%;
+    box-sizing: border-box;
+    /* Filet d'incrustation entre le liseré et la photo. C'est la bordure de la
+       photo elle-même, et non un trait du SVG du jeton : dessiné par le même
+       élément que ce qu'il entoure, il a la même épaisseur sur tout le tour
+       (un trait SVG recouvert par un bloc HTML ne tombe pas sur les mêmes
+       pixels, et un filet d'un pixel s'en trouvait inégal). */
+    border: max(1px, calc(var(--pb-u) * 2)) solid var(--m-paper-edge);
     border-radius: 50%;
     overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: radial-gradient(circle at 50% 35%, #334155, #1e293b 70%);
-    border: 2px solid rgba(255, 255, 255, 0.85);
-    box-shadow:
-        0 4px 14px rgba(0, 0, 0, 0.45),
-        inset 0 1px 3px rgba(255, 255, 255, 0.25);
+    background: var(--m-paper-hi);
     z-index: 2;
     transition: filter 0.3s ease;
 
@@ -58,119 +103,188 @@
 }
 
 .pb-placeholder {
-    width: 58%;
-    height: 58%;
-    color: rgba(255, 255, 255, 0.55);
+    width: 56%;
+    height: 56%;
+    color: var(--m-fg-3);
 }
 
-.pb--empty .pb-avatar {
-    opacity: 0.5;
+/* Siège libre : la photo laisse place à un creux. */
+.pb--empty {
+    .pb-avatar {
+        background: var(--m-paper-lo);
+    }
+
+    .pb-placeholder {
+        color: var(--m-fg-4);
+    }
 }
 
-/* ── Jeton « nombre de cartes » (haut-droite) ─────────────────────────────── */
-.pb-cards {
+/* ── Main : éventail de deux cartes (haut-droite) ─────────────────────────── */
+.pb-hand {
     position: absolute;
-    top: 6%;
-    right: 2%;
+    /* Rentré de quelques centièmes : la carte du dessus, inclinée, ne doit pas
+       dépasser de la boîte du badge (le plateau rogne ce qui en sort). */
+    top: 2%;
+    right: 4%;
+    width: calc(var(--pb-u) * 30);
+    height: calc(var(--pb-u) * 28);
     z-index: 4;
+}
+
+.pb-hand-card {
+    position: absolute;
+    bottom: 0;
+    box-sizing: border-box;
+    min-width: calc(var(--pb-u) * 20.5);
+    height: calc(var(--pb-u) * 28);
+    border-radius: calc(var(--pb-u) * 4);
+    @include piece;
+}
+
+/* Carte du dessous : le crème de la carte, assombri par l'encre du filet (une
+   teinte posée sur un aplat, pour ne recopier aucune valeur des tokens). */
+.pb-hand-card--back {
+    left: 0;
+    width: calc(var(--pb-u) * 20.5);
+    background-color: var(--m-paper-edge);
+    background-image: linear-gradient(var(--m-ink-3), var(--m-ink-3));
+    transform: rotate(-13deg);
+    transform-origin: 70% 100%;
+}
+
+.pb-hand-card--front {
+    right: 0;
     display: flex;
     align-items: center;
-    gap: calc(var(--pb-size) * 0.025);
-    height: calc(var(--pb-size) * 0.3);
-    padding: 0 calc(var(--pb-size) * 0.07);
-    background: linear-gradient(145deg, #2a3850, #111c30);
-    border: 1.5px solid var(--pb-color);
-    border-radius: 999px;
-    color: #fff;
-    box-shadow: 0 2px 7px rgba(0, 0, 0, 0.55);
-}
-
-.pb-cards-icon {
-    width: calc(var(--pb-size) * 0.15);
-    height: calc(var(--pb-size) * 0.15);
-    opacity: 0.85;
-}
-
-.pb-cards-count {
-    font-family: 'DM Sans', sans-serif;
-    font-size: calc(var(--pb-size) * 0.16);
+    justify-content: center;
+    /* Les chiffres de Baloo 2 sont assis un peu haut dans leur ligne. */
+    padding: 0.12em calc(var(--pb-u) * 3) 0;
+    background: var(--m-cream);
+    color: var(--m-ink-solid);
+    font-family: var(--m-font-display);
     font-weight: 700;
+    font-size: calc(var(--pb-u) * 20);
     line-height: 1;
+    font-variant-numeric: tabular-nums;
+    transform: rotate(7deg);
+    transform-origin: 30% 100%;
 }
 
-/* ── Plaque nominative (bas-centre) : nom au-dessus, rang en dessous ───────── */
-.pb-nameplate {
+/* ── Socle : plaque ardoise où s'emboîte le jeton ─────────────────────────── */
+.pb-plinth {
     position: absolute;
-    left: 50%;
-    bottom: -25%;
-    transform: translateX(-50%);
-    z-index: 4;
+    left: 0;
+    right: 0;
+    top: 83%;
+    /* Hauteur fixe : les quatre socles ont la même silhouette, avec ou sans rang. */
+    height: calc(var(--pb-u) * 46);
+    box-sizing: border-box;
+    padding: 0 calc(var(--pb-u) * 4.5);
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: calc(var(--pb-size) * 0.025);
-    max-width: 124%;
-    padding: calc(var(--pb-size) * 0.04) calc(var(--pb-size) * 0.09) calc(var(--pb-size) * 0.05);
-    background: linear-gradient(145deg, rgba(34, 47, 70, 0.97), rgba(13, 21, 37, 0.97));
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    border-radius: calc(var(--pb-size) * 0.16);
-    box-shadow: 0 3px 11px rgba(0, 0, 0, 0.55);
+    justify-content: center;
+    gap: calc(var(--pb-u) * 2.5);
+    background: var(--m-paper);
+    border: 1px solid var(--m-glass-line);
+    border-radius: calc(var(--pb-u) * 14);
+    box-shadow: 0 var(--pb-ledge) 0 0 var(--m-paper-edge);
+    z-index: 4;
+    /* Sa propre couche : le socle change de matière à chaque passage de tour, et
+       ce repaint ne doit pas toucher la couche de la photo (clignotement sur
+       WebView Android, cf. player-badge-ring). */
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    transition: background-color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
 .pb-name {
-    max-width: calc(var(--pb-size) * 0.96);
-    font-family: 'DM Sans', sans-serif;
-    font-weight: 700;
-    font-size: calc(var(--pb-size) * 0.145);
-    line-height: 1.05;
-    color: #f1f5f9;
+    max-width: 100%;
+    font-family: var(--m-font-text);
+    font-weight: 800;
+    font-size: calc(var(--pb-u) * 15.5);
+    line-height: 1.15;
+    color: var(--m-fg);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    letter-spacing: 0.01em;
+    transition: color 0.25s ease;
 }
 
-/* Rang : pastille « médaille » selon le palier ; atténuée hors top 3. */
+/* Rang : simple ligne hors podium, pastille « médaille » pour le top 3. */
 .pb-rank {
-    font-family: 'DM Sans', sans-serif;
-    font-weight: 800;
-    font-size: calc(var(--pb-size) * 0.11);
+    font-family: var(--m-font-text);
+    font-weight: 700;
+    font-size: calc(var(--pb-u) * 12);
     line-height: 1;
-    letter-spacing: 0.02em;
-    padding: calc(var(--pb-size) * 0.022) calc(var(--pb-size) * 0.075);
-    border-radius: 999px;
+    color: var(--m-fg-2);
     white-space: nowrap;
+    transition: color 0.25s ease;
+}
+
+.pb-rank--gold,
+.pb-rank--silver,
+.pb-rank--bronze {
+    padding: calc(var(--pb-u) * 2.4) calc(var(--pb-u) * 7);
+    border-radius: var(--m-r-pill);
+    font-weight: 800;
+    color: var(--m-ink-solid);
+    /* Filet : garde la médaille détachée du socle quand celui-ci prend la
+       couleur du siège (or sur orange, par exemple). */
+    box-shadow: 0 0 0 1px var(--m-paper-edge);
 }
 
 .pb-rank--gold {
-    color: #3a2800;
-    background: linear-gradient(145deg, #ffe793, #e0a72c);
-    box-shadow:
-        inset 0 1px 1px rgba(255, 255, 255, 0.65),
-        0 1px 4px rgba(224, 167, 44, 0.55);
+    background: var(--m-gold);
 }
 
 .pb-rank--silver {
-    color: #2b333d;
-    background: linear-gradient(145deg, #f6f9fc, #a9b6c4);
-    box-shadow:
-        inset 0 1px 1px rgba(255, 255, 255, 0.75),
-        0 1px 4px rgba(0, 0, 0, 0.3);
+    background: var(--m-silver);
 }
 
 .pb-rank--bronze {
-    color: #3a1e08;
-    background: linear-gradient(145deg, #f3cda0, #bd7338);
-    box-shadow:
-        inset 0 1px 1px rgba(255, 255, 255, 0.45),
-        0 1px 4px rgba(189, 115, 56, 0.55);
+    background: var(--m-bronze);
 }
 
-/* Hors podium : ton effacé, sans relief, pour bien marquer la différence. */
-.pb-rank--normal {
-    color: rgba(226, 232, 240, 0.5);
-    background: rgba(255, 255, 255, 0.06);
-    font-weight: 700;
+/* ── Tour du joueur : le socle prend la couleur du siège ──────────────────
+   Même relief qu'un bouton plein de l'app (aplat + tranche « deep »), là où les
+   autres socles restent des plaques ardoise. La couleur désigne le joueur même
+   quand son liseré est presque vidé. */
+.pb--current {
+    .pb-plinth {
+        background: var(--pb-color);
+        border-color: var(--pb-color);
+        box-shadow: 0 var(--pb-ledge) 0 0 var(--pb-deep);
+    }
+
+    .pb-name,
+    .pb-rank--normal {
+        color: var(--pb-on);
+    }
+}
+
+/* ── Coéquipier : étiquette dorée à cheval sur le bord haut du socle ──────── */
+.pb-partner {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translate(-50%, -70%);
+    padding: calc(var(--pb-u) * 2.4) calc(var(--pb-u) * 7.5);
+    border-radius: var(--m-r-pill);
+    background: var(--m-gold);
+    color: var(--m-ink-solid);
+    font-family: var(--m-font-text);
+    font-weight: 800;
+    font-size: calc(var(--pb-u) * 10.5);
+    line-height: 1;
+    white-space: nowrap;
+    @include piece(var(--m-gold-deep));
+}
+
+/* Le nom descend d'un cran pour laisser respirer l'étiquette. */
+.pb--partner .pb-plinth {
+    padding-top: calc(var(--pb-u) * 7);
 }
 
 /* ── Déconnexion (haut-gauche) ────────────────────────────────────────────── */
@@ -178,63 +292,51 @@
     filter: grayscale(0.85) brightness(0.65);
 }
 
-.pb-disconnect {
+.pb-offline {
     position: absolute;
-    top: 6%;
-    left: 2%;
+    top: 2%;
+    left: 4%;
     z-index: 4;
-    width: calc(var(--pb-size) * 0.27);
-    height: calc(var(--pb-size) * 0.27);
+    width: calc(var(--pb-u) * 25);
+    height: calc(var(--pb-u) * 25);
     border-radius: 50%;
-    background: #ef4444;
-    border: 2px solid #fff;
+    background: var(--m-red);
+    color: var(--m-on-red);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #fff;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
-    animation: pbPulse 1.6s ease-in-out infinite;
+    @include piece(var(--m-red-deep));
+    animation: pbOffline 1.6s ease-in-out infinite;
+
+    svg {
+        width: 60%;
+        height: 60%;
+    }
 }
 
-.pb-disconnect svg {
-    width: 62%;
-    height: 62%;
-}
-
-@keyframes pbPulse {
+@keyframes pbOffline {
 
     0%,
     100% {
-        transform: scale(1);
         opacity: 1;
     }
 
     50% {
-        transform: scale(1.08);
-        opacity: 0.78;
+        opacity: 0.6;
     }
 }
 
 /* ── Variante losange (pb--diamond) ───────────────────────────────────────────
-   Même badge, décliné en losange pour distinguer une paire de joueurs (rouge et
-   bleu, partenaires sur la diagonale). Principes :
-   • anneau = <rect> arrondi pivoté de 45° dans le SVG (le rotate(-90deg) du
-     cercle est annulé : le tracé du rect démarre déjà au sommet haut) ;
-   • avatar = carré arrondi pivoté de 45°, contenu contre-pivoté ;
-   • jeton cartes et plaque nominative : inchangés (mêmes formes que les
-     badges circulaires). */
+   Même pion, jeton en losange pour distinguer une paire de joueurs (rouge et
+   bleu, partenaires sur la diagonale). Le liseré est un <rect> arrondi pivoté
+   de 45° ; la photo suit : carré arrondi pivoté de 45°, contenu contre-pivoté.
+   Main, socle, étiquette et déconnexion gardent les mêmes formes. */
 .pb--diamond .pb-avatar {
-    /* Bords du carré pivoté parallèles à l'anneau agrandi (sommets à ≈57.7,
-       cf. diamondRadius côté TS), même respiration que le cercle : face interne
-       de l'anneau à 57.7/√2 − 2.75 ≈ 38, moins ~1.25 → demi-côté ≈ 36.75. */
-    inset: 13.25%;
-    border-radius: 18%;
+    /* Demi-côté 37,87 et rayon 9,6 (viewBox du jeton) : même débord de 0,6 sur
+       le bord intérieur du liseré que pour le cercle, coins concentriques. */
+    inset: 12.13%;
+    border-radius: 12.7%;
     transform: rotate(45deg);
-    /* Équivalents « lumière en haut » une fois l'élément pivoté de 45°. */
-    background: radial-gradient(circle at 39% 39%, #334155, #1e293b 70%);
-    box-shadow:
-        3px 3px 14px rgba(0, 0, 0, 0.45),
-        inset 0.7px 0.7px 3px rgba(255, 255, 255, 0.25);
 
     img {
         /* Contre-rotation + facteur √2 pour couvrir les coins du conteneur. */
@@ -244,30 +346,4 @@
 
 .pb--diamond .pb-placeholder {
     transform: rotate(-45deg);
-}
-
-/* Déconnexion : pastille → petit losange arrondi ; la pulsation embarque la
-   rotation (les keyframes remplacent tout le transform). */
-.pb--diamond .pb-disconnect {
-    border-radius: 25%;
-    transform: rotate(45deg);
-    animation-name: pbPulseDiamond;
-
-    svg {
-        transform: rotate(-45deg);
-    }
-}
-
-@keyframes pbPulseDiamond {
-
-    0%,
-    100% {
-        transform: rotate(45deg) scale(1);
-        opacity: 1;
-    }
-
-    50% {
-        transform: rotate(45deg) scale(1.08);
-        opacity: 0.78;
-    }
 }

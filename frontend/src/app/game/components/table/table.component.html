@@ -43,7 +43,7 @@
   }
   <div class="action-menu">
     <button class="menu-trigger" [class.is-open]="showMenu()" (click)="showMenu.set(!showMenu())" title="Menu">
-      <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
         <circle cx="12" cy="5" r="2" />
         <circle cx="12" cy="12" r="2" />
         <circle cx="12" cy="19" r="2" />
@@ -54,7 +54,7 @@
       <!-- Mute / Unmute -->
       <button class="menu-item" [class.menu-item--muted]="soundService.muted()" (click)="soundService.toggleMute()">
         @if (soundService.muted()) {
-        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
           <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
           <line x1="23" y1="9" x2="17" y2="15" />
@@ -62,7 +62,7 @@
         </svg>
         Unmute
         } @else {
-        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
           <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
           <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
@@ -75,7 +75,7 @@
       @if (isNative) {
       <button class="menu-item" [class.menu-item--muted]="!soundService.vibrationEnabled()"
         (click)="soundService.toggleVibration()">
-        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
           <rect x="7" y="2" width="10" height="20" rx="2" ry="2" />
           <line x1="3" y1="7" x2="3" y2="11" />
@@ -89,7 +89,7 @@
       <!-- Card Help toggle -->
       <button class="menu-item" [class.menu-item--muted]="!gameStateService.cardHelpEnabled()"
         (click)="gameStateService.toggleCardHelp()">
-        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="10" />
           <line x1="12" y1="16" x2="12" y2="12" />
@@ -99,7 +99,7 @@
       </button>
       <!-- Game Rules -->
       <button class="menu-item" (click)="rulesRequested.emit(); showMenu.set(false)">
-        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
           <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
           <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
@@ -109,7 +109,7 @@
       <!-- Resign (joueurs uniquement) -->
       @if (gameStateService.myPlayerColor()) {
       <button class="menu-item menu-item--danger" (click)="onResign(); showMenu.set(false)">
-        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
           <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
           <line x1="4" y1="22" x2="4" y2="15" />
@@ -150,7 +150,7 @@
   }
 
   <!-- ===== AIDE CONTEXTUELLE — popover « effet de la carte » ===== -->
-  @if (cardHelp(); as help) {
+  @if (gameStateService.tutorialHintId() === null && cardHelp(); as help) {
   <div class="card-help-popover" [style.left.px]="help.x" [style.top.px]="help.y"
     [style.--arrow-offset.px]="help.arrowOffset">
     <span class="chp-title">{{ help.title }}</span>
@@ -189,8 +189,7 @@
 
   <!-- ===== FOOTER ===== -->
   <div class="control-dashboard" [class.turn-inactive]="!gameStateService.isMyTurn()"
-    [class.turn-active]="gameStateService.isMyTurn()" [style.border-top-color]="myDisplayColor() ?? ''"
-    [style.--turn-glow]="getMyColorGlow()">
+    [style.border-top-color]="myDisplayColor() ?? ''">
 
     <!-- Tactile : tant qu'une carte est sélectionnée sans bille choisie, le footer
          affiche l'effet de la carte (à la place du profil + bouton Confirmer). -->

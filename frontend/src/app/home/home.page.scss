@@ -349,7 +349,15 @@
 // avec un texte clair. Play Now reçoit le focus à l'ouverture.
 .action-btn {
   @include m.btn-paper;
+  // Teintes d'origine de la plaque (avant l'assombrissement global du papier).
+  background: #265670;
+  border-color: #2e637e;
+  box-shadow: 0 3px 0 0 #0f2938;
   color: var(--m-ink-solid);
+
+  &:active:not(:disabled) {
+    box-shadow: 0 1px 0 0 #0f2938;
+  }
 
   &:focus,
   &:focus-visible {

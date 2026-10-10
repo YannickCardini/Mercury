@@ -130,13 +130,6 @@
 /* ═══════════════════════════════════════════════════════════════
    OVERLAY NOUVEAU TOUR
    ═══════════════════════════════════════════════════════════════ */
-$turn-colors: (
-    "red": $c-red,
-    "green": $c-green,
-    "blue": $c-blue,
-    "orange": $c-orange,
-);
-
 .new-turn-overlay {
     position: absolute;
     inset: 0;
@@ -147,31 +140,16 @@ $turn-colors: (
     pointer-events: none;
     animation: overlayFade 2.5s ease forwards;
 
-    // Fond très légèrement teinté selon la couleur
-    @each $name, $hex in $turn-colors {
+    // Teinte du siège : couleur de l'anneau du jeton et du nom, rien d'autre.
+    --nt-fill: var(--m-ink-3);
+    --nt-deep: var(--m-paper-edge);
+    --nt-fg: var(--m-fg);
+
+    @each $name in ("red", "green", "blue", "orange") {
         &[data-color="#{$name}"] {
-            background: radial-gradient(ellipse at center,
-                    rgba($hex, 0.18) 0%,
-                    rgba($hex, 0.04) 50%,
-                    transparent 70%);
-
-            .new-turn-banner {
-                border-color: rgba($hex, 0.6);
-                box-shadow:
-                    0 0 40px rgba($hex, 0.35),
-                    0 0 80px rgba($hex, 0.15),
-                    inset 0 1px 0 rgba(255, 255, 255, 0.15);
-            }
-
-            .new-turn-name {
-                color: $hex;
-                text-shadow: 0 0 12px rgba($hex, 0.7);
-            }
-
-            .new-turn-avatar {
-                border-color: $hex;
-                box-shadow: 0 0 16px rgba($hex, 0.7), 0 3px 8px rgba(0, 0, 0, 0.4);
-            }
+            --nt-fill: var(--m-#{$name});
+            --nt-deep: var(--m-#{$name}-deep);
+            --nt-fg: var(--m-#{$name}-light);
         }
     }
 }
@@ -199,13 +177,14 @@ $turn-colors: (
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 18px;
-    padding: 28px 48px 24px;
-    background: rgba(10, 18, 40, 0.85);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 28px;
+    gap: 16px;
+    padding: 26px 48px 24px;
+    background: var(--m-paper);
+    color: var(--m-fg);
+    border: 1px solid var(--m-glass-line);
+    border-radius: var(--m-r-xl);
+    box-shadow: var(--m-shadow-slab);
+    font-family: var(--m-font-text);
     animation: bannerSlide 2.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
@@ -251,7 +230,8 @@ $turn-colors: (
     border-radius: 50%;
     object-fit: cover;
     flex-shrink: 0;
-    border: 3px solid rgba(255, 255, 255, 0.4);
+    border: 4px solid var(--nt-fill);
+    box-shadow: 0 4px 0 0 var(--nt-deep);
     animation: bannerMarbleSpin 2.5s ease-in-out forwards;
 }
 
@@ -264,7 +244,7 @@ $turn-colors: (
 
     @include planet-base;
     @include planet-variants("ntm"); // red→Mars, green→Terre, blue→Neptune, orange→Jupiter
-    box-shadow: 0 0 16px 1px var(--planet-glow, transparent), 0 3px 8px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 4px 0 0 var(--nt-deep);
 }
 
 @keyframes bannerMarbleSpin {
@@ -293,44 +273,29 @@ $turn-colors: (
 }
 
 .new-turn-label {
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.25em;
-    text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.55);
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--m-fg-3);
 }
 
 .new-turn-name {
-    font-size: 1.75rem;
-    font-weight: 800;
-    letter-spacing: 0.05em;
-    color: white;
+    font-family: var(--m-font-display);
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--nt-fg);
 }
 
 /* ── Variante « Tour Bonus · Joker » (rejeu après un Joker) ──────────────
-   Accent Joker neutre (violet/or) qui prime sur la teinte couleur-joueur.
-   Placé APRÈS le bloc [data-color] pour gagner à spécificité égale. */
+   Accent or, qui prime sur la teinte du siège. Placé APRÈS le bloc de
+   teinte pour gagner à spécificité égale. */
 .new-turn-overlay.replay {
-    background: radial-gradient(ellipse at center,
-            rgba(124, 58, 237, 0.22) 0%,
-            rgba(251, 191, 36, 0.10) 45%,
-            transparent 70%);
+    --nt-fill: var(--m-gold);
+    --nt-deep: var(--m-gold-deep);
+    --nt-fg: var(--m-gold-light);
 
     .new-turn-banner {
-        border-color: rgba(167, 139, 250, 0.7);
-        box-shadow:
-            0 0 40px rgba(124, 58, 237, 0.40),
-            0 0 80px rgba(251, 191, 36, 0.18),
-            inset 0 1px 0 rgba(255, 255, 255, 0.15);
-    }
-
-    .new-turn-label {
-        color: #fbbf24; // or
-    }
-
-    .new-turn-name {
-        color: #c4b5fd; // violet clair
-        text-shadow: 0 0 14px rgba(124, 58, 237, 0.7);
+        border-color: rgba(var(--m-gold-rgb), 0.5);
     }
 }
 
@@ -346,15 +311,3 @@ $turn-colors: (
     flex-shrink: 0;
     animation: bannerMarbleSpin 2.5s ease-in-out forwards;
 }
-
-/* ==========================================================================
-   ALLÉGEMENT NATIF (WebView Android) — la bannière de nouveau tour est un
-   overlay plein écran animé ; son backdrop-filter blur(12px) recompose le flou
-   à chaque frame. En natif : fond mat opaque, aucun flou. Web/desktop inchangé.
-   ========================================================================== */
-:host(.is-native) .new-turn-banner {
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    background: rgba(10, 18, 40, 0.94);
-}
-

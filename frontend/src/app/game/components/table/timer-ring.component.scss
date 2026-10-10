@@ -6,17 +6,19 @@
     position: relative;
     width: 64px;
     height: 64px;
+    /* Médaillon ardoise : même matière que les plaques de l'accueil. */
+    box-sizing: border-box;
 
     svg {
         position: absolute;
-        inset: 0;
+        inset: -1px;
         transform: rotate(-90deg);
     }
 }
 
 .timer-bg {
     fill: none;
-    stroke: rgba(255, 255, 255, 0.07);
+    stroke: var(--m-well-3);
     stroke-width: 5;
 }
 
@@ -28,8 +30,7 @@
 }
 
 :host(.urgent) {
-    filter: drop-shadow(0 0 6px var(--danger));
-    clip-path: circle(54%);
+    border-color: rgba(var(--m-red-rgb), 0.6);
 }
 
 :host(.timer-inactive) {
@@ -48,26 +49,25 @@
 }
 
 .timer-number {
-    font-family: 'Playfair Display', serif;
+    font-family: var(--m-font-display);
     font-size: 1.7rem;
     font-weight: 700;
-    color: white;
+    color: var(--m-fg);
     line-height: 1;
     transition: color 0.3s;
 
     &.urgent {
-        color: var(--danger);
+        color: var(--m-red-fg);
         animation: pulse-text 1s ease-in-out infinite;
     }
 }
 
 .timer-label {
-    font-size: 0.5rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--text-muted);
+    font-family: var(--m-font-text);
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: var(--m-fg-3);
     line-height: 1;
-    margin-top: 1px;
 }
 
 @keyframes pulse-text {

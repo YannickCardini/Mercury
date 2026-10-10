@@ -1,10 +1,12 @@
 <div class="pb" [ngClass]="'pb--' + color()" [class.pb--diamond]="shape() === 'diamond'"
-  [class.pb--disconnected]="!isConnected()" [class.pb--empty]="!player()">
+  [class.pb--current]="isCurrentTurn()" [class.pb--partner]="isPartner()" [class.pb--disconnected]="!isConnected()"
+  [class.pb--empty]="!player()">
 
+  <!-- Jeton : liseré-timer à la couleur du siège, tranche dessous. -->
   <app-player-badge-ring [isCurrentTurn]="isCurrentTurn()" [timer]="timer()" [shape]="shape()">
   </app-player-badge-ring>
 
-  <!-- Photo de profil (ou silhouette par défaut) -->
+  <!-- Photo de profil (ou silhouette par défaut), incrustée dans le liseré. -->
   <div class="pb-avatar">
     @if (player()?.picture) {
     <img [src]="player()!.picture" alt="" referrerpolicy="no-referrer" />
@@ -15,21 +17,22 @@
     }
   </div>
 
-  <!-- Jeton « nombre de cartes » (haut-droite) -->
+  <!-- Main du joueur (haut-droite) : deux cartes en éventail, le nombre de
+       cartes restantes écrit sur celle du dessus. -->
   @if (player(); as p) {
-  <div class="pb-cards" [attr.title]="p.cardsLeft + ' cards'">
-    <svg class="pb-cards-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <rect x="3" y="5" width="13" height="16" rx="2" />
-      <path d="M8 5V4a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2h-1" />
-    </svg>
-    <span class="pb-cards-count">{{ p.cardsLeft }}</span>
+  <div class="pb-hand" [attr.title]="p.cardsLeft + ' cards'">
+    <span class="pb-hand-card pb-hand-card--back" aria-hidden="true"></span>
+    <span class="pb-hand-card pb-hand-card--front">{{ p.cardsLeft }}</span>
   </div>
   }
 
-  <!-- Plaque nominative (bas-centre) : nom puis rang (médaille selon le palier) -->
-  @if (player(); as p) {
-  <div class="pb-nameplate">
+  <!-- Socle (bas) : le jeton s'y emboîte. Nom, puis rang (médaille selon le
+       palier). L'étiquette du coéquipier se pose à cheval sur son bord haut. -->
+  @if (player()) {
+  <div class="pb-plinth">
+    @if (isPartner()) {
+    <span class="pb-partner">Teammate</span>
+    }
     <span class="pb-name">{{ displayName() }}</span>
     @if (rank() !== null) {
     <span class="pb-rank" [ngClass]="'pb-rank--' + rankTier()">Rank #{{ rank() }}</span>
@@ -39,8 +42,8 @@
 
   <!-- Indicateur de déconnexion (haut-gauche) -->
   @if (player() && !isConnected()) {
-  <div class="pb-disconnect" title="Disconnected">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+  <div class="pb-offline" title="Disconnected">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"
       stroke-linejoin="round" aria-hidden="true">
       <path d="M1 1l22 22" />
       <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55" />

@@ -1,19 +1,43 @@
-<!-- Anneau-timer : se vide depuis le haut quand c'est le tour du joueur.
-     Variante losange : carré à coins arrondis pivoté de 45° (le tracé d'un
-     <rect> démarre juste après son coin haut-gauche, donc au sommet haut une
-     fois pivoté — même départ visuel que le cercle). -->
-<svg viewBox="0 0 100 100">
+<!-- Jeton du joueur, dessiné en cinq couches (viewBox 100×100, non pivotée) :
+       1. socle de tranche — la forme pleine décalée vers le bas, sombre : c'est
+                             l'épaisseur du jeton là où le temps est écoulé ;
+       2. tranche de l'arc — le tracé de l'arc décalé de même, teinte « deep » de
+                             sa couleur : elle se vide et change de teinte avec lui ;
+       3. piste            — liseré sombre, visible là où le temps est écoulé ;
+       4. arc              — liseré à la couleur du siège, se vide depuis le haut ;
+       5. fond             — disque sombre sous la photo (le filet visible autour
+                             d'elle est sa propre bordure CSS, cf. .pb-avatar).
+     Cercle : l'arc (et sa tranche) est pivoté de −90° pour démarrer en haut.
+     Losange : carré à coins arrondis pivoté de 45° (le tracé d'un <rect> démarre
+     juste après son coin haut-gauche, donc au sommet haut une fois pivoté —
+     même départ visuel que le cercle). -->
+<svg viewBox="0 0 100 100" aria-hidden="true">
   @if (shape() === 'diamond') {
-  <rect class="pb-ring-bg" [attr.x]="50 - diamondSide / 2" [attr.y]="50 - diamondSide / 2"
+  <rect class="pb-ring-ledge" [attr.x]="50 - diamondSide / 2" [attr.y]="50 - diamondSide / 2"
     [attr.width]="diamondSide" [attr.height]="diamondSide" [attr.rx]="diamondCornerRadius"
-    transform="rotate(45 50 50)" />
+    [attr.stroke-width]="bezelWidth" [attr.transform]="diamondLedgeTransform" />
+  <rect class="pb-ring-arc-ledge" [attr.x]="50 - diamondSide / 2" [attr.y]="50 - diamondSide / 2"
+    [attr.width]="diamondSide" [attr.height]="diamondSide" [attr.rx]="diamondCornerRadius"
+    [attr.stroke-width]="bezelWidth" [attr.transform]="diamondLedgeTransform" [style.stroke]="arcLedgeColor()"
+    [style.stroke-dasharray]="perimeter()" [style.stroke-dashoffset]="dashOffset()" />
+  <rect class="pb-ring-track" [attr.x]="50 - diamondSide / 2" [attr.y]="50 - diamondSide / 2"
+    [attr.width]="diamondSide" [attr.height]="diamondSide" [attr.rx]="diamondCornerRadius"
+    [attr.stroke-width]="bezelWidth" transform="rotate(45 50 50)" />
   <rect class="pb-ring-arc" [attr.x]="50 - diamondSide / 2" [attr.y]="50 - diamondSide / 2"
     [attr.width]="diamondSide" [attr.height]="diamondSide" [attr.rx]="diamondCornerRadius"
-    transform="rotate(45 50 50)" [style.stroke]="arcColor()"
+    [attr.stroke-width]="bezelWidth" transform="rotate(45 50 50)" [style.stroke]="arcColor()"
     [style.stroke-dasharray]="perimeter()" [style.stroke-dashoffset]="dashOffset()" />
+  <rect class="pb-ring-inlay" [attr.x]="50 - diamondInlaySide / 2" [attr.y]="50 - diamondInlaySide / 2"
+    [attr.width]="diamondInlaySide" [attr.height]="diamondInlaySide" [attr.rx]="diamondInlayCornerRadius"
+    [attr.stroke-width]="inlayWidth" transform="rotate(45 50 50)" />
   } @else {
-  <circle class="pb-ring-bg" cx="50" cy="50" r="46" />
-  <circle class="pb-ring-arc" cx="50" cy="50" r="46" [style.stroke]="arcColor()"
+  <circle class="pb-ring-ledge" cx="50" [attr.cy]="50 + ledgeDepth" r="46" [attr.stroke-width]="bezelWidth" />
+  <circle class="pb-ring-arc-ledge" cx="50" cy="50" r="46" [attr.stroke-width]="bezelWidth"
+    [attr.transform]="circleLedgeTransform" [style.stroke]="arcLedgeColor()"
     [style.stroke-dasharray]="perimeter()" [style.stroke-dashoffset]="dashOffset()" />
+  <circle class="pb-ring-track" cx="50" cy="50" r="46" [attr.stroke-width]="bezelWidth" />
+  <circle class="pb-ring-arc" cx="50" cy="50" r="46" [attr.stroke-width]="bezelWidth" transform="rotate(-90 50 50)"
+    [style.stroke]="arcColor()" [style.stroke-dasharray]="perimeter()" [style.stroke-dashoffset]="dashOffset()" />
+  <circle class="pb-ring-inlay" cx="50" cy="50" [attr.r]="inlayRadius" [attr.stroke-width]="inlayWidth" />
   }
 </svg>

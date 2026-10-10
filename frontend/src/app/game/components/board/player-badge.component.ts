@@ -4,16 +4,18 @@ import type { MarbleColor, Player } from '@mercury/shared';
 import { PlayerBadgeRingComponent } from './player-badge-ring.component';
 
 /**
- * Pastille joueur affichée dans un coin du plateau — circulaire par défaut,
- * ou en losange (`shape="diamond"`) pour distinguer visuellement une paire
- * de joueurs (partenaires d'équipe sur la diagonale).
+ * Badge joueur affiché dans un coin du plateau : un pion fait d'un jeton à la
+ * couleur du siège (circulaire par défaut, ou en losange avec `shape="diamond"`
+ * pour distinguer une paire de partenaires sur la diagonale) emboîté dans un
+ * socle.
  *
- * Regroupe, autour de la photo de profil :
- *   • un anneau-timer qui se vide à chaque seconde quand c'est le tour du joueur ;
- *   • le décompte (secondes restantes) superposé au centre, durant son tour ;
- *   • le nombre de cartes en main (pastille en bas à droite) ;
- *   • le rang du joueur (badge bas-centre) ;
- *   • un indicateur de déconnexion discret (bas-gauche + avatar désaturé).
+ * Il réunit :
+ *   • la photo de profil, incrustée dans le liseré du jeton ;
+ *   • ce liseré, qui est aussi le timer : il se vide quand c'est le tour du joueur ;
+ *   • le nombre de cartes en main (éventail de deux cartes, haut-droite) ;
+ *   • le nom et le rang sur le socle, qui prend la couleur du siège pendant son tour ;
+ *   • l'étiquette « Teammate » sur le socle du coéquipier du joueur local ;
+ *   • un indicateur de déconnexion (haut-gauche + photo désaturée).
  *
  * Composant purement présentationnel : toutes les données proviennent des inputs.
  */
@@ -37,6 +39,8 @@ export class PlayerBadgeComponent {
   rank = input<number | null>(null);
   /** Forme du badge : cercle (défaut) ou losange (paire d'équipe). */
   shape = input<'circle' | 'diamond'>('circle');
+  /** Vrai pour le badge du coéquipier du joueur local : affiche l'étiquette « Teammate ». */
+  isPartner = input<boolean>(false);
 
   isConnected = computed(() => this.player()?.isConnected ?? true);
 

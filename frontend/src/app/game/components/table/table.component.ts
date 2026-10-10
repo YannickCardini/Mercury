@@ -509,7 +509,7 @@ enum TURN_PHASE {
   private openCardHelp(index: number, el: HTMLElement): void {
     // Aide désactivée pendant l'indication de départ du tutoriel
     // (« Play a King, Ace or Joker to start »).
-    if (this.gameStateService.tutorialHintId() === 'card') return;
+    if (this.gameStateService.tutorialHintId() !== null) return;
 
     const card = this.getPlayerHand()[index];
     if (!card) return;
@@ -687,16 +687,6 @@ enum TURN_PHASE {
   /** Couleur d'affichage du joueur local (2v2 : celle du coéquipier s'il a fini). */
   myDisplayColor(): MarbleColor | null {
     return this.gameStateService.displayColor(this.gameStateService.myPlayerColor());
-  }
-
-  getMyColorGlow(): string {
-    const colorMap: Record<string, string> = {
-      red: 'rgba(220, 38, 38, 0.6)',
-      blue: 'rgba(59, 130, 246, 0.6)',
-      green: 'rgba(34, 197, 94, 0.6)',
-      orange: 'rgba(251, 146, 60, 0.6)',
-    };
-    return colorMap[this.myDisplayColor() ?? ''] ?? 'transparent';
   }
 
   getDiscardedCards(): Card[] {

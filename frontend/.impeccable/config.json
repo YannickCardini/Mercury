@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "src/app/game/components/board/player-badge.component.html"
+        ],
+        "createdAt": "2026-10-10T17:49:57.077Z",
+        "reason": "false positive: Angular [src] binding on the player avatar, never an empty src"
+      }
+    ]
+  }
+}

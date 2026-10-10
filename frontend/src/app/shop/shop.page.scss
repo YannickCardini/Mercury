@@ -1,4 +1,3 @@
-@use "../styles/palette" as *; // code couleur des boosters ($boost-*)
 @use "../styles/coin" as *; // recette partagée de la pièce
 @use "../styles/tokens" as m; // recettes « papier crème sur ciel »
 
@@ -11,7 +10,7 @@
 // ── Coquille : même famille que le leaderboard et le profil ──────────────────
 // Une feuille de papier posée sur le ciel. Les objets en vente, eux, se
 // regardent à travers un hublot rond ouvert sur la nuit : la pièce et les
-// jetons de booster sont dessinés pour un fond sombre et le gardent.
+// jetons de booster (pastilles mates) se posent sur ce fond sombre.
 
 // html/body sont en overflow: hidden : la page ne défile jamais d'elle-même.
 // La hauteur est donc bornée à l'écran (height et non min-height) et c'est la
@@ -159,7 +158,7 @@
   position: relative;
   margin: 0 16px 14px;
   padding: 14px 16px 13px;
-  background: var(--m-paper-lo);
+  background: color-mix(in srgb, var(--m-paper) 60%, var(--m-paper-lo));
   border: 1px solid var(--m-line);
   border-radius: var(--m-r-lg);
 }
@@ -286,24 +285,24 @@
 // ── Boosters : teinte propre à chaque effet ──────────────────────────────────
 // Déclaré avant les états (.is-short, .is-armed) : à spécificité égale, c'est
 // l'état qui doit avoir le dernier mot sur --tile-rgb. --boost-rgb reprend le
-// code couleur des jetons ; --boost-ink en est la version lisible sur papier.
+// code couleur des jetons ; --boost-ink en est la version lisible sur le papier sombre.
 
 .sh-tile[data-effect="double_points"],
 .modal-card[data-effect="double_points"] {
-  --boost-rgb: #{$boost-points-rgb};
-  --boost-ink: var(--m-violet-ink);
+  --boost-rgb: var(--m-violet-rgb);
+  --boost-ink: var(--m-violet-fg);
 }
 
 .sh-tile[data-effect="double_coins"],
 .modal-card[data-effect="double_coins"] {
-  --boost-rgb: #{$boost-coins-rgb};
-  --boost-ink: var(--m-gold-ink);
+  --boost-rgb: var(--m-gold-rgb);
+  --boost-ink: var(--m-gold-fg);
 }
 
 .sh-tile[data-effect="capture_coins"],
 .modal-card[data-effect="capture_coins"] {
-  --boost-rgb: #{$boost-bounty-rgb};
-  --boost-ink: var(--m-red-ink);
+  --boost-rgb: var(--m-red-rgb);
+  --boost-ink: var(--m-red-fg);
 }
 
 .sh-tile[data-effect] {

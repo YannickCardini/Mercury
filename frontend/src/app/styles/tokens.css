@@ -69,12 +69,12 @@
   /* Ardoise : la matière de toutes les surfaces. Aplats opaques et mats, sans
      transparence ni flou. Les noms --m-paper* sont conservés : ce sont ceux
      que référencent les composants. */
-  --m-paper: #1d4459; /* carte, modale, panneau : bleu ardoise sombre */
-  --m-paper-hi: #265670; /* champ de saisie, bouton secondaire */
-  --m-paper-lo: #16374a; /* creux, rangée survolée */
-  --m-paper-edge: #0f2938; /* tranche sous un bouton */
-  --m-glass-line: #2e637e; /* filet d'une surface : bleu acier mat */
-  --m-ink-night: #16374a; /* bleu nuit d'encre : second fond opaque */
+  --m-paper: #133246; /* carte, modale, panneau : bleu ardoise sombre */
+  --m-paper-hi: #1b4157; /* champ de saisie, bouton secondaire */
+  --m-paper-lo: #0e2736; /* creux, rangée survolée */
+  --m-paper-edge: #081a26; /* tranche sous un bouton */
+  --m-glass-line: #25536b; /* filet d'une surface : bleu acier mat */
+  --m-ink-night: #0e2736; /* bleu nuit d'encre : second fond opaque */
 
   /* Texte sur verre : blanc cassé, quatre niveaux. Les trois premiers tiennent
      4.5:1 sur le verre ; le quatrième est réservé aux placeholders et aux états

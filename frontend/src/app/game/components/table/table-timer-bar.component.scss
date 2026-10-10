@@ -9,9 +9,12 @@
     top: 0;
     left: 0;
     right: 0;
-    height: 24px;
+    height: 44px;
     pointer-events: none;
     z-index: 30;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
 }
 
 @media (max-aspect-ratio: 1/1) {
@@ -34,7 +37,7 @@
     left: 0;
     right: 0;
     height: 4px;
-    background: rgba(255, 255, 255, 0.07);
+    background: var(--m-well-2);
 }
 
 .table-timer__fill {
@@ -44,21 +47,30 @@
     width: 100%;
     height: 4px;
     transform-origin: left center;
-    border-radius: 0 2px 2px 0;
+    border-radius: 0 3px 3px 0;
     transition: transform 1s linear, background-color 0.4s ease;
 }
 
+/* Pastille ardoise avec tranche : les secondes se lisent comme un bouton de
+   l'accueil, posées sous la barre. */
 .table-timer__count {
     position: absolute;
-    top: 12px;
+    top: 10px;
     left: 50%;
     transform: translateX(-50%);
-    font-family: 'DM Sans', sans-serif;
-    font-size: 0.98rem;
+    min-width: 52px;
+    padding: 5px 12px 4px;
+    box-sizing: border-box;
+    text-align: center;
+    background: var(--m-paper);
+    border: 1px solid var(--m-glass-line);
+    border-radius: var(--m-r-pill);
+    box-shadow: 0 3px 0 0 var(--m-paper-edge);
+    font-family: var(--m-font-display);
+    font-size: 1.05rem;
     font-weight: 700;
-    letter-spacing: 0.04em;
     line-height: 1;
-    opacity: 0.9;
+    font-variant-numeric: tabular-nums;
     transition: color 0.4s ease;
 }
 
@@ -68,7 +80,7 @@
     }
 
     .table-timer__count {
-        animation: tableTimerPulse 0.6s ease-in-out infinite;
+        border-color: rgba(var(--m-red-rgb), 0.6);
     }
 }
 
