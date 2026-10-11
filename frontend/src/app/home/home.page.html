@@ -142,8 +142,8 @@
     <!-- ── Footer ─────────────────────────────────────── -->
     <footer class="home-footer">
       <div class="footer-links">
-        <!-- Page statique hors SPA (voir content/build.mjs) : lien natif, pas de routerLink. -->
-        <a class="how-to-play-link" href="/rules/pegs-and-jokers">How to Play</a>
+        <!-- Page statique hors SPA (voir content/build.mjs) : lien natif sur le web ; sur Android l'URL n'est pas réécrite, on ouvre la modale de règles. -->
+        <a class="how-to-play-link" href="/rules/pegs-and-jokers" (click)="onHowToPlay($event)">How to Play</a>
       </div>
       <button class="settings-btn" (click)="openSettings()">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"

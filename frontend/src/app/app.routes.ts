@@ -41,4 +41,9 @@ export const routes: Routes = [
     path: 'delete-account',
     loadComponent: () => import('./delete-account/delete-account.page').then(m => m.DeleteAccountPage)
   },
+  // URL inconnue : retour à l'accueil plutôt qu'un écran vide.
+  {
+    path: '**',
+    redirectTo: 'home',
+  },
 ];

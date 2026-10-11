@@ -6,6 +6,7 @@ import {
   signal,
   computed,
   effect,
+  untracked,
   OnInit,
   OnDestroy,
   Output,
@@ -184,6 +185,9 @@ enum TURN_PHASE {
   autoPlayBannerColor = signal<MarbleColor | null>(null);
   private timeoutBannerTimeout?: ReturnType<typeof setTimeout>;
   private autoPlayBannerTimeout?: ReturnType<typeof setTimeout>;
+  /** Message local « Auto-discard a défaussé pour toi » (jamais envoyé aux autres joueurs). */
+  selfAutoDiscardMessage = signal<string | null>(null);
+  private selfAutoDiscardMessageTimeout?: ReturnType<typeof setTimeout>;
   private newTurnSub?: Subscription;
   private actionEchoSub?: Subscription;
   private timeoutSub?: Subscription;
@@ -215,6 +219,14 @@ enum TURN_PHASE {
     });
     // Le tutoriel se dessine au-dessus de tout : il doit se taire pendant que
     // le menu ou la confirmation d'abandon sont ouverts.
+    // Option « Auto-discard » : défausse dès que le tour est à moi, que le
+    // serveur indique qu'aucun coup n'est légal et que l'option est active.
+    effect(() => {
+      const gs = this.gameStateService;
+      if (!gs.autoDiscard() || !gs.isMyTurn() || !this.isDiscardMode()) return;
+      gs.data()?.gameState.hand;
+      untracked(() => this.runAutoDiscard());
+    });
     this.gameStateService.publishOverlay('menu', this.showMenu);
     this.gameStateService.publishOverlay('resign', this.showResignConfirm);
   }
@@ -250,6 +262,7 @@ enum TURN_PHASE {
     this.autoPlaySub?.unsubscribe();
     if (this.timeoutBannerTimeout) clearTimeout(this.timeoutBannerTimeout);
     if (this.autoPlayBannerTimeout) clearTimeout(this.autoPlayBannerTimeout);
+    if (this.selfAutoDiscardMessageTimeout) clearTimeout(this.selfAutoDiscardMessageTimeout);
   }
 
   private updateTurnPhase() {
@@ -538,13 +551,48 @@ enum TURN_PHASE {
   /** Action du bouton principal : défausse ou confirmation selon le contexte. */
   onConfirmOrDiscard(): void {
     if (!this.confirmOrDiscardEnabled()) return;
+
+    if (this.isDiscardMode()) {
+      this.submitPlay({ kind: 'discard' });
+      return;
+    }
+
+    const card = this.gameStateService.selectedCard()!;
+    const from1 = this.gameStateService.selectedMarblePosition()!;
+    const cardIndex = this.selectedCardIndex();
+
+    if (card.value === '7' && this.gameStateService.sevenFirstSteps() < 7) {
+      this.submitPlay({
+        kind: 'split7',
+        card, cardIndex, from1,
+        steps1: this.gameStateService.sevenFirstSteps(),
+        from2: this.gameStateService.selectedSplit7MarblePosition()!,
+      });
+    } else {
+      // Pour le Jack, `to` porte la cible du swap
+      const to = card.value === 'J'
+        ? (this.gameStateService.selectedSwapTargetPosition() ?? 0)
+        : 0;
+      this.submitPlay({ kind: 'move', card, cardIndex, from1, to });
+    }
+  }
+
+  /**
+   * Envoie un coup au serveur et arme l'animation de la carte. Chemin unique
+   * pour le bouton principal et pour l'option « Auto-discard ».
+   */
+  private submitPlay(play:
+    | { kind: 'discard' }
+    | { kind: 'move'; card: Card; cardIndex: number | null; from1: number; to: number }
+    | { kind: 'split7'; card: Card; cardIndex: number | null; from1: number; steps1: number; from2: number }
+  ): void {
     this.closeCardHelp();
 
     const myColor = this.gameStateService.myPlayerColor()!;
 
     // Capture the selected card's position relative to the discard pile for the fly animation
-    if (!this.isDiscardMode()) {
-      const idx = this.selectedCardIndex();
+    if (play.kind !== 'discard') {
+      const idx = play.cardIndex;
       if (idx !== null) {
         const cardEls = document.querySelectorAll<HTMLElement>('.playable-card');
         const cardEl = cardEls[idx];
@@ -566,7 +614,7 @@ enum TURN_PHASE {
       }
     }
 
-    if (this.isDiscardMode()) {
+    if (play.kind === 'discard') {
       // Aucun coup légal → défausse directe
       this.gameStateService.playAction({
         type: 'discard',
@@ -576,44 +624,49 @@ enum TURN_PHASE {
         playerColor: myColor,
       });
       this.gameStateService.clearLocalHand();
+    } else if (play.kind === 'split7') {
+      // Split du 7 : encoder les deux destinations
+      this.gameStateService.playAction({
+        type: 'move',
+        from: play.from1,
+        to: getPositionAfterMove(play.from1, play.steps1) ?? 0,
+        splitFrom: play.from2,
+        splitTo: getPositionAfterMove(play.from2, 7 - play.steps1) ?? 0,
+        cardPlayed: [play.card],
+        playerColor: myColor,
+      });
     } else {
-      const card = this.gameStateService.selectedCard()!;
-      const from1 = this.gameStateService.selectedMarblePosition()!;
-
-      if (card.value === '7' && this.gameStateService.sevenFirstSteps() < 7) {
-        // Split du 7 : encoder les deux destinations
-        const steps1 = this.gameStateService.sevenFirstSteps();
-        const to1 = getPositionAfterMove(from1, steps1) ?? 0;
-        const from2 = this.gameStateService.selectedSplit7MarblePosition()!;
-        const to2 = getPositionAfterMove(from2, 7 - steps1) ?? 0;
-        this.gameStateService.playAction({
-          type: 'move',
-          from: from1,
-          to: to1,
-          splitFrom: from2,
-          splitTo: to2,
-          cardPlayed: [card],
-          playerColor: myColor,
-        });
-      } else {
-        // Coup normal : le serveur calcule type et to à partir de card + from
-        // Pour le Jack, on inclut la cible du swap dans `to`
-        const to = card.value === 'J'
-          ? (this.gameStateService.selectedSwapTargetPosition() ?? 0)
-          : 0;
-        this.gameStateService.playAction({
-          type: 'move',
-          from: from1,
-          to,
-          cardPlayed: [card],
-          playerColor: myColor,
-        });
-      }
+      // Coup normal : le serveur calcule type et to à partir de card + from
+      this.gameStateService.playAction({
+        type: 'move',
+        from: play.from1,
+        to: play.to,
+        cardPlayed: [play.card],
+        playerColor: myColor,
+      });
     }
 
     this.clearTimer();
     this.selectedCardIndex.set(null);
     this.turnPhase.set('Wait for your turn');
+  }
+
+  // ── Auto-discard (option : défausse immédiate quand aucun coup n'est possible) ──
+
+  private runAutoDiscard(): void {
+    const gs = this.gameStateService;
+    if (!gs.autoDiscard() || !gs.isMyTurn() || !gs.myPlayerColor()) return;
+    if (gs.teamIntroPlaying() || gs.boardEditMode()) return;
+    if (!this.isDiscardMode() || !gs.data()?.gameState.hand?.length) return;
+
+    this.showSelfAutoDiscardMessage('Auto-discard: no move possible');
+    this.submitPlay({ kind: 'discard' });
+  }
+
+  private showSelfAutoDiscardMessage(text: string): void {
+    if (this.selfAutoDiscardMessageTimeout) clearTimeout(this.selfAutoDiscardMessageTimeout);
+    this.selfAutoDiscardMessage.set(text);
+    this.selfAutoDiscardMessageTimeout = setTimeout(() => this.selfAutoDiscardMessage.set(null), 3000);
   }
 
   // ── Abandon ──────────────────────────────────────────────────────

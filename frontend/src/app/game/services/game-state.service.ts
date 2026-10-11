@@ -163,6 +163,21 @@ export class GameStateService {
   }
 
   /**
+   * Option « Auto-discard » (menu ⋮) : défausse seule, sans attendre, quand
+   * aucun coup n'est possible. Désactivée par défaut. Persisté en localStorage.
+   * Distinct de `autoPlayed$` (coup joué par le serveur pour un déconnecté).
+   */
+  readonly autoDiscard = signal<boolean>(
+    typeof localStorage !== 'undefined' && localStorage.getItem('auto_discard') === '1'
+  );
+
+  toggleAutoDiscard(): void {
+    const next = !this.autoDiscard();
+    this.autoDiscard.set(next);
+    try { localStorage.setItem('auto_discard', next ? '1' : '0'); } catch { /* ignore */ }
+  }
+
+  /**
    * Vrai tant que l'annonce des équipes (2v2, TeamIntroOverlayComponent) est
    * à l'écran. Publié par GamePage (source de vérité : `playing()` du
    * composant) pour que d'autres endroits (scrim de blocage des inputs,
