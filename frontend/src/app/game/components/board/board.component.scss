@@ -33,9 +33,10 @@ $colors: (
     background: rgba(255, 255, 255, 0.15);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    border: 1px solid rgba(240, 248, 255, 0.26);
     border-radius: calc(var(--square-size) * 0.5);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    /* Filet de lumière en haut du plateau (statique, aucune couche ajoutée). */
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(240, 248, 255, 0.3);
     padding: calc(var(--square-size) * 0.2);
     box-sizing: border-box;
     position: relative;
@@ -167,6 +168,13 @@ $colors: (
             box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.4), 0 2px 4px rgba(0, 0, 0, 0.15);
         }
     }
+}
+
+/* Cases neutres : alvéoles creusées dans le verre, pour que les billes ressortent.
+   Les états (aperçu de trajet/destination, invincible) gardent leur rendu. */
+.case-path.normal:not(.square-preview-path):not(.square-preview-path-marble2):not(.square-preview-destination):not(.square-invincible) {
+    background-color: rgba(8, 26, 38, 0.3);
+    box-shadow: inset 0 2.2px 3.8px rgba(0, 0, 0, 0.36), 0 1px 0 rgba(240, 248, 255, 0.22);
 }
 
 /* --- Design des Pions (Billes texturées « planètes », fixes sur le plateau) ---

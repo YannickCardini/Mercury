@@ -1,32 +1,615 @@
-Bug remonté par younhee sur le 7
-
-
 ═══════════════════════════════════════════════════════════════════════
-RESERVED FOR THE OWNER - NOT FOR AN AI
+MERCURY - TODO
 ═══════════════════════════════════════════════════════════════════════
-Owner's heading (verbatim): "A faire par moi et non pas par l'ia"
-An AI agent must not start, design or prepare these two. They are kept
-here so that the context is not lost.
+Rewritten 2026-10-11 from the owner's notes (kept verbatim under each
+task). File/line anchors come from the working tree on that date, on
+top of commit a601a197: if a line has moved, find the symbol by name.
 
-[A] Add new animated emojis (reactions).
-    Owner's note (verbatim): "Ajoutez des nouveaux emojis animé"
-    Context for later: a reaction is a Unicode glyph listed in
-    REACTION_EMOJIS (packages/shared/src/types.ts:47); its animation is
-    the CSS float over the sender's badge
-    (game/components/emoji-reactions/). Each one has a sound sample
-    (frontend/src/assets/sounds/emojis/, mapped in
-    sound.service.ts:4-20) and, when it is paid, a catalog entry
-    (shop-catalog.ts:95-104).
+How to read this file
+- [1] to [4] are tasks for an AI agent, in the owner's original order.
+- "Open questions" are decisions only the owner can take. Ask them
+  BEFORE writing code. A proposed default is marked "(assumed)" and
+  still needs a yes.
+- "Facts" were read in the code. Anything marked "estimate" was derived
+  without rendering: nobody can run the app in a session, so treat it
+  as a lead, not as a measurement.
+- "Checked" means the shared validator was evaluated on the given
+  position on 2026-10-11 with a throwaway script (not kept in the
+  repo). The same positions are to be turned into unit tests.
 
-[B] Add a marble design to the shop, to replace the current planet
-    design.
-    Owner's note (verbatim): "Ajouter un design de bille dans le shop,
-    pour remplacer le design des planetes actuelles."
-    Context for later: marbles are drawn in CSS as planets
-    (frontend/src/app/styles/_planets.scss: red = Mars, green = Earth,
-    blue = Neptune, orange = Jupiter). The catalog has no marble kind
-    yet; `cardback` (shop-catalog.ts:58-63) is a declared but
-    unimplemented placeholder of the same nature.
-    Still to be specified by the owner: whether the new design replaces
-    the planets for everyone or is a purchasable skin, and who sees a
-    player's skin.
+Global constraints (apply to every task)
+- NEVER run the app (no `npm run dev`, no E2E, no screenshots). The
+  whole verification loop is: `npm run build:shared` at the repo root
+  (mandatory first after any change under packages/shared: backend,
+  frontend and the backend tests all import its compiled output), the
+  `npx tsc` / `npm run build` type checks, and the backend unit tests
+  (`npm test --workspace=backend`, node:test through tsx). The owner
+  validates on a real Android device and on desktop.
+- backend/src/game/snapshot.test.ts has been seen failing now and then
+  for reasons unrelated to any change: rerun it before calling a
+  failure a regression.
+- Any change under packages/shared: bump the PATCH version in
+  packages/shared/package.json, once per task (2.2.10 today).
+- Game rules live in packages/shared/src/move-validator.ts so that
+  client and server cannot drift. Never re-implement a rule in
+  backend/ or frontend/.
+- User-facing text: English, neutral tone, never the em dash character.
+- Old clients. An installed Android build, or a browser tab left open,
+  keeps running the previous bundle against a newly deployed backend.
+  Every change must be harmless for the previous build during that
+  window.
+- Android-only rendering fixes go under `:host(.is-native)` at the end
+  of the component stylesheet and must leave web/desktop untouched.
+
+Suggested order
+  [3]  smallest, home page only, no dependency.
+  [1]  production bug. Before [4]: [4] needs one consistent answer to
+       "what are the legal actions of this turn", which [1] repairs
+       for the 7. Both may edit move-validator.ts (one version bump
+       per task).
+  [4]  after [1].
+  [2]  last. Optional by the owner's own wording: it may end with
+       "not implemented" if it cannot be made cheap.
+
+───────────────────────────────────────────────────────────────────────
+[1] BUG - The 7 is offered as playable but no marble can be selected
+     (reported by Younhee)
+───────────────────────────────────────────────────────────────────────
+Owner's note (verbatim)
+  Bug remonté par younhee sur le 7:
+  Voir screenshot :
+  /home/loubard/Pictures/keenzen/1bea2f45-1226-4b99-b29d-925e8583943b.jpeg
+  L'utilisateur se voit proposer par l'interface de jouer le 7, mais
+  l'utilisateur (joueur rouge) ne peut selectionner aucun marble. C'est
+  un cas spécifique, et un peu rare, ou l'utilisateur ne peut pas
+  bouger son marble, mais pourra le bouger apres que le joueur est
+  bougé son allié via le 7.
+
+Goal
+  On the player's turn these three signals must always agree for the 7:
+  the card is shown as playable, at least one marble can be selected to
+  start it, and the server refuses a discard. In the reported position
+  they disagree and the player is stuck until the turn timer runs out.
+
+Reported position (decoded from the screenshot; squares numbered as in
+packages/shared/src/board-config.ts)
+  Local player: red ("Yuni"). Teammate: blue. Opponents: green, orange.
+    red     218 on the track; 57, 71, 72 in reserve
+    blue    217 = blue's start square, freshly entered and still
+            "invincible" (drawn with its protection halo); 205 on the
+            track; 169, 170 in reserve
+    green   90 on the track; 161, 176, 177 in reserve
+    orange  190 on the track; 50, 64, 65 in reserve
+  Red's hand: 5 of clubs, 7 of spades (selected), a Queen, 7 of
+  diamonds.
+  Track order around there (MAIN_PATH, board-config.ts:41-46):
+    205 → 220 → 219 → 218 → 217 → 216 → 201 → 186 → 171 → 156 → 141
+  Red's only marble in play (218) sits one square behind the teammate's
+  invincible marble (217): on its own it cannot advance at all.
+
+What the code answers on that position (checked)
+  findLegalMoveForCard(5), (Q)        null. Both cards dimmed: correct.
+  findLegalMoveForCard(7)             a split: red 218→217 (1 step) +
+                                      blue 217→141 (6 steps).
+  getValidSevenStepsForMarble(218)    [] (every step count is blocked)
+  canMarbleStartSeven(218)            false
+  getLegalSplit7Action(7,218,s,217)   legal for s = 1, 2, 3, 5, 6
+                                      (s = 4: both would land on 186)
+  So the three signals disagree:
+  - The card looks playable: handCardPlayable() relies on
+    findLegalMoveForCard() (game/services/game-state.service.ts:
+    612-620).
+  - No marble can be picked: playableMarblePositions() and
+    playableOwnMarbles() rely on canMarbleStartSeven() (:510-519,
+    :577-578). The split panel does not open either, because
+    canSplit7Anywhere() is false (:587-605, used by
+    showSevenSplitOverlay, game/components/table/table.component.ts:
+    71-75). Only the card help text is shown (footerCardHelp,
+    table.component.ts:471-485): this is the screenshot.
+  - A discard is refused: the server computes `canDiscard` with
+    findLegalMoveForCard() (computeCanDiscard(), backend/src/game/
+    game.ts:1215-1221; validateHumanAction(), game.ts:1074-1080).
+  The player can only wait for the turn timer (60 s). The server then
+  plays the first legal move it finds in hand order
+  (computeFallbackAction(), game.ts:1126-1146), here that very split,
+  under the banner "Time's up, the computer played for you".
+
+Root cause (packages/shared/src/move-validator.ts)
+  Two helpers disagree on whether the SECOND marble of a split still
+  blocks the first one.
+  - getLegalSplit7Action() (:496-575) removes `from2` from `allMarbles`
+    before computing the first marble's move (:523-527). This was added
+    on 2026-08-06 so that the first marble may land on the square the
+    second one is leaving. Side effect: pathIsClear() (:381-417) only
+    tests invincibility on squares listed in `allMarbles` (:408-413),
+    so an invincible marble stops blocking as soon as it is the second
+    marble of the split.
+  - getValidSevenStepsForMarble() (:463-477) evaluates the first marble
+    against the full board, where the invincible marble blocks.
+    Everything the UI offers starts from that list:
+    canMarbleStartSeven() (:593-614), canSplit7Anywhere(), and the
+    split bar (validSevenSteps / validSplitSevenSteps / allSevenDots,
+    table.component.ts:118-169).
+  - findLegalSplit7Action() (:624-638), called by
+    findLegalMoveForCard() (:679-681), goes straight to
+    getLegalSplit7Action(), without that pre-filter.
+  Trigger: the second marble is a TEAMMATE's marble that is still
+  invincible (it has just entered on its start square and has not
+  moved yet), and the first marble's path crosses or ends on that
+  square. An own invincible marble cannot trigger it: pathIsClear()
+  refuses the player's own start square whatever stands on it (:406).
+  The invariant is already stated by a test, but only on positions
+  without invincible marbles: "7 jouable ⟺ au moins un pion peut le
+  démarrer" (backend/src/game/seven-split.test.ts:127-138).
+
+Open questions (ask first)
+  Q1. Rule: in the reported position, is the 7 playable or not?
+      (a) Not playable (assumed). This is what the written rules say:
+          a freshly entered marble "blocks passage [...] It blocks
+          everyone, including your teammate" (frontend/src/app/shared/
+          game-rules-modal.component.html:97), and for the 7 "move one
+          of your own marbles first" (:59; same wording in
+          shared/card-effects.ts:61). The player's marble moves first,
+          so it is blocked. Outcome on the reported position: the 7 is
+          dimmed like the 5 and the Queen, and the turn becomes a
+          discard.
+      (b) Playable: both halves are one simultaneous move, the
+          teammate's marble is leaving its square, so it does not
+          block. Outcome: the player must be able to select 218, choose
+          1, 2, 3, 5 or 6 steps and pick blue 217 as the second marble.
+          The rule text at :97 then needs that exception.
+      The owner's note ("pourra le bouger apres que le joueur est
+      bougé son allié via le 7") describes the mechanism but does not
+      say which outcome is wanted.
+  Q2. Fix the related defect below in the same task? (assumed: yes,
+      same function, with its own test.)
+
+Related defect found while reading (not in the owner's note)
+  Same function, whenever the first marble lands on `from2`. The
+  context of the second move (:534-550) puts the first marble on the
+  square where the second one still stands. buildMoveActionForMarble()
+  (:306-322) then looks up the owner of `from2` with colorAtPosition()
+  (:72-80), which returns the first colour found on that square: the
+  active player's whenever it comes first in `marblesByColor`. The
+  teammate's marble is then validated with the ACTIVE player's start
+  and arrival squares.
+  Checked: red [205], blue [220]. getLegalSplit7Action(7, 205, 1, 220)
+  returns blue 220→186 as a plain move that crosses blue's own start
+  square (217). With red elsewhere (red [10]) the same blue marble
+  correctly promotes 220→143.
+  The existing test of the "lands on from2" case
+  (backend/src/game/seven-team.test.ts:100-115) uses a plain move, on
+  which both points of view agree, so it does not catch this.
+  Lead: `owner2` is already resolved from the ORIGINAL context at :561;
+  resolve it before the second move and validate with that colour.
+
+Steps
+  1. Get Q1 and Q2 answered.
+  2. Write the failing tests first, in backend/src/game/
+     seven-team.test.ts (helper buildTeamCtx, :26-38; invincible
+     marbles are passed through `invincibleMarblesByColor`, see
+     :73-87). Use the reported position and assert the invariant:
+     findLegalMoveForCard(7) !== null  ⟺  at least one own marble
+     satisfies canMarbleStartSeven(). It fails today.
+  3. If Q1 = (a): in getLegalSplit7Action(), an invincible `from2` must
+     keep blocking the first marble, on its path and on its landing
+     square. The 2026-08-06 case must stay legal: the first marble
+     landing on a NON-invincible teammate marble that moves in the same
+     split (seven-team.test.ts:100-115 stays green). Expected on the
+     reported position: findLegalMoveForCard(7) === null,
+     isHandBlocked() true (:690-692), discard accepted. No frontend
+     change is expected: every UI signal goes through the shared
+     functions.
+  4. If Q1 = (b): keep the validator's verdict and make the UI able to
+     build the move. Difficulty: the valid step counts of the first
+     marble then depend on which second marble is chosen, while the UI
+     makes the player choose the steps BEFORE the second marble. To
+     review: canMarbleStartSeven() (move-validator.ts:598-612, it only
+     loops over the pre-filtered steps), canSplit7Anywhere()
+     (game-state.service.ts:596), validSevenSteps /
+     validSplitSevenSteps / allSevenDots (table.component.ts:118-169),
+     and the path preview, which draws nothing for the first marble
+     because it calls getActionForSteps() with the full context
+     (game/components/board/board.component.ts:165-200). Update the
+     rule texts quoted in Q1.
+  5. If Q2 = yes: fix the owner lookup and add the test (red [205],
+     blue [220], split 1 + 6: expect splitType 'promote' and splitTo
+     143).
+  6. `npm run build:shared`, bump packages/shared/package.json
+     (2.2.10 → 2.2.11), then `npm test --workspace=backend` and the
+     type checks of backend and frontend.
+
+Deployment note
+  The validator is compiled into both the server and the client bundle.
+  With (a), a client that is not updated yet still shows the 7 as
+  playable, but `canDiscard` comes from the server (isDiscardMode,
+  table.component.ts:195-197): the Discard button appears and the
+  player is no longer stuck. With (b) the server does not change, and
+  old clients stay stuck until they update.
+
+───────────────────────────────────────────────────────────────────────
+[2] FEATURE (optional) - "Light speed" transition between /home and
+     /game
+───────────────────────────────────────────────────────────────────────
+Owner's note (verbatim)
+  Animation entre les ecrans/route. Entre la route /home et /game, ce
+  serait bien d'avoir une animation du style "animation light speed
+  space", comme si on avancé a la vitesse de la lumiere dans le fond
+  spatial deja existant (exemple:
+  https://www.sciencealert.com/images/2020-08/processed/GettyImages-1191009006_1_600.jpg)
+  L'animation sera inversé pour passer de /game a /home, comme si on
+  revenait en arrire. Si cette aniamtion est trop couteuse (en terme de
+  perf) ne pas l'implementé.
+
+Goal
+  Going from /home to /game, the existing space background plays a
+  short one-shot "jump to light speed": the stars stretch into streaks
+  that rush outward from the centre of the screen, as if the camera
+  moved forward (the reference image shows radial streaks around a
+  central vanishing point). Going from /game to /home, the same effect
+  runs in reverse, as if moving backward.
+
+Stop condition (from the owner)
+  If the effect cannot be made cheap, do not implement it. This is a
+  valid outcome: stop at step 2, report why, leave no code behind.
+
+Facts
+  The background (frontend/src/app/shared/space-background.component.*)
+    - Rendered once for the whole app, behind the router outlet
+      (app.component.html:2): fixed, z-index 0, no pointer events
+      (.scss:7-17). It survives route changes, so it can animate across
+      a navigation.
+    - Stars are not elements. Three divs carry a `box-shadow` listing
+      700, 200 and 70 points spread over 2000 x 2000 px (.ts:47-49,
+      buildStars() :127), each duplicated by an ::after (.scss:177-196)
+      and drifting through a `transform` animation that lasts 1300 to
+      2400 s (.scss:200-227). Plus 9 twinkling stars (.ts:52).
+    - "Calm" mode: at each NavigationEnd, `calm` is true when the URL
+      starts with /game (.ts:68-80). In calm mode the nebulas, planets,
+      shooting stars and ship leave the DOM, a galaxy band (820 points)
+      and a denser star layer (600 points) enter it, and the drift
+      stops (.html:2-27, :47, :55; .scss:230-237). So the background's
+      DOM changes at the very moment of the navigation.
+    - prefers-reduced-motion is already honoured (.ts:82-88,
+      .scss:398-410).
+  What hides the background on the way in
+    - GamePage starts in phase 'loading' and shows app-loading-screen:
+      opaque night gradient, fixed, z-index 9999, 0.25 s fade-out
+      (game/game.page.html:8-11; shared/loading-screen.component.scss:
+      4-16, :24-35).
+    - For a real game start, the full-screen team announcement follows
+      (app-team-intro-overlay, game.page.html:70-75). Board and table
+      (about 3400 DOM nodes) are mounted behind it once its entrance
+      has settled (game.page.ts: phase :99, mountBoard :111-121, the
+      two effects :279-352, ANNOUNCE_START_BUFFER_MS 300 and
+      ENTRANCE_SETTLE_MS 1400 at :39-48).
+    - Consequence: today the background is never visible between the
+      tap on /home and the revealed board. The effect needs a place in
+      that sequence (Q1).
+    - A generic shell overlay shown on every navigation was tried and
+      removed, because it flashed on top of this timed sequence
+      (comment at app.component.ts:52-63). Do not bring it back.
+  Pages
+    - /home and /game are transparent over the background
+      (home/home.page.scss:14-30, game/game.page.scss:25-31).
+    - The elements of /home enter with a fade and a slight translate
+      (home.page.scss:35 onward).
+  Navigations (all are plain router.navigate calls)
+    - Real game starts from /home: home/home.page.ts:674 (matchmaking)
+      and :837 (custom room).
+    - Returns into a game that is already running: home.page.ts:277,
+      :349, :370, :514, :622, :747, :1062; app.component.ts:135 (cold
+      start); services/app-resume.service.ts:151 (app resumed).
+    - /game to /home: game.page.ts:475 (backToMenu(), end screen) and
+      :586 (load failure); table.component.ts:627 (resign);
+      app.component.ts:100 and :111 (session replaced, game cancelled).
+    - The router has no view transitions and no route animations
+      (main.ts:19).
+  Design rules (frontend/DESIGN.md)
+    - :96 and :205: the animated space background is protected from
+      restyling "without an explicit request". This task is that
+      request; it does not cover the rest of the background's look.
+    - :206: no ambient looping animation. The effect is one-shot.
+  Android
+    - Heavy effects are already lightened under the `is-native` host
+      class (table.component.ts:47-49, game.page.ts:66-68).
+    - The owner is very sensitive to flicker on Android: an animation
+      must stay on a layer that exists before it starts and after it
+      ends (never create or destroy a compositing layer mid-way, never
+      toggle a filter).
+
+Open questions (ask first)
+  Q1. Where does the effect sit on the way in?
+      (assumed) During GamePage's 'loading' phase: the loading screen
+      remains the readiness gate but lets the background show through
+      while the jump plays, and the jump is over before the team
+      announcement or the board mount starts.
+      Alternatives: play it on /home before calling router.navigate
+      (delays every game start by its duration), or draw it in a layer
+      above the loading screen.
+  Q2. Which navigations get it? (assumed: only the real game starts
+      from /home and the returns to /home after a game or a resign.
+      Not the returns into a running game, the cold start, the resume,
+      nor the error redirects.)
+  Q3. Duration, and may it hold the loading phase? On a real game start
+      the game data is already there when /game opens, so the loading
+      phase is short. (assumed: 600 to 900 ms each way, and the loading
+      phase may be held until the jump ends, never longer.)
+
+Performance budget (the gate of step 2)
+  - Animate `transform` and `opacity` only, on a small fixed number of
+    layers. Never animate `box-shadow`, `filter`, sizes or positions;
+    no element per star; no per-frame JavaScript over the star list.
+  - Estimate: scaling the existing box-shadow layers enlarges the dots,
+    it does not draw streaks. Streaks need their own layer, drawn once
+    (gradient, SVG or a canvas painted a single time) and then only
+    scaled and faded.
+  - Never at the same time as the board/table mount or the entrance of
+    the team announcement.
+  - The calm-mode swap changes the background's DOM at NavigationEnd:
+    hide it inside the effect or defer it, so that it is not seen as a
+    jump cut.
+  - prefers-reduced-motion: no effect, the switch stays instant as
+    today.
+  - Android: a lighter variant under `is-native` if needed, or none.
+
+Steps
+  1. Get Q1 to Q3 answered.
+  2. Feasibility. Design the streak layer and the timeline against the
+     budget above and against GamePage's phases. If the budget cannot
+     be met, stop here and report (see Stop condition).
+  3. Add a one-shot "jump" state (direction: forward or backward) to
+     SpaceBackgroundComponent. Drive it from one place (a small
+     root-provided service, or the router events with the source and
+     target URLs) so that pages never touch the background's DOM.
+  4. Forward direction: wire the navigations retained in Q2 and
+     coordinate with GamePage's phases as decided in Q1.
+  5. Backward direction: /game to /home, coordinated with the entrance
+     animations of /home.
+  6. Reduced motion and the native variant.
+  7. Type check and build the frontend. Nothing can be measured in a
+     session: hand the owner a short list to check on the device
+     (dropped frames during the jump, flicker when calm mode switches,
+     no added wait before the team announcement, the way back, a
+     resign in the middle of a game).
+
+───────────────────────────────────────────────────────────────────────
+[3] BUG - "How to Play" (footer of /home) opens an empty page on
+     Android
+───────────────────────────────────────────────────────────────────────
+Owner's note (verbatim)
+  Le boutton "How to play", dans le footer de la route /home, sur
+  android, redirige vers une page vide (fond spatial avec rien).
+  Cela marche bien sur navigateur.
+
+Goal
+  In the Android app, tapping "How to Play" shows the rules instead of
+  an empty screen. The web behaviour does not change.
+
+Root cause (read in the code, not reproduced)
+  - The link is a plain anchor, outside the Angular router:
+    `<a class="how-to-play-link" href="/rules/pegs-and-jokers">`
+    (frontend/src/app/home/home.page.html:145-146). This is deliberate:
+    the /rules/* pages are static HTML generated by
+    frontend/content/build.mjs, no longer Angular routes
+    (app.routes.ts:35-39).
+  - On the web, Azure Static Web Apps rewrites /rules/pegs-and-jokers
+    to /content/rules/pegs-and-jokers.html
+    (frontend/src/staticwebapp.config.json:38-42).
+  - In the Android app nothing does that rewrite. The Capacitor local
+    server answers any path whose last segment has no dot with
+    index.html (node_modules/@capacitor/android/capacitor/src/main/
+    java/com/getcapacitor/WebViewLocalServer.java:399). The whole
+    Angular app therefore restarts on the URL /rules/pegs-and-jokers,
+    which matches no route (there is no wildcard route either). The
+    navigation fails, the shell removes its loading overlay
+    (app.component.ts:63, :76-86) and only the space background is
+    left.
+  - History: commit 4f7af444 added the link as a `routerLink` to an
+    Angular page, which worked on Android. The rules pages were later
+    moved out of Angular, and the Android case broke.
+
+Facts
+  - This is the only link of that kind in the Angular app (search for
+    `href=` under frontend/src/app, 2026-10-11).
+  - The static file is inside the Android bundle: the frontend build
+    (`ng build && node content/build.mjs`) writes
+    www/content/rules/pegs-and-jokers.html and `npx cap sync android`
+    copies www/ (.github/workflows/android.yaml:37-42). The URL
+    /content/rules/pegs-and-jokers.html does resolve in the app. But
+    that page is a web page: its own links use the same dot-less URLs
+    (/rules/tock, /rules/keezen, /rules/dog) and would hit the same
+    empty screen, it links to the Play Store listing, and it has no
+    in-app way back.
+  - An in-app rules sheet already exists on /home:
+    `<app-game-rules-modal [show]="showRules">` (home.page.html:864),
+    with openRules() / closeRules() (home/home.page.ts:564-569).
+    Nothing calls openRules() any more. It is the modal opened by
+    "Game Rules" in the in-game menu (game/game.page.html:89-90).
+  - Public URL of the page:
+    https://www.mercury-game.online/rules/pegs-and-jokers (SITE_URL,
+    frontend/content/lib/site.mjs:11). The frontend environment files
+    hold no site URL (only apiUrl and wsUrl).
+  - Leaving the WebView for the system browser: the existing pattern is
+    `window.open(url, "_system")`
+    (shared/update-available-modal.component.ts:29).
+    @capacitor/browser is not installed.
+  - Platform test: `Capacitor.isNativePlatform()` (already used at
+    home.page.ts:262).
+
+Open questions (ask first)
+  Q1. What should the Android user get?
+      (a) The in-app rules modal (assumed): stays in the app, works
+          offline, a few lines of code. Its content is the short rules
+          sheet, not the full web page.
+      (b) The same page as on the web, opened in the system browser
+          through the public URL: identical content, but leaves the
+          app and needs a connection.
+      (c) The bundled static page inside the WebView: identical
+          content, offline, but its internal links must be fixed, a
+          way back must be added, and coming back reloads the app.
+  Q2. Hardening, not requested: add a wildcard route redirecting to
+      /home, so that an unknown URL can never leave an empty screen
+      again? It would also change the web behaviour for mistyped URLs.
+      (assumed: no, out of scope.)
+
+Steps
+  1. Get Q1 and Q2 answered.
+  2. Keep the anchor and its href for the web.
+  3. On native only, intercept the tap (preventDefault) and apply the
+     answer to Q1.
+  4. Type check and build the frontend. The owner checks on the device
+     (the tap shows the rules, Back returns to /home) and on desktop
+     web (unchanged: the static page opens).
+
+───────────────────────────────────────────────────────────────────────
+[4] FEATURE - Option to play automatically when only one action is
+     possible
+───────────────────────────────────────────────────────────────────────
+Owner's note (verbatim)
+  Fonctionnalité dans les options pour "auto-play" quand une seule
+  action est posible (discard/une seule carte sur un seul pion sans
+  option ect..). Désactivé par défaut, accescible via le menu option
+  dans le table compoenent.
+
+Goal
+  A new option, off by default, toggled from the in-game menu (the
+  three-dot menu of the table component). When it is on and the local
+  player's turn offers exactly one possible action, the client plays
+  that action without waiting for the player.
+
+Facts
+  The menu (frontend/src/app/game/components/table/)
+    - table.component.html:39-123. Items: Mute / Unmute (:55-73),
+      Vibration (native only, :75-88), Card Help On/Off (:90-99), Game
+      Rules (:101-108), Resign (:110-119). Open state: `showMenu`
+      (table.component.ts:179).
+    - Model for a persisted toggle: cardHelpEnabled / toggleCardHelp()
+      (game/services/game-state.service.ts:155-163, localStorage key
+      'card_help_enabled'); also game/services/sound.service.ts:28-39.
+      An item that is off gets the class `menu-item--muted`.
+  Name clash
+    - "auto-play" already means "the server played for a DISCONNECTED
+      human": ActionPlayedMessage.isAutoPlay (packages/shared/src/
+      types.ts:195-196), autoPlayed$ (game-state.service.ts:639, :727),
+      autoPlayBannerColor / showAutoPlayBanner() (table.component.ts:
+      184, :333-339), banner at table.component.html:23-29. Use a
+      different identifier in the code for the new option.
+  How an action is sent today
+    - One place: onConfirmOrDiscard() (table.component.ts:539-617).
+      Discard branch (:569-578; the server discards the whole hand,
+      backend/src/game/game.ts:1074-1080), 7 split branch (:583-597),
+      normal branch (:598-611; the server recomputes type and
+      destination from card + marble, the Jack's target travels in
+      `to`). It also arms the card flight animation (:546-567) and
+      stops the turn timer (:614).
+  What "only one action" can be built from
+    - Discard: the server flag `gameState.canDiscard`
+      (computeCanDiscard(), game.ts:1215-1221), read by isDiscardMode
+      (table.component.ts:195-197). When true, discarding is the only
+      action.
+    - Forced "solidaire" entry: forcedSolidaireEntry
+      (game-state.service.ts:339-345). The only legal action is to
+      enter a teammate's reserve marble with an Ace, King or Joker.
+    - Otherwise nothing lists the legal actions of a turn.
+      findLegalMoveForCard() (packages/shared/src/move-validator.ts:
+      644-683) returns only the FIRST legal action of a card. Building
+      blocks: handCardPlayable (game-state.service.ts:612-620),
+      playableMarblePositions (:466-541), getLegalAction() with an
+      explicit Jack target (move-validator.ts:207-210),
+      getValidSevenStepsForMarble() and getLegalSplit7Action() for
+      the 7.
+    - Choices hidden inside one card: Jack = which pair is swapped (the
+      same swap can be reached from either marble, since any marble can
+      be the source, :183-215); 7 = full move or any split (step count
+      and second marble); Ace / King / Joker = enter a reserve marble
+      or advance a marble in play, depending on the marble picked.
+    - Empty hand: the server passes on its own, the client sends
+      nothing (game.ts:658-659).
+    - The rules already force the player: a discard is refused while a
+      legal move exists (game.ts:1076-1078). The option therefore never
+      changes the result of a turn, it only removes taps.
+  Turn start on the client
+    - `newTurn` (game-state.service.ts:633, emitted at :777-787, later
+      when a teammate has just finished). The table reacts at
+      table.component.ts:223-228 (timer, phase label).
+    - A "New turn" banner covers the board for
+      NEW_TURN_BANNER_DURATION_MS = 2500 (packages/shared/src/
+      constants.ts:58; game/game.page.ts:395-416). A Joker gives the
+      same player a bonus turn, which is a new turn like any other.
+    - States in which nothing must be played automatically: not the
+      local player's turn, spectator (myPlayerColor null), team
+      announcement (teamIntroPlaying, game-state.service.ts:171), debug
+      board editing (boardEditMode, :215).
+  Not a shortcut
+    - Do not implement this by sending `turnTimeout`: the server would
+      play its first legal move but flag it as a timeout, which shows
+      "Time's up, the computer played for you" (game.ts:896-911,
+      game-state.service.ts:726).
+  Dependency
+    - [1] first. In its reported position the validator answers "the 7
+      is playable" and "no marble can start it" at once: a list of
+      legal actions built today would be inconsistent there.
+
+Open questions (ask first)
+  Q1. Do choices with an identical result count as ONE action?
+      (assumed: yes.) Two cases: several reserve marbles can enter with
+      the same card (all end on the start square), and two cards of the
+      same value in hand allow the same move. A strict reading of the
+      note ("une seule carte sur un seul pion") says no. Two cards of
+      DIFFERENT values that reach the same square stay two actions:
+      what is left in hand differs.
+  Q2. Delay before the automatic move. (assumed: a short fixed delay
+      once the "New turn" banner is gone, about 1 s, as a named
+      constant, so that the player sees whose turn it is.) The
+      alternative is no delay.
+  Q3. Feedback when a move is played automatically. (assumed: none
+      beyond the usual card and marble animations.)
+  Q4. Label in the menu. (assumed: "Auto-play On" / "Auto-play Off",
+      same pattern as "Card Help On/Off".)
+  Q5. Where the choice is stored. (assumed: per device, in
+      localStorage, like the other in-game options; not on the
+      account.)
+
+Definition used below (pending Q1)
+  List every legal action of the turn as: card value, kind (enter,
+  move, promote, capture, swap, discard), marble moved (all reserve
+  marbles counted as one), destination, and for a 7 split the second
+  marble with its destination, for a Jack the unordered pair of
+  marbles. Play automatically when that list has exactly one entry.
+
+Steps
+  1. Get Q1 to Q5 answered.
+  2. State: a signal and its toggle in GameStateService, next to
+     cardHelpEnabled, persisted in localStorage, OFF when the key is
+     absent.
+  3. Menu: one item in table.component.html next to "Card Help", same
+     markup, `menu-item--muted` while off.
+  4. Enumeration: one function that returns the distinct legal actions
+     for a hand and a LegalMoveContext. It needs rule knowledge (Jack
+     targets, 7 splits), so it belongs in packages/shared/src/
+     move-validator.ts, with unit tests in backend/src/game/
+     (node:test). Cases to cover: blocked hand (discard only); one card
+     on one marble; an Ace with one marble in reserve and one in play
+     (2 actions); a Jack with two possible targets (2), and with one
+     pair reachable from both ends (1); a 7 with only the full move
+     (1), and with a full move plus a split (2 or more); two cards of
+     the same value (per Q1); the reported position of [1].
+  5. Trigger: at turn start, when the option is on and none of the
+     excluded states applies, compute the list. With exactly one entry,
+     wait for the delay of Q2, check again that nothing changed (same
+     turn, option still on), then send it through the same path as
+     onConfirmOrDiscard(), so that the card flight animation and the
+     timer handling stay identical.
+  6. Cancel a pending automatic move when the turn changes, when the
+     option is switched off, and when the component is destroyed.
+  7. `npm run build:shared`, bump packages/shared/package.json (one
+     patch above its value at that time), `npm test
+     --workspace=backend`, type checks of backend and frontend.
+  8. The owner checks on the device: forced discard, single move, a
+     turn with two choices (nothing must be played), a Joker bonus
+     turn, the option switched off in the middle of a game.
+
+Out of scope
+  No server change and no new WebSocket message: the client sends the
+  same `playAction` as a tap would.

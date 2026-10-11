@@ -32,6 +32,7 @@ import {
   getPositionAfterMove,
   getLegalAction,
   getActionForSteps,
+  getSplitFirstAction,
   buildMoveActionForMarble,
   getTeammateColor,
   ENTER_CARDS,
@@ -172,7 +173,7 @@ export class BoardComponent implements OnDestroy {
           // Both marbles selected: show both paths simultaneously.
           // `ForMarble` : le second pion peut appartenir au coéquipier (2v2) —
           // son trajet/promotion dépend de SON start et de SES arrivées.
-          const action1 = getActionForSteps(dummyCard, marble1, steps1, ctx);
+          const action1 = getSplitFirstAction(dummyCard, marble1, steps1, marble2, ctx);
           const action2 = buildMoveActionForMarble(dummyCard, marble2, 7 - steps1, ctx);
           const preview1 = action1 ? this.computePreviewFromAction(action1) : { path: new Set<number>(), destination: null };
           const preview2 = action2 ? this.computePreviewFromAction(action2) : { path: new Set<number>(), destination: null };
@@ -181,7 +182,13 @@ export class BoardComponent implements OnDestroy {
           return { path: path1, pathMarble2: preview2.path, destination: preview2.destination };
         }
         // Only first marble selected: always show marble1's path
-        const action1 = getActionForSteps(dummyCard, marble1, steps1, ctx);
+        // Si le plateau complet bloque le premier pion (pion invincible du
+        // coéquipier qui doit lui-même bouger), on retombe sur le trajet du
+        // split avec le second pion survolé.
+        const action1 = getActionForSteps(dummyCard, marble1, steps1, ctx)
+          ?? (focusedMarble !== null && focusedMarble !== marble1
+            ? getSplitFirstAction(dummyCard, marble1, steps1, focusedMarble, ctx)
+            : null);
         const preview1 = action1
           ? this.computePreviewFromAction(action1)
           : { path: new Set<number>(), destination: null };

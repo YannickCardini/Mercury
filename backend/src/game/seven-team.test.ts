@@ -11,6 +11,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
     getLegalSplit7Action,
+    findLegalMoveForCard,
+    canMarbleStartSeven,
+    getValidSevenStepsForMarble,
     getTeammateColor,
     ARRIVAL_POSITIONS,
     type LegalMoveContext,
@@ -121,4 +124,19 @@ test('7 (2v2) — les deux moitiés du split ne peuvent pas atterrir sur la mêm
     const marbles = { ...emptyByColor(), red: [10], blue: [7] };
     const ctx = buildTeamCtx('red', marbles);
     assert.equal(getLegalSplit7Action(SEVEN, 10, 2, 7, ctx), null, 'to1 === to2 doit rester illégal');
+});
+
+test('7 (2v2) — position Younhee : pion invincible du coéquipier juste devant, le 7 reste jouable ET sélectionnable', () => {
+    // red 218 est bloqué seul par blue 217 (invincible, start blue) ; mais blue
+    // quitte 217 dans le même coup, donc le split est légal.
+    const marbles = { ...emptyByColor(), red: [218], blue: [217, 205] };
+    const ctx: LegalMoveContext = {
+        ...buildTeamCtx('red', marbles),
+        invincibleMarblesByColor: { ...emptyByColor(), blue: [217] },
+    };
+    assert.notEqual(findLegalMoveForCard(SEVEN, ctx), null);
+    assert.equal(canMarbleStartSeven(218, ctx), true, 'le pion rouge doit pouvoir démarrer le 7');
+    const steps = getValidSevenStepsForMarble(218, ctx);
+    assert.ok(steps.length > 0 && !steps.includes(7), `pas de split attendus, obtenu ${steps}`);
+    assert.notEqual(getLegalSplit7Action(SEVEN, 218, steps[0]!, 217, ctx), null);
 });

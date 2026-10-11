@@ -471,6 +471,17 @@ export function getValidSevenStepsForMarble(
         // ses pas valides dépendent alors de SON start et de SES arrivées.
         if (buildMoveActionForMarble(dummyCard, marblePos, s, ctx) !== null) {
             valid.push(s);
+            continue;
+        }
+        // Un pas bloqué sur le plateau complet peut devenir légal en split :
+        // le second pion quitte sa case dans le même coup (ex. pion invincible
+        // du coéquipier qui bloquerait le premier). Même règle que
+        // `getLegalSplit7Action`, pour que UI et serveur restent d'accord.
+        if (s < 7 && ctx.ownMarbles.includes(marblePos)) {
+            const hasSplit = splitSecondMarbleCandidates(ctx).some(
+                m2 => m2 !== marblePos && getLegalSplit7Action(dummyCard, marblePos, s, m2, ctx) !== null
+            );
+            if (hasSplit) valid.push(s);
         }
     }
     return valid;
@@ -484,6 +495,30 @@ export function getValidSevenStepsForMarble(
  */
 function splitSecondMarbleCandidates(ctx: LegalMoveContext): number[] {
     return [...ctx.ownMarbles, ...ctx.marblesByColor[ctx.teammateColor]];
+}
+
+/**
+ * Première moitié d'un split de 7, évaluée avec `from2` retiré du plateau.
+ *
+ * Les deux moitiés d'un split bougent dans le cadre du MÊME coup : si le
+ * premier pion croise ou termine sur la position ACTUELLE du second (ex. :
+ * promouvoir un coéquipier situé `steps1` cases devant soi, ou passer sur son
+ * pion invincible fraîchement entré), ce n'est ni une capture ni un blocage,
+ * car le second pion quitte cette case dans ce même coup. Exporté pour que la
+ * preview du frontend dessine le même trajet que le validateur.
+ */
+export function getSplitFirstAction(
+    card: Card,
+    from1: number,
+    steps1: number,
+    from2: number,
+    ctx: LegalMoveContext
+): Action | null {
+    const ctxWithoutFrom2: LegalMoveContext = {
+        ...ctx,
+        allMarbles: ctx.allMarbles.filter(p => p !== from2),
+    };
+    return buildMoveAction(card, from1, steps1, ctxWithoutFrom2);
 }
 
 /**
@@ -513,18 +548,7 @@ export function getLegalSplit7Action(
     // Second pion : un pion contrôlé, ou un pion du coéquipier en 2v2.
     if (!splitSecondMarbleCandidates(ctx).includes(from2)) return null;
 
-    // Les deux moitiés d'un split bougent dans le cadre du MÊME coup : si la
-    // destination du premier pion coïncide avec la position ACTUELLE du
-    // second (typiquement : promouvoir un coéquipier situé exactement
-    // `steps1` cases devant soi), ce n'est pas une capture — le second pion
-    // est justement en train de quitter cette case dans ce même coup. On le
-    // retire donc du plateau pour calculer le premier mouvement, afin qu'il
-    // ne soit pas traité comme un obstacle/une victime.
-    const ctxWithoutFrom2: LegalMoveContext = {
-        ...ctx,
-        allMarbles: ctx.allMarbles.filter(p => p !== from2),
-    };
-    const action1 = buildMoveAction(card, from1, steps1, ctxWithoutFrom2);
+    const action1 = getSplitFirstAction(card, from1, steps1, from2, ctx);
     if (action1 === null) return null;
     const to1 = action1.to;
 
