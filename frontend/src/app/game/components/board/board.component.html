@@ -1,5 +1,100 @@
 <div class="board-container" [style.--square-size.px]="squareSize() || null" [class.card-selected]="isCardSelected()"
   [class.edit-mode]="editMode()" [attr.data-render-tick]="debug ? countBoardRender() : null">
+  <!-- Décor des couloirs d'arrivée : constellation le long des 4 cases + gerbe d'étoiles sur la case la plus proche du centre. Derrière les cases (z-index -1), purement décoratif. -->
+  <svg class="board-deco" viewBox="0 0 150 150" aria-hidden="true" focusable="false">
+    <g class="lane lane--red">
+      <g class="cl">
+        <line x1="82.4" y1="25" x2="67.6" y2="35"/>
+        <line x1="67.6" y1="35" x2="82.4" y2="45"/>
+        <line x1="82.4" y1="45" x2="67.6" y2="55"/>
+      </g>
+      <g class="sp">
+        <path d="M82.4 22.7L82.95 24.45L84.7 25L82.95 25.55L82.4 27.3L81.85 25.55L80.1 25L81.85 24.45Z"/>
+        <path d="M67.6 33.5L67.96 34.64L69.1 35L67.96 35.36L67.6 36.5L67.24 35.36L66.1 35L67.24 34.64Z"/>
+        <path d="M82.4 42.7L82.95 44.45L84.7 45L82.95 45.55L82.4 47.3L81.85 45.55L80.1 45L81.85 44.45Z"/>
+        <path d="M67.6 53.5L67.96 54.64L69.1 55L67.96 55.36L67.6 56.5L67.24 55.36L66.1 55L67.24 54.64Z"/>
+      </g>
+      <g class="burst">
+        <line x1="80.45" y1="57.26" x2="82.11" y2="57.95"/>
+        <line x1="77.26" y1="60.45" x2="77.95" y2="62.11"/>
+        <line x1="72.74" y1="60.45" x2="72.05" y2="62.11"/>
+        <line x1="69.55" y1="57.26" x2="67.89" y2="57.95"/>
+        <line x1="69.55" y1="52.74" x2="67.89" y2="52.05"/>
+        <line x1="72.74" y1="49.55" x2="72.05" y2="47.89"/>
+        <line x1="77.26" y1="49.55" x2="77.95" y2="47.89"/>
+        <line x1="80.45" y1="52.74" x2="82.11" y2="52.05"/>
+      </g>
+    </g>
+    <g class="lane lane--green">
+      <g class="cl">
+        <line x1="125" y1="82.4" x2="115" y2="67.6"/>
+        <line x1="115" y1="67.6" x2="105" y2="82.4"/>
+        <line x1="105" y1="82.4" x2="95" y2="67.6"/>
+      </g>
+      <g class="sp">
+        <path d="M125 80.1L125.55 81.85L127.3 82.4L125.55 82.95L125 84.7L124.45 82.95L122.7 82.4L124.45 81.85Z"/>
+        <path d="M115 66.1L115.36 67.24L116.5 67.6L115.36 67.96L115 69.1L114.64 67.96L113.5 67.6L114.64 67.24Z"/>
+        <path d="M105 80.1L105.55 81.85L107.3 82.4L105.55 82.95L105 84.7L104.45 82.95L102.7 82.4L104.45 81.85Z"/>
+        <path d="M95 66.1L95.36 67.24L96.5 67.6L95.36 67.96L95 69.1L94.64 67.96L93.5 67.6L94.64 67.24Z"/>
+      </g>
+      <g class="burst">
+        <line x1="100.45" y1="77.26" x2="102.11" y2="77.95"/>
+        <line x1="97.26" y1="80.45" x2="97.95" y2="82.11"/>
+        <line x1="92.74" y1="80.45" x2="92.05" y2="82.11"/>
+        <line x1="89.55" y1="77.26" x2="87.89" y2="77.95"/>
+        <line x1="89.55" y1="72.74" x2="87.89" y2="72.05"/>
+        <line x1="92.74" y1="69.55" x2="92.05" y2="67.89"/>
+        <line x1="97.26" y1="69.55" x2="97.95" y2="67.89"/>
+        <line x1="100.45" y1="72.74" x2="102.11" y2="72.05"/>
+      </g>
+    </g>
+    <g class="lane lane--blue">
+      <g class="cl">
+        <line x1="67.6" y1="125" x2="82.4" y2="115"/>
+        <line x1="82.4" y1="115" x2="67.6" y2="105"/>
+        <line x1="67.6" y1="105" x2="82.4" y2="95"/>
+      </g>
+      <g class="sp">
+        <path d="M67.6 122.7L68.15 124.45L69.9 125L68.15 125.55L67.6 127.3L67.05 125.55L65.3 125L67.05 124.45Z"/>
+        <path d="M82.4 113.5L82.76 114.64L83.9 115L82.76 115.36L82.4 116.5L82.04 115.36L80.9 115L82.04 114.64Z"/>
+        <path d="M67.6 102.7L68.15 104.45L69.9 105L68.15 105.55L67.6 107.3L67.05 105.55L65.3 105L67.05 104.45Z"/>
+        <path d="M82.4 93.5L82.76 94.64L83.9 95L82.76 95.36L82.4 96.5L82.04 95.36L80.9 95L82.04 94.64Z"/>
+      </g>
+      <g class="burst">
+        <line x1="80.45" y1="97.26" x2="82.11" y2="97.95"/>
+        <line x1="77.26" y1="100.45" x2="77.95" y2="102.11"/>
+        <line x1="72.74" y1="100.45" x2="72.05" y2="102.11"/>
+        <line x1="69.55" y1="97.26" x2="67.89" y2="97.95"/>
+        <line x1="69.55" y1="92.74" x2="67.89" y2="92.05"/>
+        <line x1="72.74" y1="89.55" x2="72.05" y2="87.89"/>
+        <line x1="77.26" y1="89.55" x2="77.95" y2="87.89"/>
+        <line x1="80.45" y1="92.74" x2="82.11" y2="92.05"/>
+      </g>
+    </g>
+    <g class="lane lane--orange">
+      <g class="cl">
+        <line x1="25" y1="67.6" x2="35" y2="82.4"/>
+        <line x1="35" y1="82.4" x2="45" y2="67.6"/>
+        <line x1="45" y1="67.6" x2="55" y2="82.4"/>
+      </g>
+      <g class="sp">
+        <path d="M25 65.3L25.55 67.05L27.3 67.6L25.55 68.15L25 69.9L24.45 68.15L22.7 67.6L24.45 67.05Z"/>
+        <path d="M35 80.9L35.36 82.04L36.5 82.4L35.36 82.76L35 83.9L34.64 82.76L33.5 82.4L34.64 82.04Z"/>
+        <path d="M45 65.3L45.55 67.05L47.3 67.6L45.55 68.15L45 69.9L44.45 68.15L42.7 67.6L44.45 67.05Z"/>
+        <path d="M55 80.9L55.36 82.04L56.5 82.4L55.36 82.76L55 83.9L54.64 82.76L53.5 82.4L54.64 82.04Z"/>
+      </g>
+      <g class="burst">
+        <line x1="60.45" y1="77.26" x2="62.11" y2="77.95"/>
+        <line x1="57.26" y1="80.45" x2="57.95" y2="82.11"/>
+        <line x1="52.74" y1="80.45" x2="52.05" y2="82.11"/>
+        <line x1="49.55" y1="77.26" x2="47.89" y2="77.95"/>
+        <line x1="49.55" y1="72.74" x2="47.89" y2="72.05"/>
+        <line x1="52.74" y1="69.55" x2="52.05" y2="67.89"/>
+        <line x1="57.26" y1="69.55" x2="57.95" y2="67.89"/>
+        <line x1="60.45" y1="72.74" x2="62.11" y2="72.05"/>
+      </g>
+    </g>
+  </svg>
   <!-- TODO(perf): la grille rend les 225 cases (15×15) alors que seules 88
        sont réellement affichées (MAIN_PATH+HOME_POSITIONS+ARRIVAL_POSITIONS),
        le reste étant du remplissage invisible (.case-hidden). Optimisation
@@ -22,7 +117,11 @@
           [class.square-preview-path]="isPreviewPath(index)"
           [class.square-preview-path-marble2]="isPreviewPathMarble2(index)"
           [class.square-preview-destination]="isPreviewDestination(index)"
-          [class.square-invincible]="isInvincibleSquare(index)" (click)="onSquareClick(index)">
+          [class.square-invincible]="isInvincibleSquare(index)" [class.home-spent]="isSpentHome(index)"
+          [class.home-spent-anim]="isSpentHomeAnim(index)" (click)="onSquareClick(index)">
+          @if (getSquareAnimClass(index) === 'square-teleport') {
+          <span class="tp-beam"><i class="tp-streaks tp-streaks--a"></i><i class="tp-streaks tp-streaks--b"></i><i class="tp-rings"></i></span>
+          }
           <ng-container *ngTemplateOutlet="marbleCell; context: { $implicit: index }"></ng-container>
           <span class="square-number">
             {{ debug ? '' : '' }}<div style="font-size: medium;color:white">{{ debug ? '' : (getArrivalNumber(index)
@@ -62,7 +161,8 @@
     <!-- Pion éphémère « bousculé » : rendu en plus du pion du modèle pour qu'ils
          coexistent sur la case le temps de la réaction (le sauteur passe par-dessus). -->
     @if (getOverlayMarble(index); as overlay) {
-    <div class="marble" [ngClass]="['marble-' + overlay.color, overlay.animClass]">
+    <div class="marble" [ngClass]="['marble-' + overlay.color, overlay.animClass]"
+      [style.--jx]="overlay.jx ?? null" [style.--jy]="overlay.jy ?? null">
       <div class="marble-highlight"></div>
     </div>
     }
@@ -77,7 +177,8 @@
         isDimmedMarble(index)     ? 'marble-dimmed'      : '',
         isAnchoredMarble(index)   ? 'marble-anchored'    : '',
         isLockingMarble(index)    ? 'marble-locking'     : ''
-      ]" (click)="onMarbleClick(index)" (mouseenter)="onMarbleMouseEnter(index)"
+      ]" [style.--mv-x]="getMarbleMv(index, 'x')" [style.--mv-y]="getMarbleMv(index, 'y')"
+      (click)="onMarbleClick(index)" (mouseenter)="onMarbleMouseEnter(index)"
       (mouseleave)="onMarbleMouseLeave(index)">
       <div class="marble-highlight"></div>
     </div>

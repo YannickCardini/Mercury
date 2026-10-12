@@ -44,6 +44,45 @@ $colors: (
     contain: layout style paint;
 }
 
+/* Décor des couloirs d'arrivée : calque SVG (viewBox 150 = 15 cases de 10) posé
+   derrière les cases (z-index -1 dans le contexte créé par contain: paint).
+   Statique : aucune animation, aucun filtre (WebView Android sensible aux
+   clignotements). Couleur de chaque couloir = couleur de son joueur. */
+.board-deco {
+    position: absolute;
+    inset: calc(var(--square-size) * 0.2);
+    width: calc(var(--square-size) * 15);
+    height: calc(var(--square-size) * 15);
+    z-index: -1;
+    pointer-events: none;
+    fill: none;
+    stroke: none;
+
+    .cl line {
+        stroke: #f0f8ff;
+        stroke-opacity: 0.3;
+        stroke-width: 0.35;
+    }
+
+    .sp path {
+        fill: var(--lane-color);
+        fill-opacity: 0.95;
+    }
+
+    .burst line {
+        stroke: #ffc83d;
+        stroke-opacity: 0.75;
+        stroke-width: 0.7;
+        stroke-linecap: round;
+    }
+
+    @each $name, $hex in $colors {
+        .lane--#{$name} {
+            --lane-color: #{$hex};
+        }
+    }
+}
+
 /* ─────────────────────────────────────────────────────────────
    PASTILLES JOUEUR — nichées dans les quatre coins (vides) du plateau.
    z-index 16 : restent visibles au-dessus de l'overlay « carte sélectionnée »
@@ -222,414 +261,779 @@ $colors: (
    ========================================================================== */
 
 /* --------------------------------------------------------------------------
-   ENTER — Le pion entre en jeu : chute depuis le haut avec rebond physique
-   Durée : 800ms
+   ENTER — Le pion tombe du ciel sur sa case de départ. Durée : --anim-enter (800ms)
+   0-42 %  : chute, le pion est étiré à la verticale et traîne un sillage lumineux
+   45 %    : impact, il s'écrase (squash), une bague de choc part de la case
+   50-100 %: rebond amorti (2 oscillations) jusqu'au repos.
+   Transform + opacité uniquement (l'ancienne ombre portée animée est retirée) ;
+   le sillage est un dégradé statique sur ::before.
    -------------------------------------------------------------------------- */
 @keyframes marbleDrop {
     0% {
-        transform: translateY(-220%) scale(0.4);
+        transform: translateY(-260%) scale(0.75, 1.35);
         opacity: 0;
-        box-shadow: 0 40px 20px rgba(0, 0, 0, 0.3);
+        animation-timing-function: cubic-bezier(0.55, 0, 1, 0.6);
     }
 
-    55% {
-        transform: translateY(10%) scale(1.08);
+    12% {
         opacity: 1;
-        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.45);
     }
 
-    72% {
-        transform: translateY(-8%) scale(0.95);
-        box-shadow: 0 10px 16px rgba(0, 0, 0, 0.35);
+    45% {
+        transform: translateY(0) scale(0.9, 1.15);
+        opacity: 1;
+        animation-timing-function: linear;
     }
 
-    85% {
-        transform: translateY(4%) scale(1.02);
+    52% {
+        transform: translateY(3%) scale(1.3, 0.7);
+        animation-timing-function: cubic-bezier(0.2, 0.7, 0.4, 1);
+    }
+
+    64% {
+        transform: translateY(-16%) scale(0.92, 1.1);
+        animation-timing-function: cubic-bezier(0.6, 0, 0.8, 0.4);
+    }
+
+    77% {
+        transform: translateY(0) scale(1.1, 0.92);
+        animation-timing-function: ease-out;
+    }
+
+    89% {
+        transform: translateY(-3%) scale(0.98, 1.03);
+        animation-timing-function: ease-in-out;
     }
 
     100% {
-        transform: translateY(0%) scale(1);
+        transform: translateY(0) scale(1);
         opacity: 1;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5), inset -2px -2px 6px rgba(0, 0, 0, 0.3);
+    }
+}
+
+/* Sillage : colonne lumineuse au-dessus du pion pendant la chute, s'éteint à l'impact */
+@keyframes marbleDropTrail {
+    0% {
+        opacity: 0;
+        transform: scaleY(0.3);
+    }
+
+    12% {
+        opacity: 0.85;
+        transform: scaleY(1);
+    }
+
+    42% {
+        opacity: 0.85;
+        transform: scaleY(1);
+    }
+
+    55% {
+        opacity: 0;
+        transform: scaleY(0.2);
+    }
+
+    100% {
+        opacity: 0;
+        transform: scaleY(0.2);
+    }
+}
+
+@keyframes enterShockRing {
+    0% {
+        transform: scale(0.6);
+        opacity: 0.9;
+    }
+
+    100% {
+        transform: scale(1.8);
+        opacity: 0;
     }
 }
 
 .marble.marble-entering {
-    animation: marbleDrop var(--anim-enter) cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+    animation: marbleDrop var(--anim-enter) linear forwards;
     pointer-events: none;
     will-change: transform, opacity;
+
+    &::before {
+        content: '';
+        position: absolute;
+        left: 28%;
+        width: 44%;
+        bottom: 55%;
+        height: 230%;
+        border-radius: 50% 50% 0 0;
+        background: linear-gradient(to top, rgba(255, 255, 255, 0.7), rgba(150, 225, 255, 0.3) 45%, rgba(150, 225, 255, 0));
+        transform-origin: 50% 100%;
+        opacity: 0;
+        pointer-events: none;
+        animation: marbleDropTrail var(--anim-enter) linear forwards;
+        will-change: transform, opacity;
+    }
+}
+
+/* Bague de choc à l'atterrissage (cases d'entrée) */
+.case-path.square-enter {
+    z-index: 11;
+
+    /* ::before : le ::after de la case est pris par l'écu d'invincibilité
+       (le pion qui entre est invincible, les deux classes coexistent). */
+    &::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        border: 3px solid #f0f8ff;
+        pointer-events: none;
+        opacity: 0;
+        animation: enterShockRing calc(var(--anim-enter) * 0.5) ease-out forwards;
+        animation-delay: calc(var(--anim-enter) * 0.45);
+        will-change: transform, opacity;
+    }
 }
 
 /* --------------------------------------------------------------------------
-   ENTER + CAPTURE — Éjection de l'ennemi et impact du pion entrant
+   ENTER + CAPTURE — Même chute, mais la case est occupée par un adversaire.
+   Bague de choc rouge, et la victime (overlay) est écrasée sous le pion à
+   l'impact puis éjectée en vrille. Durée : --anim-enter, tout en parallèle.
    -------------------------------------------------------------------------- */
-
-/* L'ennemi est violemment éjecté de la case */
-@keyframes marbleEjected {
+@keyframes marbleEnterVictim {
     0% {
-        transform: translate(0, 0) scale(1);
+        transform: translate(0, 0) scale(1) rotate(0deg);
         opacity: 1;
     }
 
-    30% {
-        transform: translate(20px, -30px) scale(0.8);
-        opacity: 0.6;
-        filter: brightness(1.8) drop-shadow(0 0 8px red);
+    18% {
+        transform: translate(0, 4%) scale(1.15, 0.7) rotate(0deg);
+        opacity: 1;
     }
 
     100% {
-        transform: translate(40px, -60px) scale(0.2) rotate(720deg);
+        transform: translate(190%, -250%) scale(0.2) rotate(600deg);
         opacity: 0;
     }
 }
 
-/* Squash + rebound du pion entrant au moment de l'impact */
-@keyframes marbleEnterImpact {
-    0% {
-        transform: scale(1);
-        filter: brightness(1);
-    }
-
-    20% {
-        transform: scale(1.2, 0.7);
-        filter: brightness(1.6);
-    }
-
-    50% {
-        transform: scale(0.95, 1.05);
-        filter: brightness(1.2);
-    }
-
-    75% {
-        transform: scale(1.04, 0.98);
-    }
-
-    100% {
-        transform: scale(1);
-        filter: brightness(1);
-    }
-}
-
-/* Onde de choc sur la case à l'impact */
-@keyframes squareEnterImpact {
-    0% {
-        box-shadow: inset 0 0 0 rgba(255, 140, 0, 0), 0 0 0 0 rgba(255, 140, 0, 0.9);
-    }
-
-    30% {
-        box-shadow: inset 0 0 20px rgba(255, 140, 0, 0.8), 0 0 0 28px rgba(255, 140, 0, 0);
-    }
-
-    100% {
-        box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.2), inset -2px -2px 5px rgba(255, 255, 255, 0.9);
-    }
-}
-
-.marble.marble-ejected {
-    animation: marbleEjected var(--anim-marble-ejected) ease-in forwards;
-    z-index: 25;
+.marble.marble-enter-victim {
+    animation: marbleEnterVictim calc(var(--anim-enter) * 0.55) ease-in both;
+    animation-delay: calc(var(--anim-enter) * 0.45);
+    /* Sous le pion entrant (z-index 10) : il le recouvre à l'impact */
+    z-index: 9;
     pointer-events: none;
     will-change: transform, opacity;
 }
 
-.marble.marble-enter-impact {
-    animation: marbleEnterImpact var(--anim-enter-impact) ease-out forwards;
-    pointer-events: none;
-    will-change: transform, filter;
-}
-
-.case-path.square-enter-impact {
-    animation: squareEnterImpact var(--anim-enter-impact) ease-out forwards;
+.case-path.square-enter-capture::before {
+    border-color: #f08a76;
+    border-width: 4px;
 }
 
 /* --------------------------------------------------------------------------
-   MOVE — Déplacement
-   Durée : 600ms
+   MOVE — Le pion glisse de la case précédente à la case d'arrivée (un pas par
+   animation, chaînés par le TS) avec un petit saut au milieu du trajet.
+   Transform-only : pas d'opacité, de filtre ni d'ombre animés → composé par le
+   GPU, plus léger que l'ancien « pop » (scale + brightness + opacity).
+   --mv-x / --mv-y : offset de départ en % du pion, posé par le template.
+   Timing linéaire : la vitesse reste constante d'un pas au suivant.
    -------------------------------------------------------------------------- */
 @keyframes marbleMove {
     0% {
-        transform: scale(0.6) translateY(-30%);
-        opacity: 0.5;
-        filter: brightness(1.8);
+        transform: translate(var(--mv-x, 0), var(--mv-y, 0)) scale(1);
     }
 
-    45% {
-        transform: scale(1.12) translateY(0);
-        opacity: 1;
-        filter: brightness(1.4);
-    }
-
-    70% {
-        transform: scale(0.96);
-        filter: brightness(1.1);
+    50% {
+        transform: translate(calc(var(--mv-x, 0) * 0.5), calc(var(--mv-y, 0) * 0.5)) scale(1.14);
     }
 
     100% {
-        transform: scale(1);
-        opacity: 1;
-        filter: brightness(1);
+        transform: translate(0, 0) scale(1);
     }
 }
 
 .marble.marble-moving {
-    animation: marbleMove var(--anim-move) cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    animation: marbleMove var(--anim-move) linear forwards;
+    /* Au-dessus des autres pions le temps du trajet. */
+    z-index: 12;
     pointer-events: none;
     will-change: transform;
 }
 
 /* --------------------------------------------------------------------------
-   JOSTLE — Réaction d'un pion survolé par un sauteur : il se penche pour laisser
-   passer puis se redresse. Transform-only (translateX + rotate) → composé par le
-   GPU, aucun repaint : sûr et fluide sur WebView mobile.
+   JOSTLE — Un pion dépassé par un sauteur. Le sauteur passe PAR-DESSUS (z-index
+   12 > 11) et le pion dépassé est poussé dans son sillage (--jx / --jy = sens
+   de déplacement du sauteur), se tasse quand le sauteur est au-dessus, puis
+   revient avec un petit rebond. Transform-only (translate + rotate + scale) :
+   composé par le GPU, aucun repaint, sûr sur WebView mobile.
+   Durée : --anim-jostle (380ms) ; le sauteur est au-dessus à ~50 %.
    -------------------------------------------------------------------------- */
 @keyframes pawnJostle {
     0% {
-        transform: translateX(0) rotate(0deg);
-        animation-timing-function: cubic-bezier(.3, .6, .4, 1);
+        transform: translate(0, 0) rotate(0deg) scale(1);
+        animation-timing-function: ease-out;
     }
 
-    30% {
-        /* se penche pour dégager le passage */
-        transform: translateX(-10%) rotate(-16deg);
+    25% {
+        /* le sauteur approche : léger recul dans son sens */
+        transform: translate(calc(var(--jx, 0) * 8%), calc(var(--jy, 0) * 8%)) rotate(calc(var(--jx, 0) * 5deg)) scale(0.94);
         animation-timing-function: ease-in-out;
     }
 
-    55% {
-        /* maintient l'inclinaison le temps que le sauteur passe */
-        transform: translateX(-11%) rotate(-17deg);
-        animation-timing-function: cubic-bezier(.3, .5, .35, 1);
+    50% {
+        /* le sauteur est au-dessus : pion tassé et poussé */
+        transform: translate(calc(var(--jx, 0) * 22%), calc(var(--jy, 0) * 22%)) rotate(calc(var(--jx, 0) * 12deg)) scale(0.86);
+        animation-timing-function: cubic-bezier(.3, .6, .4, 1);
     }
 
-    80% {
-        /* se redresse avec un léger débord de l'autre côté */
-        transform: translateX(2%) rotate(4deg);
+    78% {
+        /* rebond au-delà de la position de repos */
+        transform: translate(calc(var(--jx, 0) * -5%), calc(var(--jy, 0) * -5%)) rotate(calc(var(--jx, 0) * -4deg)) scale(1.07);
         animation-timing-function: ease-out;
     }
 
     100% {
-        transform: translateX(0) rotate(0deg);
+        transform: translate(0, 0) rotate(0deg) scale(1);
     }
 }
 
 .marble.marble-jostled {
     animation: pawnJostle var(--anim-jostle) linear forwards;
-    /* Au-dessus du pion du modèle (z-index 10) pour que la réaction reste bien
-       visible pendant que le sauteur passe sur la case. */
-    z-index: 20;
+    /* Sous le sauteur (marble-moving, z-index 12) pour qu'il passe par-dessus,
+       au-dessus du pion du modèle (z-index 10). */
+    z-index: 11;
     pointer-events: none;
     will-change: transform;
 }
 
 /* --------------------------------------------------------------------------
-   CAPTURE
-   Durée : 700ms
+   CAPTURE — Durée : --anim-capture (800ms)
+   L'attaquant glisse sur la case (comme un MOVE, 25 % de la durée), s'écrase à
+   l'impact puis se reforme. La victime, rendue en overlay, est éjectée à partir
+   de l'impact (animation-delay = 25 %). Une bague rouge s'étend sur la case.
+   Tout est transform + opacity : aucun filtre, drop-shadow ni box-shadow animé.
    -------------------------------------------------------------------------- */
-/* --------------------------------------------------------------------------
-   CAPTURE (Attaque, Éjection et Onde de choc)
-   -------------------------------------------------------------------------- */
-
-/* L'attaquant saute haut et s'écrase violemment */
-@keyframes marbleSlam {
+@keyframes marbleStrike {
     0% {
-        transform: translateY(0) scale(1);
-        filter: brightness(1);
+        transform: translate(var(--mv-x, 0), var(--mv-y, 0)) scale(1);
     }
 
-    40% {
-        transform: translateY(-100%) scale(1.2);
-        filter: brightness(1.5);
+    12% {
+        transform: translate(calc(var(--mv-x, 0) * 0.5), calc(var(--mv-y, 0) * 0.5)) scale(1.14);
     }
 
-    /* Sommet du saut */
+    25% {
+        transform: translate(0, 0) scale(1);
+        animation-timing-function: ease-out;
+    }
+
+    33% {
+        transform: scale(1.2, 0.8);
+    }
+
     50% {
-        transform: translateY(-100%) scale(1.2);
+        transform: scale(0.96, 1.05);
     }
 
-    /* Temps de suspension (hang time) */
-    80% {
-        transform: translateY(15%) scale(0.85);
+    68% {
+        transform: scale(1.03, 0.98);
     }
 
-    /* Écrasement (squash) sur la case */
     100% {
-        transform: translateY(0) scale(1);
-        filter: brightness(1);
+        transform: scale(1);
     }
-
-    /* Reprise de forme */
 }
 
-/* La victime prend le coup, flashe, et est éjectée au loin */
+/* La victime encaisse puis part en vrille vers le haut-droite */
 @keyframes marbleKnockout {
     0% {
-        transform: scale(1) rotate(0deg);
+        transform: translate(0, 0) scale(1) rotate(0deg);
         opacity: 1;
-        filter: brightness(1);
     }
 
     15% {
-        transform: scale(1.4) rotate(-15deg);
-        filter: brightness(2) drop-shadow(0 0 10px red);
+        transform: translate(0, 0) scale(1.25) rotate(-12deg);
+        opacity: 1;
     }
 
-    /* Impact flash */
     100% {
-        transform: translate(200%, -300%) scale(0.2) rotate(1080deg);
+        transform: translate(170%, -260%) scale(0.25) rotate(540deg);
         opacity: 0;
     }
-
-    /* Éjection (Yeet) */
 }
 
-/* L'onde de choc sur la case */
-@keyframes shockwaveSquare {
+/* Bague d'impact : bordure statique, seuls transform et opacité bougent */
+@keyframes impactRing {
     0% {
-        box-shadow: inset 0 0 0 rgba(255, 60, 60, 0), 0 0 0 0 rgba(255, 60, 60, 0.8);
-    }
-
-    40% {
-        box-shadow: inset 0 0 20px rgba(255, 60, 60, 0.8), 0 0 0 25px rgba(255, 60, 60, 0);
+        transform: scale(0.7);
+        opacity: 0.9;
     }
 
     100% {
-        box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.2), inset -2px -2px 5px rgba(255, 255, 255, 0.9);
+        transform: scale(1.7);
+        opacity: 0;
     }
 }
 
 .marble.marble-capturing {
-    animation: marbleSlam var(--anim-capture) cubic-bezier(0.25, 1, 0.5, 1) forwards;
+    animation: marbleStrike var(--anim-capture) linear forwards;
     z-index: 30;
-    /* L'attaquant passe par-dessus tout le monde */
     pointer-events: none;
-    will-change: transform, filter;
+    will-change: transform;
 }
 
 .marble.marble-captured-exit {
-    animation: marbleKnockout var(--anim-capture) cubic-bezier(0.17, 0.89, 0.32, 1.28) forwards;
+    animation: marbleKnockout calc(var(--anim-capture) * 0.75) ease-in both;
+    animation-delay: calc(var(--anim-capture) * 0.25);
     z-index: 25;
     pointer-events: none;
     will-change: transform, opacity;
 }
 
-.case-path.square-impact {
-    animation: shockwaveSquare var(--anim-capture) ease-out forwards;
-}
-
-/* --------------------------------------------------------------------------
-   SWAP — Échange
-   Durée : 900ms
-   -------------------------------------------------------------------------- */
-@keyframes marbleSwap {
-    0% {
-        transform: scale(1) rotate(0deg);
-        filter: brightness(1);
-    }
-
-    20% {
-        transform: scale(1.15) rotate(60deg);
-        filter: brightness(1.6) drop-shadow(0 0 6px rgba(255, 220, 50, 0.8));
-    }
-
-    40% {
-        transform: scale(0.85) rotate(120deg);
-        filter: brightness(0.8);
-    }
-
-    60% {
-        transform: scale(1.1) rotate(200deg);
-        filter: brightness(1.5) drop-shadow(0 0 6px rgba(255, 220, 50, 0.8));
-    }
-
-    80% {
-        transform: scale(0.9) rotate(300deg);
-        filter: brightness(1);
-    }
-
-    100% {
-        transform: scale(1) rotate(360deg);
-        filter: brightness(1);
-    }
-}
-
-.marble.marble-swapping {
-    animation: marbleSwap var(--anim-swap) cubic-bezier(0.45, 0.05, 0.55, 0.95) forwards;
+.case-path.square-impact::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 3px solid #f08a76;
     pointer-events: none;
-    will-change: transform, filter;
+    opacity: 0;
+    animation: impactRing calc(var(--anim-capture) * 0.5) ease-out forwards;
+    animation-delay: calc(var(--anim-capture) * 0.25);
+    will-change: transform, opacity;
 }
 
 /* --------------------------------------------------------------------------
-   PROMOTE — Promotion
-   Durée : 1000ms
+   SWAP — Téléportation (Valet). Durée : --anim-swap (1200ms)
+   Colonne de téléportation sur les DEUX cases : un faisceau blanc et une pile
+   d'anneaux cyan aplatis qui montent le long du faisceau.
+   - 12-40 % : le pion d'origine (overlay) s'étire en filament vertical et
+     s'éteint en montant dans la colonne.
+   - 45-80 % : sur l'autre case, il se rematérialise depuis le filament, retombe
+     et se tasse légèrement.
+   Coût : dégradés statiques ; seuls transform et opacité s'animent (aucun
+   filter, ombre ni background-position animé). Le masque vertical est sur le
+   conteneur fixe (.tp-beam), les anneaux défilent dans (.tp-rings) d'exactement
+   3 motifs pour une boucle sans raccord.
    -------------------------------------------------------------------------- */
-@keyframes marblePromote {
+/* Le pion se « désintègre en lignes » : peigne vertical (masque statique) +
+   étirement vers le haut + léger dédoublement latéral (tremblement), comme une
+   image rémanente qui se découpe en filaments. Le masque est rasterisé une fois
+   avec la couche du pion ; seuls transform et opacité s'animent. */
+@keyframes teleportOut {
     0% {
-        transform: scale(1);
-        filter: brightness(1);
+        transform: translate(0, 0) scale(1, 1);
+        opacity: 1;
     }
 
-    15% {
-        transform: scale(1.25);
-        filter: brightness(2.2) drop-shadow(0 0 12px rgba(255, 200, 0, 1));
+    18% {
+        transform: translate(-5%, -2%) scale(1, 1.08);
+        opacity: 1;
     }
 
-    40% {
-        transform: scale(0.92);
-        filter: brightness(1.5) drop-shadow(0 0 6px rgba(255, 200, 0, 0.6));
+    34% {
+        transform: translate(5%, -6%) scale(0.95, 1.3);
+        opacity: 1;
     }
 
-    60% {
-        transform: scale(1.08);
-        filter: brightness(1.8) drop-shadow(0 0 10px rgba(255, 200, 0, 0.8));
-    }
-
-    80% {
-        transform: scale(0.97);
-        filter: brightness(1.3);
+    52% {
+        transform: translate(-3%, -18%) scale(0.9, 1.7);
+        opacity: 0.85;
     }
 
     100% {
-        transform: scale(1);
-        filter: brightness(1);
+        transform: translate(0, -95%) scale(0.8, 2.6);
+        opacity: 0;
     }
 }
 
-@keyframes squarePromoting {
+@keyframes teleportIn {
     0% {
-        box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.2), inset -2px -2px 5px rgba(255, 255, 255, 0.9);
+        transform: translate(0, -95%) scale(0.8, 2.6);
+        opacity: 0;
     }
 
-    20% {
-        box-shadow:
-            inset 0 0 10px rgba(255, 200, 0, 0.6),
-            0 0 25px rgba(255, 200, 0, 0.7),
-            0 0 50px rgba(255, 200, 0, 0.3);
+    30% {
+        transform: translate(3%, -18%) scale(0.9, 1.7);
+        opacity: 0.85;
     }
 
-    50% {
-        box-shadow:
-            inset 0 0 6px rgba(255, 200, 0, 0.3),
-            0 0 15px rgba(255, 200, 0, 0.4);
+    55% {
+        transform: translate(-4%, -5%) scale(0.97, 1.25);
+        opacity: 1;
     }
 
     75% {
-        box-shadow:
-            inset 0 0 8px rgba(255, 200, 0, 0.5),
-            0 0 20px rgba(255, 200, 0, 0.5);
+        transform: translate(2%, 2%) scale(1.04, 0.94);
+        opacity: 1;
     }
 
     100% {
-        box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.2), inset -2px -2px 5px rgba(255, 255, 255, 0.9);
+        transform: translate(0, 0) scale(1, 1);
+        opacity: 1;
+    }
+}
+
+@keyframes teleportBeam {
+    0% {
+        transform: scaleY(0.15);
+        opacity: 0;
+    }
+
+    16% {
+        transform: scaleY(1);
+        opacity: 1;
+    }
+
+    80% {
+        transform: scaleY(1);
+        opacity: 1;
+    }
+
+    100% {
+        transform: scaleY(0.6);
+        opacity: 0;
+    }
+}
+
+@keyframes teleportRings {
+    from {
+        transform: translateY(33.77%);
+    }
+
+    to {
+        transform: translateY(0);
+    }
+}
+
+.marble.marble-teleport-out {
+    animation: teleportOut calc(var(--anim-swap) * 0.33) ease-in both;
+    /* peigne large : des filaments bien séparés */
+    -webkit-mask-image: repeating-linear-gradient(90deg, #000 0 9%, transparent 9% 17%);
+    mask-image: repeating-linear-gradient(90deg, #000 0 9%, transparent 9% 17%);
+    animation-delay: calc(var(--anim-swap) * 0.12);
+    z-index: 25;
+    pointer-events: none;
+    will-change: transform, opacity;
+}
+
+.marble.marble-teleport-in {
+    animation: teleportIn calc(var(--anim-swap) * 0.38) ease-out both;
+    /* peigne à fentes très fines : invisible au repos (le masque tombe avec la
+       classe en fin d'animation sans à-coup), il ne se lit que pendant l'étirement */
+    -webkit-mask-image: repeating-linear-gradient(90deg, #000 0 9%, transparent 9% 11%);
+    mask-image: repeating-linear-gradient(90deg, #000 0 9%, transparent 9% 11%);
+    animation-delay: calc(var(--anim-swap) * 0.45);
+    pointer-events: none;
+    will-change: transform, opacity;
+}
+
+.case-path.square-teleport {
+    /* Au-dessus des cases voisines : la colonne les recouvre en montant */
+    z-index: 11;
+}
+
+.tp-beam {
+    position: absolute;
+    left: -12%;
+    width: 124%;
+    bottom: 12%;
+    height: 210%;
+    z-index: 12;
+    pointer-events: none;
+    overflow: hidden;
+    transform-origin: 50% 100%;
+    opacity: 0;
+    /* faisceau blanc au coeur, halo cyan sur les flancs */
+    background:
+        linear-gradient(90deg, rgba(255, 255, 255, 0) 30%, rgba(255, 255, 255, 0.95) 50%, rgba(255, 255, 255, 0) 70%),
+        linear-gradient(90deg, rgba(102, 255, 246, 0) 5%, rgba(102, 255, 246, 0.35) 50%, rgba(102, 255, 246, 0) 95%);
+    -webkit-mask-image: linear-gradient(to top, transparent 0%, #000 14%, #000 50%, transparent 100%);
+    mask-image: linear-gradient(to top, transparent 0%, #000 14%, #000 50%, transparent 100%);
+    animation: teleportBeam var(--anim-swap) ease-out forwards;
+    will-change: transform, opacity;
+}
+
+/* Filaments de lumière verticaux d'épaisseurs, de hauteurs et de décalages
+   irréguliers (image rémanente). Une couche = plusieurs dégradés statiques
+   dimensionnés/positionnés ; on ne bouge que la couche entière (transform) et
+   son opacité, en deux vitesses opposées pour la profondeur. */
+.tp-streaks {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    background-repeat: no-repeat;
+    will-change: transform, opacity;
+}
+
+.tp-streaks--a {
+    --c: rgba(220, 255, 253, 0.95);
+    background-image:
+        linear-gradient(90deg, transparent 0 14%, var(--c) 14% 17%, transparent 17%),
+        linear-gradient(90deg, transparent 0 27%, var(--c) 27% 28.5%, transparent 28.5%),
+        linear-gradient(90deg, transparent 0 41%, var(--c) 41% 45%, transparent 45%),
+        linear-gradient(90deg, transparent 0 56%, var(--c) 56% 57.5%, transparent 57.5%),
+        linear-gradient(90deg, transparent 0 66%, var(--c) 66% 69%, transparent 69%),
+        linear-gradient(90deg, transparent 0 82%, var(--c) 82% 83.5%, transparent 83.5%);
+    background-size: 100% 55%, 100% 38%, 100% 70%, 100% 45%, 100% 60%, 100% 34%;
+    background-position: 0 70%, 0 20%, 0 40%, 0 90%, 0 10%, 0 60%;
+    animation: teleportStreaksUp calc(var(--anim-swap) * 0.75) ease-out forwards;
+    animation-delay: calc(var(--anim-swap) * 0.06);
+}
+
+.tp-streaks--b {
+    --c: rgba(102, 255, 246, 0.9);
+    background-image:
+        linear-gradient(90deg, transparent 0 8%, var(--c) 8% 9.5%, transparent 9.5%),
+        linear-gradient(90deg, transparent 0 22%, var(--c) 22% 25%, transparent 25%),
+        linear-gradient(90deg, transparent 0 35%, var(--c) 35% 36.5%, transparent 36.5%),
+        linear-gradient(90deg, transparent 0 50%, var(--c) 50% 52%, transparent 52%),
+        linear-gradient(90deg, transparent 0 74%, var(--c) 74% 77%, transparent 77%),
+        linear-gradient(90deg, transparent 0 90%, var(--c) 90% 91.5%, transparent 91.5%);
+    background-size: 100% 42%, 100% 64%, 100% 36%, 100% 52%, 100% 40%, 100% 58%;
+    background-position: 0 30%, 0 80%, 0 55%, 0 5%, 0 95%, 0 45%;
+    animation: teleportStreaksDown calc(var(--anim-swap) * 0.75) ease-out forwards;
+    animation-delay: calc(var(--anim-swap) * 0.1);
+}
+
+@keyframes teleportStreaksUp {
+    0% {
+        transform: translateY(14%);
+        opacity: 0;
+    }
+
+    20% {
+        opacity: 1;
+    }
+
+    55% {
+        opacity: 0.45;
+    }
+
+    75% {
+        opacity: 0.9;
+    }
+
+    100% {
+        transform: translateY(-22%);
+        opacity: 0;
+    }
+}
+
+@keyframes teleportStreaksDown {
+    0% {
+        transform: translateY(-16%);
+        opacity: 0;
+    }
+
+    25% {
+        opacity: 0.9;
+    }
+
+    60% {
+        opacity: 0.4;
+    }
+
+    80% {
+        opacity: 0.8;
+    }
+
+    100% {
+        transform: translateY(12%);
+        opacity: 0;
+    }
+}
+
+.tp-rings {
+    display: none; // TEMP : anneaux désactivés pour essai, supprimer cette ligne pour les rétablir
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    /* 151 % du conteneur : 3 motifs (3 x 17 %) de marge pour le défilement */
+    height: 151%;
+    /* un anneau = ellipse cyan épaisse, trou central laissant voir le faisceau */
+    background: radial-gradient(ellipse closest-side at 50% 50%,
+            rgba(102, 255, 246, 0) 0%, rgba(102, 255, 246, 0) 52%,
+            rgba(102, 255, 246, 0.95) 66%, rgba(102, 255, 246, 0.95) 84%,
+            rgba(102, 255, 246, 0) 96%) 0 0 / 100% 11.258% repeat-y;
+    animation: teleportRings calc(var(--anim-swap) * 0.85) linear forwards;
+    will-change: transform;
+}
+
+/* --------------------------------------------------------------------------
+   PROMOTE — Couronnement. Durée : --anim-promote (1000ms)
+   0-30 %  : le pion s'élève et glisse de la case de départ au couloir d'arrivée
+             (même grammaire que MOVE : --mv-x / --mv-y, saut au milieu).
+   30 %    : impact doré. Le pion s'écrase puis se redresse en gonflant, un halo
+             et un éclat s'allument sur la bille, une double bague s'étend sur la
+             case et une couronne de rayons tourne derrière elle.
+   Tout est transform + opacité sur des dégradés statiques : aucun filter,
+   drop-shadow ni box-shadow animé (WebView Android).
+   -------------------------------------------------------------------------- */
+@keyframes marblePromote {
+    0% {
+        transform: translate(var(--mv-x, 0), var(--mv-y, 0)) scale(1);
+    }
+
+    15% {
+        transform: translate(calc(var(--mv-x, 0) * 0.5), calc(var(--mv-y, 0) * 0.5)) scale(1.25);
+    }
+
+    30% {
+        transform: translate(0, 0) scale(1);
+        animation-timing-function: ease-out;
+    }
+
+    38% {
+        transform: scale(1.22, 0.8);
+    }
+
+    55% {
+        transform: scale(1.16);
+    }
+
+    75% {
+        transform: scale(0.97);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+@keyframes promoteHalo {
+    0% {
+        transform: scale(0.5);
+        opacity: 0;
+    }
+
+    35% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    100% {
+        transform: scale(1.7);
+        opacity: 0;
+    }
+}
+
+@keyframes promoteFlash {
+    0% {
+        opacity: 0;
+    }
+
+    18% {
+        opacity: 1;
+    }
+
+    55% {
+        opacity: 0.35;
+    }
+
+    100% {
+        opacity: 0;
+    }
+}
+
+@keyframes promoteRays {
+    0% {
+        transform: scale(0.35) rotate(0deg);
+        opacity: 0;
+    }
+
+    25% {
+        opacity: 1;
+    }
+
+    100% {
+        transform: scale(1.35) rotate(40deg);
+        opacity: 0;
+    }
+}
+
+@keyframes promoteRing {
+    0% {
+        transform: scale(0.6);
+        opacity: 1;
+    }
+
+    100% {
+        transform: scale(2);
+        opacity: 0;
     }
 }
 
 .marble.marble-promoting {
-    animation: marblePromote var(--anim-promote) ease-in-out forwards;
+    animation: marblePromote var(--anim-promote) linear forwards;
+    z-index: 30;
     pointer-events: none;
-    will-change: transform, filter;
+    will-change: transform;
+
+    &::before,
+    &::after {
+        content: '';
+        position: absolute;
+        border-radius: 50%;
+        pointer-events: none;
+        opacity: 0;
+        animation-duration: calc(var(--anim-promote) * 0.7);
+        animation-delay: calc(var(--anim-promote) * 0.3);
+        animation-timing-function: ease-out;
+        animation-fill-mode: forwards;
+        will-change: transform, opacity;
+    }
+
+    /* Halo doré diffus */
+    &::before {
+        inset: -60%;
+        background: radial-gradient(circle, rgba(255, 247, 204, 0.9) 0%, rgba(255, 200, 61, 0.6) 30%, rgba(255, 200, 61, 0) 68%);
+        animation-name: promoteHalo;
+    }
+
+    /* Éclat crème sur la bille */
+    &::after {
+        inset: 0;
+        background: radial-gradient(circle at 40% 35%, #fff 0%, rgba(255, 236, 160, 0.85) 42%, rgba(255, 200, 61, 0) 78%);
+        animation-name: promoteFlash;
+    }
 }
 
 .case-path.square-promoting {
-    animation: squarePromoting var(--anim-promote) ease-in-out forwards;
+    /* Au-dessus des cases voisines pour que rayons et bagues les recouvrent */
+    z-index: 11;
+
+    /* Couronne de rayons : dégradé conique statique, masqué en anneau */
+    &::before {
+        content: '';
+        position: absolute;
+        inset: -70%;
+        border-radius: 50%;
+        pointer-events: none;
+        background: repeating-conic-gradient(from 0deg, rgba(255, 200, 61, 0.95) 0deg 5deg, rgba(255, 200, 61, 0) 5deg 30deg);
+        -webkit-mask-image: radial-gradient(circle, transparent 26%, #000 34%, #000 58%, transparent 70%);
+        mask-image: radial-gradient(circle, transparent 26%, #000 34%, #000 58%, transparent 70%);
+        opacity: 0;
+        animation: promoteRays calc(var(--anim-promote) * 0.65) ease-out forwards;
+        animation-delay: calc(var(--anim-promote) * 0.3);
+        will-change: transform, opacity;
+    }
+
+    /* Double bague dorée (la seconde est un box-shadow statique) */
+    &::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        pointer-events: none;
+        border: 3px solid #ffc83d;
+        box-shadow: 0 0 0 7px rgba(255, 200, 61, 0.35);
+        opacity: 0;
+        animation: promoteRing calc(var(--anim-promote) * 0.55) ease-out forwards;
+        animation-delay: calc(var(--anim-promote) * 0.3);
+        will-change: transform, opacity;
+    }
 }
 
 
@@ -1233,79 +1637,100 @@ $colors: (
 /* --------------------------------------------------------------------------
    INVINCIBLE — pion « fraîchement entré », invincible jusqu'à son premier
    déplacement (voir `marbleInvincible` dans Player, aligné 1:1 sur
-   `marblePositions`). Effet propre à la CASE, pas au pion : aucune animation 
-   pour le moment, a y réflechir.
+   `marblePositions`). Effet propre à la CASE, pas au pion : le bord de la
+   case passe au crème (::before) et porte un petit écu frappé de l'étoile à
+   quatre branches du plateau (::after), en haut à droite, hors de la bille.
+   La marque reste sur la case quand la bille sélectionnée lévite.
    Dès que le joueur joue une carte pour déplacer ce pion, le backend repasse
    `marbleInvincible` à `false` ⇒ la classe disparaît avec le state suivant,
    AVANT que l'animation de déplacement de la bille ne parte (pas de conflit
-   visuel entre le dôme et le mouvement). Rien à désactiver manuellement
+   visuel entre la marque et le mouvement). Rien à désactiver manuellement
    côté front.
+
+   ⚠️ Statique au repos, et ça doit le rester : seule animation autorisée,
+   l'entrée one-shot (ward-stamp, transform + opacity). Jamais de
+   boucle, de filtre ni de `mix-blend-mode`. L'ancien halo portait un glint en `mix-blend-mode:
+   screen` : un blend mode se compose avec son arrière-plan, ce qui force le
+   moteur à aplatir tout `.board-container` (contexte d'empilement isolant,
+   toutes les billes et pastilles promues comprises). Cette classe n'apparaît
+   que sur un `enter`, donc pile au départ de l'animation de chute : sur
+   WebView Android, c'était la cause présumée du « flash de tout le plateau »
+   à l'entrée d'un pion.
    -------------------------------------------------------------------------- */
 .case-path.square-invincible {
-    &::before {
-        content: '';
+
+    &::after {
+        content: ''; // TEMP : écu désactivé pour essai, remettre '' pour le rétablir
         position: absolute;
-        inset: calc(var(--square-size) * -0.08);
-        border-radius: 50%;
-        background: radial-gradient(circle at 35% 28%,
-                rgba(210, 240, 255, 0.32),
-                rgba(110, 210, 255, 0.08) 55%,
-                transparent 75%);
-        border: 2px solid rgba(150, 225, 255, 0.7);
-        box-shadow:
-            0 0 0 2px rgba(255, 255, 255, 0.25) inset,
-            0 0 14px 2px rgba(120, 220, 255, 0.55),
-            0 0 28px 6px rgba(80, 190, 255, 0.35);
         pointer-events: none;
-        z-index: 6;
-        // animation: invincibleShieldPulse 2.2s ease-in-out infinite;
     }
+
+    // Écu : centré sur le liseré à 45°, dans le coin libre de la cellule, sans
+    // recouvrir la bille ni les cases voisines. Taille pilotée par --crest-w.
+    // SVG statique : tranche sombre, écu crème à facette (moitié droite plus
+    // froide), filet intérieur et étoile à quatre branches du plateau.
+    &::after {
+        --crest-w: calc(var(--square-size) * 0.5);
+        width: var(--crest-w);
+        height: calc(var(--crest-w) * 1.125);
+        left: calc(50% + var(--square-size) * 0.32 + 1.4px - var(--crest-w) / 2);
+        top: calc(50% - var(--square-size) * 0.32 - 1.4px - var(--crest-w) * 0.5625);
+        background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 27'%3E%3Cpath d='M12 3.4 21.6 6.2v7.6c0 5.8-3.8 10-9.6 12.2-5.8-2.2-9.6-6.4-9.6-12.2V6.2z' fill='%23081a26' stroke='%23081a26' stroke-width='1.8' stroke-linejoin='round'/%3E%3Cpath d='M12 1.2 21.6 4v7.6c0 5.8-3.8 10-9.6 12.2-5.8-2.2-9.6-6.4-9.6-12.2V4z' fill='%23f0f8ff' stroke='%230f2938' stroke-width='1.6' stroke-linejoin='round'/%3E%3Cpath d='M12 1.2 21.6 4v7.6c0 5.8-3.8 10-9.6 12.2z' fill='%23bcd6e8'/%3E%3Cpath d='M12 4.3 19.2 6.5v5.1c0 4.4-2.8 7.6-7.2 9.4-4.4-1.8-7.2-5-7.2-9.4V6.5z' fill='none' stroke='%231d4459' stroke-opacity='.4' stroke-width='.7'/%3E%3Cpath d='M12 6.4l1.5 4.1 4.1 1.5-4.1 1.5-1.5 4.1-1.5-4.1-4.1-1.5 4.1-1.5z' fill='%231d4459'/%3E%3Cpath d='M12 7.9l.7 2.5 2.5.7-2.5.7-.7 2.5-.7-2.5-2.5-.7 2.5-.7z' fill='%23f0f8ff' fill-opacity='.85'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+        filter: none;
+        z-index: 7;
+        transform-origin: 50% 90%;
+        // « Coup de tampon » : l'écu tombe de haut, s'écrase, rebondit, et
+        // se pose juste après l'atterrissage de la bille.
+        animation: ward-stamp 0.56s cubic-bezier(0.34, 1.56, 0.64, 1) calc(var(--anim-enter, 800ms) * 0.78) both;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        &::after {
+            animation: none;
+        }
+    }
+}
+
+/* Pion invincible : la bille est « enchâssée » dans sa case, pas posée dessus.
+   Plus d'ombre portée (elle ne flotte plus), creux net en haut, bord assombri
+   par un vignettage ; le reflet reste vif au centre, d'où l'effet de gemme
+   sertie. Statique (box-shadow + un dégradé, aucun filtre ni animation) : le
+   pion ne change pas de couche. Les états sélectionné, ancré et « lock-in »
+   gardent leur rendu (on ne les écrase pas). */
+.case-path.square-invincible>.marble:not(.marble-selected):not(.marble-anchored):not(.marble-locking):not(.marble-selectable) {
+    box-shadow: inset 0 3px 7px rgba(0, 0, 0, 0.55),
+        inset -2px -2px 6px rgba(0, 0, 0, 0.3);
 
     &::after {
         content: '';
         position: absolute;
-        inset: calc(var(--square-size) * 0.02);
+        inset: 0;
         border-radius: 50%;
-        background: conic-gradient(from 0deg,
-                rgba(255, 255, 255, 0) 0%,
-                rgba(210, 245, 255, 0.6) 6%,
-                rgba(255, 255, 255, 0) 16%,
-                rgba(255, 255, 255, 0) 50%,
-                rgba(210, 245, 255, 0.45) 56%,
-                rgba(255, 255, 255, 0) 66%,
-                rgba(255, 255, 255, 0) 100%);
-        mix-blend-mode: screen;
+        background: radial-gradient(circle at 50% 40%,
+                transparent 42%,
+                rgba(8, 26, 38, 0.55) 100%);
         pointer-events: none;
-        z-index: 7;
-        // animation: invincibleShieldSpin 4s linear infinite;
     }
 }
 
-@keyframes invincibleShieldPulse {
+@keyframes ward-stamp {
+    0% {
+        opacity: 0;
+        transform: translateY(-70%) scale(1.9) rotate(-8deg);
+    }
 
-    0%,
+    45% {
+        opacity: 1;
+        transform: translateY(6%) scale(0.88, 0.8) rotate(2deg);
+    }
+
+    75% {
+        transform: translateY(-2%) scale(1.06, 1.08) rotate(-1deg);
+    }
+
     100% {
-        box-shadow:
-            0 0 0 2px rgba(255, 255, 255, 0.25) inset,
-            0 0 14px 2px rgba(120, 220, 255, 0.55),
-            0 0 28px 6px rgba(80, 190, 255, 0.35);
-    }
-
-    50% {
-        box-shadow:
-            0 0 0 2px rgba(255, 255, 255, 0.4) inset,
-            0 0 20px 4px rgba(120, 220, 255, 0.8),
-            0 0 38px 10px rgba(80, 190, 255, 0.55);
-    }
-}
-
-@keyframes invincibleShieldSpin {
-    from {
-        transform: rotate(0deg);
-    }
-
-    to {
-        transform: rotate(360deg);
+        opacity: 1;
+        transform: none;
     }
 }
 
@@ -1354,16 +1779,17 @@ $colors: (
         }
     }
 
-    filter: brightness(0.82) saturate(0.8);
-    // Ombre interne en haut = léger creux ; on garde le modelé de base mais
-    // sans l'ombre portée externe (0 4px 8px) qui faisait « flotter » la bille.
+    filter: brightness(0.92) saturate(0.92);
+    // Gemme sertie : collier sombre assorti à la case (dehors), bord de la bille
+    // légèrement assombri par un vignettage interne, et creux en haut. Aucune ombre portée
+    // externe : la bille ne flotte plus. Statique (box-shadow seulement).
     box-shadow: 0 0 0 calc(var(--square-size) * 0.05) var(--anchor-collar, rgba(0, 0, 0, 0.4)),
-    inset 0 3px 6px rgba(0, 0, 0, 0.35),
-    inset -2px -2px 6px rgba(0, 0, 0, 0.3);
+    inset 0 0 7px 2px rgba(8, 26, 38, 0.4),
+    inset 0 3px 6px rgba(0, 0, 0, 0.3);
 
-    // Reflet atténué : surface matie par le blindage.
+    // Reflet net mais un peu plus discret : surface lisse, pas matie.
     .marble-highlight {
-        opacity: 0.35;
+        opacity: 0.6;
     }
 }
 
@@ -1387,26 +1813,39 @@ $colors: (
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5), inset -2px -2px 6px rgba(0, 0, 0, 0.3);
     }
 
-    /* Glint bref sur le 2e transitoire du clac (~100 ms) : le collier apparaît */
+    /* Glint bref sur le 2e transitoire du clac (~100 ms) : le collier apparaît,
+       le filet doré s'allume à pleine intensité */
     12% {
         filter: brightness(1.3) saturate(1.05);
         box-shadow:
             0 0 0 calc(var(--square-size) * 0.05) var(--anchor-collar, rgba(0, 0, 0, 0.4)),
-            0 0 14px 3px rgba(255, 255, 255, 0.35),
-            inset -2px -2px 6px rgba(0, 0, 0, 0.3);
+            inset 0 0 0 calc(var(--square-size) * 0.03) rgba(255, 226, 130, 1),
+            0 0 14px 3px rgba(255, 214, 102, 0.5),
+            inset 0 3px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Petit battement du sceau (comme le voyant de la Pokéball qui clignote
+       avant de s'éteindre) : le filet se rallume doucement */
+    38% {
+        filter: brightness(1.08) saturate(1);
+        box-shadow:
+            0 0 0 calc(var(--square-size) * 0.05) var(--anchor-collar, rgba(0, 0, 0, 0.4)),
+            inset 0 0 0 calc(var(--square-size) * 0.03) rgba(255, 214, 102, 0.95),
+            0 0 8px 1px rgba(255, 214, 102, 0.3),
+            inset 0 3px 6px rgba(0, 0, 0, 0.3);
     }
 
     /* État final = copie exacte de .marble-anchored */
     100% {
-        filter: brightness(0.82) saturate(0.8);
+        filter: brightness(0.92) saturate(0.92);
         box-shadow:
             0 0 0 calc(var(--square-size) * 0.05) var(--anchor-collar, rgba(0, 0, 0, 0.4)),
-            inset 0 3px 6px rgba(0, 0, 0, 0.35),
-            inset -2px -2px 6px rgba(0, 0, 0, 0.3);
+            inset 0 0 7px 2px rgba(8, 26, 38, 0.4),
+            inset 0 3px 6px rgba(0, 0, 0, 0.3);
     }
 }
 
-/* Le reflet reste vif pendant le clac puis se matit avec le blindage */
+/* Le reflet reste vif pendant le clac puis se calme avec le blindage */
 @keyframes marbleLockHighlight {
 
     0%,
@@ -1415,7 +1854,7 @@ $colors: (
     }
 
     100% {
-        opacity: 0.35;
+        opacity: 0.6;
     }
 }
 
@@ -1470,8 +1909,8 @@ $colors: (
         top: -10%;
         font-size: calc(var(--square-size) * 0.32);
         line-height: 1;
-        color: #fff7cc;
-        text-shadow: 0 0 6px rgba(255, 240, 160, 0.9);
+        color: #ffe9a0;
+        text-shadow: 0 0 5px rgba(255, 200, 61, 0.95), 0 0 1px #fff;
         opacity: 0;
         pointer-events: none;
         z-index: 2;
@@ -1486,6 +1925,90 @@ $colors: (
     &::after {
         right: -12%;
         animation: marbleLockStarR 0.65s ease-out 0.12s;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   HOME SPENT — cases maison d'un joueur qui a rentré ses 4 pions (2v2).
+   Plus rien à y faire : elles se « referment ». État persistant = alvéole creuse
+   sombre, liseré à la couleur du joueur très atténué, petit point central.
+   Séquence one-shot (.home-spent-anim, juste après le clac du lock-in) : une
+   bague de la couleur du joueur s'étend depuis la case, puis un iris sombre se
+   ferme sur le disque. Transform + opacité seulement : le fond coloré d'origine
+   reste dessous, l'iris (opaque, mêmes bordure et point que l'état statique)
+   le recouvre, puis la classe persistante prend le relais sans raccord.
+   -------------------------------------------------------------------------- */
+$home-spent-bg: #12303f;
+
+.case-path.home {
+    @each $name, $hex in $colors {
+        &.home-#{$name} {
+            --home-c: #{$hex};
+            --home-edge: #{rgba($hex, 0.45)};
+            --home-dot: #{rgba($hex, 0.4)};
+        }
+    }
+}
+
+@keyframes homeIris {
+    from {
+        transform: scale(0);
+    }
+
+    to {
+        transform: scale(1);
+    }
+}
+
+@keyframes homeSpentRing {
+    0% {
+        transform: scale(0.9);
+        opacity: 0.9;
+    }
+
+    100% {
+        transform: scale(1.9);
+        opacity: 0;
+    }
+}
+
+.case-path.home.home-spent {
+    background: radial-gradient(circle, var(--home-dot) 0 16%, transparent 18%) $home-spent-bg;
+    border: 2px solid var(--home-edge);
+    box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.55);
+}
+
+.case-path.home.home-spent-anim {
+    z-index: 11;
+
+    /* Iris sombre : mêmes fond, bordure et point que .home-spent (inset -2px
+       pour recouvrir la bordure colorée de la case) */
+    &::before {
+        content: '';
+        position: absolute;
+        inset: -2px;
+        border-radius: 50%;
+        box-sizing: border-box;
+        border: 2px solid var(--home-edge);
+        background: radial-gradient(circle, var(--home-dot) 0 16%, transparent 18%) $home-spent-bg;
+        box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.55);
+        pointer-events: none;
+        transform: scale(0);
+        animation: homeIris 0.8s cubic-bezier(0.6, 0, 0.3, 1) 0.45s forwards;
+        will-change: transform;
+    }
+
+    /* Bague qui s'étend au moment où l'iris se ferme */
+    &::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        border: 3px solid var(--home-c);
+        pointer-events: none;
+        opacity: 0;
+        animation: homeSpentRing 0.7s ease-out 0.45s forwards;
+        will-change: transform, opacity;
     }
 }
 
@@ -1527,7 +2050,7 @@ $colors: (
 }
 
 .fc-text {
-    font-family: 'DM Sans', sans-serif;
+    font-family: var(--m-font-text);
     font-weight: 700;
     font-size: calc(var(--square-size) * 0.22);
     color: #f8fafc;
@@ -1588,7 +2111,7 @@ $colors: (
     }
 
     &__title {
-        font-family: 'DM Sans', sans-serif;
+        font-family: var(--m-font-text);
         font-size: calc(var(--square-size) * 0.22);
         font-weight: 600;
         letter-spacing: 0.02em;
@@ -1607,7 +2130,7 @@ $colors: (
         display: flex;
         align-items: center;
         justify-content: center;
-        font-family: 'Playfair Display', serif;
+        font-family: var(--m-font-display);
         font-size: calc(var(--square-size) * 0.42);
         font-weight: 700;
         color: rgba(255, 255, 255, 0.92);
@@ -1723,64 +2246,11 @@ $colors: (
         animation: none;
     }
 
-    /* Halo « bouclier d'invincibilité » : pulse via box-shadow (repaint à
-       chaque frame), sur potentiellement plusieurs cases en simultané. Même
-       traitement que previewDestPulse ci-dessus : on stoppe l'animation, le
-       dôme + halo statique définis sur la règle de base restent visibles. Le
-       rayon tournant (::after, invincibleShieldSpin) n'anime que transform,
-       déjà composé GPU — on le laisse. */
-    .case-path.square-invincible::before {
-        animation: none;
-    }
-
-    /* ⚠️ CAUSE PRÉSUMÉE DU « FLASH DE TOUT LE PLATEAU » À L'ENTRÉE D'UN PION.
-       Le glint tournant (::after) est peint en `mix-blend-mode: screen`. Un
-       élément avec un blend mode doit être composé avec son ARRIÈRE-PLAN : le
-       moteur doit donc aplatir tout le groupe de composition qui le contient
-       en une seule surface rasterizée. Ce groupe, c'est `.board-container`
-       (`contain: layout style paint` ⇒ contexte d'empilement isolant) — donc
-       le plateau ENTIER, avec toutes ses couches promues (chaque `.marble` a
-       `transform: translateZ(0)`, chaque `.player-badge-slot` aussi).
-
-       Or ce halo n'apparaît QUE sur un `enter` : `updateMarblePosition()` pose
-       `marbleInvincible[idx] = action.type === 'enter'` (board.component.ts:701),
-       donc `.square-invincible` — et son ::after blendé — est créé pile au
-       démarrage de l'animation de chute. La WebView Android reconstruit alors
-       son arbre de couches pour tout le plateau ⇒ quelques frames de
-       re-rasterization visibles comme un « rechargement » du board. Cohérent
-       avec les 4 observations : `enter` uniquement (seule action qui crée un
-       halo), natif uniquement, plateau entier, et « pas à chaque fois » (le
-       groupe de blending n'est reconstruit que sur la transition 0 → 1 case
-       invincible : un 2e pion entrant pendant qu'un halo est déjà affiché ne
-       coûte rien).
-
-       Correctif : blending normal en natif. Le halo se pose ici toujours sur
-       une case de départ colorée ; sur ce fond, screen et normal donnent des
-       couleurs à quelques % près (la source est quasi blanche), le glint reste
-       donc visuellement identique — mais sans forcer l'aplatissement. */
-    .case-path.square-invincible::after {
-        mix-blend-mode: normal;
-    }
+    /* Case invincible : rien à alléger non plus, liseré et écu sont statiques
+       par construction (ni animation, ni blend mode), voir .square-invincible. */
 
     /* Pions ancrés : rien à alléger — l'état « blindé » est statique par
        construction (aucune animation en boucle), voir .marble-anchored. */
-}
-
-/* ==========================================================================
-   BANDEAU « ÉQUIPE VS ÉQUIPE » (2v2, portrait étroit) — décale le plateau
-   vers le bas pour laisser plus de marge à `app-team-vs-banner` au-dessus.
-   Décalage purement visuel (transform sur .board-container, pas sur :host)
-   pour ne jamais modifier le rect mesuré par calculateSquareSize() sur
-   `.board-wrapper` : --square-size et boardContainerSize restent inchangés.
-   Même seuil que le bandeau (team-vs-banner.component.scss) pour rester
-   synchronisé avec son apparition/disparition.
-   ========================================================================== */
-:host {
-    @media (max-aspect-ratio: 12/25) {
-        .board-container {
-            transform: translateY(clamp(8px, 3.5vh, 32px));
-        }
-    }
 }
 
 @keyframes marblePulseRing {
@@ -1827,7 +2297,7 @@ $colors: (
     border: 1.5px solid rgba($c-gold, 0.75);
     border-radius: calc(var(--square-size) * 0.3);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 24px rgba($c-gold, 0.35);
-    font-family: 'DM Sans', sans-serif;
+    font-family: var(--m-font-text);
     font-weight: 700;
     font-size: calc(var(--square-size) * 0.18);
     color: #f8fafc;

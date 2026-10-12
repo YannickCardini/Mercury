@@ -178,7 +178,7 @@
   position: absolute;
   left: calc(var(--sq) * 0.42);
   top: calc(var(--sq) * -0.62);
-  font-family: "DM Sans", sans-serif;
+  font-family: var(--m-font-text);
   font-size: max(13px, calc(var(--sq) * 0.46));
   font-weight: 900;
   line-height: 1;

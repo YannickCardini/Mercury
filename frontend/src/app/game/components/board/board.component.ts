@@ -23,8 +23,6 @@ import {
   ARRIVAL_POSITIONS,
   SKIPPED_INDICES,
   MARBLE_ANIMATION_DURATIONS,
-  ENTER_IMPACT_DURATION_MS,
-  MARBLE_EJECTED_DURATION_MS,
   CARD_LAND_DELAY_MS,
   CARD_FLY_DURATION_MS,
   GameStateMessage,
@@ -68,6 +66,9 @@ export interface CardInfo {
 export interface SquareAnimation {
   marbleClass: string;
   squareClass?: string;
+  /** Décalage (en cases) entre la case d'arrivée et celle de départ : le pion glisse de là vers 0. */
+  mvX?: number;
+  mvY?: number;
 }
 
 @Component({
@@ -104,7 +105,7 @@ export class BoardComponent implements OnDestroy {
    * du modèle et rendu ici avec `marble-jostled`, puis réintégré une fois la
    * réaction terminée (évite deux pions sur la même case).
    */
-  overlayMarbles = signal<Record<number, { color: MarbleColor; animClass: string }>>({});
+  overlayMarbles = signal<Record<number, { color: MarbleColor; animClass: string; jx?: number; jy?: number }>>({});
   discardPile = signal<CardInfo[]>([]);
   /** 5 cartes visibles en haut de la pile — seule tranche réellement affichée. */
   readonly topDiscard = computed(() => this.discardPile().slice(0, 5));
@@ -128,6 +129,13 @@ export class BoardComponent implements OnDestroy {
    */
   lockingSquares = signal<ReadonlySet<number>>(new Set());
   private lockTimeouts: ReturnType<typeof setTimeout>[] = [];
+  /**
+   * Cases maison dont l'iris « se referme » (one-shot) juste après le lock-in :
+   * l'état persistant qui suit est `home-spent` (dérivé de `finishedColors`).
+   */
+  spentHomeAnimSquares = signal<ReadonlySet<number>>(new Set());
+  /** Délai du CSS avant l'iris (--lock → iris) + durée, alignés sur `.home-spent-anim`. */
+  private static readonly HOME_SPENT_ANIM_MS = 450 + 800;
   /** Durée totale des keyframes `marbleLockIn` — doit rester alignée au SCSS. */
   private static readonly LOCK_TOTAL_MS = 900;
 
@@ -423,6 +431,17 @@ export class BoardComponent implements OnDestroy {
     });
   }
 
+  /** Animation de glissement d'un pas : le pion part de la case précédente (offset en cases). */
+  private slideAnim(step: Action): SquareAnimation {
+    const g = this.gridSize;
+    const from = step.from - 1, to = step.to - 1;
+    return {
+      marbleClass: 'marble-moving',
+      mvX: (from % g) - (to % g),
+      mvY: Math.floor(from / g) - Math.floor(to / g),
+    };
+  }
+
   private async animateMarble(action: Action): Promise<void> {
     const type = action.type as ActionType;
     const duration = MARBLE_ANIMATION_DURATIONS[type] ?? 0;
@@ -452,29 +471,39 @@ export class BoardComponent implements OnDestroy {
       if (t === 'move') {
         for (const step of this.calculateActionsMove(a)) {
           this.soundService.playMove();
-          this.jostlePassedMarble(step.to, owner);
+          this.jostlePassedMarble(step, owner);
           this.updateMarblePosition(step);
-          await applyAndWait(step.to, { marbleClass: 'marble-moving' }, MARBLE_ANIMATION_DURATIONS.move);
+          await applyAndWait(step.to, this.slideAnim(step), MARBLE_ANIMATION_DURATIONS.move);
         }
       } else if (t === 'capture') {
         const captureSteps = this.calculateActionsMove(a);
         for (let i = 0; i < captureSteps.length - 1; i++) {
           const step = captureSteps[i]!;
           this.soundService.playMove();
-          this.jostlePassedMarble(step.to, owner);
+          this.jostlePassedMarble(step, owner);
           this.updateMarblePosition(step);
-          await applyAndWait(step.to, { marbleClass: 'marble-moving' }, MARBLE_ANIMATION_DURATIONS.move);
+          await applyAndWait(step.to, this.slideAnim(step), MARBLE_ANIMATION_DURATIONS.move);
         }
         const finalStep = captureSteps[captureSteps.length - 1]!;
         // Victime lue AVANT le déplacement final, tant qu'elle occupe la case.
         const victim = this.getMarbleOnSquare(finalStep.to);
         this.soundService.playCapture();
-        if (victim) this.gameStateService.onCaptureAnimated(a.playerColor, victim, finalStep.to);
+        if (victim) {
+          this.gameStateService.onCaptureAnimated(a.playerColor, victim, finalStep.to);
+          // La victime sort du modèle (sinon deux pions sur la même case) et est
+          // rendue en overlay pour être éjectée pendant que l'attaquant arrive.
+          this.removeMarbleFromSquare(finalStep.to, victim);
+          this.overlayMarbles.update(prev => ({ ...prev, [finalStep.to]: { color: victim, animClass: 'marble-captured-exit' } }));
+          setTimeout(() => {
+            this.overlayMarbles.update(prev => {
+              const next = { ...prev };
+              delete next[finalStep.to];
+              return next;
+            });
+          }, duration);
+        }
         this.updateMarblePosition(finalStep);
-        await Promise.all([
-          applyAndWait(finalStep.from, { marbleClass: 'marble-capturing' }),
-          applyAndWait(finalStep.to, { marbleClass: 'marble-captured-exit', squareClass: 'square-impact' }),
-        ]);
+        await applyAndWait(finalStep.to, { ...this.slideAnim(finalStep), marbleClass: 'marble-capturing', squareClass: 'square-impact' });
       } else if (t === 'promote') {
         const startPos = START_POSITIONS[owner];
         const startPosIndex = MAIN_PATH.indexOf(startPos);
@@ -482,13 +511,18 @@ export class BoardComponent implements OnDestroy {
         const mainPathAction: Action = { ...a, type: 'move', to: beforeStartPos };
         for (const step of this.calculateActionsMove(mainPathAction)) {
           this.soundService.playMove();
-          this.jostlePassedMarble(step.to, owner);
+          this.jostlePassedMarble(step, owner);
           this.updateMarblePosition(step);
-          await applyAndWait(step.to, { marbleClass: 'marble-moving' }, MARBLE_ANIMATION_DURATIONS.move);
+          await applyAndWait(step.to, this.slideAnim(step), MARBLE_ANIMATION_DURATIONS.move);
         }
         this.soundService.playPromote();
         this.updateMarblePosition({ ...a, from: beforeStartPos });
-        await applyAndWait(a.to, { marbleClass: 'marble-promoting', squareClass: 'square-promoting' });
+        // Le pion glisse de la case de départ vers le couloir d'arrivée, puis couronnement.
+        await applyAndWait(a.to, {
+          ...this.slideAnim({ ...a, from: beforeStartPos }),
+          marbleClass: 'marble-promoting',
+          squareClass: 'square-promoting',
+        });
       }
     };
 
@@ -501,18 +535,23 @@ export class BoardComponent implements OnDestroy {
         this.soundService.playEnter();
         if (isCapture) {
           this.gameStateService.onCaptureAnimated(action.playerColor, enemyColor, action.to);
-          // Phase 1: enemy marble is still at action.to — eject it + shockwave on square
-          await applyAndWait(action.to, { marbleClass: 'marble-ejected', squareClass: 'square-enter-impact' }, MARBLE_EJECTED_DURATION_MS);
-          // Remove the captured enemy from the display so the square is empty before the new marble enters
+          // La victime sort du modèle et est rendue en overlay : le pion entrant
+          // tombe sur la case, et c'est son impact (≈ 45 % de la chute) qui
+          // l'éjecte (voir .marble-enter-victim). Tout se joue en parallèle.
           this.removeMarbleFromSquare(action.to, enemyColor);
-          // Phase 2: entering marble drops into the now-empty square
+          this.overlayMarbles.update(prev => ({ ...prev, [action.to]: { color: enemyColor, animClass: 'marble-enter-victim' } }));
+          setTimeout(() => {
+            this.overlayMarbles.update(prev => {
+              const next = { ...prev };
+              delete next[action.to];
+              return next;
+            });
+          }, duration);
           this.updateMarblePosition(action);
-          await applyAndWait(action.to, { marbleClass: 'marble-entering' }, MARBLE_ANIMATION_DURATIONS.enter);
-          // Phase 3: impact squash on landing
-          await applyAndWait(action.to, { marbleClass: 'marble-enter-impact' }, ENTER_IMPACT_DURATION_MS);
+          await applyAndWait(action.to, { marbleClass: 'marble-entering', squareClass: 'square-enter square-enter-capture' });
         } else {
           this.updateMarblePosition(action);
-          await applyAndWait(action.to, { marbleClass: 'marble-entering' });
+          await applyAndWait(action.to, { marbleClass: 'marble-entering', squareClass: 'square-enter' });
         }
         break;
       }
@@ -552,9 +591,27 @@ export class BoardComponent implements OnDestroy {
         if (targetColor) {
           this.updateMarblePosition({ ...action, marbleColor: targetColor, from: action.to, to: action.from });
         }
+        // Les deux pions se dématérialisent sur leur case d'origine (overlay, le
+        // modèle ayant déjà échangé les positions) et se rematérialisent sur
+        // l'autre case.
+        if (targetColor) {
+          this.overlayMarbles.update(prev => ({
+            ...prev,
+            [action.from]: { color: sourceColor, animClass: 'marble-teleport-out' },
+            [action.to]: { color: targetColor, animClass: 'marble-teleport-out' },
+          }));
+          setTimeout(() => {
+            this.overlayMarbles.update(prev => {
+              const next = { ...prev };
+              delete next[action.from];
+              delete next[action.to];
+              return next;
+            });
+          }, duration);
+        }
         await Promise.all([
-          applyAndWait(action.to, { marbleClass: 'marble-swapping' }),
-          applyAndWait(action.from, { marbleClass: 'marble-swapping' }),
+          applyAndWait(action.to, { marbleClass: 'marble-teleport-in', squareClass: 'square-teleport' }),
+          applyAndWait(action.from, { marbleClass: 'marble-teleport-in', squareClass: 'square-teleport' }),
         ]);
         break;
       }
@@ -763,12 +820,19 @@ export class BoardComponent implements OnDestroy {
    * transform-only et tourne EN PARALLÈLE du saut — elle ne bloque pas la
    * séquence et reste légère sur WebView mobile.
    */
-  private jostlePassedMarble(square: number, movingColor: MarbleColor): void {
+  private jostlePassedMarble(step: Action, movingColor: MarbleColor): void {
+    const square = step.to;
     const occupant = this.getMarbleOnSquare(square);
     if (!occupant || occupant === movingColor) return;
 
     this.removeMarbleFromSquare(square, occupant);
-    this.overlayMarbles.update(prev => ({ ...prev, [square]: { color: occupant, animClass: 'marble-jostled' } }));
+    this.overlayMarbles.update(prev => ({ ...prev, [square]: {
+      color: occupant,
+      animClass: 'marble-jostled',
+      // Direction du sauteur (en cases, -1..1) : le pion est poussé dans son sillage.
+      jx: Math.sign(((step.to - 1) % this.gridSize) - ((step.from - 1) % this.gridSize)),
+      jy: Math.sign(Math.floor((step.to - 1) / this.gridSize) - Math.floor((step.from - 1) / this.gridSize)),
+    } }));
 
     setTimeout(() => {
       this.overlayMarbles.update(prev => {
@@ -791,7 +855,14 @@ export class BoardComponent implements OnDestroy {
     return this.squareAnimations()[index]?.marbleClass ?? '';
   }
 
-  getOverlayMarble(index: number): { color: MarbleColor; animClass: string } | null {
+  /** Offset de départ du glissement, en % de la taille du pion (une case = 125 % : le pion occupe 80 % de la case). */
+  getMarbleMv(index: number, axis: 'x' | 'y'): string | null {
+    const a = this.squareAnimations()[index];
+    if (!a || a.mvX === undefined) return null;
+    return `${(axis === 'x' ? a.mvX : a.mvY!) * 125}%`;
+  }
+
+  getOverlayMarble(index: number): { color: MarbleColor; animClass: string; jx?: number; jy?: number } | null {
     return this.overlayMarbles()[index] ?? null;
   }
 
@@ -823,6 +894,17 @@ export class BoardComponent implements OnDestroy {
     const squares = this.arrivals[color];
     this.lockingSquares.update(prev => new Set([...prev, ...squares]));
     this.soundService.playLock();
+
+    // Cases maison : les 4 pions sont rentrés, elles se referment.
+    const homeSquares = this.homes[color];
+    this.spentHomeAnimSquares.update(prev => new Set([...prev, ...homeSquares]));
+    this.lockTimeouts.push(setTimeout(() => {
+      this.spentHomeAnimSquares.update(prev => {
+        const next = new Set(prev);
+        for (const sq of homeSquares) next.delete(sq);
+        return next;
+      });
+    }, BoardComponent.HOME_SPENT_ANIM_MS + 150));
 
     // +150ms de marge : la classe reste posée un peu après la fin réelle des
     // keyframes (fill-mode forwards) pour éviter tout saut si le timer dévie.
@@ -860,8 +942,6 @@ export class BoardComponent implements OnDestroy {
     root.style.setProperty('--anim-swap', `${MARBLE_ANIMATION_DURATIONS.swap}ms`);
     root.style.setProperty('--anim-promote', `${MARBLE_ANIMATION_DURATIONS.promote}ms`);
     root.style.setProperty('--anim-card-fly', `${CARD_FLY_DURATION_MS}ms`);
-    root.style.setProperty('--anim-enter-impact', `${ENTER_IMPACT_DURATION_MS}ms`);
-    root.style.setProperty('--anim-marble-ejected', `${MARBLE_EJECTED_DURATION_MS}ms`);
     root.style.setProperty('--anim-jostle', `${JOSTLE_DURATION_MS}ms`);
   }
 
@@ -1115,6 +1195,19 @@ export class BoardComponent implements OnDestroy {
     const color = this.getMarbleOnSquare(index);
     if (!color) return false;
     return this.gameStateService.finishedColors().has(color) && this.arrivals[color].includes(index);
+  }
+
+  /** Case maison d'un joueur ayant fini ses 4 pions (2v2) : état persistant « refermé ». */
+  isSpentHome(index: number): boolean {
+    const finished = this.gameStateService.finishedColors();
+    for (const color of finished) {
+      if (this.homes[color as MarbleColor]?.includes(index)) return true;
+    }
+    return false;
+  }
+
+  isSpentHomeAnim(index: number): boolean {
+    return this.spentHomeAnimSquares().has(index);
   }
 
   /** Bille en pleine séquence de verrouillage « Pokéball » (one-shot, 2v2). */
