@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, HostListener, OnDestroy, Output, EventEmitter, afterNextRender, signal, computed, effect, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, HostBinding, HostListener, OnDestroy, Output, EventEmitter, afterNextRender, signal, computed, effect, inject, untracked } from '@angular/core';
 import { GameStateService } from '../../services/game-state.service';
 import { SoundService } from '../../services/sound.service';
 import { IonCol, IonGrid, IonRow } from '@ionic/angular/standalone';
@@ -70,6 +70,9 @@ export interface SquareAnimation {
   mvX?: number;
   mvY?: number;
 }
+
+/** Échelle minimale du bandeau d'équipes avant de le masquer faute de place. */
+const BANNER_MIN_SCALE = 0.7;
 
 @Component({
   selector: 'app-board',
@@ -308,6 +311,11 @@ export class BoardComponent implements OnDestroy {
   constructor(protected gameStateService: GameStateService, private soundService: SoundService) {
 
     effect(() => {
+      this.gameStateService.bannerNaturalH();
+      untracked(() => this.calculateSquareSize());
+    });
+
+    effect(() => {
       this.displayedGameData.set(this.gameStateService.data());
     });
 
@@ -377,15 +385,22 @@ export class BoardComponent implements OnDestroy {
     const STAGGER_MS = 220;   // délai entre chaque carte
     const FLY_MS = CARD_FLY_DURATION_MS;
 
+    const starts = fromHand ? this.gameStateService.discardCardStarts() : [];
+    this.gameStateService.discardCardStarts.set([]);
+
     return new Promise(resolve => {
       // Lancer les cartes une à une avec un stagger
       cards.forEach((c, i) => {
         setTimeout(() => {
+          const start = starts[i];
           const cardInfo: CardInfo & { flyIndex: number } = {
             value: c.value,
             suit: c.suit,
             color,
-            fromHand,
+            fromHand: fromHand && !!start,
+            startDx: start?.dx,
+            startDy: start?.dy,
+            startAngle: start?.angle,
             flyIndex: i,
           };
 
@@ -956,6 +971,7 @@ export class BoardComponent implements OnDestroy {
 
     const bounds = wrapper.getBoundingClientRect();
     const containerSize = Math.min(bounds.width, bounds.height) * 0.95;
+    this.layoutTeamBanner(bounds.height, containerSize * (15.4 / 15) + 2);
     const size = containerSize / this.gridSize;
     this.squareSize.set(size);
     this.gameStateService.boardContainerSize.set(this.calculateTableWrapperSize(containerSize));
@@ -963,6 +979,36 @@ export class BoardComponent implements OnDestroy {
       this._readyEmitted = true;
       this.ready.emit();
     }
+  }
+
+  /**
+   * Place le bandeau d'équipes dans la marge libre au-dessus du plateau. Le
+   * plateau garde TOUJOURS sa taille maximale : on le décale seulement vers le
+   * bas, puis on réduit le bandeau (jusqu'à BANNER_MIN_SCALE), sinon on le masque.
+   */
+  private layoutTeamBanner(wrapperH: number, boardH: number): void {
+    const natural = this.gameStateService.bannerNaturalH();
+    const free = wrapperH - boardH;
+    const gap = 4;
+    let layout: { top: number; scale: number } | null = null;
+    let shift = 0;
+    if (natural > 0 && free > 0) {
+      const scale = Math.min(1, (free - gap * 2) / natural);
+      if (scale >= BANNER_MIN_SCALE) {
+        const h = natural * scale;
+        const need = h + gap * 2;
+        shift = Math.max(0, need - free / 2);
+        const boardTop = (free / 2) + shift;
+        layout = { top: (boardTop - h) / 2, scale };
+      }
+    }
+    this.gameStateService.boardShiftY.set(shift);
+    this.gameStateService.bannerLayout.set(layout);
+  }
+
+  @HostBinding('style.padding-top.px')
+  get shiftPadding(): number {
+    return this.gameStateService.boardShiftY() * 2;
   }
 
   private calculateTableWrapperSize(containerSize: number): number {

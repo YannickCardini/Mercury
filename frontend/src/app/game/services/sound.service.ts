@@ -1,4 +1,6 @@
 import { Injectable, signal } from '@angular/core';
+import { App } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 import type { ReactionEmoji } from '@mercury/shared';
 
 const REACTION_SOUND_KEY: Record<ReactionEmoji, string> = {
@@ -28,6 +30,14 @@ export class SoundService {
   readonly muted = signal<boolean>(localStorage.getItem('mercury-muted') === 'true');
   readonly vibrationEnabled = signal<boolean>((localStorage.getItem('mercury-vibration') ?? 'true') === 'true');
 
+  /**
+   * True while the native app is in the background. Capacitor does not freeze
+   * the WebView when the app is minimised: timers and the game socket keep
+   * running, so without this every game sound would still play from the
+   * player's pocket.
+   */
+  private backgrounded = false;
+
   toggleMute(): void {
     this.muted.set(!this.muted());
     localStorage.setItem('mercury-muted', String(this.muted()));
@@ -40,6 +50,17 @@ export class SoundService {
 
   constructor() {
     this.preloadAssets();
+    if (Capacitor.isNativePlatform()) {
+      // Read the current state too: the service can be created while the app is
+      // already minimised (a matchmaking game found in the background).
+      void App.getState().then(({ isActive }) => { this.backgrounded = !isActive; });
+      void App.addListener('appStateChange', ({ isActive }) => { this.backgrounded = !isActive; });
+    }
+  }
+
+  /** No sound may start: muted by the player, or app in the background. */
+  private silenced(): boolean {
+    return this.muted() || this.backgrounded;
   }
 
   private async preloadAssets(): Promise<void> {
@@ -107,7 +128,7 @@ export class SoundService {
 
   /** Short, low thud — heavy marble rolling. */
   playMove(): void {
-    if (this.muted()) return;
+    if (this.silenced()) return;
     const ctx = this.getCtx();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -127,7 +148,7 @@ export class SoundService {
 
   /** Percussive "tok" — marble dropping onto the board. */
   playEnter(): void {
-    if (this.muted()) return;
+    if (this.silenced()) return;
     const ctx = this.getCtx();
     const t = ctx.currentTime;
 
@@ -159,7 +180,7 @@ export class SoundService {
 
   /** Sharp impact — marble knocked off the board. */
   playCapture(): void {
-    if (this.muted()) return;
+    if (this.silenced()) return;
     if (this.playBuffer('capture')) return;
 
     const ctx = this.getCtx();
@@ -209,7 +230,7 @@ export class SoundService {
 
   /** Double-hit whoosh — two marbles swapping places. */
   playSwap(): void {
-    if (this.muted()) return;
+    if (this.silenced()) return;
     if (this.playBuffer('teleport')) return;
 
     const ctx = this.getCtx();
@@ -235,7 +256,7 @@ export class SoundService {
 
   /** Soft ascending chime — marble reaching the finish zone. */
   playPromote(): void {
-    if (this.muted()) return;
+    if (this.silenced()) return;
     const ctx = this.getCtx();
     const t = ctx.currentTime;
 
@@ -258,7 +279,7 @@ export class SoundService {
 
   /** Paper whoosh — card played/thrown onto the discard pile. */
   playCard(): void {
-    if (this.muted()) return;
+    if (this.silenced()) return;
     if (this.playBuffer('card')) return;
 
     const ctx = this.getCtx();
@@ -294,7 +315,7 @@ export class SoundService {
 
   /** Subtle card-swipe tick — discard or pass. */
   playDiscard(): void {
-    if (this.muted()) return;
+    if (this.silenced()) return;
     const ctx = this.getCtx();
     const t = ctx.currentTime;
 
@@ -313,7 +334,7 @@ export class SoundService {
 
   /** Soft single bell — new turn notification. */
   playNewTurn(): void {
-    if (this.muted()) return;
+    if (this.silenced()) return;
     if (this.playBuffer('new_turn')) return;
 
     const ctx = this.getCtx();
@@ -348,7 +369,7 @@ export class SoundService {
 
   /** Triumphant fanfare — human player wins. */
   playVictory(): void {
-    if (this.muted()) return;
+    if (this.silenced()) return;
     if (this.playBuffer('victory')) return;
 
     const ctx = this.getCtx();
@@ -374,7 +395,7 @@ export class SoundService {
 
   /** Stressful countdown tick — last 5 seconds warning. Pitch rises as time runs out. */
   playCountdownTick(secondsLeft: number): void {
-    if (this.muted()) return;
+    if (this.silenced()) return;
     const ctx = this.getCtx();
     const t = ctx.currentTime;
 
@@ -410,7 +431,7 @@ export class SoundService {
 
   /** Urgent descending buzzer — time is up, AI will play instead. */
   playTimeUp(): void {
-    if (this.muted()) return;
+    if (this.silenced()) return;
     const ctx = this.getCtx();
     const t = ctx.currentTime;
 
@@ -438,13 +459,13 @@ export class SoundService {
    * Timed by the board so the click lands exactly on the lock keyframe.
    */
   playLock(): void {
-    if (this.muted()) return;
+    if (this.silenced()) return;
     if (this.playBuffer('lock')) return;
   }
 
   /** Emoji reactions — one preloaded sample per emoji of the palette. */
   playReaction(emoji: ReactionEmoji): void {
-    if (this.muted()) return;
+    if (this.silenced()) return;
     const key = REACTION_SOUND_KEY[emoji];
     if (key) this.playBuffer(key);
   }
@@ -457,7 +478,7 @@ export class SoundService {
    * exists it is played once per coin instead.
    */
   playCoinSpend(count = 6, stepMs = 55): void {
-    if (this.muted()) return;
+    if (this.silenced()) return;
     const ctx = this.getCtx();
     const t = ctx.currentTime;
 
@@ -494,7 +515,7 @@ export class SoundService {
    * la même session et doivent rester distincts.
    */
   playUnlock(): void {
-    if (this.muted()) return;
+    if (this.silenced()) return;
     const ctx = this.getCtx();
     const t = ctx.currentTime;
 
@@ -533,7 +554,7 @@ export class SoundService {
 
   /** Low descending tone — human player loses. */
   playDefeat(): void {
-    if (this.muted()) return;
+    if (this.silenced()) return;
     if (this.playBuffer('defeat')) return;
 
     const ctx = this.getCtx();

@@ -60,6 +60,12 @@ const TEAMMATE_FINISHED_TURN_DELAY_MS = 1500;
 export class GameStateService {
 
   boardContainerSize = signal(0);
+  /** Hauteur naturelle (px, échelle 1) du bandeau "équipe vs équipe", mesurée par le bandeau. */
+  bannerNaturalH = signal(0);
+  /** Emplacement du bandeau dans `.board-wrapper` (top en px, échelle). null = pas la place, masqué. */
+  bannerLayout = signal<{ top: number; scale: number } | null>(null);
+  /** Décalage vers le bas du plateau (px) pour libérer l'emplacement du bandeau. */
+  boardShiftY = signal(0);
   timeLeft = signal(0);
 
   // ── État serveur ──────────────────────────────────────────────────────────
@@ -433,6 +439,8 @@ export class GameStateService {
 
   /** Position de départ de la carte jouée (pour l'animation depuis la main). */
   playingCardStart = signal<{ dx: number; dy: number; angle: number } | null>(null);
+  /** Positions de départ de chaque carte de la main lors d'une défausse (même principe). */
+  discardCardStarts = signal<Array<{ dx: number; dy: number; angle: number }>>([]);
 
   /** Vrai quand une action complète et légale peut être envoyée au serveur. */
   canPlay = computed(() => {
@@ -1137,6 +1145,7 @@ export class GameStateService {
     this.sevenFirstSteps.set(7);
     this.selectedSplit7MarblePosition.set(null);
     this.playingCardStart.set(null);
+    this.discardCardStarts.set([]);
     this.boardContainerSize.set(0);
     this.isConnected.set(false);
     this.isReplayTurn.set(false);

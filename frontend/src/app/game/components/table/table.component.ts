@@ -227,6 +227,12 @@ enum TURN_PHASE {
       gs.data()?.gameState.hand;
       untracked(() => this.runAutoDiscard());
     });
+    // Partie terminée : le compte à rebours du dernier tour n'a plus lieu
+    // d'être. Sans ça, une victoire par forfait pendant mon tour le laisse
+    // sonner (tics, buzzer) et envoyer un turnTimeout sous l'overlay de fin.
+    effect(() => {
+      if (this.gameStateService.winners().length > 0) this.clearTimer();
+    });
     this.gameStateService.publishOverlay('menu', this.showMenu);
     this.gameStateService.publishOverlay('resign', this.showResignConfirm);
   }
@@ -615,6 +621,24 @@ enum TURN_PHASE {
     }
 
     if (play.kind === 'discard') {
+      // Position de chaque carte de la main, pour que les cartes partent de là
+      const discardEl = document.querySelector<HTMLElement>('.discard-pile');
+      const cardEls = Array.from(document.querySelectorAll<HTMLElement>('.playable-card'));
+      if (discardEl && cardEls.length) {
+        const dRect = discardEl.getBoundingClientRect();
+        const total = cardEls.length;
+        const center = (total - 1) / 2;
+        const maxSpread = Math.min(total * 8, 60);
+        const step = total > 1 ? maxSpread / (total - 1) : 0;
+        this.gameStateService.discardCardStarts.set(cardEls.map((el, i) => {
+          const r = el.getBoundingClientRect();
+          return {
+            dx: (r.left + r.width / 2) - (dRect.left + dRect.width / 2),
+            dy: (r.top + r.height / 2) - (dRect.top + dRect.height / 2),
+            angle: step * (i - center),
+          };
+        }));
+      }
       // Aucun coup légal → défausse directe
       this.gameStateService.playAction({
         type: 'discard',

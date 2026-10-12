@@ -8,23 +8,16 @@ $seat-colors: "red", "green", "blue", "orange";
 // `BoardComponent.calculateSquareSize()` (voir game.page.scss). ──
 :host {
   position: absolute;
-  top: 1%;
+  top: 0;
   left: 50%;
   transform: translateX(-50%);
   z-index: 40; // sous les boutons debug (45) et l'annonce d'équipe (500)
   pointer-events: none; // purement décoratif
   display: block;
 
-  // N'affiche le bandeau que sur les écrans où le plateau (carré, centré
-  // dans .board-wrapper) laisse une vraie marge verticale libre au-dessus de
-  // lui — en pratique les téléphones en portrait. Au-delà de ce ratio
-  // (tablette, paysage…) le plateau occupe quasi toute la hauteur du
-  // wrapper : pas de place, donc pas de bandeau plutôt qu'un chevauchement.
-  display: none;
-
-  @media (max-aspect-ratio: 12/25) {
-    display: block;
-  }
+  transform-origin: top center;
+  width: max-content;
+  white-space: nowrap;
 }
 
 .tvb {

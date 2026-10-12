@@ -218,6 +218,8 @@
   @for (fc of flyingCards(); track fc.flyIndex) {
   <div class="flying-card flying-card--discard"
     [ngClass]="['player-' + fc.color, fc.fromHand ? 'flying-card--from-hand' : '']"
+    [style.--fly-start-x]="(fc.startDx ?? 0) + 'px'" [style.--fly-start-y]="(fc.startDy ?? 0) + 'px'"
+    [style.--fly-start-angle]="(fc.startAngle ?? -5) + 'deg'"
     [style.--fly-stagger-index]="fc.flyIndex" [style.z-index]="50 + fc.flyIndex">
     <app-tock-card [value]="fc.value" [suit]="fc.suit">
     </app-tock-card>

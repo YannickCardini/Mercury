@@ -8,6 +8,7 @@
     align-items: center;
     width: 100%;
     height: 100%;
+    box-sizing: border-box; // le padding-top (décalage pour le bandeau d équipes) ne grossit pas l hôte
     // Fallback pour le 1er paint avant que le JS mesure le conteneur.
     --square-size: min(6vw, 6vh);
 }
@@ -1468,8 +1469,8 @@ $colors: (
 @keyframes cardDiscardFromBottom {
     0% {
         opacity: 0;
-        transform: translate(var(--stagger-x, 0px), 300%) rotate(calc(-5deg + var(--stagger-rot, 0deg))) scale(0.45);
-        filter: blur(3px);
+        transform: translate(var(--fly-start-x, 0px), var(--fly-start-y, 300%)) rotate(var(--fly-start-angle, -5deg)) scale(0.85);
+        filter: blur(0);
     }
 
     30% {

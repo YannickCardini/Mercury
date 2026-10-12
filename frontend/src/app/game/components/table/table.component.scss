@@ -32,6 +32,16 @@
     --card-width: clamp(0.1rem, 18cqw, 7rem);
     --fan-height: clamp(0.3rem, 36cqw, 16rem);
 
+    /* Padding haut du panneau (3.5rem en portrait mobile, voir plus bas). */
+    --board-pad-top: 0px;
+    /* Hauteur disponible pour le dropdown du menu, de son bord haut jusqu'à 8px
+       du bas du panneau. `100cqh` mesure la boîte de contenu, donc sans les
+       paddings haut et bas : on les rajoute pour retrouver la hauteur du
+       panneau, puis on retire ce qui précède le dropdown (0.75rem + bouton 40px
+       + écart 10px) et la marge du bas (8px). La zone sûre du bas, exclue de
+       100cqh, reste libre sous le menu. */
+    --menu-room: calc(100cqh + var(--board-pad-top) + var(--dashboard-height) - 0.75rem - 58px);
+
     height: 100%;
     max-height: 100%;
     overflow: hidden;
@@ -53,6 +63,7 @@
     justify-content: center;
     align-items: center;
     font-family: var(--m-font-text);
+    padding-top: var(--board-pad-top);
     padding-bottom: calc(var(--dashboard-height) + env(safe-area-inset-bottom));
 
     @container game-board (orientation: landscape) {
@@ -66,7 +77,7 @@
        soulève de 2rem). */
     @media (max-aspect-ratio: 1/1) {
         @media (max-width: 780px) {
-            padding-top: 3.5rem;
+            --board-pad-top: 3.5rem;
         }
     }
 }
@@ -546,6 +557,15 @@
     padding: 6px;
     box-shadow: var(--m-shadow-pop);
     min-width: 216px;
+    /* Le panneau rogne son contenu (overflow: hidden) : le menu s'arrête avant
+       son bord bas (--menu-room, voir .game-board). Les lignes se resserrent
+       d'abord (voir .menu-item) ; il ne défile qu'en dernier recours.
+       14px = padding (2 × 6px) + bordure (2 × 1px), hors max-height. */
+    max-height: calc(var(--menu-room) - 14px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--m-line-2) transparent;
     transform-origin: top right;
     animation: menuFadeIn 0.18s var(--m-ease);
 }
@@ -567,8 +587,12 @@
     align-items: center;
     gap: 10px;
     width: 100%;
-    min-height: 40px;
-    padding: 8px 12px;
+    /* 40px quand il y a la place, resserrées jusqu'à 30px quand le panneau est
+       court : la hauteur disponible moins bordure, padding, écarts et
+       séparateur (≈ 36px), répartie sur 6 lignes. */
+    flex: none;
+    min-height: clamp(30px, calc((var(--menu-room) - 36px) / 6), 40px);
+    padding: 4px 12px;
     border-radius: var(--m-r-sm);
     border: 0;
     background: transparent;
@@ -662,6 +686,7 @@
 }
 
 .menu-sep {
+    flex: none;
     height: 1px;
     margin: 4px 6px;
     background: var(--m-line-2);
@@ -1267,6 +1292,8 @@
     font-family: var(--m-font-text);
     max-width: 320px;
     width: 85%;
+    max-height: calc(100cqh + var(--dashboard-height) + env(safe-area-inset-bottom) - 1rem);
+    overflow-y: auto;
 
     &__title {
         font-family: var(--m-font-display);
