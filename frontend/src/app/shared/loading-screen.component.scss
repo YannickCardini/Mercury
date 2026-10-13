@@ -12,6 +12,8 @@
         pointer-events: none;
         // visibility:hidden après le fondu → animations CSS pausées, GPU libéré
         visibility: hidden;
+        // L'emblème s'arrête pour de bon tant que l'écran est masqué.
+        --mo-play: paused;
     }
 }
 
@@ -70,7 +72,8 @@
     }
 }
 
-/* ── Orbite de billes ────────────────────────────────────────── */
+/* ── Emblème (logo vivant, ou orrery en réserve) ─────────────── */
+app-marble-clover,
 app-marble-orbit {
     z-index: 1;
 }

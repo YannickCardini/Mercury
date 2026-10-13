@@ -1,99 +1,251 @@
-@use "../styles/palette" as *;
+@use "sass:map";
+@use "sass:math";
 @use "../styles/planets" as *;
 
-// ─── Tailles paramétrées via CSS custom properties ────────────────────────────
-// Défauts = 'lg' (écran de chargement : 180 px)
+// ═══════════════════════════════════════════════════════════════════════════
+//  Orrery — emblème de l'accueil et de l'écran de chargement
+// ───────────────────────────────────────────────────────────────────────────
+//  Les quatre billes-planètes tournent autour de Mercure sur un plan incliné,
+//  dans leur ordre réel (Terre, Mars, Jupiter, Neptune) et à des vitesses qui
+//  suivent la troisième loi de Kepler : plus l'orbite est large, plus elle est
+//  lente. La configuration ne se répète donc jamais à l'œil.
+//
+//  La profondeur est réelle : les billes vivent dans un contexte 3D
+//  (`preserve-3d`). Le navigateur les trie d'avant en arrière et la
+//  perspective les grossit quand elles passent devant. Chaque bille annule la
+//  rotation de son bras et l'inclinaison du plan, elle reste donc face à
+//  l'écran, donc ronde.
+//
+//  Tout le mouvement passe par `transform` et `opacity` : rien n'est repeint.
+//  Les calques existent dès le premier rendu et ne sont jamais détruits
+//  ensuite (voir CLAUDE.md, flashes de composition sur Android).
+// ═══════════════════════════════════════════════════════════════════════════
+
+$tilt: 66deg;   // inclinaison du plan des orbites (0deg = vu du dessus)
+$roll: -12deg;  // roulis de l'ensemble dans le plan de l'écran
+$depth: 7;      // distance de l'œil, en rayons de l'orbite extérieure
+$origin-y: 45%; // centre du système dans sa boîte : le devant déborde plus que le fond
+$year: 9s;      // période de la Terre, les autres en découlent
+$core-size: 0.28;
+
+// Du centre vers l'extérieur.
+//   a    : rayon de l'orbite, en fraction du rayon extérieur (--_r)
+//   size : diamètre de la bille, même unité
+//   at   : position de départ sur l'orbite (0deg = à droite, 90deg = devant)
+//   n    : rang, pour l'entrée en cascade
+$orbits: (
+  "earth":   (a: 0.44, size: 0.15,  at: 265deg, n: 0),
+  "mars":    (a: 0.62, size: 0.125, at: 55deg,  n: 1),
+  "jupiter": (a: 0.8,  size: 0.21,  at: 160deg, n: 2),
+  "neptune": (a: 1,    size: 0.16,  at: 318deg, n: 3),
+);
+
+@function round-to($value, $step) {
+  @return math.div(math.round(math.div($value, $step)), math.div(1, $step));
+}
+
+// Troisième loi de Kepler : T ∝ a^1,5, au dixième de seconde.
+@function period($a) {
+  $earth: map.get(map.get($orbits, "earth"), a);
+  @return round-to($year * math.pow(math.div($a, $earth), 1.5), 0.1);
+}
+
+// Un cercle de rayon $a, couché de $tilt et vu depuis $depth, se projette en
+// ellipse dont le centre glisse vers le bas avec la perspective. Demi-axes et
+// décalage vertical, en fraction du rayon extérieur.
+@function ring($a) {
+  $k: $a * math.sin($tilt);
+  $den: $depth * $depth - $k * $k;
+  @return (
+    rx: round-to(math.div($a * $depth, math.sqrt($den)), 0.0001),
+    ry: round-to(math.div($a * $depth * $depth * math.cos($tilt), $den), 0.0001),
+    dy: round-to(math.div($a * $depth * $k * math.cos($tilt), $den), 0.0001)
+  );
+}
+
+// ─── Hôte ─────────────────────────────────────────────────────────────────────
+// Un seul réglage, le rayon de l'orbite extérieure : tout le reste en découle.
+// Défauts = 'lg' (écran de chargement).
 :host {
+  --_r: 124px;
+  --_pace: 0.8; // multiplicateur des périodes, plus petit = plus vif
+
   display: block;
   position: relative;
-  --_size:   180px;
-  --_marble: 26px;
-  --_radius: 90px;
-  --_core:   40px;
-  --_dur:    6s;
-  width:  var(--_size);
-  height: var(--_size);
+  width: calc(var(--_r) * 2.2);
+  height: calc(var(--_r) * 1.16);
+  pointer-events: none;
 
-  // 'sm' = page home (140 px)
+  // 'sm' = page d'accueil
   &.sm {
-    --_size:   140px;
-    --_marble: 22px;
-    --_radius: 70px;
-    --_core:   32px;
-    --_dur:    7s;
+    --_r: 112px;
+    --_pace: 1;
   }
 }
 
-// ─── Anneau pointillé ─────────────────────────────────────────────────────────
+// Scène : porte la perspective et le roulis. Elle reste plate, le contexte 3D
+// commence au plan des orbites.
+.mo-stage {
+  position: absolute;
+  inset: 0;
+  perspective: calc(var(--_r) * #{$depth});
+  perspective-origin: 50% $origin-y;
+  transform: rotate($roll);
+  transform-origin: 50% $origin-y;
+}
+
+// ─── Trajectoires ─────────────────────────────────────────────────────────────
+// Ellipses 2D calculées, et non des cercles couchés en 3D : un filet d'un pixel
+// écrasé par le GPU se hache sur les écrans de faible densité. Immobiles, elles
+// restent dans le calque de la page.
 .mo-ring {
   position: absolute;
-  inset: 0;
+  left: 50%;
+  top: $origin-y;
+  box-sizing: border-box;
+  border: 1px solid rgba(var(--m-cream-rgb), 0.14);
   border-radius: 50%;
-  border: 1px dashed rgba(255, 255, 255, 0.13);
-  animation: moRingSpin var(--_dur) linear infinite;
 }
 
-@keyframes moRingSpin {
-  to { transform: rotate(360deg); }
+@each $name, $orbit in $orbits {
+  $ellipse: ring(map.get($orbit, a));
+  $rx: map.get($ellipse, rx);
+  $ry: map.get($ellipse, ry);
+  $dy: map.get($ellipse, dy);
+
+  // Le filet est centré sur la trajectoire, d'où le demi-pixel.
+  .mo-ring--#{$name} {
+    width: calc(var(--_r) * #{2 * $rx} + 1px);
+    height: calc(var(--_r) * #{2 * $ry} + 1px);
+    margin-left: calc(var(--_r) * #{-1 * $rx} - 0.5px);
+    margin-top: calc(var(--_r) * #{$dy - $ry} - 0.5px);
+  }
 }
 
-// ─── Billes en orbite ─────────────────────────────────────────────────────────
-.mo-marble {
+// ─── Plan des orbites ─────────────────────────────────────────────────────────
+// Un carré de deux rayons de côté, centré sur l'origine et couché de $tilt.
+.mo-plane {
   position: absolute;
-  width:  var(--_marble);
-  height: var(--_marble);
-  top:  calc(-1 * var(--_marble) / 2);
-  left: calc(50% - var(--_marble) / 2);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.45), 0 0 11px 1px var(--planet-glow, transparent);
-  animation: moOrbitSpin var(--_dur) linear infinite;
-  animation-delay: var(--orbit-delay);
-
-  @include planet-base;
-  @include planet-variants("mo");
+  left: 50%;
+  top: $origin-y;
+  width: calc(var(--_r) * 2);
+  height: calc(var(--_r) * 2);
+  margin: calc(var(--_r) * -1) 0 0 calc(var(--_r) * -1);
+  transform: rotateX($tilt);
 }
 
-@keyframes moOrbitSpin {
-  from { transform: rotate(0deg)   translateY(calc(-1 * var(--_radius))) rotate(0deg); }
-  to   { transform: rotate(360deg) translateY(calc(-1 * var(--_radius))) rotate(-360deg); }
+// Le plan, le bras tournant et le rayon ne font que porter une transformation.
+// Ne jamais leur donner `opacity`, `overflow`, `filter` ni `will-change` : le
+// contexte 3D serait aplati et les billes redeviendraient des disques couchés.
+.mo-plane,
+.mo-orbit,
+.mo-reach {
+  transform-style: preserve-3d;
 }
 
-// ─── Bille bleue centrale ─────────────────────────────────────────────────────
-.mo-center {
+.mo-orbit,
+.mo-reach {
   position: absolute;
   inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+}
+
+@each $name, $orbit in $orbits {
+  .mo-orbit--#{$name} {
+    --_a: calc(var(--_r) * #{map.get($orbit, a)});
+    --_d: calc(var(--_r) * #{map.get($orbit, size)});
+    --_at: #{map.get($orbit, at)};
+    --_t: calc(#{period(map.get($orbit, a))} * var(--_pace));
+    --_enter: calc(var(--mo-enter-delay, 0s) + #{map.get($orbit, n) * 45ms});
+  }
+}
+
+// Bras : la révolution. Sa position de départ est aussi son état de repos.
+.mo-orbit {
+  transform: rotateZ(var(--_at));
+  animation: mo-revolve var(--_t) linear infinite;
+  animation-play-state: var(--mo-play, running);
+}
+
+// Rayon : pousse la bille sur son orbite. À l'arrivée, elle part de Mercure.
+.mo-reach {
+  transform: translateX(var(--_a));
+  animation: mo-unfurl 0.72s var(--m-ease) var(--_enter) backwards;
+}
+
+// ─── Astres ───────────────────────────────────────────────────────────────────
+.mo-core,
+.mo-marble {
+  @include planet-base;
 }
 
 .mo-core {
-  position: relative;
-  width:  var(--_core);
-  height: var(--_core);
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #7dd3fc, $c-blue 60%, #1e3a5f);
-  box-shadow: 0 0 20px rgba($c-blue, 0.65), 0 0 40px rgba($c-blue, 0.3);
-  animation: moCorePulse 2s ease-in-out infinite;
-
-  &::after {
-    content: '';
-    position: absolute;
-    top: 18%;
-    left: 18%;
-    width: 28%;
-    height: 28%;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(255, 255, 255, 0.65), transparent 70%);
-  }
+  @include planet-mercury;
 }
 
-@keyframes moCorePulse {
-  0%, 100% {
-    transform: scale(1);
-    box-shadow: 0 0 20px rgba($c-blue, 0.65), 0 0 40px rgba($c-blue, 0.3);
-  }
-  50% {
-    transform: scale(1.16);
-    box-shadow: 0 0 30px rgba($c-blue, 0.9), 0 0 56px rgba($c-blue, 0.5);
+.mo-marble {
+  @include planet-variants("mo");
+}
+
+// `planet-base` impose `position: relative` : le placement vient après lui.
+.mo-core,
+.mo-marble {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--_d);
+  height: var(--_d);
+  margin: calc(var(--_d) / -2) 0 0 calc(var(--_d) / -2);
+}
+
+.mo-core {
+  --_d: calc(var(--_r) * #{$core-size});
+  transform: rotateX(-$tilt);
+}
+
+.mo-marble {
+  transform: rotateZ(calc(var(--_at) * -1)) rotateX(-$tilt);
+  animation:
+    mo-face var(--_t) linear infinite,
+    mo-appear 0.3s ease-out var(--_enter) backwards;
+  animation-play-state: var(--mo-play, running);
+}
+
+// La rotation des astres sur eux-mêmes suit le même interrupteur.
+.mo-core::before,
+.mo-marble::before {
+  animation-play-state: var(--mo-play, running);
+}
+
+// ─── Mouvement ────────────────────────────────────────────────────────────────
+@keyframes mo-revolve {
+  from { transform: rotateZ(var(--_at)); }
+  to   { transform: rotateZ(calc(var(--_at) + 360deg)); }
+}
+
+// Miroir exact de mo-revolve, même durée et même courbe : c'est ce qui garde
+// la bille face à l'écran. Ne pas modifier l'un sans l'autre.
+@keyframes mo-face {
+  from { transform: rotateZ(calc(var(--_at) * -1)) rotateX(-$tilt); }
+  to   { transform: rotateZ(calc(var(--_at) * -1 - 360deg)) rotateX(-$tilt); }
+}
+
+@keyframes mo-unfurl {
+  from { transform: translateX(calc(var(--_a) * 0.3)); }
+  to   { transform: translateX(var(--_a)); }
+}
+
+@keyframes mo-appear {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+// Mouvement réduit : le système se fige dans sa position de départ. Seule la
+// rotation des astres sur eux-mêmes continue, lente et sans déplacement, pour
+// que l'écran de chargement garde un signe d'activité.
+@media (prefers-reduced-motion: reduce) {
+  .mo-orbit,
+  .mo-reach,
+  .mo-marble {
+    animation: none;
   }
 }

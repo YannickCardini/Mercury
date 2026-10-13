@@ -6,6 +6,8 @@ import {
   ChangeDetectionStrategy,
 } from "@angular/core";
 
+import { Capacitor } from "@capacitor/core";
+
 import { getCardEffectTiles } from "./card-effects";
 
 @Component({
@@ -14,9 +16,14 @@ import { getCardEffectTiles } from "./card-effects";
   styleUrl: "./game-rules-modal.component.scss",
   standalone: true,
   changeDetection: ChangeDetectionStrategy.Eager,
+  // `is-native` : garde en CSS les calques de la modale ouverte sur WebView
+  // Android (flash d'une frame à la fin de l'animation d'entrée).
+  host: { "[class.is-native]": "isNative" },
   imports: [],
 })
 export class GameRulesModalComponent {
+  readonly isNative = Capacitor.isNativePlatform();
+
   @Input() show = false;
 
   @Output() closeModal = new EventEmitter<void>();

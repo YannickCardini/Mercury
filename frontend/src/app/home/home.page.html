@@ -62,8 +62,8 @@
         <p class="hero-tagline">Toc/Dog/Keezen board game</p>
       </div>
 
-      <!-- Marble orbit decoration -->
-      <app-marble-orbit size="sm" class="home-orbit"></app-marble-orbit>
+      <!-- Emblème : le logo vivant. En réserve, même emplacement : <app-marble-orbit> (orrery). -->
+      <app-marble-clover size="sm" class="home-orbit"></app-marble-clover>
 
       <!-- Duplicate tab warning -->
       @if (duplicateTabMessage) {
@@ -109,8 +109,8 @@
       }
 
       <!-- Action buttons -->
-      <div class="hero-actions" #heroActions (mouseover)="onMenuHover($event)" (focusin)="onMenuFocusIn($event)" (keydown)="onMenuKey($event)">
-        <button class="action-btn play-btn" (click)="openMatchmaking()">
+      <div class="hero-actions" #heroActions (mouseover)="onMenuHover($event)" (focusin)="onMenuFocusIn($event)" (click)="onMenuSelect($event)" (keydown)="onMenuKey($event)">
+        <button class="action-btn play-btn" data-menu="play" [class.is-active]="activeMenu === 'play'" (click)="openMatchmaking()">
           <span class="ab-marble ab-green"></span>
           <span class="ab-text">Play Now</span>
           <svg class="ab-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -119,7 +119,7 @@
           </svg>
         </button>
 
-        <button class="action-btn custom-btn" (click)="openCustomGame()">
+        <button class="action-btn custom-btn" data-menu="custom" [class.is-active]="activeMenu === 'custom'" (click)="openCustomGame()">
           <span class="ab-marble ab-orange"></span>
           <span class="ab-text">Custom Game</span>
           <svg class="ab-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -128,7 +128,7 @@
           </svg>
         </button>
 
-        <button class="action-btn leaderboard-btn" (click)="goToLeaderboard()">
+        <button class="action-btn leaderboard-btn" data-menu="leaderboard" [class.is-active]="activeMenu === 'leaderboard'" (click)="goToLeaderboard()">
           <span class="ab-marble ab-red"></span>
           <span class="ab-text">Leaderboard</span>
           <svg class="ab-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"

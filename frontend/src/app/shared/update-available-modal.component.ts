@@ -1,5 +1,7 @@
 import { Component, Input, ChangeDetectionStrategy } from "@angular/core";
 
+import { Capacitor } from "@capacitor/core";
+
 import { PLAY_STORE_URL } from "./store-url";
 
 /**
@@ -15,10 +17,15 @@ import { PLAY_STORE_URL } from "./store-url";
   selector: "app-update-available-modal",
   templateUrl: "./update-available-modal.component.html",
   styleUrl: "./update-available-modal.component.scss",
+  // `is-native` : garde en CSS les calques de la modale ouverte (voir CLAUDE.md,
+  // « Flash d'overlay sur Android »).
+  host: { "[class.is-native]": "isNative" },
   changeDetection: ChangeDetectionStrategy.Eager,
   standalone: true,
 })
 export class UpdateAvailableModalComponent {
+  readonly isNative = Capacitor.isNativePlatform();
+
   /** Affiche le popup quand true. */
   @Input() show = false;
   /** Lien Play Store ouvert par le bouton « Update ». */

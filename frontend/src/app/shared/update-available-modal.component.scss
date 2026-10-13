@@ -116,3 +116,15 @@
   font-size: 1.1rem;
   line-height: 1.25;
 }
+
+
+// ─── Mobile natif (WebView Android) ───────────────────────────────────────────
+// Garde les calques du voile et de la carte tant que la modale est ouverte (voir
+// CLAUDE.md, « Flash d'overlay sur Android »).
+:host(.is-native) .update-overlay.active {
+  will-change: opacity;
+
+  .update-card {
+    will-change: transform, opacity;
+  }
+}

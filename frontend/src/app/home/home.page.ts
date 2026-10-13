@@ -17,7 +17,7 @@ import { HttpClient } from "@angular/common/http";
 import { AndroidAppBannerComponent } from "../shared/android-app-banner.component";
 import { GameRulesModalComponent } from "../shared/game-rules-modal.component";
 import { InviteToastComponent } from "../shared/invite-toast.component";
-import { MarbleOrbitComponent } from "../shared/marble-orbit.component";
+import { MarbleCloverComponent } from "../shared/marble-clover.component";
 import { CoinCountComponent } from "../shared/coin-count.component";
 import { BoostTokenComponent } from "../shared/boost-token.component";
 import { Subscription, firstValueFrom, take } from "rxjs";
@@ -78,10 +78,17 @@ interface InviteCandidate {
   inviteState: "idle" | "sending" | "pending" | "accepted" | "error";
 }
 
+type MenuId = "play" | "custom" | "leaderboard";
+/** Dernière plaque active du menu d'accueil, conservée entre deux visites. */
+let lastActiveMenu: MenuId = "play";
+
 @Component({
   selector: "app-home",
   templateUrl: "./home.page.html",
   styleUrls: ["./home.page.scss"],
+  // `is-native` : garde en CSS les calques des modales ouvertes (voir CLAUDE.md,
+  // « Flash d'overlay sur Android »).
+  host: { "[class.is-native]": "isNative" },
   changeDetection: ChangeDetectionStrategy.Eager,
   imports: [
     CommonModule,
@@ -89,12 +96,13 @@ interface InviteCandidate {
     AndroidAppBannerComponent,
     GameRulesModalComponent,
     InviteToastComponent,
-    MarbleOrbitComponent,
+    MarbleCloverComponent,
     CoinCountComponent,
     BoostTokenComponent,
   ],
 })
 export class HomePage implements OnInit, OnDestroy, DoCheck {
+  readonly isNative = Capacitor.isNativePlatform();
   readonly titleLetters = ["M", "E", "R", "C", "U", "R", "Y"];
   readonly appVersion = signal(version);
   /** Lien Play Store du footer (visible partout, y compris desktop). */
@@ -213,36 +221,50 @@ export class HomePage implements OnInit, OnDestroy, DoCheck {
     readonly appResume: AppResumeService
   ) { }
 
-  // Premier focus du menu d'accueil : Play Now, une seule fois à l'apparition.
+  // Plaque active du menu d'accueil (la verte). Elle est portée par une classe
+  // et non par :focus, que le navigateur perd dès qu'on touche ailleurs. Elle
+  // vit dans `lastActiveMenu` (hors composant) pour survivre au retour d'une
+  // autre page, qui recrée HomePage. Une plaque est toujours active : la
+  // dernière choisie, Play Now au premier affichage.
+  activeMenu: MenuId = lastActiveMenu;
+
   private menuFocused = false;
   @ViewChild("heroActions") set heroActions(el: ElementRef<HTMLDivElement> | undefined) {
     if (el && !this.menuFocused) {
       this.menuFocused = true;
-      setTimeout(() => el.nativeElement.querySelector<HTMLElement>(".action-btn")?.focus());
+      // Le focus ne sert plus qu'au clavier : on le replace sur la plaque active.
+      setTimeout(() => this.focusActiveMenu(el.nativeElement));
+    }
+  }
+
+  private focusActiveMenu(root: ParentNode = document): void {
+    root.querySelector<HTMLElement>(`.action-btn[data-menu="${this.activeMenu}"]`)?.focus();
+  }
+
+  // Survol, focus (clavier) et clic désignent la plaque active.
+  onMenuSelect(e: Event): void {
+    const id = (e.target as HTMLElement).closest<HTMLElement>(".action-btn")?.dataset["menu"];
+    if (id === "play" || id === "custom" || id === "leaderboard") {
+      this.activeMenu = id;
+      lastActiveMenu = id;
     }
   }
 
   onMenuHover(e: Event): void {
-    (e.target as HTMLElement).closest<HTMLElement>(".action-btn")?.focus();
+    this.onMenuSelect(e);
   }
-
-  // Le menu repose sur :focus : un overlay le vole en s'ouvrant. On retient la
-  // dernière plaque active et on la refocalise quand le dernier overlay se ferme.
-  private lastMenuBtn: HTMLElement | null = null;
-  private overlayWasOpen = false;
 
   onMenuFocusIn(e: Event): void {
-    this.lastMenuBtn = (e.target as HTMLElement).closest<HTMLElement>(".action-btn");
+    this.onMenuSelect(e);
   }
+
+  private overlayWasOpen = false;
 
   ngDoCheck(): void {
     const open =
       this.showLogin || this.showSettings || this.showMatchmaking || this.showCustomGame;
     if (this.overlayWasOpen && !open) {
-      setTimeout(() => {
-        const btn = this.lastMenuBtn;
-        if (btn?.isConnected) btn.focus();
-      });
+      setTimeout(() => this.focusActiveMenu());
     }
     this.overlayWasOpen = open;
   }
@@ -254,7 +276,7 @@ export class HomePage implements OnInit, OnDestroy, DoCheck {
     );
     const i = btns.indexOf(document.activeElement as HTMLElement);
     const next = e.key === "ArrowDown" ? (i + 1) % btns.length : (i - 1 + btns.length) % btns.length;
-    btns[i < 0 ? 0 : next].focus();
+    btns[i < 0 ? 0 : next].focus(); // focusin met à jour la plaque active
     e.preventDefault();
   }
 

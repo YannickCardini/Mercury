@@ -202,9 +202,11 @@
   color: var(--m-fg-2);
 }
 
-// ─── Marble orbit decoration ──────────────────────────────────────────────────
+// ─── Emblème (logo vivant, ou orrery en réserve) ──────────────────────────────
 .home-orbit {
   flex-shrink: 0;
+  // Lu par l'orrery seulement : son déploiement part avec le fondu de l'hôte.
+  --mo-enter-delay: 0.15s;
   animation: entranceUp 0.55s var(--m-ease) 0.15s both;
 
   @media (orientation: landscape) {
@@ -345,8 +347,10 @@
 }
 
 // Menu à focus unique : les trois plaques sont au repos « papier » (texte
-// sombre) ; celle qui a le focus (survol ou flèches haut/bas) passe en vert
-// avec un texte clair. Play Now reçoit le focus à l'ouverture.
+// sombre) ; la plaque active (`.is-active`, posée au survol, au clic ou aux
+// flèches haut/bas) passe en vert avec un texte clair. Il y en a toujours une :
+// la dernière choisie, Play Now au premier affichage. Pas de :focus pour la
+// couleur, il se perd dès qu'on touche ailleurs.
 .action-btn {
   @include m.btn-paper;
   // Teintes d'origine de la plaque (avant l'assombrissement global du papier).
@@ -362,13 +366,16 @@
   &:focus,
   &:focus-visible {
     outline: none;
+  }
+
+  &.is-active {
     background: var(--m-green);
     color: var(--m-cream);
     border-color: transparent;
     box-shadow: 0 3px 0 0 var(--m-green-deep);
   }
 
-  &:focus:active:not(:disabled) {
+  &.is-active:active:not(:disabled) {
     box-shadow: 0 1px 0 0 var(--m-green-deep);
   }
 }
@@ -2139,5 +2146,17 @@
     .custom-code-block {
       margin-top: 20px;
     }
+  }
+}
+
+// ─── Mobile natif (WebView Android) ───────────────────────────────────────────
+// Garde les calques du voile et de la carte tant qu'une modale est ouverte :
+// sans cela, la WebView les recrée à la fin des transitions d'entrée et peut
+// afficher une frame de flash. Voir CLAUDE.md, « Flash d'overlay sur Android ».
+:host(.is-native) .modal-overlay.active {
+  will-change: opacity;
+
+  .modal-card {
+    will-change: transform, opacity;
   }
 }

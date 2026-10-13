@@ -8,6 +8,9 @@
 //    red    → Mars       green  → Terre
 //    blue   → Neptune    orange → Jupiter
 //
+//  Mercure n'est la couleur d'aucun siège : c'est l'astre central de l'emblème
+//  (marble-orbit), autour duquel tournent les quatre autres.
+//
 //  Deux usages :
 //   • Billes décoratives (home, loading, modales, victoire, bannière) :
 //       texture animée (rotation) via pseudo-éléments.
@@ -58,17 +61,31 @@ $planet-jupiter-bg:
      #d6a878 37%,#d6a878 44%, #bd7a45 44%, #bd7a45 50%),
    linear-gradient(180deg, #e0b485, #cf9a64));
 
+// Roche grise criblée de cratères, un seul impact clair avec son éjecta.
+$planet-mercury-bg:
+  (radial-gradient(circle at 30% 30%, #ddd7cc 0 4%, rgba(221,215,204,0) 7%),
+   radial-gradient(circle at 30% 30%, rgba(221,215,204,.32) 0 9%, rgba(221,215,204,0) 15%),
+   radial-gradient(circle at 62% 24%, #857f75 0 7%,  rgba(133,127,117,0) 9%),
+   radial-gradient(circle at 46% 64%, #7c766c 0 10%, rgba(124,118,108,0) 12%),
+   radial-gradient(circle at 80% 56%, #8a847a 0 8%,  rgba(138,132,122,0) 10%),
+   radial-gradient(circle at 14% 68%, #827c72 0 6%,  rgba(130,124,114,0) 8%),
+   radial-gradient(circle at 88% 20%, #8e887e 0 4%,  rgba(142,136,126,0) 6%),
+   radial-gradient(ellipse 24% 14% at 66% 84%, #8d877d 0 55%, rgba(141,135,125,0) 80%),
+   linear-gradient(180deg, #b9b3a8, #9f998e));
+
 // Glow coloré (halo) par planète
 $planet-mars-glow:    rgba(226, 103, 60, .50);
 $planet-earth-glow:   rgba(50, 160, 80, .50);
 $planet-neptune-glow: rgba(70, 100, 235, .55);
 $planet-jupiter-glow: rgba(230, 160, 90, .50);
+$planet-mercury-glow: rgba(190, 184, 173, .45);
 
 // Vitesses de rotation (billes décoratives)
 $planet-mars-spin:    30s;
 $planet-earth-spin:   34s;
 $planet-neptune-spin: 28s;
 $planet-jupiter-spin: 24s;
+$planet-mercury-spin: 58s;
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  Variante DÉCORATIVE — texture animée via pseudo-éléments
@@ -122,6 +139,7 @@ $planet-jupiter-spin: 24s;
 @mixin planet-earth   { @include planet-skin($planet-earth-glow,   $planet-earth-spin,   $planet-earth-bg); }
 @mixin planet-neptune { @include planet-skin($planet-neptune-glow, $planet-neptune-spin, $planet-neptune-bg); }
 @mixin planet-jupiter { @include planet-skin($planet-jupiter-glow, $planet-jupiter-spin, $planet-jupiter-bg); }
+@mixin planet-mercury { @include planet-skin($planet-mercury-glow, $planet-mercury-spin, $planet-mercury-bg); }
 
 // Applique le mapping couleur → planète pour un préfixe de classe donné.
 //   @include planet-variants("marble")  =>  &.marble-red { … Mars … }  etc.

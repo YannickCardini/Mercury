@@ -1,0 +1,280 @@
+@use "sass:math";
+@use "../styles/planets" as *;
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  Trèfle — le logo vivant (accueil et écran de chargement)
+// ───────────────────────────────────────────────────────────────────────────
+//  Au repos, les quatre billes forment le trèfle de l'icône de l'app : rouge
+//  et orange en haut, vert et bleu en bas, coéquipiers en diagonale. Chacune
+//  son tour, dans le sens des aiguilles d'une montre, une bille quitte sa
+//  case, fait exactement un tour de piste et revient s'y ranger. Le contour
+//  suit les billes : l'arc d'une case se relâche et s'efface quand sa bille
+//  s'en va, puis se referme sur elle quand elle revient. Le trèfle se défait
+//  et se refait donc d'un seul trait, dans le sens du jeu.
+//
+//  L'état de repos est l'état par défaut : sans animation (mouvement réduit,
+//  premier rendu), on voit le logo.
+//
+//  Tout le mouvement passe par `transform` et `opacity`, sur des animations
+//  infinies : aucun calque n'est créé ni détruit en cours de route (voir
+//  CLAUDE.md, flashes de composition sur Android).
+//
+//  L'orrery (`marble-orbit.component`) est gardé en réserve : même balise
+//  d'accueil, mêmes réglages `--mo-*`, les deux sont interchangeables.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ─── Tempo ────────────────────────────────────────────────────────────────────
+$cycle: 12s;  // un tour complet, repos compris
+$turn: 0.3s;  // écart entre deux billes
+$leave: 1s;   // instant du départ
+$accel: 1.6s; // mise en vitesse sur la piste
+$decel: 2.2s; // ralentissement avant la case
+$land: 10.4s; // instant du retour
+$pop: 0.8s;   // durée de la sortie
+$drop: 0.9s;  // durée de la rentrée
+
+// Contour d'une case : il part vite, il revient un peu avant que la bille se pose.
+$arc-out: 0.35s;  // durée de l'effacement, au départ de la bille
+$arc-in: 0.45s;   // durée du retour
+$arc-lead: 0.3s;  // avance du retour sur l'arrivée de la bille
+
+// Vitesse de croisière calculée pour que le trajet fasse exactement un tour,
+// quelles que soient les durées ci-dessus : la bille retombe dans sa case.
+$cruise: $land - $decel - $leave - $accel;
+$speed: math.div(360deg, $accel * 0.5 + $cruise + $decel * 0.5);
+$angle-up: $speed * $accel * 0.5;             // parcouru à la fin de la mise en vitesse
+$angle-down: 360deg - $speed * $decel * 0.5;  // parcouru au début du ralentissement
+
+// Accélération et décélération constantes : la vitesse se raccorde sans à-coup
+// à la croisière, qui est linéaire.
+$ease-speed-up: cubic-bezier(0.3333, 0, 0.6667, 0.3333);
+$ease-slow-down: cubic-bezier(0.3333, 0.6667, 0.6667, 1);
+$ease-drop: cubic-bezier(0.65, 0, 0.35, 1);
+
+// ─── Géométrie, en diamètres de bille ─────────────────────────────────────────
+// Le contour (SVG du gabarit) est tracé pour ce jour entre billes : ne pas
+// changer $gap sans retracer le chemin.
+$track: 2.5;                               // rayon de la piste
+$gap: math.div(1, 12);                     // jour entre deux billes voisines du trèfle
+$nest: (0.5 + $gap * 0.5) * math.sqrt(2);  // rayon du trèfle
+$outline: 2.48;                            // côté du SVG du contour
+$loose: 1.08;                              // contour relâché, à l'instant où il s'efface
+
+// Case de chaque couleur, dans l'ordre des tours (0deg = à droite, sens horaire).
+$seats: (
+  "red": -135deg,
+  "orange": -45deg,
+  "blue": 45deg,
+  "green": 135deg,
+);
+
+@function at($time) {
+  @return math.percentage(math.div($time, $cycle));
+}
+
+// ─── Hôte ─────────────────────────────────────────────────────────────────────
+// Un seul réglage, le diamètre d'une bille. Défauts = 'lg' (écran de chargement).
+:host {
+  --_d: 30px;
+
+  display: block;
+  position: relative;
+  width: calc(var(--_d) * #{2 * $track + 1});
+  height: calc(var(--_d) * #{2 * $track + 1});
+  pointer-events: none;
+
+  // 'sm' = page d'accueil
+  &.sm {
+    --_d: 24px;
+  }
+}
+
+// Case et rang de chaque couleur, partagés par sa bille et par son arc de contour.
+$n: 0;
+@each $color, $home in $seats {
+  .mc-lobe--#{$color},
+  .mc-arm--#{$color} {
+    --_home: #{$home};
+    --_turn: #{$n * $turn};
+  }
+  $n: $n + 1;
+}
+
+// ─── Contour du trèfle ────────────────────────────────────────────────────────
+// Un arc par case, chacun dans son propre SVG : ce sont les quatre SVG qui
+// s'animent, pas leurs tracés, pour rester sur le compositeur. Empilés et
+// centrés sur le trèfle, leurs bouts arrondis se recouvrent aux pointes.
+.mc-lobe {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(var(--_d) * #{$outline});
+  height: calc(var(--_d) * #{$outline});
+  margin: calc(var(--_d) * #{$outline * -0.5}) 0 0 calc(var(--_d) * #{$outline * -0.5});
+  overflow: visible;
+  animation: mc-lobe $cycle linear var(--_turn) infinite;
+  animation-play-state: var(--mo-play, running);
+
+  path {
+    fill: none;
+    stroke: var(--m-cream);
+    stroke-width: 8;
+    stroke-linecap: round;
+  }
+}
+
+// ─── Billes ───────────────────────────────────────────────────────────────────
+// Bras > rayon > bille. Le bras tourne autour du centre, le rayon éloigne la
+// bille, la bille annule la rotation du bras pour garder sa lumière en haut à
+// gauche.
+.mc-arm,
+.mc-reach {
+  position: absolute;
+  inset: 0;
+}
+
+.mc-arm {
+  transform: rotate(var(--_home));
+  animation: mc-lap $cycle linear var(--_turn) infinite;
+  animation-play-state: var(--mo-play, running);
+}
+
+.mc-reach {
+  transform: translateX(calc(var(--_d) * #{$nest}));
+  animation: mc-reach $cycle linear var(--_turn) infinite;
+  animation-play-state: var(--mo-play, running);
+}
+
+.mc-marble {
+  @include planet-base;
+  @include planet-variants("mc");
+}
+
+// `planet-base` impose `position: relative` : le placement vient après lui.
+.mc-marble {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--_d);
+  height: var(--_d);
+  margin: calc(var(--_d) / -2) 0 0 calc(var(--_d) / -2);
+  transform: rotate(calc(var(--_home) * -1));
+  animation: mc-face $cycle linear var(--_turn) infinite;
+  animation-play-state: var(--mo-play, running);
+}
+
+// La rotation des billes sur elles-mêmes suit le même interrupteur.
+.mc-marble::before {
+  animation-play-state: var(--mo-play, running);
+}
+
+// ─── Mouvement ────────────────────────────────────────────────────────────────
+// Le tour de piste : à l'arrêt, mise en vitesse, croisière, ralentissement,
+// à l'arrêt un tour plus loin.
+@keyframes mc-lap {
+  0% {
+    transform: rotate(var(--_home));
+  }
+  #{at($leave)} {
+    transform: rotate(var(--_home));
+    animation-timing-function: $ease-speed-up;
+  }
+  #{at($leave + $accel)} {
+    transform: rotate(calc(var(--_home) + #{$angle-up}));
+    animation-timing-function: linear;
+  }
+  #{at($land - $decel)} {
+    transform: rotate(calc(var(--_home) + #{$angle-down}));
+    animation-timing-function: $ease-slow-down;
+  }
+  #{at($land)},
+  100% {
+    transform: rotate(calc(var(--_home) + 360deg));
+  }
+}
+
+// Miroir exact de mc-lap, mêmes instants et mêmes courbes : c'est ce qui garde
+// la bille droite. Ne pas modifier l'un sans l'autre.
+@keyframes mc-face {
+  0% {
+    transform: rotate(calc(var(--_home) * -1));
+  }
+  #{at($leave)} {
+    transform: rotate(calc(var(--_home) * -1));
+    animation-timing-function: $ease-speed-up;
+  }
+  #{at($leave + $accel)} {
+    transform: rotate(calc(var(--_home) * -1 - #{$angle-up}));
+    animation-timing-function: linear;
+  }
+  #{at($land - $decel)} {
+    transform: rotate(calc(var(--_home) * -1 - #{$angle-down}));
+    animation-timing-function: $ease-slow-down;
+  }
+  #{at($land)},
+  100% {
+    transform: rotate(calc(var(--_home) * -1 - 360deg));
+  }
+}
+
+// La sortie jaillit puis se pose sur la piste, la rentrée glisse dans la case.
+@keyframes mc-reach {
+  0% {
+    transform: translateX(calc(var(--_d) * #{$nest}));
+  }
+  #{at($leave)} {
+    transform: translateX(calc(var(--_d) * #{$nest}));
+    animation-timing-function: var(--m-ease);
+  }
+  #{at($leave + $pop)} {
+    transform: translateX(calc(var(--_d) * #{$track}));
+  }
+  #{at($land - $drop)} {
+    transform: translateX(calc(var(--_d) * #{$track}));
+    animation-timing-function: $ease-drop;
+  }
+  #{at($land)},
+  100% {
+    transform: translateX(calc(var(--_d) * #{$nest}));
+  }
+}
+
+// L'arc d'une case : il se relâche et s'efface au départ de sa bille, reste
+// invisible pendant le tour, puis se referme sur elle à son retour.
+@keyframes mc-lobe {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  #{at($leave)} {
+    opacity: 1;
+    transform: scale(1);
+    animation-timing-function: ease-out;
+  }
+  #{at($leave + $arc-out)} {
+    opacity: 0;
+    transform: scale($loose);
+  }
+  #{at($land - $arc-lead)} {
+    opacity: 0;
+    transform: scale($loose);
+    animation-timing-function: var(--m-ease);
+  }
+  #{at($land - $arc-lead + $arc-in)},
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+// Mouvement réduit : les billes restent dans le trèfle, c'est le logo. Seule
+// leur rotation sur elles-mêmes continue, lente et sans déplacement, pour que
+// l'écran de chargement garde un signe d'activité.
+@media (prefers-reduced-motion: reduce) {
+  .mc-lobe,
+  .mc-arm,
+  .mc-reach,
+  .mc-marble {
+    animation: none;
+  }
+}

@@ -8,7 +8,9 @@ import { ChangeDetectionStrategy, Component, HostBinding, Input } from '@angular
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MarbleOrbitComponent {
-  /** 'lg' = 180px (écran de chargement) ; 'sm' = 140px (page home) */
+  /** 'lg' = écran de chargement ; 'sm' = page home. Dimensions dans le SCSS (--_r). */
   @Input() size: 'sm' | 'lg' = 'lg';
   @HostBinding('class.sm') get isSm() { return this.size === 'sm'; }
+  /** Purement décoratif : ignoré des lecteurs d'écran. */
+  @HostBinding('attr.aria-hidden') readonly ariaHidden = 'true';
 }

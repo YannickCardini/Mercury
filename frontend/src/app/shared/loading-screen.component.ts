@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, Input, HostBinding } from '@angular/core';
-import { MarbleOrbitComponent } from './marble-orbit.component';
+import { MarbleCloverComponent } from './marble-clover.component';
 
 /**
  * Full-screen branded loading animation (orbiting marbles + KEENZEN title).
@@ -9,7 +9,7 @@ import { MarbleOrbitComponent } from './marble-orbit.component';
 @Component({
   selector: 'app-loading-screen',
   standalone: true,
-  imports: [MarbleOrbitComponent],
+  imports: [MarbleCloverComponent],
   templateUrl: './loading-screen.component.html',
   styleUrls: ['./loading-screen.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,

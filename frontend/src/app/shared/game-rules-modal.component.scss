@@ -372,3 +372,22 @@
     background: var(--m-orange);
   }
 }
+
+// ─── Mobile natif (WebView Android) ───────────────────────────────────────────
+// Cause confirmée sur appareil le 2026-10-13 (voir CLAUDE.md, « Flash d'overlay sur Android »).
+// Flash d'une frame ~0,3 s après l'ouverture : à la fin des transitions
+// d'entrée, le voile (opacity) et la carte (transform → none) perdaient leur
+// calque de composition. La WebView refondait alors voile et fond de carte
+// dans un calque neuf, et re-rastérisait le corps défilant (plusieurs écrans
+// de haut) : le temps d'une frame, l'accueil réapparaissait à pleine
+// luminosité sous le texte des règles.
+// `will-change` garde les mêmes calques de la première frame du fondu d'entrée
+// à la dernière du fondu de sortie. Posé sur l'état ouvert seulement : rien ne
+// change tant que la modale est fermée, ni sur le web.
+:host(.is-native) .rules-overlay.active {
+  will-change: opacity;
+
+  .rules-card {
+    will-change: transform, opacity;
+  }
+}

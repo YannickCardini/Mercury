@@ -1,8 +1,24 @@
-<div class="mo-ring"></div>
-<div class="mo-marble mo-red"    style="--orbit-delay: 0s"></div>
-<div class="mo-marble mo-green"  style="--orbit-delay: -1.5s"></div>
-<div class="mo-marble mo-blue"   style="--orbit-delay: -3s"></div>
-<div class="mo-marble mo-orange" style="--orbit-delay: -4.5s"></div>
-<div class="mo-center">
-  <div class="mo-core"></div>
+<div class="mo-stage">
+  <!-- Trajectoires, sous le système -->
+  <span class="mo-ring mo-ring--earth"></span>
+  <span class="mo-ring mo-ring--mars"></span>
+  <span class="mo-ring mo-ring--jupiter"></span>
+  <span class="mo-ring mo-ring--neptune"></span>
+
+  <!-- Plan des orbites : Mercure au centre, puis bras > rayon > bille -->
+  <div class="mo-plane">
+    <div class="mo-core"></div>
+    <div class="mo-orbit mo-orbit--earth">
+      <div class="mo-reach"><div class="mo-marble mo-green"></div></div>
+    </div>
+    <div class="mo-orbit mo-orbit--mars">
+      <div class="mo-reach"><div class="mo-marble mo-red"></div></div>
+    </div>
+    <div class="mo-orbit mo-orbit--jupiter">
+      <div class="mo-reach"><div class="mo-marble mo-orange"></div></div>
+    </div>
+    <div class="mo-orbit mo-orbit--neptune">
+      <div class="mo-reach"><div class="mo-marble mo-blue"></div></div>
+    </div>
+  </div>
 </div>
