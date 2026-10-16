@@ -1,0 +1,53 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "frontend/src/app/home/home.page.html"
+        ],
+        "createdAt": "2026-10-14T19:58:45.995Z",
+        "reason": "Claude, verified: all six <img> tags bind src with Angular [src] (avatars), which the static scan cannot see; pre-existing, not part of this change"
+      },
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "frontend/src/app/game/game.page.html"
+        ],
+        "createdAt": "2026-10-16T07:10:30.485Z",
+        "reason": "Claude: the new-turn avatar img uses an Angular [src]=\"pic\" binding inside @if (newTurnPicture(); as pic), not an empty src"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "sfmono-regular",
+        "files": [
+          "frontend/src/app/home/home.page.scss"
+        ],
+        "createdAt": "2026-10-16T07:12:35.707Z",
+        "reason": "Claude: monospace stack only on the custom room code (input and display), a code to copy character by character; pre-existing"
+      },
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "frontend/src/app/shared/joker-art.component.ts"
+        ],
+        "createdAt": "2026-10-16T07:42:20.673Z",
+        "reason": "Claude: img src is an Angular [src] binding to a memoized SVG data URI (jokerArtUrl)"
+      },
+      {
+        "rule": "border-accent-on-rounded",
+        "value": "*",
+        "files": [
+          "frontend/src/app/game/components/table/table.component.scss"
+        ],
+        "createdAt": "2026-10-16T07:55:00.347Z",
+        "reason": "Claude: .control-dashboard 4px top edge carries the current player's seat colour by design; footer restyle accepted by the owner on 2026-10-10 (project memory); predates this session"
+      }
+    ]
+  }
+}

@@ -136,7 +136,9 @@
   --m-gold-light: #ffc83d;
 
   /* Boosters : ex-violet, banni. Le nom --m-violet est conservé pour les
-     composants, la teinte est un cyan vif. */
+     composants, la teinte est un cyan vif (72 % de saturation). Il respecte
+     DESIGN.md, « Color Guidelines & Anti-Patterns » : jamais posé sur du noir
+     pur, toujours sur des surfaces lagon ou du papier. */
   --m-violet: #22b8cf;
   --m-violet-rgb: 34, 184, 207;
   --m-violet-deep: #168499;
@@ -173,11 +175,72 @@
   /* Mouvement. */
   --m-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --m-press: 90ms;
+
+  /* Ciel : le fond (Mars, voir space-background) et l'écran de chargement
+     peignent le même ciel en bandes nettes au-dessus du sol, pour qu'aucun
+     saut de teinte ne se voie quand l'un s'efface sur l'autre. --m-horizon est
+     la ligne sur laquelle space-background ancre tout le paysage (64 % en
+     paysage, plus bas). Nuit noire : bleu nuit presque uniforme, sans lueur,
+     un peu moins sombre vers l'horizon. Mêmes couleurs que la palette « night »
+     de resources/mars/generate-mars-landscape.py. --m-page est la couleur de
+     repli de html/body.
+     --m-sky : ciel puis sol, sous le paysage complet (l'accueil), où le relief
+     posé sur l'horizon couvre la jointure. --m-sky-open : le ciel seul, sa
+     dernière bande descendant jusqu'en bas, pour ce qui n'a pas de relief
+     (écran de chargement, annonce des équipes, /game) : sans relief, la
+     jointure ciel / sol se lisait comme un fond coupé en deux, surtout la
+     nuit. Le haut de l'écran reste identique dans les deux, d'où un passage
+     de l'un à l'autre sans saut de teinte. Bandes et sol sont redéfinis en
+     mode jour, plus bas. */
+  --m-horizon: 53%;
+  --m-sky-bands:
+    #05080f 0 calc(var(--m-horizon) * 0.16),
+    #070a13 0 calc(var(--m-horizon) * 0.32),
+    #080c17 0 calc(var(--m-horizon) * 0.46),
+    #0a0e1a 0 calc(var(--m-horizon) * 0.58),
+    #0b101e 0 calc(var(--m-horizon) * 0.69),
+    #0d1222 0 calc(var(--m-horizon) * 0.79),
+    #0f1426 0 calc(var(--m-horizon) * 0.875),
+    #11172a 0 calc(var(--m-horizon) * 0.945),
+    #131a2e 0 var(--m-horizon);
+  --m-sky-ground: #1d161a;
+  --m-sky: linear-gradient(180deg, var(--m-sky-bands), var(--m-sky-ground) 0);
+  --m-sky-open: linear-gradient(180deg, var(--m-sky-bands));
+  --m-page: var(--m-night-deep);
+
+  /* Marque posée sur le ciel (lettres MERCURY, contour du trèfle) : la face et
+     la tranche pleine sous chaque lettre. */
+  --m-brand: var(--m-cream);
+  --m-brand-ledge: rgba(var(--m-night-rgb), 0.7);
+
+  /* Plaques du menu de l'accueil au repos (la plaque active est verte). */
+  --m-plate: #265670;
+  --m-plate-line: #2e637e;
+  --m-plate-edge: #0f2938;
+  --m-plate-fg: var(--m-ink-solid);
+
+  /* Pastille inversée (infobulle, numéro) : aplat de la couleur du texte. */
+  --m-invert: var(--m-ink);
+  --m-on-invert: var(--m-ink-solid);
+}
+
+/* En paysage, l'horizon descend : le ciel prend plus de place, et le relief
+   reste visible de part et d'autre de la colonne de boutons de l'accueil. */
+@media (orientation: landscape) {
+  :root {
+    --m-horizon: 64%;
+  }
+}
+
+/* Contrôles natifs (barres de défilement, champs) accordés au mode. Posé
+   seulement par l'app : les pages statiques gardent le défaut du navigateur. */
+:root[data-theme="night"] {
+  color-scheme: dark;
 }
 
 /* ── 2. Alias de contexte ─────────────────────────────────────────────────── */
 
-/* Ciel : défaut de l'app (le fond spatial est derrière tout). .m-sky permet
+/* Ciel : défaut de l'app (le fond martien est derrière tout). .m-sky permet
    de le rétablir à l'intérieur d'une surface papier. */
 :root,
 .m-sky {
@@ -209,4 +272,123 @@
   --m-field: var(--m-paper-hi);
   background-color: var(--m-paper);
   color: var(--m-fg);
+}
+
+/* ── 3. Mode jour ─────────────────────────────────────────────────────────────
+ *  Posé par ThemeService sur <html data-theme="day">. Les pages statiques de
+ *  content/ ne portent jamais l'attribut : elles restent de nuit.
+ *
+ *  Le même paysage martien que la nuit (voir space-background), un matin
+ *  clair : seuls le ciel et sa palette changent. Les plaques passent en
+ *  papier crème à texte ardoise ; ce qui est posé directement sur le paysage
+ *  (titre, pied de page, écran de chargement) porte .m-sky et prend aussi
+ *  l'encre ardoise. Les aplats d'accent, les objets du jeu (billes, cartes,
+ *  pièce) et les libellés posés sur un aplat ne changent pas.
+ *
+ *  Seules les valeurs qui changent sont redéclarées. Une variable qui en
+ *  référence une autre (--m-ledge, --m-shadow-*, --m-invert…) est résolue sur
+ *  <html> avec la valeur du jour.
+ * ─────────────────────────────────────────────────────────────────────────── */
+:root[data-theme="day"] {
+  color-scheme: light;
+
+  /* Papier crème : la matière de toutes les surfaces. */
+  --m-paper: #f4eddf;
+  --m-paper-hi: #faf5ea;
+  --m-paper-lo: #ebe2d0;
+  --m-paper-edge: #c8b28a;
+  --m-glass-line: #dccbac;
+
+  /* Texte sur papier : l'ardoise de la nuit devient l'encre du jour. Mêmes
+     paliers d'usage (4.5:1 sur papier pour les trois premiers). */
+  --m-ink: #133246;
+  --m-ink-rgb: 19, 50, 70;
+  --m-ink-2: rgba(19, 50, 70, 0.8);
+  --m-ink-3: rgba(19, 50, 70, 0.68);
+  --m-ink-4: rgba(19, 50, 70, 0.45);
+
+  --m-scrim: rgba(12, 34, 48, 0.5);
+  --m-shadow-slab: 0 4px 0 0 var(--m-paper-edge), 0 20px 36px -22px rgba(19, 50, 70, 0.5);
+  --m-shadow-pop: 0 2px 0 0 var(--m-paper-edge), 0 12px 24px -14px rgba(19, 50, 70, 0.42);
+
+  /* Matin sur Mars : ciel en bandes nettes, de la perle froide du zénith à
+     l'abricot de l'horizon, puis le sol (palette « day » du générateur). Tout
+     est clair : le texte posé dessus est ardoise (.m-sky, plus bas) et les
+     icônes de la barre d'état passent en sombre le jour (ThemeService).
+     --m-sky et --m-sky-open (base, plus haut) se recomposent avec ces bandes
+     et ce sol. */
+  --m-sky-bands:
+    #c3d2d9 0 calc(var(--m-horizon) * 0.16),
+    #c9d6d9 0 calc(var(--m-horizon) * 0.32),
+    #d0d9d7 0 calc(var(--m-horizon) * 0.46),
+    #d8dbd3 0 calc(var(--m-horizon) * 0.58),
+    #e0dccf 0 calc(var(--m-horizon) * 0.69),
+    #e5d6c5 0 calc(var(--m-horizon) * 0.79),
+    #e8cebb 0 calc(var(--m-horizon) * 0.875),
+    #e9c0a4 0 calc(var(--m-horizon) * 0.945),
+    #eabb9b 0 var(--m-horizon);
+  --m-sky-ground: #eed2b6;
+  --m-page: #c3d2d9;
+
+  /* Lettres MERCURY posées sur ce ciel clair : ardoise, tranche de papier. */
+  --m-brand: var(--m-ink);
+  --m-brand-ledge: rgba(255, 252, 246, 0.7);
+
+  --m-plate: var(--m-paper-hi);
+  --m-plate-line: var(--m-glass-line);
+  --m-plate-edge: var(--m-paper-edge);
+  --m-plate-fg: var(--m-ink);
+
+  --m-on-invert: var(--m-paper);
+}
+
+/* Alias de contexte du jour : encre ardoise sur le papier, qui est le cas par
+   défaut. Les teintes -ink des accents remplacent les -light. */
+:root[data-theme="day"],
+:root[data-theme="day"] .m-sky {
+  --m-surface: var(--m-paper);
+  --m-fg: var(--m-ink);
+  --m-fg-2: rgba(var(--m-ink-rgb), 0.8);
+  --m-fg-3: rgba(var(--m-ink-rgb), 0.68);
+  --m-fg-4: rgba(var(--m-ink-rgb), 0.45);
+  --m-line: rgba(var(--m-ink-rgb), 0.12);
+  --m-line-2: rgba(var(--m-ink-rgb), 0.2);
+  --m-line-3: rgba(var(--m-ink-rgb), 0.34);
+  --m-well: rgba(var(--m-ink-rgb), 0.05);
+  --m-well-2: rgba(var(--m-ink-rgb), 0.09);
+  --m-well-3: rgba(var(--m-ink-rgb), 0.14);
+  --m-field: var(--m-paper-hi);
+  --m-green-fg: var(--m-green-ink);
+  --m-blue-fg: var(--m-blue-ink);
+  --m-orange-fg: var(--m-orange-ink);
+  --m-red-fg: var(--m-red-ink);
+  --m-gold-fg: var(--m-gold-ink);
+  /* --m-violet-ink (#168499) ne tient que 4:1 sur le papier. */
+  --m-violet-fg: #0e6e7f;
+}
+
+/* Texte crème et filets clairs pour tout un sous-arbre, quel que soit le mode :
+   - .m-night : élément sombre conservé tel quel (carte de matchmaking,
+     overlay de victoire).
+   En mode jour, .m-sky (posé sur le ciel clair) reprend l'encre ardoise. */
+.m-night {
+  color-scheme: dark;
+  --m-surface: var(--m-ink-night);
+  --m-fg: var(--m-cream);
+  --m-fg-2: rgba(var(--m-cream-rgb), 0.74);
+  --m-fg-3: rgba(var(--m-cream-rgb), 0.52);
+  --m-fg-4: rgba(var(--m-cream-rgb), 0.34);
+  --m-line: rgba(var(--m-cream-rgb), 0.1);
+  --m-line-2: rgba(var(--m-cream-rgb), 0.18);
+  --m-line-3: rgba(var(--m-cream-rgb), 0.32);
+  --m-well: rgba(var(--m-cream-rgb), 0.05);
+  --m-well-2: rgba(var(--m-cream-rgb), 0.09);
+  --m-well-3: rgba(var(--m-cream-rgb), 0.14);
+  --m-field: rgba(var(--m-cream-rgb), 0.07);
+  --m-green-fg: var(--m-green-light);
+  --m-blue-fg: var(--m-blue-light);
+  --m-orange-fg: var(--m-orange-light);
+  --m-red-fg: var(--m-red-light);
+  --m-gold-fg: var(--m-gold-light);
+  --m-violet-fg: var(--m-violet-light);
 }

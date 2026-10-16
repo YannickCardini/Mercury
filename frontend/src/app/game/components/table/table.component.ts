@@ -10,7 +10,8 @@ import {
   OnInit,
   OnDestroy,
   Output,
-  EventEmitter
+  EventEmitter,
+  inject
 } from '@angular/core';
 import { TockCardComponent } from 'src/app/shared/tock-card.component';
 import { getCardEffect } from 'src/app/shared/card-effects';
@@ -24,6 +25,7 @@ import { Subscription } from 'rxjs';
 import { Router } from '@angular/router';
 import { SoundService } from '../../services/sound.service';
 import { AuthService } from 'src/app/services/auth.service';
+import { ThemeService } from 'src/app/services/theme.service';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { Capacitor } from '@capacitor/core';
 
@@ -172,6 +174,9 @@ enum TURN_PHASE {
   @Output() rulesRequested = new EventEmitter<void>();
 
   readonly isNative = Capacitor.isNativePlatform();
+
+  /** Mode jour / nuit : ligne « Dark mode » du menu. */
+  protected readonly theme = inject(ThemeService);
 
   /** Vrai quand le dialogue de confirmation d'abandon est affiché. */
   showResignConfirm = signal(false);
@@ -535,19 +540,24 @@ enum TURN_PHASE {
 
     const effect = getCardEffect(card.value);
     const rect = el.getBoundingClientRect();
-    // Ancrage horizontal clampé pour ne pas déborder de l'écran (≈ demi-largeur max).
+    // Le popover est en `position: fixed` dans .game-board, conteneur de
+    // requêtes (container-type: size) qui devient son bloc conteneur : ses
+    // coordonnées partent du coin de .game-board, pas de l'écran, et il est
+    // rogné à ses bords. On calcule donc tout dans le repère du panneau.
+    const box = (el.closest('.game-board') as HTMLElement | null)?.getBoundingClientRect()
+      ?? new DOMRect(0, 0, window.innerWidth, window.innerHeight);
+    // Ancrage horizontal clampé pour ne pas déborder du panneau (≈ demi-largeur max).
     const HALF = 150;
     const margin = 10;
-    const vw = window.innerWidth;
-    const rawX = rect.left + rect.width / 2;
-    const x = vw > 2 * (HALF + margin)
-      ? Math.min(Math.max(rawX, HALF + margin), vw - HALF - margin)
-      : vw / 2;
+    const rawX = rect.left + rect.width / 2 - box.left;
+    const x = box.width > 2 * (HALF + margin)
+      ? Math.min(Math.max(rawX, HALF + margin), box.width - HALF - margin)
+      : box.width / 2;
     // Décalage de la flèche par rapport au centre du popover, clampé pour ne
     // pas sortir des bords (marge de 7px = demi-largeur de la flèche).
     const arrowOffset = Math.min(Math.max(rawX - x, -(HALF - 7)), HALF - 7);
 
-    this.cardHelp.set({ index, title: effect.title, text: effect.text, x, y: rect.top, arrowOffset });
+    this.cardHelp.set({ index, title: effect.title, text: effect.text, x, y: rect.top - box.top, arrowOffset });
   }
 
   closeCardHelp(): void {
@@ -691,6 +701,13 @@ enum TURN_PHASE {
     if (this.selfAutoDiscardMessageTimeout) clearTimeout(this.selfAutoDiscardMessageTimeout);
     this.selfAutoDiscardMessage.set(text);
     this.selfAutoDiscardMessageTimeout = setTimeout(() => this.selfAutoDiscardMessage.set(null), 3000);
+  }
+
+  // ── Mode jour / nuit ─────────────────────────────────────────────
+  /** Bascule jour / nuit en partie : un simple fondu, sans la scène du
+   *  paysage (caché par le plateau), pour ne pas alourdir le jeu. */
+  onThemeToggle(): void {
+    this.theme.toggle("quick");
   }
 
   // ── Abandon ──────────────────────────────────────────────────────

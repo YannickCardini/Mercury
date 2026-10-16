@@ -11,6 +11,15 @@
         ],
         "createdAt": "2026-10-10T17:49:57.077Z",
         "reason": "false positive: Angular [src] binding on the player avatar, never an empty src"
+      },
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "src/app/game/components/victory-overlay/victory-overlay.component.html"
+        ],
+        "createdAt": "2026-10-14T17:06:34.598Z",
+        "reason": "Claude: Angular [src] property binding to the player's avatar URL (p.picture); no literal src for the static detector. Pre-existing line, untouched by the day/night task."
       }
     ]
   }

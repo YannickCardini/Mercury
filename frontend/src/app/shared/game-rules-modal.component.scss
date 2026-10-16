@@ -189,8 +189,8 @@
     width: 22px;
     height: 22px;
     border-radius: 50%;
-    background: var(--m-ink);
-    color: var(--m-ink-solid);
+    background: var(--m-invert);
+    color: var(--m-on-invert);
     font-family: var(--m-font-display);
     font-size: 0.82rem;
     font-weight: 700;
@@ -310,6 +310,18 @@
   &.ca-val-sm {
     font-size: 1.1rem;
   }
+}
+
+// Pastille du Joker : la tête du bouffon de la carte sur un jeton papier
+// (son contour est noir), cerclé de l'accent de la tuile.
+.ca-joker-art {
+  flex: none;
+  width: 2.75rem;
+  height: 2.75rem;
+  box-sizing: border-box;
+  border-radius: 50%;
+  background: var(--m-cream);
+  border: 2px solid var(--m-violet);
 }
 
 .ca-action {

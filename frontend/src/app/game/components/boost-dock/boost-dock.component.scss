@@ -54,11 +54,14 @@
   transition: transform var(--m-press) var(--m-ease), box-shadow var(--m-press) var(--m-ease),
     border-color 0.15s ease;
 
+  // Rangée mobile : la pile de jetons (voir plus bas) garde la pastille compacte,
+  // à gauche de la pastille des secondes centrée en haut du panneau.
   @include timer-ring-hidden {
     flex-direction: row;
     width: auto;
     height: 40px;
-    padding: 0 14px;
+    padding: 0 9px;
+    gap: 0;
   }
 
   &:hover:not(.is-open) {
@@ -84,6 +87,26 @@
 
 .boost-dock__token {
   --bt-size: 20px;
+}
+
+// ── Pile de jetons (rangée mobile) ─────────────────────────────────────────
+// Chaque jeton glisse de 4px sur le précédent, détouré d'un disque de la
+// couleur de la pastille (à la place de l'anneau « en effet », qui
+// s'emmêlerait d'un jeton à l'autre). Le chevauchement s'arrête avant le
+// « ×2 » du jeton recouvert, et les satellites (étoile, pièce ; z-index 1,
+// sans contexte d'empilement entre eux) passent au-dessus de la pile : chaque
+// jeton reste identifiable. 3 jetons = 72px, ce qui laisse la pastille des
+// secondes libre même sur un téléphone de 360px.
+@include timer-ring-hidden {
+  .boost-dock__slot + .boost-dock__slot {
+    margin-left: -4px;
+  }
+
+  .boost-dock__trigger .boost-dock__token::before {
+    inset: -2px;
+    border: 0;
+    background: var(--m-paper-hi);
+  }
 }
 
 // ── Compteur Bounty ────────────────────────────────────────────────────────
@@ -234,7 +257,7 @@
   transform: rotate(45deg);
 
   @include timer-ring-hidden {
-    left: 19px;
+    left: 15px; // sous le centre du premier jeton (1px + 9px + 10px)
   }
 }
 

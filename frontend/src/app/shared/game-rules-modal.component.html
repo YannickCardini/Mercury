@@ -77,7 +77,11 @@
         <div class="ca-grid">
           @for (tile of cardTiles; track tile.val) {
           <div class="ca-tile {{ tile.tileClass }}">
+            @if (tile.joker) {
+            <app-joker-art class="ca-joker-art" crop="bust" [label]="tile.val" />
+            } @else {
             <span class="ca-val" [class.ca-val-sm]="tile.smallVal">{{ tile.val }}</span>
+            }
             <span class="ca-action" [innerHTML]="tile.html"></span>
           </div>
           }

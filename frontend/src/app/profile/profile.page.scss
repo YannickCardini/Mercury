@@ -219,8 +219,8 @@
   transform: translate(-50%, 4px);
   white-space: nowrap;
   padding: 6px 10px;
-  background: var(--m-ink);
-  color: var(--m-ink-solid);
+  background: var(--m-invert);
+  color: var(--m-on-invert);
   font-size: 12px;
   font-weight: 600;
   border-radius: var(--m-r-sm);
@@ -236,7 +236,7 @@
     left: 50%;
     transform: translateX(-50%);
     border: 5px solid transparent;
-    border-top-color: var(--m-ink);
+    border-top-color: var(--m-invert);
   }
 }
 

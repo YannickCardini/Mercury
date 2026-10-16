@@ -19,6 +19,12 @@
 //  infinies : aucun calque n'est créé ni détruit en cours de route (voir
 //  CLAUDE.md, flashes de composition sur Android).
 //
+//  Aucune variable CSS dans les @keyframes : une animation par case, aux
+//  valeurs écrites en dur. Sur Android, un changement de style sur la page
+//  (thème, fenêtre ouverte) faisait relire les variables des keyframes et
+//  relancer une partie des animations sur leur propre horloge : les billes
+//  sortaient du contour. Le composant les recale en plus à chaque tour.
+//
 //  L'orrery (`marble-orbit.component`) est gardé en réserve : même balise
 //  d'accueil, mêmes réglages `--mo-*`, les deux sont interchangeables.
 // ═══════════════════════════════════════════════════════════════════════════
@@ -117,7 +123,7 @@ $n: 0;
 
   path {
     fill: none;
-    stroke: var(--m-cream);
+    stroke: var(--m-brand);
     stroke-width: 8;
     stroke-linecap: round;
   }
@@ -135,12 +141,16 @@ $n: 0;
 
 .mc-arm {
   transform: rotate(var(--_home));
-  animation: mc-lap $cycle linear var(--_turn) infinite;
+  animation: mc-lap-red $cycle linear var(--_turn) infinite; // nom par case, plus bas
   animation-play-state: var(--mo-play, running);
 }
 
+// Le rayon en % de sa propre largeur (celle de l'hôte, 2 × piste + 1 bille) :
+// aucune variable dans ses keyframes.
+$reach-unit: math.div(100%, 2 * $track + 1);
+
 .mc-reach {
-  transform: translateX(calc(var(--_d) * #{$nest}));
+  transform: translateX($nest * $reach-unit);
   animation: mc-reach $cycle linear var(--_turn) infinite;
   animation-play-state: var(--mo-play, running);
 }
@@ -159,8 +169,19 @@ $n: 0;
   height: var(--_d);
   margin: calc(var(--_d) / -2) 0 0 calc(var(--_d) / -2);
   transform: rotate(calc(var(--_home) * -1));
-  animation: mc-face $cycle linear var(--_turn) infinite;
+  animation: mc-face-red $cycle linear var(--_turn) infinite; // nom par case, plus bas
   animation-play-state: var(--mo-play, running);
+}
+
+// Le tour de piste et son miroir, par case (angles écrits en dur).
+@each $color, $home in $seats {
+  .mc-arm--#{$color} {
+    animation-name: mc-lap-#{$color};
+  }
+
+  .mc-arm--#{$color} .mc-marble {
+    animation-name: mc-face-#{$color};
+  }
 }
 
 // La rotation des billes sur elles-mêmes suit le même interrupteur.
@@ -170,72 +191,77 @@ $n: 0;
 
 // ─── Mouvement ────────────────────────────────────────────────────────────────
 // Le tour de piste : à l'arrêt, mise en vitesse, croisière, ralentissement,
-// à l'arrêt un tour plus loin.
-@keyframes mc-lap {
-  0% {
-    transform: rotate(var(--_home));
+// à l'arrêt un tour plus loin. mc-face en est le miroir exact (mêmes instants,
+// mêmes courbes) : c'est ce qui garde la bille droite. Ne pas modifier l'un
+// sans l'autre.
+@each $color, $home in $seats {
+  @keyframes mc-lap-#{$color} {
+    0% {
+      transform: rotate($home);
+    }
+    #{at($leave)} {
+      transform: rotate($home);
+      animation-timing-function: $ease-speed-up;
+    }
+    #{at($leave + $accel)} {
+      transform: rotate($home + $angle-up);
+      animation-timing-function: linear;
+    }
+    #{at($land - $decel)} {
+      transform: rotate($home + $angle-down);
+      animation-timing-function: $ease-slow-down;
+    }
+    #{at($land)},
+    100% {
+      transform: rotate($home + 360deg);
+    }
   }
-  #{at($leave)} {
-    transform: rotate(var(--_home));
-    animation-timing-function: $ease-speed-up;
-  }
-  #{at($leave + $accel)} {
-    transform: rotate(calc(var(--_home) + #{$angle-up}));
-    animation-timing-function: linear;
-  }
-  #{at($land - $decel)} {
-    transform: rotate(calc(var(--_home) + #{$angle-down}));
-    animation-timing-function: $ease-slow-down;
-  }
-  #{at($land)},
-  100% {
-    transform: rotate(calc(var(--_home) + 360deg));
+
+  @keyframes mc-face-#{$color} {
+    0% {
+      transform: rotate(-$home);
+    }
+    #{at($leave)} {
+      transform: rotate(-$home);
+      animation-timing-function: $ease-speed-up;
+    }
+    #{at($leave + $accel)} {
+      transform: rotate(-$home - $angle-up);
+      animation-timing-function: linear;
+    }
+    #{at($land - $decel)} {
+      transform: rotate(-$home - $angle-down);
+      animation-timing-function: $ease-slow-down;
+    }
+    #{at($land)},
+    100% {
+      transform: rotate(-$home - 360deg);
+    }
   }
 }
 
-// Miroir exact de mc-lap, mêmes instants et mêmes courbes : c'est ce qui garde
-// la bille droite. Ne pas modifier l'un sans l'autre.
-@keyframes mc-face {
-  0% {
-    transform: rotate(calc(var(--_home) * -1));
-  }
-  #{at($leave)} {
-    transform: rotate(calc(var(--_home) * -1));
-    animation-timing-function: $ease-speed-up;
-  }
-  #{at($leave + $accel)} {
-    transform: rotate(calc(var(--_home) * -1 - #{$angle-up}));
-    animation-timing-function: linear;
-  }
-  #{at($land - $decel)} {
-    transform: rotate(calc(var(--_home) * -1 - #{$angle-down}));
-    animation-timing-function: $ease-slow-down;
-  }
-  #{at($land)},
-  100% {
-    transform: rotate(calc(var(--_home) * -1 - 360deg));
-  }
-}
+// Courbe de --m-ease (tokens.css), recopiée : pas de variable dans les keyframes.
+$ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 
 // La sortie jaillit puis se pose sur la piste, la rentrée glisse dans la case.
 @keyframes mc-reach {
   0% {
-    transform: translateX(calc(var(--_d) * #{$nest}));
+    transform: translateX($nest * $reach-unit);
   }
   #{at($leave)} {
-    transform: translateX(calc(var(--_d) * #{$nest}));
-    animation-timing-function: var(--m-ease);
+    transform: translateX($nest * $reach-unit);
+    animation-timing-function: $ease-out;
   }
   #{at($leave + $pop)} {
-    transform: translateX(calc(var(--_d) * #{$track}));
+    transform: translateX($track * $reach-unit);
   }
   #{at($land - $drop)} {
-    transform: translateX(calc(var(--_d) * #{$track}));
+    transform: translateX($track * $reach-unit);
     animation-timing-function: $ease-drop;
   }
   #{at($land)},
   100% {
-    transform: translateX(calc(var(--_d) * #{$nest}));
+    transform: translateX($nest * $reach-unit);
   }
 }
 
@@ -258,7 +284,7 @@ $n: 0;
   #{at($land - $arc-lead)} {
     opacity: 0;
     transform: scale($loose);
-    animation-timing-function: var(--m-ease);
+    animation-timing-function: $ease-out;
   }
   #{at($land - $arc-lead + $arc-in)},
   100% {
@@ -274,7 +300,8 @@ $n: 0;
   .mc-lobe,
   .mc-arm,
   .mc-reach,
-  .mc-marble {
+  .mc-marble,
+  .mc-arm .mc-marble {
     animation: none;
   }
 }

@@ -1,16 +1,27 @@
-import { ChangeDetectionStrategy, Component, ElementRef, HostBinding, OnDestroy, afterNextRender, inject, input } from "@angular/core";
+import { ChangeDetectionStrategy, Component, ElementRef, HostBinding, OnDestroy, afterNextRender, computed, inject, input } from "@angular/core";
+import type { MarbleColor } from "@mercury/shared";
 import { GameStateService } from "../../services/game-state.service";
 import type { TeamIntroPlayer } from "../team-intro-overlay/team-intro-overlay.component";
 
+/** Un siège du bandeau : la couleur de ses billes et le nom affiché. */
+interface BannerSeat {
+  color: MarbleColor;
+  label: string;
+  isMe: boolean;
+}
+
 /**
- * Bandeau compact "équipe vs équipe" affiché en permanence au-dessus du
- * plateau (mode 2v2 uniquement) : duo losange rouge/bleu à gauche, "VS" au
- * centre, duo rond vert/orange à droite — mêmes formes/couleurs que les
- * pastilles des coins du plateau et l'annonce d'équipe en début de partie.
+ * Bandeau d'équipes du mode 2v2 : un fronton taillé dans le verre du plateau,
+ * dressé sur son bord haut. À gauche, toujours l'équipe du joueur (« You &
+ * Alice », « You » dans l'or de l'étiquette « Teammate » des pastilles) ; à
+ * droite, l'équipe adverse en miroir. Chaque équipe a ses billes (les planètes
+ * du plateau) dans une alvéole creusée comme les cases : on sait d'un coup
+ * d'œil quelles billes sont celles de son allié. En spectateur, rouge et bleu
+ * à gauche.
  *
- * Purement décoratif (pas de nom/rang/carte : déjà visible sur les pastilles
- * du plateau) — la position, l'échelle et la visibilité selon l'espace libre sont
- * calculées par `BoardComponent.layoutTeamBanner` (le plateau garde sa taille max).
+ * La position (base sur le filet du plateau), l'échelle, la largeur max et la
+ * visibilité selon l'espace libre sont calculées par
+ * `BoardComponent.layoutTeamBanner` (le plateau garde sa taille max).
  */
 @Component({
   selector: "app-team-vs-banner",
@@ -45,10 +56,32 @@ export class TeamVsBannerComponent implements OnDestroy {
   @HostBinding("style.transform") get transform(): string {
     return `translateX(-50%) scale(${this.state.bannerLayout()?.scale ?? 1})`;
   }
+  @HostBinding("style.max-width.px") get maxWidth(): number | null { return this.state.bannerLayout()?.maxWidth ?? null; }
   @HostBinding("style.visibility") get visibility(): string { return this.state.bannerLayout() ? "visible" : "hidden"; }
 
-  /** Duo affiché à gauche (losanges) — red+blue. */
+  /** Équipe rouge + bleu. */
   leftTeam = input.required<ReadonlyArray<TeamIntroPlayer>>();
-  /** Duo affiché à droite (ronds) — green+orange. */
+  /** Équipe vert + orange. */
   rightTeam = input.required<ReadonlyArray<TeamIntroPlayer>>();
+
+  /** L'équipe du joueur (lui d'abord) et l'équipe adverse. */
+  readonly sides = computed(() => {
+    const me = this.state.myPlayerColor();
+    const left = this.leftTeam();
+    const right = this.rightTeam();
+    const mine = me && right.some((p) => p.color === me) ? right : left;
+    const theirs = mine === left ? right : left;
+    const seat = (p: TeamIntroPlayer): BannerSeat => ({
+      color: p.color,
+      isMe: p.color === me,
+      label: p.color === me ? "You" : firstName(p),
+    });
+    const ally = [...mine].sort((a, b) => Number(b.color === me) - Number(a.color === me)).map(seat);
+    return { ally, rival: theirs.map(seat) };
+  });
+}
+
+function firstName(p: TeamIntroPlayer): string {
+  const first = p.name?.trim().split(/\s+/)[0];
+  return first || p.color.charAt(0).toUpperCase() + p.color.slice(1);
 }

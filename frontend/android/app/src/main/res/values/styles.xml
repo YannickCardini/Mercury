@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+    <!-- DayNight et non Light : depuis targetSdk 33, la WebView répond à
+         prefers-color-scheme d'après le thème de l'activité. Un thème Light lui
+         ferait toujours répondre « clair », et le mode jour / nuit de l'app ne
+         suivrait plus le réglage du téléphone (voir ThemeService). -->
+    <style name="AppTheme" parent="Theme.AppCompat.DayNight.DarkActionBar">
         <item name="colorPrimary">@color/colorPrimary</item>
         <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
         <item name="colorAccent">@color/colorAccent</item>

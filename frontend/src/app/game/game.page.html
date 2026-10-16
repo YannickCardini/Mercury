@@ -22,7 +22,7 @@
       <div class="new-turn-banner">
         <div class="new-turn-avatar-wrapper">
           @if (isReplayBanner()) {
-            <div class="new-turn-joker">🤡</div>
+            <app-joker-art class="new-turn-joker" label="Joker" />
           } @else if (newTurnPicture(); as pic) {
             <img class="new-turn-avatar" [src]="pic" alt="" referrerpolicy="no-referrer" />
           } @else {
@@ -41,7 +41,8 @@
       @if (mountBoard()) {
       <app-board (ready)="boardReady.set(true)"></app-board>
       }
-      <!-- Bandeau "équipe vs équipe" au-dessus du plateau (masqué si pas la place, voir
+      <!-- Bandeau d'équipes au-dessus du plateau : ton équipe à gauche, avec tes
+           billes et celles de ton allié (masqué si pas la place, voir
            BoardComponent.layoutTeamBanner). -->
       <app-team-vs-banner [leftTeam]="introTopTeam()" [rightTeam]="introBottomTeam()" />
       <!-- Boutons discrets pour prévisualiser les écrans de fin de partie -->
@@ -58,8 +59,9 @@
       </div>
       }
     </div>
-    <div class="table-wrapper" [style.height.px]="gameStateService.boardContainerSize()"
-      [style.width.px]="gameStateService.boardContainerSize()">
+    <!-- --table-px : taille du plateau, hauteur de la table en paysage (voir game.page.scss). -->
+    <div class="table-wrapper" [style.--table-px.px]="gameStateService.boardContainerSize() || null"
+         [style.--board-shift.px]="gameStateService.boardShiftY()">
       @if (mountBoard()) {
       <app-table (rulesRequested)="showRules.set(true)"></app-table>
       }

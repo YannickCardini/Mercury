@@ -1,4 +1,5 @@
-<div class="victory-overlay" [attr.data-color]="winners()[0]?.color" [attr.data-color2]="winners()[1]?.color"
+<!-- `m-night` : l'overlay reste sombre en mode jour, ses textes d'accent aussi. -->
+<div class="victory-overlay m-night" [attr.data-color]="winners()[0]?.color" [attr.data-color2]="winners()[1]?.color"
   [class.defeat]="!isWinner()">
 
   <!-- Confetti — only for the winner -->

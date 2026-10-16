@@ -1,108 +1,154 @@
-// Couleurs des sièges : les mêmes accents --m-* que le liseré des badges
-// joueur du plateau (player-badge.component.scss).
-$seat-colors: "red", "green", "blue", "orange";
+@use "../../../styles/planets" as *; // billes « planètes » du plateau
+@use "../../../styles/tokens" as m; // mode jour (mixin m.day)
 
-// ── Hôte : positionné dans la zone vide au-dessus du plateau, à l'intérieur
-// de `.board-wrapper` (position:relative) — jamais dans le flux, pour ne
-// JAMAIS influencer `.board-wrapper.getBoundingClientRect()` dont dépend
-// `BoardComponent.calculateSquareSize()` (voir game.page.scss). ──
+// ── Hôte : posé sur le bord haut du plateau, à l'intérieur de `.board-wrapper`
+// (position:relative) — jamais dans le flux, pour ne JAMAIS influencer
+// `.board-wrapper.getBoundingClientRect()` dont dépend
+// `BoardComponent.calculateSquareSize()` (voir game.page.scss). Top, échelle et
+// largeur max viennent de `BoardComponent.layoutTeamBanner`. ──
 :host {
   position: absolute;
   top: 0;
   left: 50%;
   transform: translateX(-50%);
   z-index: 40; // sous les boutons debug (45) et l'annonce d'équipe (500)
-  pointer-events: none; // purement décoratif
+  pointer-events: none; // purement informatif
   display: block;
 
+  // Réduit vers le haut : la base reste sur le filet du plateau (le top
+  // calculé tient compte de la hauteur réduite).
   transform-origin: top center;
   width: max-content;
+  // Repli avant le premier calcul ; ensuite, la largeur du bord droit du plateau.
+  max-width: calc(100vw - 16px);
   white-space: nowrap;
 }
 
+// ── Le fronton : un panneau du même verre que le plateau, dressé sur son bord
+// arrière. Base droite posée sur le filet du plateau (sans bordure basse : le
+// filet du plateau fait la jointure), côtés qui rentrent vers le haut (une
+// légère perspective), coins hauts arrondis, liseré de lumière en haut comme
+// le plateau. Ni tranche ni ombre portée : il fait partie du plateau. ──
 .tvb {
-  --tvb-size: clamp(28px, 6.2vw, 40px);
-  display: flex;
-  align-items: center;
-  gap: clamp(10px, 2.6vw, 18px);
-  padding: clamp(6px, 1.4vw, 10px) clamp(14px, 3vw, 20px);
-  // Plaque ardoise de l'accueil : aplat opaque, filet bleu acier, tranche.
-  background: var(--m-paper);
-  border: 1px solid var(--m-glass-line);
-  border-radius: var(--m-r-pill);
-  box-shadow: var(--m-shadow-pop);
-}
+  --tvb-marble: clamp(14px, 4vw, 17px);
 
-// ── Duo de pastilles (léger chevauchement pour lire comme une seule unité
-// « équipe ») ──
-.tvb-team {
-  display: flex;
-  align-items: center;
-}
+  // Verre et alvéoles du plateau (.board-container et .case-path.normal dans
+  // board.component.scss) : mêmes valeurs, pour que fronton et plateau se
+  // lisent comme une seule pièce. Les changer ensemble.
+  --tvb-glass: rgba(255, 255, 255, 0.15);
+  --tvb-line: rgba(240, 248, 255, 0.26);
+  --tvb-light: rgba(240, 248, 255, 0.3);
+  --tvb-well: rgba(8, 26, 38, 0.3);
+  --tvb-well-shade: rgba(0, 0, 0, 0.36);
+  --tvb-well-lip: rgba(240, 248, 255, 0.22);
 
-.tvb-avatar {
-  width: var(--tvb-size);
-  height: var(--tvb-size);
-  flex: 0 0 auto;
-  background: var(--m-paper-hi);
-  border: 2px solid var(--m-glass-line);
-  overflow: hidden;
   position: relative;
-  z-index: 1;
-
-  &:not(:first-child) {
-    margin-left: calc(var(--tvb-size) * -0.32);
-    z-index: 2;
-  }
-
-  &--circle {
-    border-radius: 50%;
-  }
-
-  // Losange : mêmes proportions que les pastilles du plateau et l'annonce
-  // d'équipe (rotate45 + contenu contre-tourné et agrandi pour couvrir).
-  &--diamond {
-    border-radius: 20%;
-    transform: rotate(45deg) scale(0.86);
-
-    .tvb-avatar-inner {
-      transform: rotate(-45deg) scale(1.5);
-    }
-  }
-
-  @each $name in $seat-colors {
-    &--#{$name} {
-      border-color: var(--m-#{$name});
-    }
-  }
-}
-
-.tvb-avatar-inner {
-  width: 100%;
-  height: 100%;
+  isolation: isolate; // le panneau (::before, z-index -1) reste sous le texte
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 0.45em;
+  // Côtés extérieurs : le panneau rentre d'environ 7px en haut, l'alvéole
+  // (arrondie) garde de l'air sous la pente.
+  padding: 5px 12px;
+  // /game garde sa typographie (voir game.page.scss) : police posée ici, la
+  // graisse des noms des pastilles du plateau.
+  font-family: var(--m-font-text);
+  font-size: clamp(0.78rem, 3.3vw, 0.92rem);
+  font-weight: 800;
+  line-height: 1;
+  color: var(--m-fg);
 
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+  @include m.day {
+    --tvb-glass: rgba(255, 255, 255, 0.4);
+    --tvb-line: rgba(var(--m-ink-rgb), 0.16);
+    --tvb-light: rgba(255, 255, 255, 0.75);
+    --tvb-well: rgba(var(--m-ink-rgb), 0.13);
+    --tvb-well-shade: rgba(var(--m-ink-rgb), 0.32);
+    --tvb-well-lip: rgba(255, 255, 255, 0.8);
+  }
+
+  // Le panneau lui-même. La perspective est portée par ce seul pseudo-élément,
+  // statique : le texte reste à plat (net), et rien ne bouge en jeu. Pied à la
+  // base (transform-origin bas) : la base garde toute sa largeur, le haut
+  // recule et rétrécit d'environ 4 % de la largeur. Le haut déborde de 2px
+  // pour compenser la hauteur perdue par le recul.
+  &::before {
+    content: "";
+    position: absolute;
+    inset: -2px 0 0;
+    z-index: -1;
+    background: var(--tvb-glass);
+    border: 1px solid var(--tvb-line);
+    border-bottom: 0;
+    border-radius: 12px 12px 0 0;
+    box-shadow: inset 0 1px 0 var(--tvb-light);
+    transform-origin: 50% 100%;
+    transform: perspective(110px) rotateX(8deg);
   }
 }
 
-.tvb-avatar-placeholder {
-  width: 60%;
-  height: 60%;
+.tvb-side {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+
+  // L'équipe adverse un cran en retrait de la tienne.
+  &--rival {
+    color: var(--m-fg-2);
+  }
+}
+
+.tvb-vs {
+  flex: none;
+  font-size: 0.74em;
+  font-weight: 700;
   color: var(--m-fg-3);
 }
 
-// ── VS central ──
-.tvb-vs {
-  flex: 0 0 auto;
-  font-family: var(--m-font-display);
-  font-size: clamp(1rem, 3vw, 1.3rem);
-  font-weight: 700;
-  line-height: 1;
-  color: var(--m-gold-light);
+// ── Billes du duo : les planètes du plateau, l'une contre l'autre dans une
+// alvéole creusée comme les cases neutres. Sans rotation : rien ne bouge en jeu. ──
+.tvb-marbles {
+  display: flex;
+  flex: none;
+  padding: 2px;
+  border-radius: var(--m-r-pill);
+  background: var(--tvb-well);
+  box-shadow: inset 0 1.5px 2.5px var(--tvb-well-shade), 0 1px 0 var(--tvb-well-lip);
+}
+
+.tvb-marble {
+  @include planet-base(false);
+  @include planet-variants("tvb");
+  flex: none;
+  width: var(--tvb-marble);
+  height: var(--tvb-marble);
+  // Bille posée au fond de l'alvéole.
+  box-shadow: 0 1px 1.5px rgba(0, 0, 0, 0.3);
+}
+
+// ── Noms : « You & Alice ». Un nom trop long se coupe plutôt que d'élargir
+// le fronton au-delà du bord du plateau. ──
+.tvb-names {
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+  min-width: 0;
+}
+
+.tvb-name {
+  min-width: 0;
+  max-width: 6.5em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tvb-name--me {
+  color: var(--m-gold-fg);
+}
+
+.tvb-amp {
+  flex: none;
+  font-weight: 600;
+  color: var(--m-fg-3);
 }

@@ -31,6 +31,7 @@ import { AuthService, type AuthUser } from "../services/auth.service";
 import { ActiveGameService } from "../services/active-game.service";
 import { PresenceService } from "../services/presence.service";
 import { ShopService } from "../services/shop.service";
+import { ThemeService } from "../services/theme.service";
 import { TEAMS, isConsumable } from "@mercury/shared";
 import type {
   GameInviteMessage,
@@ -207,6 +208,8 @@ export class HomePage implements OnInit, OnDestroy, DoCheck {
 
   private http = inject(HttpClient);
   private shop = inject(ShopService);
+  /** Mode jour / nuit, basculé par le bouton du coin haut gauche. */
+  protected readonly theme = inject(ThemeService);
   private userSub: Subscription | null = null;
 
   private alreadyInGameSub: Subscription | null = null;
@@ -534,6 +537,11 @@ export class HomePage implements OnInit, OnDestroy, DoCheck {
 
   resumeGame(): void {
     this.router.navigate(["/game"]);
+  }
+
+  /** Bascule jour / nuit : le soir tombe ou l'aube se lève (ThemeService). */
+  toggleTheme(): void {
+    this.theme.toggle();
   }
 
   openSettings() {

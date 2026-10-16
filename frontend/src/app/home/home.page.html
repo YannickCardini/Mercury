@@ -2,10 +2,29 @@
   <div class="home-wrap">
     <!-- ── Top navigation ─────────────────────────────── -->
     <nav class="home-nav">
-      <div class="nav-brand">
-        @for (l of titleLetters; track i; let i = $index) {
-        <span class="nav-letter" [style.--i]="i"> </span>
-        }
+      <div class="nav-start">
+        <!-- Bascule jour / nuit : l'icône montre le ciel qu'on obtient. -->
+        <button class="theme-toggle" (click)="toggleTheme()"
+          [attr.aria-label]="theme.isDay() ? 'Switch to night mode' : 'Switch to day mode'"
+          [title]="theme.isDay() ? 'Night mode' : 'Day mode'">
+          @if (theme.isDay()) {
+          <svg class="theme-icon theme-icon--moon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+          </svg>
+          } @else {
+          <svg class="theme-icon theme-icon--sun" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="4.5" />
+            <path d="M12 1.5v2.2M12 20.3v2.2M4.58 4.58l1.56 1.56M17.86 17.86l1.56 1.56M1.5 12h2.2M20.3 12h2.2M4.58 19.42l1.56-1.56M17.86 6.14l1.56-1.56" />
+          </svg>
+          }
+        </button>
+        <div class="nav-brand">
+          @for (l of titleLetters; track i; let i = $index) {
+          <span class="nav-letter" [style.--i]="i"> </span>
+          }
+        </div>
       </div>
       @if (auth.user$ | async; as user) {
       <div class="nav-user">
@@ -52,8 +71,9 @@
 
     <!-- ── Hero ───────────────────────────────────────── -->
     <main class="home-hero">
-      <!-- Animated title -->
-      <div class="hero-title-wrap">
+      <!-- Animated title. `m-sky` : posé directement sur le fond, texte crème
+           la nuit, ardoise le jour. -->
+      <div class="hero-title-wrap m-sky">
         <h1 class="hero-title">
           @for (l of titleLetters; track i; let i = $index) {
           <span class="hero-letter" [style.--i]="i">{{ l }}</span>
@@ -140,7 +160,8 @@
     </main>
 
     <!-- ── Footer ─────────────────────────────────────── -->
-    <footer class="home-footer">
+    <!-- `m-sky` : posé sur le sol du paysage, texte crème la nuit, ardoise le jour. -->
+    <footer class="home-footer m-sky">
       <div class="footer-links">
         <!-- Page statique hors SPA (voir content/build.mjs) : lien natif sur le web ; sur Android l'URL n'est pas réécrite, on ouvre la modale de règles. -->
         <a class="how-to-play-link" href="/rules/pegs-and-jokers" (click)="onHowToPlay($event)">How to Play</a>
@@ -583,9 +604,11 @@
     </ng-template>
 
     <!-- ══════════════ MATCHMAKING MODAL ══════════════ -->
-    <!-- Seule carte sans `m-paper` : elle reste sombre (voir home.page.scss). -->
+    <!-- La nuit, une carte sombre (`m-night`) ; le jour, une plaque de papier
+         comme les autres cartes (`m-paper`). Voir home.page.scss. -->
     <div class="modal-overlay" [class.active]="showMatchmaking">
-      <div class="modal-card matchmaking-card" (click)="$event.stopPropagation()">
+      <div class="modal-card matchmaking-card" [class.m-night]="!theme.isDay()" [class.m-paper]="theme.isDay()"
+        (click)="$event.stopPropagation()">
         <button class="modal-close" (click)="cancelMatchmaking()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
             stroke-linecap="round" stroke-linejoin="round">

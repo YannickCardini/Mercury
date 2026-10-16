@@ -12,8 +12,10 @@ import type { CardValue } from '@mercury/shared';
 
 /** Une tuile de la grille « Card Actions » du modal des règles. */
 export interface CardEffectTile {
-  /** Texte affiché dans la pastille de valeur (ex. 'A', '2–10', '🤡'). */
+  /** Texte affiché dans la pastille de valeur (ex. 'A', '2–10'), et clé de la tuile. */
   val: string;
+  /** Vrai pour la tuile du Joker : la pastille montre le bouffon de la carte au lieu du texte. */
+  joker?: boolean;
   /** Vrai pour réduire la taille de la pastille (valeurs longues). */
   smallVal?: boolean;
   /** Classe d'accent de la tuile (ex. 'ca-green'), + ' ca-wide' si pleine largeur. */
@@ -40,7 +42,7 @@ export function getCardEffectTiles(): CardEffectTile[] {
     },
     { val: '4', tileClass: 'ca-red', html: 'Move backward −4' },
     { val: '2–10', smallVal: true, tileClass: 'ca-muted ca-wide', html: 'Move one marble forward by face value' },
-    { val: '🤡', tileClass: 'ca-joker ca-wide', html: 'Enter a marble <em>or</em> move forward +18, then <strong>play again</strong>' },
+    { val: 'Joker', joker: true, tileClass: 'ca-joker ca-wide', html: 'Enter a marble <em>or</em> move forward +18, then <strong>play again</strong>' },
   ];
 }
 

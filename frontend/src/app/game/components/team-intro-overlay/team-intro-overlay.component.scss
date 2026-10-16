@@ -40,13 +40,13 @@ $ink: #0b1224; // encre sombre commune (contours, ombres)
 
 // Fond opaque plein écran derrière les bandeaux (qui ne couvrent que ~20%
 // de la hauteur chacun) : sans lui, board/table seraient visibles entre les
-// deux pendant qu'ils sont montés. Même dégradé que loading-screen.component
-// .scss (.loading-screen) pour un handoff visuel sans coupure au crossfade —
-// si l'un est retouché, reporter le changement sur l'autre.
+// deux pendant qu'ils sont montés. Même ciel que l'écran de chargement
+// (--m-sky-open : le ciel martien en bandes seul, sans sol, de nuit comme de
+// jour) pour un handoff visuel sans coupure au crossfade.
 .ti-backdrop {
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse at 50% 40%, #1e3a5f 0%, #0a1628 100%);
+  background: var(--m-sky-open);
 }
 
 @keyframes tiFadeOut {

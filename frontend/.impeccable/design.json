@@ -1,0 +1,488 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-15T12:48:32.361930+00:00",
+  "title": "Design System: Mercury",
+  "extensions": {
+    "colorMeta": {
+      "lagoon": {
+        "role": "neutral",
+        "displayName": "Dark Lagoon"
+      },
+      "lagoon-hi": {
+        "role": "neutral",
+        "displayName": "Lagoon Lift"
+      },
+      "lagoon-lo": {
+        "role": "neutral",
+        "displayName": "Lagoon Well"
+      },
+      "lagoon-line": {
+        "role": "neutral",
+        "displayName": "Muted Cyan"
+      },
+      "lagoon-edge": {
+        "role": "neutral",
+        "displayName": "Lagoon Edge"
+      },
+      "ink-night": {
+        "role": "neutral",
+        "displayName": "Ink Night"
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Cream Ink"
+      },
+      "ink-solid": {
+        "role": "neutral",
+        "displayName": "Lagoon Ink"
+      },
+      "night": {
+        "role": "neutral",
+        "displayName": "Night (sky-context surface, shop panels, brand ledge)"
+      },
+      "night-deep": {
+        "role": "neutral",
+        "displayName": "Deep Night (night --m-page fallback)"
+      },
+      "night-glow": {
+        "role": "neutral",
+        "displayName": "Night Glow (content site only)"
+      },
+      "green": {
+        "role": "primary",
+        "displayName": "Sage Mint",
+        "tonalRamp": [
+          "#1b6e50",
+          "#008f5f",
+          "#00c885",
+          "#6fd0a9"
+        ]
+      },
+      "blue": {
+        "role": "secondary",
+        "displayName": "Harbor Blue",
+        "tonalRamp": [
+          "#0b639a",
+          "#0c5d8c",
+          "#0477bd",
+          "#7fc4f0"
+        ]
+      },
+      "orange": {
+        "role": "tertiary",
+        "displayName": "Ember Orange",
+        "tonalRamp": [
+          "#a8501a",
+          "#c96a2b",
+          "#f7914e",
+          "#f9a56c"
+        ]
+      },
+      "red": {
+        "role": "tertiary",
+        "displayName": "Brick Red",
+        "tonalRamp": [
+          "#9c3220",
+          "#b53a25",
+          "#c8452f",
+          "#f08a76"
+        ]
+      },
+      "gold": {
+        "role": "tertiary",
+        "displayName": "Coin Gold",
+        "tonalRamp": [
+          "#8a6400",
+          "#c78a00",
+          "#ffb703",
+          "#ffc83d"
+        ]
+      },
+      "cyan": {
+        "role": "tertiary",
+        "displayName": "Cyan (boosters), token --m-violet",
+        "tonalRamp": [
+          "#0e6e7f",
+          "#168499",
+          "#22b8cf",
+          "#6fdcec"
+        ]
+      },
+      "day-ink": {
+        "role": "neutral",
+        "displayName": "Slate Ink (day --m-ink)"
+      },
+      "mars-sky-zenith": {
+        "role": "neutral",
+        "displayName": "Cool Pearl (day sky zenith)",
+        "tonalRamp": [
+          "#e2e9eb",
+          "#e6ebea",
+          "#eaece8",
+          "#eeebe4",
+          "#f2e8de",
+          "#f4e3d6",
+          "#f6dccc",
+          "#f7d4bf",
+          "#f7ccb2"
+        ]
+      },
+      "mars-sky-horizon": {
+        "role": "neutral",
+        "displayName": "Apricot Horizon (day)"
+      },
+      "mars-ground": {
+        "role": "neutral",
+        "displayName": "Sand (day ground)",
+        "tonalRamp": [
+          "#eac8a7",
+          "#edceaf",
+          "#eed2b6",
+          "#f0d4b8",
+          "#f3dbc3"
+        ]
+      },
+      "mars-mesa": {
+        "role": "neutral",
+        "displayName": "Powdered Terracotta",
+        "tonalRamp": [
+          "#e4bfac",
+          "#edcdbb",
+          "#f2d6c6"
+        ]
+      },
+      "mars-mesa-shade": {
+        "role": "neutral",
+        "displayName": "Mesa Shadow Face"
+      },
+      "mars-hill": {
+        "role": "neutral",
+        "displayName": "Light Ochre",
+        "tonalRamp": [
+          "#e8c39f",
+          "#efd0ae"
+        ]
+      },
+      "mars-crater-bowl": {
+        "role": "neutral",
+        "displayName": "Crater Bowl (used at 22 to 24% opacity)"
+      },
+      "mars-night-sky-zenith": {
+        "role": "neutral",
+        "displayName": "Night Navy (night sky zenith)",
+        "tonalRamp": [
+          "#05080f",
+          "#070a13",
+          "#080c17",
+          "#0a0e1a",
+          "#0b101e",
+          "#0d1222",
+          "#0f1426",
+          "#11172a",
+          "#131a2e"
+        ]
+      },
+      "mars-night-sky-horizon": {
+        "role": "neutral",
+        "displayName": "Night Horizon Navy"
+      },
+      "mars-night-ground": {
+        "role": "neutral",
+        "displayName": "Rust-Black Ground (night)",
+        "tonalRamp": [
+          "#171114",
+          "#1b1417",
+          "#1d161a",
+          "#1e161a",
+          "#22191c"
+        ]
+      },
+      "mars-night-mesa": {
+        "role": "neutral",
+        "displayName": "Night Mesa",
+        "tonalRamp": [
+          "#19141a",
+          "#272027",
+          "#322a32"
+        ]
+      },
+      "mars-night-mesa-shade": {
+        "role": "neutral",
+        "displayName": "Night Mesa Shadow Face (60%)"
+      },
+      "mars-night-hill": {
+        "role": "neutral",
+        "displayName": "Night Hill",
+        "tonalRamp": [
+          "#1f181c",
+          "#3a2f36"
+        ]
+      },
+      "mars-night-water": {
+        "role": "neutral",
+        "displayName": "Night Lake Water",
+        "tonalRamp": [
+          "#121c2e",
+          "#24324a"
+        ]
+      },
+      "mars-phobos": {
+        "role": "neutral",
+        "displayName": "Phobos",
+        "tonalRamp": [
+          "#8e887f",
+          "#a59e94",
+          "#b8b0a5",
+          "#cdc6bb",
+          "#dcd6cc"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display (Baloo 2)",
+        "purpose": "Titles, scores, counters, call-to-action labels."
+      },
+      "body": {
+        "displayName": "Body (Plus Jakarta Sans)",
+        "purpose": "Paragraphs, list rows, descriptions; buttons at weight 700."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Field and section labels in --m-fg-3, sentence case."
+      }
+    },
+    "shadows": [
+      {
+        "name": "ledge",
+        "value": "0 3px 0 0 var(--m-paper-edge)",
+        "purpose": "Secondary buttons and chips."
+      },
+      {
+        "name": "slab",
+        "value": "0 4px 0 0 var(--m-paper-edge), 0 22px 40px -22px rgba(0,0,0,0.7)",
+        "purpose": "Cards, modals, panels (night)."
+      },
+      {
+        "name": "slab-day",
+        "value": "0 4px 0 0 var(--m-paper-edge), 0 20px 36px -22px rgba(19,50,70,0.5)",
+        "purpose": "Cards, modals, panels (day)."
+      },
+      {
+        "name": "pop",
+        "value": "0 2px 0 0 var(--m-paper-edge), 0 12px 24px -14px rgba(0,0,0,0.6)",
+        "purpose": "Toasts and small floating items."
+      },
+      {
+        "name": "accent-ledge",
+        "value": "0 3px 0 0 var(--m-<accent>-deep)",
+        "purpose": "Filled buttons."
+      },
+      {
+        "name": "focus",
+        "value": "0 0 0 3px rgba(4,119,189,0.3)",
+        "purpose": "Field focus."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease",
+        "value": "cubic-bezier(0.22, 1, 0.36, 1)",
+        "purpose": "Default easing (--m-ease)."
+      },
+      {
+        "name": "press",
+        "value": "90ms",
+        "purpose": "Button press: translateY 2px, ledge to 1px."
+      },
+      {
+        "name": "mars-mist-drift",
+        "value": "translateX back and forth, ease-in-out, infinite alternate; 70s (day sun mist, 1.2vh), 110s (lake, 4vw), 140s (far, 5vw), 180s (low, -6vw)",
+        "purpose": "Landscape mist drift in both modes; paused in /game, off under prefers-reduced-motion."
+      },
+      {
+        "name": "mars-beacon",
+        "value": "3.2s infinite; opacity 1 to 70%, 0.15 from 74%",
+        "purpose": "Night only: colony mast beacon blink; steady by day; paused in /game."
+      },
+      {
+        "name": "twinkle",
+        "value": "4s to 9s ease-in-out infinite; opacity 0.35 to 1, scale 0.9 to 1.15",
+        "purpose": "Night only: nine twinkling stars."
+      },
+      {
+        "name": "shooting-star",
+        "value": "48s, 67s, 89s ease-in cycles; visible about 4% of each",
+        "purpose": "Night only: rare shooting stars; not rendered in /game."
+      },
+      {
+        "name": "spaceship",
+        "value": "every 90s to 300s; crossing 9s to 16s, linear; top 8% to 38%",
+        "purpose": "Night only: occasional spaceship; not rendered in /game, never scheduled under reduced motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "horizon-portrait",
+        "value": "--m-horizon: 53% (base :root, both modes)"
+      },
+      {
+        "name": "horizon-landscape",
+        "value": "(orientation: landscape) --m-horizon: 64%"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button (fill green)",
+      "kind": "button",
+      "refersTo": "button-fill-green",
+      "description": "Main action (play, confirm): accent fill on a solid deep ledge that presses down.",
+      "html": "<button class=\"ds-btn ds-btn-fill\">Play now</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 18px; border-radius: var(--m-r-pill, 999px); font-family: var(--m-font-text); font-weight: 700; line-height: 1.2; cursor: pointer; transition: transform 90ms ease-out, box-shadow 90ms ease-out, background-color .18s, border-color .18s, color .18s, filter .18s; } .ds-btn:focus-visible { outline: 2px solid var(--m-blue-fg, #7fc4f0); outline-offset: 2px; } .ds-btn:disabled { opacity: .5; cursor: not-allowed; } .ds-btn-fill { background: var(--m-green, #00c885); color: var(--m-on-green, #0c2230); border: 0; box-shadow: 0 3px 0 0 var(--m-green-deep, #008f5f); } .ds-btn-fill:hover { filter: brightness(1.07); } .ds-btn-fill:active { transform: translateY(2px); box-shadow: 0 1px 0 0 var(--m-green-deep, #008f5f); filter: none; }"
+    },
+    {
+      "name": "Secondary Button (paper)",
+      "kind": "button",
+      "refersTo": "button-paper",
+      "description": "Secondary action, same relief as the fill without colour; works on the sky and in cards.",
+      "html": "<button class=\"ds-btn ds-btn-paper\">Custom game</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 18px; border-radius: var(--m-r-pill, 999px); font-family: var(--m-font-text); font-weight: 700; line-height: 1.2; cursor: pointer; transition: transform 90ms ease-out, box-shadow 90ms ease-out, background-color .18s, border-color .18s, color .18s, filter .18s; } .ds-btn:focus-visible { outline: 2px solid var(--m-blue-fg, #7fc4f0); outline-offset: 2px; } .ds-btn:disabled { opacity: .5; cursor: not-allowed; } .ds-btn-paper { background: var(--m-paper-hi, #265670); color: var(--m-ink, #f0f8ff); border: 1px solid var(--m-glass-line, #2e637e); box-shadow: 0 3px 0 0 var(--m-paper-edge, #0f2938); } .ds-btn-paper:hover { border-color: rgba(var(--m-ink-rgb, 240,248,255), .3); } .ds-btn-paper:active { transform: translateY(2px); box-shadow: 0 1px 0 0 var(--m-paper-edge, #0f2938); }"
+    },
+    {
+      "name": "Quiet Button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "Low emphasis, no ledge, follows its context.",
+      "html": "<button class=\"ds-btn ds-btn-quiet\">Later</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 18px; border-radius: var(--m-r-pill, 999px); font-family: var(--m-font-text); font-weight: 700; line-height: 1.2; cursor: pointer; transition: transform 90ms ease-out, box-shadow 90ms ease-out, background-color .18s, border-color .18s, color .18s, filter .18s; } .ds-btn:focus-visible { outline: 2px solid var(--m-blue-fg, #7fc4f0); outline-offset: 2px; } .ds-btn:disabled { opacity: .5; cursor: not-allowed; } .ds-btn-quiet { background: var(--m-well); color: var(--m-fg-2); border: 1px solid var(--m-line-2); } .ds-btn-quiet:hover { background: var(--m-well-2); border-color: var(--m-line-3); color: var(--m-fg); } .ds-btn-quiet:active { transform: translateY(1px); }"
+    },
+    {
+      "name": "Tint Button (red)",
+      "kind": "button",
+      "refersTo": "button-tint",
+      "description": "Accent-related action that is not the main one (sign out, delete, info link).",
+      "html": "<button class=\"ds-btn ds-btn-tint\">Sign out</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 18px; border-radius: var(--m-r-pill, 999px); font-family: var(--m-font-text); font-weight: 700; line-height: 1.2; cursor: pointer; transition: transform 90ms ease-out, box-shadow 90ms ease-out, background-color .18s, border-color .18s, color .18s, filter .18s; } .ds-btn:focus-visible { outline: 2px solid var(--m-blue-fg, #7fc4f0); outline-offset: 2px; } .ds-btn:disabled { opacity: .5; cursor: not-allowed; } .ds-btn-tint { background: rgba(var(--m-red-rgb, 200,69,47), .1); color: var(--m-red-fg, #f08a76); border: 1px solid rgba(var(--m-red-rgb, 200,69,47), .28); } .ds-btn-tint:hover { background: rgba(var(--m-red-rgb, 200,69,47), .17); border-color: rgba(var(--m-red-rgb, 200,69,47), .46); } .ds-btn-tint:active { transform: translateY(1px); }"
+    },
+    {
+      "name": "Icon Button",
+      "kind": "button",
+      "refersTo": "icon-btn",
+      "description": "32px circle for close and back.",
+      "html": "<button class=\"ds-icon-btn\" aria-label=\"Close\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\"><path d=\"M6 6l12 12M18 6L6 18\"/></svg></button>",
+      "css": ".ds-icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border-radius: 50%; background: var(--m-well); border: 1px solid var(--m-line-2); color: var(--m-fg-2); cursor: pointer; transition: background-color .18s, border-color .18s, color .18s; } .ds-icon-btn:hover { background: var(--m-well-2); border-color: var(--m-line-3); color: var(--m-fg); } .ds-icon-btn:focus-visible { outline: 2px solid var(--m-blue-fg); outline-offset: 2px; }"
+    },
+    {
+      "name": "Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Text input on a slab.",
+      "html": "<input class=\"ds-field\" placeholder=\"Room code\" />",
+      "css": ".ds-field { padding: 10px 14px; background: var(--m-field); color: var(--m-fg); border: 1.5px solid var(--m-line-2); border-radius: var(--m-r-md, 14px); font-family: var(--m-font-text); outline: none; transition: border-color .18s, box-shadow .18s; } .ds-field::placeholder { color: var(--m-fg-4); } .ds-field:focus { border-color: var(--m-blue-fg); box-shadow: var(--m-focus); }"
+    },
+    {
+      "name": "Slab",
+      "kind": "card",
+      "refersTo": "slab",
+      "description": "Standard card, modal and panel: opaque matte fill, 1px line, solid ledge.",
+      "html": "<div class=\"ds-slab\"><h3 class=\"ds-slab-title\">Custom game</h3><p class=\"ds-slab-body\">Share the code with three friends.</p></div>",
+      "css": ".ds-slab { background: var(--m-paper, #1d4459); color: var(--m-fg, #f0f8ff); border: 1px solid var(--m-glass-line, #2e637e); border-radius: var(--m-r-xl, 28px); box-shadow: var(--m-shadow-slab); padding: 20px 22px; max-width: 320px; } .ds-slab-title { margin: 0 0 6px; font-family: var(--m-font-display); font-weight: 700; line-height: 1.1; font-size: 1.4rem; } .ds-slab-body { margin: 0; font-family: var(--m-font-text); color: var(--m-fg-2); }"
+    },
+    {
+      "name": "Mars landscape, day (simplified)",
+      "kind": "custom",
+      "refersTo": "mars-sky-zenith",
+      "description": "Schematic of the day palette: banded pearl-to-apricot sky to the horizon, ring sun, flat mesa band, banded sand ground, slate ink text via m-sky. The real layer is generated SVG.",
+      "html": "<div class=\"ds-mars\"><div class=\"ds-mars-sun\"></div><div class=\"ds-mars-mesa\"></div><div class=\"ds-mars-ground\"></div><p class=\"ds-mars-title\">MERCURY</p></div>",
+      "css": ".ds-mars { --hz: 53%; position: relative; width: 320px; height: 260px; overflow: hidden; border-radius: 14px; background: linear-gradient(180deg, #e2e9eb 0 calc(var(--hz)*.16), #e6ebea 0 calc(var(--hz)*.32), #eaece8 0 calc(var(--hz)*.46), #eeebe4 0 calc(var(--hz)*.58), #f2e8de 0 calc(var(--hz)*.69), #f4e3d6 0 calc(var(--hz)*.79), #f6dccc 0 calc(var(--hz)*.875), #f7d4bf 0 calc(var(--hz)*.945), #f7ccb2 0 var(--hz), #eed2b6 0); } .ds-mars-sun { position: absolute; left: 76%; top: calc(var(--hz) - 34px); width: 40px; height: 40px; border-radius: 50%; background: #fffaf1; box-shadow: 0 0 0 10px rgba(255,246,232,.38), 0 0 0 22px rgba(255,246,232,.2); } .ds-mars-mesa { position: absolute; left: 8%; top: calc(var(--hz) - 22px); width: 90px; height: 22px; background: #edcdbb; clip-path: polygon(0 100%, 30% 0, 70% 0, 100% 100%); } .ds-mars-ground { position: absolute; left: 0; right: 0; top: calc(var(--hz) + 30px); bottom: 0; background: linear-gradient(180deg, #f0d4b8 0 30%, #edceaf 0 65%, #eac8a7 0); } .ds-mars-title { position: absolute; top: 18px; left: 0; right: 0; margin: 0; text-align: center; font-family: var(--m-font-display); font-weight: 800; font-size: 2rem; color: #133246; }"
+    },
+    {
+      "name": "Mars landscape, night (simplified)",
+      "kind": "custom",
+      "refersTo": "mars-night-sky-zenith",
+      "description": "Schematic of the night palette: near-uniform navy bands with no horizon glow, ring-haloed Phobos, a mesa band slightly lighter than the sky, rust-black banded ground, a lit seat-colour window, cream ink via m-sky. The real layer is generated SVG.",
+      "html": "<div class=\"ds-marsn\"><div class=\"ds-marsn-moon\"></div><div class=\"ds-marsn-mesa\"></div><div class=\"ds-marsn-ground\"></div><div class=\"ds-marsn-window\"></div><p class=\"ds-marsn-title\">MERCURY</p></div>",
+      "css": ".ds-marsn { --hz: 53%; position: relative; width: 320px; height: 260px; overflow: hidden; border-radius: 14px; background: linear-gradient(180deg, #05080f 0 calc(var(--hz)*.16), #070a13 0 calc(var(--hz)*.32), #080c17 0 calc(var(--hz)*.46), #0a0e1a 0 calc(var(--hz)*.58), #0b101e 0 calc(var(--hz)*.69), #0d1222 0 calc(var(--hz)*.79), #0f1426 0 calc(var(--hz)*.875), #11172a 0 calc(var(--hz)*.945), #131a2e 0 var(--hz), #1d161a 0); } .ds-marsn-moon { position: absolute; left: 76%; top: calc(var(--hz) - 70px); width: 26px; height: 22px; border-radius: 50%; background: #cdc6bb; box-shadow: 0 0 0 12px rgba(201,214,240,.09), 0 0 0 30px rgba(201,214,240,.05), 0 0 0 50px rgba(201,214,240,.03); } .ds-marsn-mesa { position: absolute; left: 8%; top: calc(var(--hz) - 22px); width: 90px; height: 22px; background: #272027; clip-path: polygon(0 100%, 30% 0, 70% 0, 100% 100%); } .ds-marsn-ground { position: absolute; left: 0; right: 0; top: calc(var(--hz) + 30px); bottom: 0; background: linear-gradient(180deg, #1e161a 0 30%, #1b1417 0 65%, #171114 0); } .ds-marsn-window { position: absolute; left: 22%; top: calc(var(--hz) + 6px); width: 4px; height: 4px; border-radius: 50%; background: #0477bd; box-shadow: 0 0 0 2px rgba(4,119,189,.32), 0 0 0 5px rgba(4,119,189,.18); } .ds-marsn-title { position: absolute; top: 18px; left: 0; right: 0; margin: 0; text-align: center; font-family: var(--m-font-display); font-weight: 800; font-size: 2rem; color: #f0f8ff; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Matte Lagoon Boards on a Night Sky",
+    "overview": "**Creative North Star: \"Matte Lagoon Boards on a Night Sky\"**\n\nEvery surface a player touches (card, modal, panel, toast, secondary button) is an opaque matte lagoon-blue slab (#1d4459, with #16374a ink-night for the matchmaking card), with cream text (#f0f8ff) and a 1px muted cyan line (#2e637e), set over the always-visible Mars landscape background. The feel is a modern board game: warm, solid, no transparency, no blur, no glow. The primary action is a matte sage-mint green (#00c885). MERCURY and its subtitle stay as they are.\n\nThe tone is sober and readable, a real well-drawn object rather than decoration. Baloo 2 gives titles and numbers a rounded, friendly weight; Plus Jakarta Sans carries everything else. Color is used as a small set of named accents on buttons and tints, never as ambient decoration.\n\nBehind everything is one place, a terraformed Mars seen flat and frontal, built from two primitives only: horizontal bands and concentric rings. The same landscape is drawn in two lights. At night it lies under a near-uniform navy sky with fixed stars, Phobos and Deimos, its colony windows lit in the four seat colours. By day it is a pale morning with a double sunrise. In both modes it stays low in contrast so that the text and plates placed on it read anywhere, and nothing in it competes with the menu.\n\nThe previous dark neon look, a \"solar system\" interface theme, a pulsing-halo \"quicksilver\" direction and the nebula space sky are all discarded and must not return.",
+    "keyCharacteristics": [
+      "Opaque matte lagoon-blue surfaces with cream text on a visible Mars landscape",
+      "1px muted cyan line, a solid ledge under slabs and buttons, no backdrop blur or translucent glow",
+      "Rounded display type for titles and numbers, geometric sans for text",
+      "Six named accents, each with a fill, a deep ledge, and a light text variant",
+      "One flat, stacked-plane Mars landscape anchored on one horizon line, with a night palette and a day palette; cream ink on it at night, slate ink by day",
+      "Protected, out of scope for restyling: game cards, board and its components, matchmaking overlay, Mars background (night and day), logo and icon, shop purchase coin animation"
+    ],
+    "rules": [
+      {
+        "name": "The Context Alias Rule",
+        "body": "Components use the context aliases (`--m-fg`, `--m-line`, `--m-well`, `--m-*-fg`). Sky and lagoon surfaces share the same light-on-dark aliases; lagoon surfaces still carry the `m-paper` class for their fill.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Source Rule",
+        "body": "Values live only in `tokens.css`, shared by the Angular app and the static content site. Never copy a hex into a component. The Mars landscape is the one exception: both its palettes live in its generator, and the sky bands and ground fill of `--m-sky` (night and day) must stay in step with the generator's `PALETTES[..][\"sky\"]` and `PALETTES[..][\"ground\"]`, verbatim.",
+        "section": "colors"
+      },
+      {
+        "name": "The No color-mix Rule",
+        "body": "Tints use `rgba(var(--m-*-rgb), alpha)`; `color-mix()` is avoided for older Android WebViews.",
+        "section": "colors"
+      },
+      {
+        "name": "The Sky Ink Rule",
+        "body": "Anything placed directly on the background (the MERCURY title, the home footer, the loading screen) carries the `m-sky` class. At night it takes cream ink; in day mode it takes slate ink (#133246) and the accent `-ink` variants. `m-night` is reserved for dark elements kept dark in both modes (matchmaking card, victory overlay), never for text on the day landscape.",
+        "section": "colors"
+      },
+      {
+        "name": "The No Shouting Rule",
+        "body": "No uppercase and no letter-spaced capitals for labels. Sentence case, weight does the emphasis.",
+        "section": "typography"
+      },
+      {
+        "name": "The Game Page Exception",
+        "body": "`/game` keeps its own typography (`font-family: initial` on its host); the global fonts do not apply there until a separate task says so.",
+        "section": "typography"
+      },
+      {
+        "name": "The Matte Rule",
+        "body": "No backdrop blur anywhere in the app UI. Scrims are a flat rgba(6,8,16,0.68).",
+        "section": "elevation"
+      },
+      {
+        "name": "The Stacked Plane Rule",
+        "body": "The landscape is depth by layering flat planes. Add a plane or adjust a tone; never add a drop shadow, a blur or a glow filter to the mesas, hills, ground, colony, lake or mists. Light is drawn as concentric rings (sun and moon halos, lit colony windows). The only soft glows are the small ones on the night sky's kept events (twinkling stars, shooting stars, spaceship), and they stay confined to them.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Two Primitives Rule",
+        "body": "Any new element of the landscape, in either mode, is a band or a set of rings. If it needs another shape, it does not belong in the background. The shooting stars and the spaceship, kept from the previous night sky, are the only exceptions.",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "Do use opaque lagoon surfaces with cream text over the sky, and add the `m-paper` class to each of them.",
+      "Do reference `--m-*` tokens and context aliases; add values to `tokens.css` only.",
+      "Do show thickness with a solid ledge and press feedback (translateY 2px), 90ms.",
+      "Do use the `-light` accent variant for text on lagoon and on the sky.",
+      "Do use `--sa-*` variables for any safe-area spacing.",
+      "Do give anything placed directly on the background the `m-sky` class, so it reads slate on the day landscape and cream at night.",
+      "Do position any landscape element, in either mode, from `--m-horizon` and size it in vh.",
+      "Do change the Mars landscape (geometry and both palettes) through `resources/mars/generate-mars-landscape.py`, using bands and concentric rings only, and keep both `--m-sky` gradients in step with its `PALETTES[\"night\"]` and `PALETTES[\"day\"]` sky bands and ground."
+    ],
+    "donts": [
+      "Don't use violet, purple or any derivative in the UI (the Mars background and /game are outside this rule).",
+      "Don't use backdrop blur, translucent glass, glowing borders or pure white fills or text.",
+      "Don't use uppercase spaced labels.",
+      "Don't restyle the game cards, the board, the matchmaking overlay, the Mars background (night or day), the logo or the purchase coin animation without an explicit request.",
+      "Don't introduce ambient looping animations on surfaces (pulsing halos, breathing thumbnails); they were deliberately removed. The motion of the background (mist drift; at night also the beacon, twinkles, shooting stars and spaceship) is background, not surface, and stays there.",
+      "Don't use `color-mix()` or Google Fonts.",
+      "Don't turn the landscape into a gradient-and-glow sunrise wallpaper or bring back a nebula space sky, and don't add raster textures, saturated colour (beyond the colony's seat windows and beacon) or high-contrast elements to it. At night, no glow marks the horizon.",
+      "Don't hand-edit the generated `mars:` blocks of `space-background.component.html` or `_mars-palette.scss`."
+    ]
+  }
+}

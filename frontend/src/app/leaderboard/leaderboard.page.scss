@@ -148,7 +148,9 @@
   list-style: none;
   margin: 0;
   padding: 0 0 8px;
-  max-height: 480px;
+  // Bornée aussi par l'écran : sur un téléphone court, la liste défile seule
+  // au lieu d'une liste qui défile dans une page qui défile.
+  max-height: min(480px, 58dvh);
   overflow-y: auto;
   border-top: 1px solid var(--m-line);
   @include m.scrollbar;

@@ -62,37 +62,14 @@ Single raw `WebSocket` per client (no socket.io/Engine.IO). Message shape is the
 
 ---
 
-> **Before creating or editing ANY overlay, modal, popover or full-screen scrim, read the next section ("Known trap: one-frame overlay flash on Android") and apply its checklist. This bug has regressed several times and cannot be seen in a browser.**
-
-## ⚠️ Known trap: one-frame overlay flash on Android (regressed several times)
-
-**Symptom.** On the Android app only (Capacitor WebView), a modal/popover/overlay opens fine, then roughly 0.3 s later, right when its entrance transition ends, the page behind it shows at full brightness for ONE frame (about 33 ms at 30 fps), as if the scrim were removed or the page remounted. The overlay itself does not flicker. Web and desktop are unaffected, so it is never visible in a browser. Fixed for the rules modal on 2026-10-13 (confirmed on device). It has already come back several times after overlays were restyled, so treat it as a known trap.
-
-**Root cause (compositing layers).** An entrance transition on `opacity` and `transform` gives the scrim and the card their own compositing layers while it runs. When it ends, nothing keeps those layers (opacity is 1, `transform` is `none` or identity), so the WebView drops them and re-merges scrim and card background into a new layer, and re-rasterizes the card body. For a tall card with scrolling content this does not fit in one frame, and the WebView presents a frame whose new layer is still empty. Desktop Chrome waits for the pixels, so the bug exists only on Android. Heavier cards (long scrolling body) and any restyle that adds a transform end state make it worse, which is why it returns after design changes.
-
-**Rules for any new or modified overlay, modal or popover.**
-1. A full-screen overlay that fades in (`opacity` transition) with a card that animates `transform`/`opacity` must keep both layers alive while open. Add the native-only block at the end of its stylesheet:
-   ```scss
-   :host(.is-native) .my-overlay.active {
-     will-change: opacity;
-     .my-card { will-change: transform, opacity; }
-   }
-   ```
-   and the host class in the component: `host: { "[class.is-native]": "isNative" }` with `readonly isNative = Capacitor.isNativePlatform();`. Reference implementation: `frontend/src/app/shared/game-rules-modal.component.{ts,scss}`.
-2. Set `will-change` on the OPEN state only (`.active`), so nothing is kept alive while closed. Never gate it on a delay or JS timer.
-3. Never create or destroy a layer mid-animation: no toggling `filter`/`backdrop-filter`, no adding `will-change` after the transition starts, no `mix-blend-mode` inside the overlay. `backdrop-filter` is banned on overlays (scrims use `m.scrim`, no blur).
-4. Keep Android-only fixes under `:host(.is-native)` so web/desktop stay untouched.
-5. Do not apply this to tiny non-scrolling elements (toasts); the cost is memory, the benefit is only for full-screen scrims with cards.
-
-**Where it is applied today:** rules modal, all home modals (`.modal-overlay` in `home.page.scss`: profile, About, matchmaking, custom game), update-available modal. Not applied, by choice: the profile page and shop confirmation modals (opacity-only, small card, no transform; add the same block if a flash is reported there), and in-game overlays handled by their own fixes (`table.component.scss` `:host(.is-native)`, emoji and boost-dock stable layers).
-
-**How to recognize it.** The user reports a one-frame flash on Android, found by frame-stepping a screen recording, shortly after an overlay finishes opening; only the overlay's page behind it flashes. Check first: did a recent commit change the overlay's transition, its end `transform`, its scrim, or its card height or content? Check that its stylesheet still contains the `:host(.is-native)` block above.
-
-**Review checklist (run it on every overlay change, even a pure restyle):** (a) the overlay's stylesheet still has the `:host(.is-native)` `will-change` block; (b) the host class `is-native` is still bound in its component; (c) no `backdrop-filter`, `filter` toggle or `mix-blend-mode` was added; (d) a NEW overlay got the block from the start. If you add a new overlay and skip this, the flash will return.
-
-**Quick fix if it shows up again.** Add the block from rule 1 to the overlay's stylesheet and the `is-native` host class to its component, build, and have the user test on device (open and close it several times). Do not try JS timers, `translateZ(0)` on the card, or restructuring the DOM first.
-
-Related, same family of Android compositing flashes already fixed in the game screens: see the `is-native` blocks and "stable layer" comments in `board.component.scss`, `table.component.scss`, `emoji-reactions.component.scss`, `boost-dock.component.scss`.
+## ⚠️ Android trap: one-frame flash when an overlay finishes opening (regressed several times)
+Every full-screen overlay/modal with a scrim and an animated card needs this at the end of its stylesheet, plus `host: { "[class.is-native]": "isNative" }` and `readonly isNative = Capacitor.isNativePlatform();` in its component (reference: `shared/game-rules-modal.component.*`). Without it, the WebView drops the animation layers and the page behind flashes for one frame (Android only, invisible in a browser). Check it is still there after ANY restyle of an overlay; never add `backdrop-filter`, `filter` toggles or `mix-blend-mode` inside one.
+```scss
+:host(.is-native) .my-overlay.active {
+  will-change: opacity;
+  .my-card { will-change: transform, opacity; }
+}
+```
 
 ---
 

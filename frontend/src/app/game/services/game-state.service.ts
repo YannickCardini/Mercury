@@ -62,8 +62,9 @@ export class GameStateService {
   boardContainerSize = signal(0);
   /** Hauteur naturelle (px, échelle 1) du bandeau "équipe vs équipe", mesurée par le bandeau. */
   bannerNaturalH = signal(0);
-  /** Emplacement du bandeau dans `.board-wrapper` (top en px, échelle). null = pas la place, masqué. */
-  bannerLayout = signal<{ top: number; scale: number } | null>(null);
+  /** Emplacement du bandeau dans `.board-wrapper` (top en px, échelle, largeur max à
+   *  l'échelle 1 pour que sa base tienne sur le bord droit du plateau). null = pas la place, masqué. */
+  bannerLayout = signal<{ top: number; scale: number; maxWidth: number } | null>(null);
   /** Décalage vers le bas du plateau (px) pour libérer l'emplacement du bandeau. */
   boardShiftY = signal(0);
   timeLeft = signal(0);

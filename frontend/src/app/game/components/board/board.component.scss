@@ -1,6 +1,7 @@
 @use "sass:color";
 @use "../../../styles/palette" as *; // palette « Système solaire » centralisée
 @use "../../../styles/planets" as *; // rendu billes « planètes » partagé
+@use "../../../styles/tokens" as m; // mode jour (mixin m.day)
 
 :host {
     display: flex;
@@ -43,6 +44,14 @@ $colors: (
     position: relative;
     /* Isole le board pour réduire la portée des reflows/repaints sur mobile */
     contain: layout style paint;
+
+    /* De jour : le même verre, dépoli clair sur le paysage. Filet et ombre à
+       l'encre ardoise (--m-ink-rgb vaut l'ardoise le jour). */
+    @include m.day {
+        background: rgba(255, 255, 255, 0.4);
+        border-color: rgba(var(--m-ink-rgb), 0.16);
+        box-shadow: 0 10px 28px rgba(var(--m-ink-rgb), 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.75);
+    }
 }
 
 /* Décor des couloirs d'arrivée : calque SVG (viewBox 150 = 15 cases de 10) posé
@@ -63,6 +72,11 @@ $colors: (
         stroke: #f0f8ff;
         stroke-opacity: 0.3;
         stroke-width: 0.35;
+
+        @include m.day {
+            stroke: var(--m-ink);
+            stroke-opacity: 0.22;
+        }
     }
 
     .sp path {
@@ -215,6 +229,12 @@ $colors: (
 .case-path.normal:not(.square-preview-path):not(.square-preview-path-marble2):not(.square-preview-destination):not(.square-invincible) {
     background-color: rgba(8, 26, 38, 0.3);
     box-shadow: inset 0 2.2px 3.8px rgba(0, 0, 0, 0.36), 0 1px 0 rgba(240, 248, 255, 0.22);
+
+    /* De jour : alvéoles teintées d'ardoise, lèvre basse claire. */
+    @include m.day {
+        background-color: rgba(var(--m-ink-rgb), 0.13);
+        box-shadow: inset 0 2.2px 3.8px rgba(var(--m-ink-rgb), 0.32), 0 1px 0 rgba(255, 255, 255, 0.8);
+    }
 }
 
 /* --- Design des Pions (Billes texturées « planètes », fixes sur le plateau) ---
@@ -1548,6 +1568,11 @@ $colors: (
         background: rgba(0, 0, 0, 0.62);
         z-index: 15;
         pointer-events: none;
+
+        /* De jour : même assombrissement, teinté d'ardoise plutôt que gris. */
+        @include m.day {
+            background: rgba(12, 34, 48, 0.55);
+        }
     }
 }
 
@@ -1576,6 +1601,14 @@ $colors: (
         pointer-events: none;
         z-index: 5;
         animation: previewPathPulse 1.2s ease-in-out infinite;
+
+        /* De jour, le plateau est un verre clair : le blanc s'y perd. Même
+           signal en ardoise (l'encre du jour), aussi franc que le blanc sur la
+           nuit : case nettement assombrie, anneau presque plein. */
+        @include m.day {
+            background: rgba(var(--m-ink-rgb), 0.3);
+            box-shadow: 0 0 0 2px rgba(var(--m-ink-rgb), 0.85);
+        }
     }
 }
 
@@ -1592,6 +1625,13 @@ $colors: (
         z-index: 5;
         opacity: 0.85;
         animation: previewPathPulse 1.2s ease-in-out infinite;
+
+        /* De jour : l'or le plus sombre (--m-gold-ink, ≈ 4:1 sur une case
+           claire) tient sur le verre clair. */
+        @include m.day {
+            background: rgba(var(--m-gold-rgb), 0.3);
+            border-color: var(--m-gold-ink);
+        }
     }
 }
 
@@ -1608,6 +1648,21 @@ $colors: (
         pointer-events: none;
         z-index: 5;
         animation: previewDestPulse 1s ease-in-out infinite;
+
+        /* De jour : un halo jaune clair disparaît sur le verre clair. Aplat
+           d'or presque plein cerclé d'or sombre (--m-gold-ink), avec le même
+           halo doré que la nuit, et la pulsation dessus
+           (couleurs lues par previewDestPulse : la règle native qui coupe la
+           pulsation s'applique toujours). */
+        @include m.day {
+            --dest-ring: rgba(138, 100, 0, 0.9);
+            --dest-ring-hi: rgba(138, 100, 0, 1);
+            --dest-glow: rgba(255, 183, 3, 0.7);
+            --dest-glow-hi: rgba(255, 183, 3, 0.9);
+            background: rgba(var(--m-gold-rgb), 0.9);
+            border-color: var(--m-gold-ink);
+            box-shadow: 0 0 0 2px rgba(138, 100, 0, 0.9), 0 0 18px rgba(255, 183, 3, 0.75);
+        }
     }
 }
 
@@ -1623,15 +1678,16 @@ $colors: (
     }
 }
 
+/* Couleurs par variables (défaut : la nuit, inchangée), redéfinies le jour. */
 @keyframes previewDestPulse {
 
     0%,
     100% {
-        box-shadow: 0 0 0 3px rgba(255, 220, 80, 0.85), 0 0 24px rgba(255, 220, 80, 0.7);
+        box-shadow: 0 0 0 3px var(--dest-ring, rgba(255, 220, 80, 0.85)), 0 0 24px var(--dest-glow, rgba(255, 220, 80, 0.7));
     }
 
     50% {
-        box-shadow: 0 0 0 5px rgba(255, 220, 80, 1), 0 0 40px rgba(255, 220, 80, 0.9);
+        box-shadow: 0 0 0 5px var(--dest-ring-hi, rgba(255, 220, 80, 1)), 0 0 40px var(--dest-glow-hi, rgba(255, 220, 80, 0.9));
     }
 }
 

@@ -32,8 +32,8 @@ export class TableTimerBarComponent {
   /** Couleur de l'arc/texte : vert → orange → rouge. */
   timerColor = computed(() => {
     const r = this.timeRatio();
-    if (r > 0.5) return 'var(--m-green-light)';
-    if (r > 0.25) return 'var(--m-gold-light)';
-    return 'var(--m-red-light)';
+    if (r > 0.5) return 'var(--m-green-fg)';
+    if (r > 0.25) return 'var(--m-gold-fg)';
+    return 'var(--m-red-fg)';
   });
 }

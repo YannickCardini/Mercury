@@ -74,7 +74,7 @@
   // back inside the viewport.
   .hint-arrow {
     display: flex;
-    color: var(--m-gold-light);
+    color: var(--m-gold-fg);
     transform: translateX(var(--arrow-shift, 0px));
 
     svg {
@@ -116,7 +116,7 @@
 .marble-arrow {
   position: fixed;
   display: flex;
-  color: var(--m-gold-light);
+  color: var(--m-gold-fg);
   pointer-events: none;
   transform: translate(-50%, -100%);
 

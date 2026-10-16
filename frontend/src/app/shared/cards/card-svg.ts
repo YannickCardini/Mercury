@@ -136,6 +136,31 @@ export function cardSvgUrl(id: CardId): string {
   return url;
 }
 
+/**
+ * Cadrages carrés du seul dessin du Joker (sans cadre ni libellé), dans le
+ * repère de la carte (dessin centré sur l'origine, 135 × 208 unités) :
+ * `full` = le bouffon entier, `bust` = chapeau, visage et sceptre, lisible
+ * jusqu'à ~36px.
+ */
+const JOKER_ART_VIEWBOX = { full: '-116 -116 232 232', bust: '-48 -112 120 120' } as const;
+export type JokerArtCrop = keyof typeof JOKER_ART_VIEWBOX;
+const jokerArtCache = new Map<JokerArtCrop, string>();
+
+/**
+ * Data-URI SVG du dessin intérieur de la carte Joker : le même tracé
+ * (JOKER_ART, déjà dans le bundle), mémoïsé, une entrée par cadrage. Fond
+ * transparent et contour noir : à poser sur un fond clair (papier de carte).
+ */
+export function jokerArtUrl(crop: JokerArtCrop = 'full'): string {
+  let url = jokerArtCache.get(crop);
+  if (url === undefined) {
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='${JOKER_ART_VIEWBOX[crop]}'>${JOKER_ART}</svg>`;
+    url = 'data:image/svg+xml,' + svg.replace(/#/g, '%23');
+    jokerArtCache.set(crop, url);
+  }
+  return url;
+}
+
 function cardFrame(): string {
   const w = 240 - BORDER_WIDTH;
   const h = 334 - BORDER_WIDTH;

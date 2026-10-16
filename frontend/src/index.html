@@ -10,6 +10,20 @@
   <base href="/" />
 
   <meta name="color-scheme" content="light dark" />
+  <!-- Mode jour / nuit posé avant le premier rendu (même règle que
+       ThemeService) : sans lui, un joueur en mode jour verrait la nuit le temps
+       que l'app démarre. -->
+  <script>
+    (function () {
+      var theme = null;
+      try { theme = localStorage.getItem("mercury-theme"); } catch (e) { }
+      if (theme !== "day" && theme !== "night") {
+        var light = window.matchMedia && !window.matchMedia("(prefers-color-scheme: dark)").matches;
+        theme = light ? "day" : "night";
+      }
+      document.documentElement.setAttribute("data-theme", theme);
+    })();
+  </script>
   <meta name="viewport"
     content="viewport-fit=cover, width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="format-detection" content="telephone=no" />

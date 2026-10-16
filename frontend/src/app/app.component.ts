@@ -19,6 +19,7 @@ import { AppResumeService } from "./services/app-resume.service";
 import { AppUpdateService } from "./services/app-update.service";
 import { AuthService } from "./services/auth.service";
 import { ActiveGameService } from "./services/active-game.service";
+import { ThemeService } from "./services/theme.service";
 import { ToastService } from "./shared/toast.service";
 import { UpdateAvailableModalComponent } from "./shared/update-available-modal.component";
 import { SpaceBackgroundComponent } from "./shared/space-background.component";
@@ -47,6 +48,9 @@ export class AppComponent implements OnInit {
   protected appResume = inject(AppResumeService);
   protected appUpdate = inject(AppUpdateService);
   protected toast = inject(ToastService);
+  /** Eagerly created so the day/night mode is applied before the first
+   *  route paints. */
+  private theme = inject(ThemeService);
 
   /**
    * True until the very first route has finished resolving (cold-start
@@ -85,6 +89,7 @@ export class AppComponent implements OnInit {
           requestAnimationFrame(() => {
             this.navigating.set(false);
             SplashScreen.hide().catch(() => {});
+            this.theme.releaseSystemBars();
           });
         });
       });

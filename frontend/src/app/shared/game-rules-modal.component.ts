@@ -9,6 +9,7 @@ import {
 import { Capacitor } from "@capacitor/core";
 
 import { getCardEffectTiles } from "./card-effects";
+import { JokerArtComponent } from "./joker-art.component";
 
 @Component({
   selector: "app-game-rules-modal",
@@ -19,7 +20,7 @@ import { getCardEffectTiles } from "./card-effects";
   // `is-native` : garde en CSS les calques de la modale ouverte sur WebView
   // Android (flash d'une frame à la fin de l'animation d'entrée).
   host: { "[class.is-native]": "isNative" },
-  imports: [],
+  imports: [JokerArtComponent],
 })
 export class GameRulesModalComponent {
   readonly isNative = Capacitor.isNativePlatform();

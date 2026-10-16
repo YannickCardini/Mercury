@@ -16,6 +16,19 @@
 //  --m-line, --m-well…) du ciel vers l'encre ; `slab` ne dessine que la forme.
 // ═══════════════════════════════════════════════════════════════════════════
 
+// ─── Mode jour ───────────────────────────────────────────────────────────────
+
+// Réglages propres au mode jour d'un composant dont les couleurs ne passent
+// pas par les tokens (plateau, scène de /game). À poser dans un sélecteur :
+//      .board-container { @include m.day { background: …; } }
+// donne `:host-context(html[data-theme="day"]) .board-container`. Tout ce
+// qui lit déjà les --m-* bascule seul, sans ce mixin.
+@mixin day {
+  :host-context(html[data-theme="day"]) & {
+    @content;
+  }
+}
+
 // ─── Typographie ─────────────────────────────────────────────────────────────
 
 // Titres, chiffres, libellés d'appel à l'action.

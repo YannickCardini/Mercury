@@ -20,9 +20,12 @@
 /* ═══════════════════════════════════════════════════════════════
    ÉCRAN DE CHARGEMENT
    ═══════════════════════════════════════════════════════════════ */
-// Même dégradé de nuit que la base du fond spatial : quand l'écran s'efface,
-// le ciel est déjà là, sans saut de teinte. Police déclarée ici et non
-// héritée : dans /game, l'hôte de la page neutralise la police globale.
+// Le ciel seul (--m-sky-open, de nuit comme de jour) : mêmes bandes que le
+// fond martien, la dernière descendant jusqu'en bas. Pas de sol : sans le
+// relief qui couvre l'horizon, la jointure ciel / sol coupait l'écran en deux.
+// Quand l'écran s'efface, le ciel du haut est déjà là, sans saut de teinte.
+// Police déclarée ici et non héritée : dans /game, l'hôte de la page
+// neutralise la police globale.
 .loading-screen {
     position: absolute;
     inset: 0;
@@ -31,7 +34,7 @@
     align-items: center;
     justify-content: center;
     gap: 32px;
-    background: radial-gradient(ellipse at 50% 0%, var(--m-night-glow) 0%, var(--m-night) 45%, var(--m-night-deep) 100%);
+    background: var(--m-sky-open);
     font-family: var(--m-font-text);
     overflow: hidden;
 }
@@ -46,8 +49,8 @@
 .title-letter {
     @include m.display(800);
     font-size: clamp(3rem, 10.5vw, 6rem);
-    color: var(--m-cream);
-    text-shadow: 0 0.05em 0 rgba(var(--m-night-rgb), 0.7);
+    color: var(--m-brand);
+    text-shadow: 0 0.05em 0 var(--m-brand-ledge);
     animation: letterFloat 2.4s ease-in-out infinite;
     animation-delay: calc(var(--i) * 0.12s);
     display: inline-block;
@@ -80,7 +83,7 @@ app-marble-orbit {
 
 /* ── Texte de statut ─────────────────────────────────────────── */
 .loading-status {
-    color: rgba(var(--m-cream-rgb), 0.74);
+    color: var(--m-fg-2);
     font-size: 1rem;
     font-weight: 600;
     z-index: 1;
@@ -97,7 +100,7 @@ app-marble-orbit {
         width: 8px;
         height: 8px;
         border-radius: 50%;
-        background: var(--m-cream);
+        background: var(--m-fg);
         animation: dotBounce 0.9s ease-in-out infinite;
         animation-delay: var(--d);
     }

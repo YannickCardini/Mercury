@@ -26,7 +26,206 @@ body {
   height: 100%;
   overflow: hidden;
   /* Couleur de repli derrière le fond spatial (app-space-background). */
-  background: var(--m-night-deep);
+  background: var(--m-page);
+}
+
+/* Pas de grossissement automatique du texte par les navigateurs mobiles
+   (Safari en paysage, autosizing de Chrome) : les boîtes de l'interface sont
+   dimensionnées pour ces tailles. Dans l'app Android, la WebView est fixée à
+   100 % côté natif (MainActivity). */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* ── Bascule jour / nuit : « Le soir tombe » (ThemeService.toggle) ───────────
+   Le jour et la nuit montrent le même paysage martien : la bascule ne balaie
+   pas l'écran, elle fait passer le temps. Pendant la bascule, ThemeService
+   pose <html data-theme-switch="dusk|dawn"> : chaque calque du fond et la page
+   reçoivent un nom de transition, le navigateur en prend un instantané avant
+   et après, et on les fond ici un par un (View Transitions : seulement de
+   l'opacité et des déplacements d'instantanés, le paysage n'est pas redessiné
+   pendant l'animation). Les noms ne sont posés que le temps de la bascule :
+   en permanence, celui de la page couperait le flou du verre du plateau.
+   Soir (vers la nuit) : les soleils se couchent derrière les mesas, le ciel
+   s'assombrit bande par bande du zénith vers l'horizon, chaque bande passant
+   par le bleu du crépuscule martien (les couchers de soleil sur Mars sont
+   bleus), puis le relief du
+   lointain vers le premier plan ; les lunes se lèvent, les étoiles
+   apparaissent, les fenêtres de la colonie s'allument une à une (voir
+   space-background). Aube (vers le jour) : les étoiles s'effacent, les lunes
+   se couchent, le ciel s'éclaire depuis l'horizon en repassant par le même
+   bleu, puis le relief, et les soleils se lèvent. L'interface passe en fondu au milieu. Environ 1,5 s.
+   Dans /game, où le plateau cache le paysage, la bascule est un simple fondu
+   de tout l'écran en 0,2 s (« quick », voir plus bas) : la scène n'y serait
+   pas vue et alourdirait la partie.
+   Sans View Transitions, ou avec mouvement réduit, la bascule est immédiate
+   (décidé dans le service). */
+$m-sky-bands: 9;
+// Bleu du crépuscule martien, une teinte par bande, du zénith (profond) à
+// l'horizon (pâle) : la couleur de passage entre le jour et la nuit, qui
+// n'existe que pendant la bascule.
+$m-twilight: #1f2a44, #263453, #2e3f62, #384b71, #43597f, #50688e, #5f789c, #7089a9, #8299b4;
+// Calques du paysage, du plus lointain au plus proche : (classe, nom).
+$m-land: (
+  mars-far: m-far,
+  mars-mist--far: m-mist-far,
+  mars-hills: m-hills,
+  mars-ground: m-ground,
+  mars-mist--low: m-mist-low,
+  mars-colony: m-colony,
+  mars-lake: m-lake,
+  mars-mist--lake: m-mist-lake,
+);
+
+// Seule la scène (soir, aube) nomme les calques ; la bascule rapide de /game
+// ne fond que l'écran entier (voir plus bas).
+html:is([data-theme-switch="dusk"], [data-theme-switch="dawn"]) {
+  @for $i from 1 through $m-sky-bands {
+    .mars-band-#{$i} {
+      view-transition-name: m-band-#{$i};
+    }
+  }
+
+  .mars-stars {
+    view-transition-name: m-stars;
+  }
+
+  .mars-astres {
+    view-transition-name: m-astres;
+  }
+
+  @each $class, $name in $m-land {
+    .#{$class} {
+      view-transition-name: $name;
+    }
+  }
+
+  // La page affichée (le composant de la route) et le toast : au-dessus du
+  // fond pendant toute la bascule.
+  app-root > router-outlet + * {
+    view-transition-name: m-ui;
+  }
+
+  .app-toast {
+    view-transition-name: m-toast;
+  }
+}
+
+// Une bande du ciel : l'ancienne couleur s'efface, le bleu du crépuscule
+// (fond du groupe) apparaît, puis la nouvelle couleur le recouvre.
+@mixin m-switch-band($i, $delay) {
+  &::view-transition-group(m-band-#{$i}) {
+    background-color: nth($m-twilight, $i);
+  }
+
+  &::view-transition-old(m-band-#{$i}) {
+    animation: m-switch-band-out 560ms linear $delay both;
+  }
+
+  &::view-transition-new(m-band-#{$i}) {
+    animation: m-switch-band-in 560ms linear $delay both;
+  }
+}
+
+@mixin m-switch-fade($name, $delay, $duration: 420ms) {
+  &::view-transition-old(#{$name}) {
+    animation: m-switch-out $duration ease-in-out $delay both;
+  }
+
+  &::view-transition-new(#{$name}) {
+    animation: m-switch-in $duration ease-in-out $delay both;
+  }
+}
+
+// Le relief, même ordre et même rythme au soir et à l'aube : la lumière
+// touche d'abord le lointain.
+@mixin m-switch-land {
+  $i: 0;
+
+  @each $class, $name in $m-land {
+    @include m-switch-fade($name, 420ms + $i * 60ms, 440ms);
+    $i: $i + 1;
+  }
+}
+
+html[data-theme-switch="dusk"] {
+  // Le ciel s'assombrit du zénith vers l'horizon.
+  @for $i from 1 through $m-sky-bands {
+    @include m-switch-band($i, ($i - 1) * 65ms);
+  }
+
+  @include m-switch-land;
+
+  // L'interface bascule quand le ciel derrière le titre s'est assombri.
+  @include m-switch-fade(m-ui, 280ms, 280ms);
+
+  // Les soleils se couchent, puis les lunes se lèvent derrière les mesas.
+  &::view-transition-old(m-astres) {
+    animation: m-switch-set 650ms cubic-bezier(0.55, 0, 1, 0.45) both;
+  }
+
+  &::view-transition-new(m-astres) {
+    animation: m-switch-rise 750ms var(--m-ease) 650ms both;
+  }
+
+  @include m-switch-fade(m-stars, 900ms, 600ms);
+}
+
+html[data-theme-switch="dawn"] {
+  // Le ciel s'éclaire depuis l'horizon.
+  @for $i from 1 through $m-sky-bands {
+    @include m-switch-band($i, ($m-sky-bands - $i) * 65ms);
+  }
+
+  @include m-switch-land;
+
+  // L'interface bascule quand l'aube atteint le ciel derrière le titre.
+  @include m-switch-fade(m-ui, 480ms, 280ms);
+
+  // Les étoiles s'effacent, les lunes se couchent, puis les soleils se lèvent.
+  @include m-switch-fade(m-stars, 0ms, 400ms);
+
+  &::view-transition-old(m-astres) {
+    animation: m-switch-set 600ms cubic-bezier(0.55, 0, 1, 0.45) both;
+  }
+
+  &::view-transition-new(m-astres) {
+    animation: m-switch-rise 800ms var(--m-ease) 600ms both;
+  }
+}
+
+// Bascule rapide (dans /game) : un seul fondu de tout l'écran, court. Aucun
+// calque nommé, donc un seul instantané avant / après : la partie n'attend pas.
+html[data-theme-switch="quick"]::view-transition-old(root),
+html[data-theme-switch="quick"]::view-transition-new(root) {
+  animation-duration: 220ms;
+}
+
+@keyframes m-switch-out {
+  to { opacity: 0; }
+}
+
+@keyframes m-switch-band-out {
+  45%, 100% { opacity: 0; }
+}
+
+@keyframes m-switch-band-in {
+  0%, 50% { opacity: 0; }
+}
+
+@keyframes m-switch-in {
+  from { opacity: 0; }
+}
+
+// Un astre qui se couche descend derrière le paysage (dessiné par-dessus) ;
+// un astre qui se lève en remonte.
+@keyframes m-switch-set {
+  to { transform: translateY(14vh); opacity: 0; }
+}
+
+@keyframes m-switch-rise {
+  from { transform: translateY(14vh); opacity: 0; }
 }
 
 /* Police de texte de toute l'app (tokens : src/app/styles/tokens.css). /game

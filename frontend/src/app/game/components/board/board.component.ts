@@ -71,8 +71,13 @@ export interface SquareAnimation {
   mvY?: number;
 }
 
-/** Échelle minimale du bandeau d'équipes avant de le masquer faute de place. */
-const BANNER_MIN_SCALE = 0.7;
+/** Échelle minimale du bandeau d'équipes (en dessous, ses noms ne se lisent plus). */
+const BANNER_MIN_SCALE = 0.85;
+/** Réduction maximale du plateau pour poser le bandeau quand le plateau occupe
+ *  déjà toute la hauteur (paysage, ordinateur, tablette). Au-delà, le bandeau
+ *  est masqué : la lisibilité du plateau passe avant (choix du propriétaire,
+ *  2026-10-16). */
+const BANNER_MAX_BOARD_SHRINK = 0.04;
 
 @Component({
   selector: 'app-board',
@@ -193,20 +198,25 @@ export class BoardComponent implements OnDestroy {
           return { path: path1, pathMarble2: preview2.path, destination: preview2.destination };
         }
         // Only first marble selected: always show marble1's path
+        // Seul un second pion valide pour ce split est prévisualisé au survol
+        // (un pion qui arriverait sur la même case n'est pas candidat).
+        const hovered2 = focusedMarble !== null && focusedMarble !== marble1 && this.isSelectableMarble(focusedMarble)
+          ? focusedMarble
+          : null;
         // Si le plateau complet bloque le premier pion (pion invincible du
         // coéquipier qui doit lui-même bouger), on retombe sur le trajet du
         // split avec le second pion survolé.
         const action1 = getActionForSteps(dummyCard, marble1, steps1, ctx)
-          ?? (focusedMarble !== null && focusedMarble !== marble1
-            ? getSplitFirstAction(dummyCard, marble1, steps1, focusedMarble, ctx)
+          ?? (hovered2 !== null
+            ? getSplitFirstAction(dummyCard, marble1, steps1, hovered2, ctx)
             : null);
         const preview1 = action1
           ? this.computePreviewFromAction(action1)
           : { path: new Set<number>(), destination: null };
 
         // If hovering over a candidate second marble, also show its preview
-        if (focusedMarble !== null && focusedMarble !== marble1) {
-          const action2 = buildMoveActionForMarble(dummyCard, focusedMarble, 7 - steps1, ctx);
+        if (hovered2 !== null) {
+          const action2 = buildMoveActionForMarble(dummyCard, hovered2, 7 - steps1, ctx);
           if (action2) {
             const preview2 = this.computePreviewFromAction(action2);
             const path1 = new Set(preview1.path);
@@ -970,8 +980,7 @@ export class BoardComponent implements OnDestroy {
     if (!wrapper) return;
 
     const bounds = wrapper.getBoundingClientRect();
-    const containerSize = Math.min(bounds.width, bounds.height) * 0.95;
-    this.layoutTeamBanner(bounds.height, containerSize * (15.4 / 15) + 2);
+    const containerSize = this.layoutTeamBanner(bounds.height, Math.min(bounds.width, bounds.height) * 0.95);
     const size = containerSize / this.gridSize;
     this.squareSize.set(size);
     this.gameStateService.boardContainerSize.set(this.calculateTableWrapperSize(containerSize));
@@ -982,28 +991,52 @@ export class BoardComponent implements OnDestroy {
   }
 
   /**
-   * Place le bandeau d'équipes dans la marge libre au-dessus du plateau. Le
-   * plateau garde TOUJOURS sa taille maximale : on le décale seulement vers le
-   * bas, puis on réduit le bandeau (jusqu'à BANNER_MIN_SCALE), sinon on le masque.
+   * Pose le bandeau d'équipes sur le bord haut du plateau (sa base sur le filet
+   * du plateau, comme un fronton dressé sur le bord arrière) et renvoie la
+   * taille du plateau à utiliser.
+   *
+   * En portrait, `.board-wrapper` réserve déjà la place du bandeau au-dessus
+   * du plateau (game.page.scss) : le plateau garde sa taille maximale. Quand
+   * le plateau occupe toute la hauteur (paysage, ordinateur, ou table à sa
+   * hauteur minimale), il est réduit pour poser le bandeau, de
+   * BANNER_MAX_BOARD_SHRINK au plus ; sinon le bandeau est masqué.
    */
-  private layoutTeamBanner(wrapperH: number, boardH: number): void {
+  private layoutTeamBanner(wrapperH: number, maxContainer: number): number {
     const natural = this.gameStateService.bannerNaturalH();
-    const free = wrapperH - boardH;
-    const gap = 4;
-    let layout: { top: number; scale: number } | null = null;
+    const gap = 4; // marge minimale au-dessus du bandeau
+    const sideOf = (cs: number) => cs * (15.4 / 15) + 2;
+    let containerSize = maxContainer;
+    let layout: { top: number; scale: number; maxWidth: number } | null = null;
     let shift = 0;
-    if (natural > 0 && free > 0) {
-      const scale = Math.min(1, (free - gap * 2) / natural);
+    if (natural > 0) {
+      let scale = Math.min(1, (wrapperH - sideOf(maxContainer) - gap) / natural);
+      if (scale < BANNER_MIN_SCALE) {
+        // Taille du plateau qui laisse le bandeau entier au-dessus de lui.
+        const reduced = (wrapperH - natural - gap - 2) / (15.4 / 15);
+        if (reduced >= maxContainer * (1 - BANNER_MAX_BOARD_SHRINK)) {
+          containerSize = reduced;
+          scale = 1;
+        }
+      }
       if (scale >= BANNER_MIN_SCALE) {
+        const boardSide = sideOf(containerSize);
+        const free = wrapperH - boardSide;
         const h = natural * scale;
-        const need = h + gap * 2;
-        shift = Math.max(0, need - free / 2);
+        shift = Math.max(0, h + gap - free / 2);
         const boardTop = (free / 2) + shift;
-        layout = { top: (boardTop - h) / 2, scale };
+        layout = {
+          // 1px de recouvrement : la base couvre le filet du plateau, sans jour.
+          top: boardTop - h + 1,
+          scale,
+          // La base tient sur la partie droite du bord haut, entre les deux
+          // arrondis (rayon 0.5 case), avec 0.1 case de marge de chaque côté.
+          maxWidth: (boardSide - (containerSize / this.gridSize) * 1.2) / scale,
+        };
       }
     }
     this.gameStateService.boardShiftY.set(shift);
     this.gameStateService.bannerLayout.set(layout);
+    return containerSize;
   }
 
   @HostBinding('style.padding-top.px')
@@ -1284,7 +1317,18 @@ export class BoardComponent implements OnDestroy {
     // Un pion actuellement sélectionnable (ex. second pion valide d'un split 7
     // qui ne peut pas initier un coup seul) ne doit jamais être grisé.
     if (this.isSelectableMarble(index)) return false;
-    return this.getMarbleOnSquare(index) === this.gameStateService.controlledColor() && !playable.has(index);
+    if (this.getMarbleOnSquare(index) !== this.gameStateService.controlledColor()) return false;
+    // Split du 7 en cours : seuls les seconds pions valides restent actifs,
+    // même si les autres pourraient démarrer un 7.
+    if (this.isSevenSplitPending()) return true;
+    return !playable.has(index);
+  }
+
+  /** Vrai quand un 7 est en cours de répartition (premier pion choisi, part < 7) : on attend le second pion. */
+  private isSevenSplitPending(): boolean {
+    return this.gameStateService.selectedCard()?.value === '7'
+      && this.gameStateService.selectedMarblePosition() !== null
+      && this.gameStateService.sevenFirstSteps() < 7;
   }
 
   onMarbleClick(index: number): void {
@@ -1302,10 +1346,15 @@ export class BoardComponent implements OnDestroy {
       return;
     }
 
-    // 7 phase 2 : clic sur un second pion candidat (le sien ou celui du coéquipier en 2v2)
-    if (card?.value === '7' && selected !== null && this.gameStateService.sevenFirstSteps() < 7 && this.isSelectableMarble(index)) {
-      const currentSplit = this.gameStateService.selectedSplit7MarblePosition();
-      this.gameStateService.selectedSplit7MarblePosition.set(currentSplit === index ? null : index);
+    // 7 phase 2 : clic sur un second pion candidat (le sien ou celui du coéquipier en 2v2).
+    // Tout autre pion est inerte : sans ce `return`, un pion qui pourrait
+    // démarrer un 7 mais pas compléter CE split (ex. même case d'arrivée)
+    // redevenait premier pion et la répartition repartait à 7.
+    if (this.isSevenSplitPending()) {
+      if (this.isSelectableMarble(index)) {
+        const currentSplit = this.gameStateService.selectedSplit7MarblePosition();
+        this.gameStateService.selectedSplit7MarblePosition.set(currentSplit === index ? null : index);
+      }
       return;
     }
 

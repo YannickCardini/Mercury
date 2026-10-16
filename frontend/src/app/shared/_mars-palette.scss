@@ -1,0 +1,86 @@
+// Palettes du paysage martien (bandes du ciel, classes mx-* et opacité des
+// brumes).
+// Généré par resources/mars/generate-mars-landscape.py --write-template :
+// modifier le script, pas ce fichier. Nuit par défaut, jour sous .day.
+
+.space-bg {
+  .mars-band-1 { background-color: #05080f; }
+  .mars-band-2 { background-color: #070a13; }
+  .mars-band-3 { background-color: #080c17; }
+  .mars-band-4 { background-color: #0a0e1a; }
+  .mars-band-5 { background-color: #0b101e; }
+  .mars-band-6 { background-color: #0d1222; }
+  .mars-band-7 { background-color: #0f1426; }
+  .mars-band-8 { background-color: #11172a; }
+  .mars-band-9 { background-color: #131a2e; }
+  .mx-far { fill: #272027; }
+  .mx-far-shade { fill: #19141a; fill-opacity: .6; }
+  .mx-stipple { fill: #19141a; }
+  .mx-strata { stroke: #322a32; }
+  .mx-hill { fill: #1f181c; }
+  .mx-hill-rim { stroke: #3a2f36; }
+  .mx-g0 { fill: #22191c; }
+  .mx-g1 { fill: #1e161a; }
+  .mx-g2 { fill: #1b1417; }
+  .mx-g3 { fill: #171114; }
+  .mx-nacre-a { stop-color: #5a667c; }
+  .mx-nacre-b { stop-color: #625f72; }
+  .mx-nacre-c { stop-color: #586a6e; }
+  .mx-nacre-bank { stop-color: #5a667c; }
+  .mx-terra { stop-color: #6e4a52; }
+  .mx-ochre { stop-color: #6f6050; }
+  .mx-lake-rim { fill: #c8d2e6; fill-opacity: .08; }
+  .mx-lake-bank { fill: #000; fill-opacity: .3; }
+  .mx-lichen { fill: #262a1f; }
+  .mx-water { fill: #121c2e; }
+  .mx-ripple { stroke: #24324a; }
+  .mx-dome { fill: #2d2b34; }
+  .mx-dome-shade { fill: #1e1c24; }
+  .mx-dome-cast { fill: #000; fill-opacity: .3; }
+  .mx-mast { stroke: #3a3842; }
+  .mx-colony-base { stroke: #2e2529; }
+  .mars-mist--far { opacity: 0.12; }
+  .mars-mist--low { opacity: 0.35; }
+  .mars-mist--lake { opacity: 0.35; }
+}
+
+.space-bg.day {
+  .mars-band-1 { background-color: #c3d2d9; }
+  .mars-band-2 { background-color: #c9d6d9; }
+  .mars-band-3 { background-color: #d0d9d7; }
+  .mars-band-4 { background-color: #d8dbd3; }
+  .mars-band-5 { background-color: #e0dccf; }
+  .mars-band-6 { background-color: #e5d6c5; }
+  .mars-band-7 { background-color: #e8cebb; }
+  .mars-band-8 { background-color: #e9c0a4; }
+  .mars-band-9 { background-color: #eabb9b; }
+  .mx-far { fill: #edcdbb; }
+  .mx-far-shade { fill: #e4bfac; fill-opacity: .55; }
+  .mx-stipple { fill: #e4bfac; }
+  .mx-strata { stroke: #f2d6c6; }
+  .mx-hill { fill: #e8c39f; }
+  .mx-hill-rim { stroke: #efd0ae; }
+  .mx-g0 { fill: #f3dbc3; }
+  .mx-g1 { fill: #f0d4b8; }
+  .mx-g2 { fill: #edceaf; }
+  .mx-g3 { fill: #eac8a7; }
+  .mx-nacre-a { stop-color: #fdf7f1; }
+  .mx-nacre-b { stop-color: #fbeeea; }
+  .mx-nacre-c { stop-color: #f4f3ec; }
+  .mx-nacre-bank { stop-color: #fbf2ec; }
+  .mx-terra { stop-color: #f2bea4; }
+  .mx-ochre { stop-color: #f9e2b8; }
+  .mx-lake-rim { fill: #fff6ea; fill-opacity: .4; }
+  .mx-lake-bank { fill: #c4936b; fill-opacity: .3; }
+  .mx-lichen { fill: #d3d6aa; }
+  .mx-water { fill: #d3e2da; }
+  .mx-ripple { stroke: #e6efe9; }
+  .mx-dome { fill: #f8f3ec; }
+  .mx-dome-shade { fill: #e6dccf; }
+  .mx-dome-cast { fill: #c4936b; fill-opacity: .16; }
+  .mx-mast { stroke: #e7dccd; }
+  .mx-colony-base { stroke: #e3cdb4; }
+  .mars-mist--far { opacity: 0.85; }
+  .mars-mist--low { opacity: 0.55; }
+  .mars-mist--lake { opacity: 0.75; }
+}

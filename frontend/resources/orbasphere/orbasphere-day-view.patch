@@ -1,0 +1,461 @@
+diff --git a/frontend/src/app/shared/space-background.component.html b/frontend/src/app/shared/space-background.component.html
+index a9999fc1..b71b5b63 100644
+--- a/frontend/src/app/shared/space-background.component.html
++++ b/frontend/src/app/shared/space-background.component.html
+@@ -1,10 +1,68 @@
+-<div class="space-bg" [class.calm]="calm()" aria-hidden="true">
++<div class="space-bg" [class.calm]="calm()" [class.day]="isDay()" aria-hidden="true">
++  @if (isDay()) {
++  <!-- ════════ Vue depuis l'Orbasphère ════════
++       On regarde la Terre depuis la station. Le bleu atmosphérique est le
++       fond de l'hôte (--m-sky) ; tout le reste est dessiné ici. -->
++
++  <!-- La Terre, vue en rasant : un disque écrasé dont seul le haut entre dans
++       le cadre. Le limbe lumineux est derrière, les nuages tournent dessus. -->
++  <div class="orb-earth">
++    <div class="orb-earth__limb"></div>
++    <div class="orb-earth__ocean"></div>
++    <!-- Fonds marins et nuages : texture pré-calculée (voir
++         resources/orbasphere/generate-earth-weather.py), qui tourne avec la
++         Terre. -->
++    <img class="orb-earth__weather" src="assets/orbasphere/earth-weather.webp" alt="" decoding="async" />
++    <div class="orb-earth__haze"></div>
++  </div>
++
++  <!-- Reflet du soleil sur l'océan, du côté du soleil -->
++  <div class="orb-sunglint"></div>
++
++  <!-- Ombre du cadre de la baie, en bas : la vue s'arrête où commence la
++       station (et le pied de page reste lisible sur les nuages). -->
++  <div class="orb-frame-shade"></div>
++
++  <!-- Aile de panneaux solaires de la station, au premier plan : elle entre
++       par le bord gauche et sort par le haut, au-dessus de nous. Perspective
++       calculée (pas de transformation 3D) : la forme est exactement celle
++       dessinée. Le reflet du soleil la balaie sur son propre calque. -->
++  <div class="orb-array">
++    <svg class="orb-array__wing" viewBox="0 0 1000 1000" aria-hidden="true">
++      <defs>
++        <linearGradient id="orb-array-cells" gradientUnits="userSpaceOnUse" x1="-200" y1="725" x2="790" y2="-210">
++          <stop offset="0" stop-color="#ebb960" />
++          <stop offset="0.45" stop-color="#cf963f" />
++          <stop offset="1" stop-color="#8a5f27" />
++        </linearGradient>
++        <linearGradient id="orb-array-metal" gradientUnits="userSpaceOnUse" x1="-200" y1="725" x2="790" y2="-210">
++          <stop offset="0" stop-color="#cfd8e1" />
++          <stop offset="1" stop-color="#6c7986" />
++        </linearGradient>
++      </defs>
++      <path class="orb-array__blanket" d="M-200 300 L560 -300 L780.8 -213.6 L-200 708 Z" />
++      <path class="orb-array__blanket" d="M-200 742 L799.2 -206.4 L1020 -120 L-200 1150 Z" />
++      <path class="orb-array__cells" d="M-142.4 254.6L-125.7 638.2M-124.3 670.2L-107.6 1053.8M-88.4 211.9L-56 572.7M-53.3 602.8L-20.9 963.5M-37.6 171.8L9.5 511.1M13.5 539.4L60.7 878.7M10.2 134L71.3 453.1M76.4 479.7L137.5 798.7M55.4 98.4L129.6 398.3M135.8 423.3L210 723.2M98.1 64.7L184.7 346.5M191.9 370L278.5 651.9M138.5 32.8L236.8 297.5M245 319.6L343.4 584.4M176.8 2.5L286.3 251.1M295.4 271.8L404.9 520.3M213.2 -26.2L333.2 207M343.2 226.4L463.3 459.6M247.8 -53.5L377.8 165M388.7 183.3L518.8 401.8M280.7 -79.5L420.3 125.1M432 142.2L571.6 346.8M312 -104.2L460.8 87.1M473.2 103L621.9 294.4M342 -127.9L499.4 50.8M512.5 65.7L670 244.4M370.5 -150.4L536.3 16.1M550.1 30L715.9 196.6M397.9 -172L571.6 -17M586 -4.1L759.7 150.9M424 -192.6L605.3 -48.7M620.4 -36.7L801.7 107.2M449.1 -212.4L637.6 -79.1M653.3 -68L841.9 65.4M473.1 -231.4L668.6 -108.2M684.9 -97.9L880.5 25.3M496.1 -249.6L698.4 -136.1M715.2 -126.7L917.5 -13.3M518.3 -267L726.9 -163M744.3 -154.3L953 -50.2M539.5 -283.8L754.4 -188.8M772.3 -180.9L987.1 -85.8M-200 436L633.6 -271.2M-200 572L707.2 -242.4M-200 878L872.8 -177.6M-200 1014L946.4 -148.8" />
++      <path class="orb-array__frame" d="M-200 300 L560 -300 L780.8 -213.6 L-200 708 ZM-200 742 L799.2 -206.4 L1020 -120 L-200 1150 Z" />
++      <!-- Mât, dans la fente entre les deux couvertures -->
++      <path class="orb-array__metal" d="M-200 716.5 L785.4 -211.8 L794.6 -208.2 L-200 733.5 Z" />
++    </svg>
++    <div class="orb-array__glint">
++      <div class="orb-array__shine"></div>
++    </div>
++  </div>
++
++  <!-- Ombre du cadre de la baie, en haut : garde lisibles les icônes de la
++       barre d'état quand l'aile passe dessous. -->
++  <div class="orb-frame-shade orb-frame-shade--top"></div>
++  } @else {
++  <!-- ════════ Ciel de nuit ════════ -->
+   @if (!calm()) {
+   <!-- Nébuleuses colorées qui respirent en arrière-plan -->
+   <div class="nebula nebula--blue"></div>
+-  <div class="nebula nebula--violet"></div>
+-  <div class="nebula nebula--cyan"></div>
+-  <div class="nebula nebula--magenta"></div>
++  <div class="nebula nebula--steel"></div>
++  <div class="nebula nebula--moss"></div>
++  <div class="nebula nebula--amber"></div>
+   <div class="nebula nebula--teal"></div>
+ 
+   <!-- Quelques planètes discrètes -->
+@@ -72,4 +130,5 @@
+     </svg>
+   </div>
+   }
++  }
+ </div>
+diff --git a/frontend/src/app/shared/space-background.component.scss b/frontend/src/app/shared/space-background.component.scss
+index 45181dc6..a8a99d1d 100644
+--- a/frontend/src/app/shared/space-background.component.scss
++++ b/frontend/src/app/shared/space-background.component.scss
+@@ -1,9 +1,4 @@
+ // ─── Fond spatial global ─────────────────────────────────────────────────────
+-// Couleurs alignées sur la palette de l'app ($bg-dark #0f172a / $bg-mid #1a2840).
+-$space-deep: #05070f;
+-$space-mid: #0f172a;
+-$space-glow: #1a2840;
+-
+ :host {
+   position: fixed;
+   inset: 0;
+@@ -11,9 +6,9 @@ $space-glow: #1a2840;
+   display: block;
+   pointer-events: none;
+   overflow: hidden;
+-  // Base : ciel profond, légèrement plus clair vers le haut.
+-  background:
+-    radial-gradient(ellipse at 50% 0%, $space-glow 0%, $space-mid 45%, $space-deep 100%);
++  // Base (tokens.css) : de nuit, ciel profond un peu plus clair vers le haut ;
++  // de jour, zénith azur et horizon clair.
++  background: var(--m-sky);
+ }
+ 
+ .space-bg {
+@@ -22,6 +17,8 @@ $space-glow: #1a2840;
+ }
+ 
+ // ─── Nébuleuses ──────────────────────────────────────────────────────────────
++// Palette : bleu profond, acier, mousse et poussière ambrée. Ni rose, ni cyan,
++// ni violet (voir DESIGN.md, « Color Guidelines & Anti-Patterns »).
+ .nebula {
+   position: absolute;
+   border-radius: 50%;
+@@ -36,34 +33,34 @@ $space-glow: #1a2840;
+   left: -5%;
+   width: 60vw;
+   height: 60vw;
+-  background: radial-gradient(circle, rgba(59, 130, 246, 0.55), transparent 70%);
++  background: radial-gradient(circle, rgba(40, 96, 176, 0.55), transparent 70%);
+   animation: nebula-drift-a 380s ease-in-out infinite;
+ }
+ 
+-.nebula--violet {
++.nebula--steel {
+   bottom: -15%;
+   right: -10%;
+   width: 70vw;
+   height: 70vw;
+-  background: radial-gradient(circle, rgba(139, 92, 246, 0.45), transparent 70%);
++  background: radial-gradient(circle, rgba(72, 100, 140, 0.45), transparent 70%);
+   animation: nebula-drift-b 460s ease-in-out infinite;
+ }
+ 
+-.nebula--cyan {
++.nebula--moss {
+   top: 35%;
+   right: 20%;
+   width: 45vw;
+   height: 45vw;
+-  background: radial-gradient(circle, rgba(34, 211, 238, 0.35), transparent 70%);
++  background: radial-gradient(circle, rgba(50, 130, 120, 0.32), transparent 70%);
+   animation: nebula-drift-a 520s ease-in-out infinite reverse;
+ }
+ 
+-.nebula--magenta {
++.nebula--amber {
+   top: 5%;
+   right: 5%;
+   width: 50vw;
+   height: 50vw;
+-  background: radial-gradient(circle, rgba(217, 70, 160, 0.32), transparent 70%);
++  background: radial-gradient(circle, rgba(196, 140, 84, 0.26), transparent 70%);
+   animation: nebula-drift-b 600s ease-in-out infinite;
+ }
+ 
+@@ -72,7 +69,7 @@ $space-glow: #1a2840;
+   left: 25%;
+   width: 55vw;
+   height: 55vw;
+-  background: radial-gradient(circle, rgba(45, 212, 160, 0.26), transparent 72%);
++  background: radial-gradient(circle, rgba(40, 150, 110, 0.24), transparent 72%);
+   animation: nebula-drift-a 680s ease-in-out infinite reverse;
+ }
+ 
+@@ -111,7 +108,7 @@ $space-glow: #1a2840;
+   );
+   box-shadow:
+     inset -12px -10px 30px rgba(0, 0, 0, 0.55),
+-    0 0 50px rgba(59, 130, 246, 0.18);
++    0 0 50px rgba(40, 96, 176, 0.18);
+   animation: planet-float 60s ease-in-out infinite;
+ }
+ 
+@@ -277,8 +274,8 @@ $space-glow: #1a2840;
+   transform: translateY(-50%);
+   background:
+     radial-gradient(ellipse 60% 50% at 50% 50%, rgba(160, 190, 255, 0.22), transparent 70%),
+-    radial-gradient(ellipse 28% 60% at 36% 50%, rgba(190, 170, 255, 0.16), transparent 70%),
+-    radial-gradient(ellipse 28% 60% at 64% 50%, rgba(130, 210, 240, 0.16), transparent 70%);
++    radial-gradient(ellipse 28% 60% at 36% 50%, rgba(170, 190, 225, 0.16), transparent 70%),
++    radial-gradient(ellipse 28% 60% at 64% 50%, rgba(225, 205, 170, 0.14), transparent 70%);
+   filter: blur(26px);
+ }
+ 
+@@ -394,6 +391,227 @@ $space-glow: #1a2840;
+   100% { transform: translateX(-20vw); opacity: 0; }
+ }
+ 
++// ═════════════════════════════════════════════════════════════════════════════
++//  VUE DEPUIS L'ORBASPHÈRE (.space-bg.day)
++//  La nuit on regarde le vide ; le jour, la Terre depuis la station. Le bleu
++//  atmosphérique est le fond de l'hôte (--m-sky). Seuls bougent les nuages
++//  (rotation de la Terre) et le reflet sur le panneau solaire, en `transform`
++//  seulement ; dans /game (mode calme), tout est figé. Aucun calque n'est créé
++//  ni détruit tant qu'on reste dans le même mode.
++//  Ordre d'empilement : Terre, reflet sur l'océan, ombre basse du cadre, aile,
++//  ombre haute du cadre (au-dessus de l'aile, sous la barre d'état).
++// ═════════════════════════════════════════════════════════════════════════════
++
++// Le voile sombre du mode calme n'a pas lieu d'être de jour.
++.space-bg.day.calm {
++  background: none;
++}
++
++// ─── La Terre ────────────────────────────────────────────────────────────────
++// Un disque de 2,2 largeurs d'écran, écrasé de moitié en hauteur : vu en
++// rasant depuis l'orbite. Seul son haut entre dans le cadre, le limbe passe à
++// 64 % de la hauteur au centre et descend vers les bords (~22 px sur un
++// téléphone, ~80 px sur un écran de bureau). Toutes les couches internes sont
++// des disques de même centre.
++.orb-earth {
++  --earth: 220vw;
++  position: absolute;
++  top: 64%;
++  left: 50%;
++  width: var(--earth);
++  height: var(--earth);
++  margin-left: calc(var(--earth) * -0.5);
++  transform-origin: 50% 0;
++  transform: scaleY(0.5);
++}
++
++// Limbe : la mince couche d'atmosphère éclairée, juste au-dessus du bord du
++// disque (le disque recouvre l'intérieur). Le bord est à 92,6 % du rayon de
++// ce calque, plus grand de 4 % de chaque côté.
++.orb-earth__limb {
++  position: absolute;
++  inset: -4%;
++  border-radius: 50%;
++  background: radial-gradient(
++    closest-side,
++    rgba(220, 242, 255, 0) 91.4%,
++    rgba(220, 242, 255, 0.95) 92.6%,
++    rgba(150, 206, 250, 0.55) 94.2%,
++    rgba(90, 160, 235, 0.18) 97%,
++    rgba(90, 160, 235, 0) 100%
++  );
++}
++
++// Océan : bleu profond, qui s'éclaircit vers le limbe où on le voit à travers
++// plus d'atmosphère.
++.orb-earth__ocean {
++  position: absolute;
++  inset: 0;
++  border-radius: 50%;
++  background: radial-gradient(
++    closest-side,
++    #062449 0%,
++    #072b56 68%,
++    #0a3a6e 82%,
++    #13508f 90%,
++    #2a72b8 95.5%,
++    #5a9fda 98.6%,
++    #a9d8f5 100%
++  );
++}
++
++// Fonds marins et nuages : une texture en disque, pré-calculée hors ligne
++// (un filtre SVG serait recalculé à la résolution de l'écran, une saccade
++// visible sur Android). Le calque tourne autour du centre de la Terre : les
++// nuages glissent le long de la courbure, un tour en 40 minutes.
++.orb-earth__weather {
++  position: absolute;
++  inset: 0;
++  display: block;
++  width: 100%;
++  height: 100%;
++  will-change: transform;
++  animation: orb-turn 2400s linear infinite;
++}
++
++@keyframes orb-turn {
++  to { transform: rotate(360deg); }
++}
++
++// Voile d'atmosphère sur le bord : les nuages lointains se fondent dans le
++// limbe au lieu de s'arrêter net.
++.orb-earth__haze {
++  position: absolute;
++  inset: 0;
++  border-radius: 50%;
++  background: radial-gradient(
++    closest-side,
++    rgba(150, 205, 248, 0) 84%,
++    rgba(150, 205, 248, 0.22) 92%,
++    rgba(200, 234, 255, 0.55) 97.5%,
++    rgba(232, 247, 255, 0.85) 100%
++  );
++}
++
++// Reflet du soleil sur l'océan, côté droit (le soleil est à droite, comme
++// l'indique le reflet sur le panneau). En coordonnées d'écran, statique.
++.orb-sunglint {
++  position: absolute;
++  top: 69%;
++  left: 48%;
++  width: 64vw;
++  height: 22vh;
++  background: radial-gradient(
++    ellipse closest-side,
++    rgba(228, 242, 255, 0.42) 0%,
++    rgba(200, 228, 252, 0.16) 48%,
++    rgba(200, 228, 252, 0) 100%
++  );
++}
++
++// Ombre du cadre de la baie d'observation : en bas, la vue s'arrête où
++// commence la station et le pied de page reste lisible même posé sur un
++// nuage ; en haut, la barre d'état reste lisible quand l'aile passe dessous.
++.orb-frame-shade {
++  position: absolute;
++  inset: auto 0 0;
++  height: 30%;
++  background: linear-gradient(to top, rgba(3, 16, 38, 0.62), rgba(3, 16, 38, 0.26) 40%, rgba(3, 16, 38, 0));
++}
++
++.orb-frame-shade--top {
++  inset: 0 0 auto;
++  height: calc(var(--sa-top, 0px) + 56px);
++  background: linear-gradient(to bottom, rgba(3, 16, 38, 0.72), rgba(3, 16, 38, 0.3) 55%, rgba(3, 16, 38, 0));
++}
++
++// ─── Panneau solaire de la station ───────────────────────────────────────────
++// Aile au premier plan (dessinée en perspective, voir le gabarit) qui traverse
++// le coin haut gauche : elle entre par le bord gauche et sort par le haut.
++// Cellules or des couvertures de l'ISS, mât en aluminium. Taille bornée pour
++// que son bord bas passe au-dessus du titre de l'accueil.
++.orb-array {
++  position: absolute;
++  top: 0;
++  left: 0;
++  width: min(56vw, 460px);
++  aspect-ratio: 1;
++}
++
++.orb-array__wing {
++  display: block;
++  width: 100%;
++  height: 100%;
++}
++
++.orb-array__blanket {
++  fill: url(#orb-array-cells);
++}
++
++.orb-array__cells {
++  fill: none;
++  stroke: #3a240a;
++  stroke-opacity: 0.55;
++  stroke-width: 1;
++  vector-effect: non-scaling-stroke;
++}
++
++.orb-array__frame {
++  fill: none;
++  stroke: #e3eaf0;
++  stroke-opacity: 0.75;
++  stroke-width: 1.2;
++  vector-effect: non-scaling-stroke;
++}
++
++.orb-array__metal {
++  fill: url(#orb-array-metal);
++}
++
++// Reflet du soleil : une bande claire, en travers de l'aile, la balaie du
++// bout proche (bas gauche) vers le bout lointain (haut), puis l'aile reste au
++// repos. Découpée à la partie visible de l'aile (mêmes points que le SVG, en
++// % de la boîte).
++.orb-array__glint {
++  position: absolute;
++  inset: 0;
++  clip-path: polygon(0 14.2%, 18% 0, 90.5% 0, 0 94.2%);
++}
++
++.orb-array__shine {
++  position: absolute;
++  inset: -50%;
++  background: linear-gradient(
++    45deg,
++    rgba(255, 246, 220, 0) 44%,
++    rgba(255, 246, 220, 0.45) 47.5%,
++    rgba(255, 253, 244, 0.9) 50%,
++    rgba(255, 246, 220, 0.45) 52.5%,
++    rgba(255, 246, 220, 0) 56%
++  );
++  transform: translate(-45%, 45%);
++  will-change: transform;
++  animation: orb-glint 13s ease-in-out 2s infinite;
++}
++
++@keyframes orb-glint {
++  0% { transform: translate(-45%, 45%); }
++  24% { transform: translate(45%, -45%); }
++  100% { transform: translate(45%, -45%); }
++}
++
++// Partie en cours : la Terre ne tourne plus, le panneau ne brille plus.
++.space-bg.calm {
++  .orb-earth__weather {
++    animation-play-state: paused;
++  }
++
++  .orb-array__shine {
++    animation: none;
++    opacity: 0;
++  }
++}
++
+ // Respect des préférences d'accessibilité : on fige les animations.
+ @media (prefers-reduced-motion: reduce) {
+   .nebula,
+@@ -407,4 +625,6 @@ $space-glow: #1a2840;
+   }
+   .shooting-star,
+   .spaceship { opacity: 0; }
++  .orb-earth__weather { animation-play-state: paused !important; }
++  .orb-array__shine { animation: none !important; opacity: 0; }
+ }
+diff --git a/frontend/src/app/shared/space-background.component.ts b/frontend/src/app/shared/space-background.component.ts
+index f2c3a92c..5cf8b7e9 100644
+--- a/frontend/src/app/shared/space-background.component.ts
++++ b/frontend/src/app/shared/space-background.component.ts
+@@ -8,6 +8,7 @@ import {
+ import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
+ import { NavigationEnd, Router } from "@angular/router";
+ import { filter } from "rxjs";
++import { ThemeService } from "../services/theme.service";
+ 
+ /** État d'un passage de vaisseau (généré aléatoirement à chaque apparition). */
+ interface ShipState {
+@@ -35,6 +36,13 @@ interface Twinkle {
+  * Majoritairement CSS/SVG pur — léger sur mobile (Capacitor). Le défilement des
+  * étoiles est volontairement très lent (quasi imperceptible). Seul le vaisseau
+  * est piloté en JS pour apparaître de façon réellement aléatoire et rare.
++ *
++ * Mode jour (ThemeService) : la vue depuis l'Orbasphère. Au lieu du vide
++ * spatial, on regarde la Terre en plein jour depuis la station : bleu
++ * atmosphérique profond (--m-sky), courbure de la Terre dans le tiers
++ * inférieur, nuages qui tournent avec elle, limbe lumineux, et un panneau
++ * solaire de la station qui accroche le soleil. Rien de la nuit n'est rendu
++ * le jour, et inversement (le vaisseau ne passe que la nuit).
+  */
+ @Component({
+   selector: "app-space-background",
+@@ -60,6 +68,9 @@ export class SpaceBackgroundComponent {
+   /** Vaisseau courant (null = aucun passage en cours). */
+   protected readonly ship = signal<ShipState | null>(null);
+ 
++  /** Mode jour : la vue depuis l'Orbasphère remplace le ciel étoilé. */
++  protected readonly isDay = inject(ThemeService).isDay;
++
+   /**
+    * Mode « calme » : sur la route /game, on retire les éléments mouvants
+    * (nébuleuses, planètes, vaisseau, étoiles filantes) au profit d'un simple

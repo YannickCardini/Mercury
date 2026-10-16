@@ -67,6 +67,7 @@
   .home-nav,
   .hero-title-wrap,
   .home-orbit,
+  .theme-icon,
   .boost-ready,
   .hero-actions .action-btn {
     animation: none !important;
@@ -94,6 +95,46 @@
   // sur un côté et masquerait le bouton de retour / l'avatar.
   padding: 16px calc(20px + var(--sa-right)) 16px calc(20px + var(--sa-left));
   animation: entranceDown 0.5s var(--m-ease) both;
+}
+
+.nav-start {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+// Bascule jour / nuit : même pastille papier que le profil et le solde, en
+// rond. L'icône montre le ciel qu'on obtient (soleil la nuit, lune le jour)
+// et entre en tournant quand le mode change.
+.theme-toggle {
+  @include m.btn(0);
+  @include m.btn-paper;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+
+.theme-icon {
+  width: 20px;
+  height: 20px;
+  animation: themeIconIn 0.5s var(--m-ease) both;
+}
+
+.theme-icon--sun {
+  color: var(--m-gold-fg);
+}
+
+@keyframes themeIconIn {
+  from {
+    opacity: 0;
+    transform: rotate(-70deg) scale(0.55);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .nav-brand {
@@ -148,7 +189,13 @@
   justify-content: safe center;
   gap: 28px;
   padding: 20px 20px;
-  overflow: hidden;
+  // Filet de sécurité des écrans courts (téléphone 16:9 avec barre à 3
+  // boutons, écran partagé, bandeaux de reprise et de boosters affichés) :
+  // si le contenu dépasse, il part du haut (`safe center`) et défile, pour
+  // que les boutons de jeu restent toujours atteignables.
+  overflow-x: hidden;
+  overflow-y: auto;
+  @include m.scrollbar;
 }
 
 // ─── Animated title ───────────────────────────────────────────────────────────
@@ -164,13 +211,14 @@
   margin: 0 0 6px;
 }
 
-// Lettres crème posées sur le ciel : une tranche pleine sous chaque lettre,
-// même vocabulaire que les surfaces, à la place de l'ancien halo lumineux.
+// Lettres posées sur le ciel : une tranche pleine sous chaque lettre, même
+// vocabulaire que les surfaces, à la place de l'ancien halo lumineux. Crème
+// la nuit, ardoise le jour (--m-brand).
 .hero-letter {
   @include m.display(800);
   font-size: clamp(3.4rem, 11.5vw, 6.6rem);
-  color: var(--m-cream);
-  text-shadow: 0 0.05em 0 rgba(var(--m-night-rgb), 0.7);
+  color: var(--m-brand);
+  text-shadow: 0 0.05em 0 var(--m-brand-ledge);
   animation: heroLetterFloat 2.6s ease-in-out infinite;
   animation-delay: calc(var(--i) * 0.13s);
   display: inline-block;
@@ -212,6 +260,19 @@
   @media (orientation: landscape) {
     display: none;
   }
+
+  // Écran très court en portrait : les boutons de jeu passent avant l'emblème.
+  @media (max-height: 640px) {
+    display: none;
+  }
+}
+
+// Le reste de la colonne (barre du haut, titre, trois boutons, pied de page,
+// marges) prend ~510px hors barres système : l'emblème (6 billes de haut) se
+// réduit pour tenir dans ce qui reste, de 24px de bille jusqu'à 14px.
+// Sélecteur à deux classes : prime sur le `.sm` de l'hôte du trèfle.
+.home-hero .home-orbit {
+  --_d: clamp(14px, calc((100dvh - var(--sa-top) - var(--sa-bottom) - 510px) / 6), 24px);
 }
 
 // ─── Duplicate tab banner ────────────────────────────────────────────────────
@@ -353,14 +414,14 @@
 // couleur, il se perd dès qu'on touche ailleurs.
 .action-btn {
   @include m.btn-paper;
-  // Teintes d'origine de la plaque (avant l'assombrissement global du papier).
-  background: #265670;
-  border-color: #2e637e;
-  box-shadow: 0 3px 0 0 #0f2938;
-  color: var(--m-ink-solid);
+  // Plaque au repos (tokens --m-plate*) : ardoise la nuit, papier le jour.
+  background: var(--m-plate);
+  border-color: var(--m-plate-line);
+  box-shadow: 0 3px 0 0 var(--m-plate-edge);
+  color: var(--m-plate-fg);
 
   &:active:not(:disabled) {
-    box-shadow: 0 1px 0 0 #0f2938;
+    box-shadow: 0 1px 0 0 var(--m-plate-edge);
   }
 
   &:focus,
@@ -635,22 +696,25 @@
 }
 
 // ─── Matchmaking card ─────────────────────────────────────────────────────────
-// Élément conservé tel quel : la recherche de partie reste une carte de verre
-// sombre, premier pas vers le plateau. Elle ne porte pas `m-paper`, son
-// contenu garde donc les alias « ciel » (texte crème). Seuls le rayon et la
-// typographie suivent le reste de l'app.
+// La nuit, élément conservé tel quel : une carte de verre sombre, premier pas
+// vers le plateau (`m-night`, texte crème). Le jour, elle porte `m-paper` à la
+// place et redevient une plaque de papier comme les autres cartes (recette
+// de `.modal-card`), texte ardoise. Rayon et typographie suivent le reste.
 .matchmaking-card {
   max-width: 340px;
   text-align: center;
-  background: var(--m-ink-night);
-  border: 1px solid var(--m-line);
-  color: var(--m-fg);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(var(--m-cream-rgb), 0.04);
 
-  // Sur la nuit, les billes gardent leur halo coloré (retiré sur le papier,
-  // où il ne ferait qu'une tache).
-  .mm {
-    box-shadow: 0 0 6px var(--planet-glow, transparent);
+  &.m-night {
+    background: var(--m-ink-night);
+    border: 1px solid var(--m-line);
+    color: var(--m-fg);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(var(--m-cream-rgb), 0.04);
+
+    // Sur la nuit, les billes gardent leur halo coloré (retiré sur le papier,
+    // où il ne ferait qu'une tache).
+    .mm {
+      box-shadow: 0 0 6px var(--planet-glow, transparent);
+    }
   }
 }
 

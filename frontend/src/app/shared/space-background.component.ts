@@ -8,6 +8,7 @@ import {
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { NavigationEnd, Router } from "@angular/router";
 import { filter } from "rxjs";
+import { ThemeService } from "../services/theme.service";
 
 /** État d'un passage de vaisseau (généré aléatoirement à chaque apparition). */
 interface ShipState {
@@ -17,6 +18,14 @@ interface ShipState {
   duration: number;
   /** Sens : true = de gauche à droite, false = de droite à gauche. */
   ltr: boolean;
+}
+
+/** Le ciel étoilé : trois couches de box-shadow et les étoiles qui scintillent. */
+interface StarField {
+  small: string;
+  medium: string;
+  large: string;
+  twinkles: Twinkle[];
 }
 
 /** Étoile scintillante individuelle (placée par-dessus les champs statiques). */
@@ -29,12 +38,20 @@ interface Twinkle {
 }
 
 /**
- * Fond d'écran spatial global, rendu une seule fois au niveau de l'app
- * (derrière le router-outlet) pour habiller toutes les routes.
+ * Fond d'écran global, rendu une seule fois au niveau de l'app (derrière le
+ * router-outlet) pour habiller toutes les routes : Mars en cours de
+ * terraformation, en aplats étagés. Mesas, collines, plaine, cratères, colonie
+ * de dômes et lac de cratère, avec des brumes qui dérivent lentement.
  *
- * Majoritairement CSS/SVG pur — léger sur mobile (Capacitor). Le défilement des
- * étoiles est volontairement très lent (quasi imperceptible). Seul le vaisseau
- * est piloté en JS pour apparaître de façon réellement aléatoire et rare.
+ * Le paysage est le même dans les deux modes (ThemeService), seule sa palette
+ * change ; le ciel, lui, change d'objets. Le jour : ciel clair en bandes et
+ * double lever de soleil. La nuit : ciel bleu nuit étoilé, Phobos et Deimos,
+ * fenêtres de la colonie allumées, étoiles filantes rares et un vaisseau de
+ * loin en loin.
+ *
+ * SVG statique dans le gabarit (dessiné par resources/mars/), léger sur mobile
+ * (Capacitor). Seul le vaisseau est piloté en JS, pour apparaître de façon
+ * réellement aléatoire et rare.
  */
 @Component({
   selector: "app-space-background",
@@ -43,27 +60,23 @@ interface Twinkle {
   styleUrl: "./space-background.component.scss",
 })
 export class SpaceBackgroundComponent {
-  /** box-shadow listant toutes les étoiles d'une couche (petite / moyenne / grande). */
-  protected readonly starsSmall = signal(this.buildStars(700, 1));
-  protected readonly starsMedium = signal(this.buildStars(200, 1.6));
-  protected readonly starsLarge = signal(this.buildStars(70, 2.4));
-
-  /** Une poignée d'étoiles qui scintillent légèrement. */
-  protected readonly twinkles = signal<Twinkle[]>(this.buildTwinkles(9));
-
-  /** Étoiles groupées en bande pour dessiner la Voie lactée (mode calme). */
-  protected readonly galaxyStars = signal(this.buildGalaxyStars(820));
-
-  /** Couche d'étoiles supplémentaire, propre au mode calme (/game), plus dense. */
-  protected readonly calmStars = signal(this.buildStars(600, 1.2));
+  /**
+   * Le ciel étoilé, créé à la première nuit affichée puis gardé (les étoiles
+   * ne changent pas de place d'une nuit à l'autre). Le jour, rien n'est
+   * calculé : un démarrage en mode jour n'en paie pas le coût.
+   */
+  private stars?: StarField;
 
   /** Vaisseau courant (null = aucun passage en cours). */
   protected readonly ship = signal<ShipState | null>(null);
 
+  /** Mode jour : ciel du matin et soleils ; sinon ciel de nuit et lunes. */
+  protected readonly isDay = inject(ThemeService).isDay;
+
   /**
-   * Mode « calme » : sur la route /game, on retire les éléments mouvants
-   * (nébuleuses, planètes, vaisseau, étoiles filantes) au profit d'un simple
-   * ciel étoilé avec une galaxie, pour ne pas perturber la partie.
+   * Mode « calme » : sur la route /game, le plateau cache le paysage. Rien
+   * n'est rendu sinon le ciel en bandes de l'hôte (--m-sky), sans animation,
+   * pour ne pas alourdir la partie.
    */
   protected readonly calm = signal(false);
 
@@ -92,6 +105,16 @@ export class SpaceBackgroundComponent {
     });
   }
 
+  /** Le ciel étoilé, calculé une seule fois, à la première nuit. */
+  protected starField(): StarField {
+    return (this.stars ??= {
+      small: this.buildStars(700, 1),
+      medium: this.buildStars(200, 1.6),
+      large: this.buildStars(70, 2.4),
+      twinkles: this.buildTwinkles(9),
+    });
+  }
+
   private isGameRoute(url: string): boolean {
     return url.split("?")[0].startsWith("/game");
   }
@@ -107,7 +130,7 @@ export class SpaceBackgroundComponent {
   private launchShip(): void {
     const duration = 9_000 + Math.random() * 7_000; // 9–16 s de traversée
     this.ship.set({
-      top: 8 + Math.random() * 55, // 8 %–63 % de hauteur
+      top: 8 + Math.random() * 30, // 8 %–38 % : dans le ciel, au-dessus des mesas
       duration,
       ltr: Math.random() < 0.5,
     });
@@ -121,8 +144,7 @@ export class SpaceBackgroundComponent {
 
   /**
    * Génère une chaîne `box-shadow` plaçant `count` points lumineux répartis sur
-   * une zone de 2000×2000 px. La couche est dupliquée verticalement (cf. SCSS)
-   * pour permettre une dérive infinie sans couture.
+   * une zone de 2000×2000 px. Le paysage cache ceux qui tombent sous l'horizon.
    */
   private buildStars(count: number, maxBlur: number): string {
     const parts: string[] = [];
@@ -137,31 +159,12 @@ export class SpaceBackgroundComponent {
   }
 
   /**
-   * Étoiles concentrées le long d'une bande horizontale (répartition ~gaussienne
-   * autour du centre du champ) pour évoquer la Voie lactée. Le conteneur est
-   * ensuite incliné en CSS pour obtenir la diagonale.
+   * Quelques étoiles réparties aléatoirement dans le ciel (au-dessus de
+   * l'horizon le plus haut, 53 %), au scintillement lent et léger.
    */
-  private buildGalaxyStars(count: number): string {
-    const field = 2600;
-    const center = field / 2;
-    const spread = 200;
-    const parts: string[] = [];
-    for (let i = 0; i < count; i++) {
-      const x = Math.round(Math.random() * field);
-      // Somme de 3 tirages → distribution centrée sur la bande.
-      const g = (Math.random() + Math.random() + Math.random() - 1.5) / 1.5;
-      const y = Math.round(center + g * spread);
-      const blur = (Math.random() * 1.4).toFixed(1);
-      const alpha = (0.45 + Math.random() * 0.5).toFixed(2);
-      parts.push(`${x}px ${y}px ${blur}px rgba(220,228,255,${alpha})`);
-    }
-    return parts.join(", ");
-  }
-
-  /** Quelques étoiles réparties aléatoirement, au scintillement lent et léger. */
   private buildTwinkles(count: number): Twinkle[] {
     return Array.from({ length: count }, () => ({
-      top: Math.random() * 100,
+      top: Math.random() * 44,
       left: Math.random() * 100,
       size: 1.5 + Math.random() * 2, // 1.5–3.5 px
       delay: Math.random() * 8, // s

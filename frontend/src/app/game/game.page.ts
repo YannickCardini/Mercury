@@ -12,12 +12,13 @@ import { Router } from "@angular/router";
 import { BoardComponent } from "./components/board/board.component";
 import { TableComponent } from "./components/table/table.component";
 import { VictoryOverlayComponent, type VictoryPlayer } from "./components/victory-overlay/victory-overlay.component";
-import { TeamIntroOverlayComponent, type TeamIntroPlayer } from "./components/team-intro-overlay/team-intro-overlay.component";
 import { TeamVsBannerComponent } from "./components/team-vs-banner/team-vs-banner.component";
+import { TeamIntroOverlayComponent, type TeamIntroPlayer } from "./components/team-intro-overlay/team-intro-overlay.component";
 import { TutorialOverlayComponent } from "./components/tutorial-overlay/tutorial-overlay.component";
 import { BountyFxComponent } from "./components/bounty-fx/bounty-fx.component";
 import { GameRulesModalComponent } from "../shared/game-rules-modal.component";
 import { LoadingScreenComponent } from "../shared/loading-screen.component";
+import { JokerArtComponent } from "../shared/joker-art.component";
 import { GameStateService } from "./services/game-state.service";
 import { SoundService } from "./services/sound.service";
 import { ToastService } from "../shared/toast.service";
@@ -62,6 +63,7 @@ const ENTRANCE_SETTLE_MS = 1400;
     BountyFxComponent,
     GameRulesModalComponent,
     LoadingScreenComponent,
+    JokerArtComponent,
   ],
   // `is-native` : allège en CSS les effets coûteux (backdrop-filter) sur
   // WebView Android. Le rendu web/desktop reste inchangé.
