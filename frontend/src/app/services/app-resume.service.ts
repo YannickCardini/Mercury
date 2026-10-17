@@ -2,7 +2,7 @@ import { Injectable, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { Subject, filter, take } from 'rxjs';
 import { App } from '@capacitor/app';
-import { Network } from '@capacitor/network';
+import { Network, type ConnectionStatus } from '@capacitor/network';
 import { Capacitor } from '@capacitor/core';
 import { GameStateService } from '../game/services/game-state.service';
 import { TabLockService } from '../game/services/tab-lock.service';
@@ -90,8 +90,17 @@ export class AppResumeService {
       // Une transition réseau (Wi-Fi→data au verrouillage écran, retour de tunnel…)
       // coupe la socket sans forcément backgrounder l'app. Dès que la connectivité
       // revient, on reconnecte immédiatement la partie en cours.
+      // Sur Android, le plugin émet aussi `connected: true` à chaque
+      // onCapabilitiesChanged (force du signal, débit estimé…), soit toutes les
+      // quelques secondes en 4G ou Wi-Fi faible : seul un vrai retour de la
+      // connectivité ou un changement de type de réseau justifie de forcer.
+      let lastNetwork: ConnectionStatus | null = null;
+      void Network.getStatus().then((status) => { lastNetwork ??= status; });
       void Network.addListener('networkStatusChange', (status) => {
-        if (!status.connected) return;
+        const previous = lastNetwork;
+        lastNetwork = status;
+        if (!status.connected || !previous) return;
+        if (previous.connected && previous.connectionType === status.connectionType) return;
         if (!this.readActiveGameFromStorage() || this.tabLock.wasReplaced()) return;
         console.log('[AppResume] réseau revenu — reconnexion immédiate');
         // force : la socket survivante est probablement à moitié morte.
