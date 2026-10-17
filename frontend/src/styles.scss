@@ -1,3 +1,5 @@
+@use "sass:list";
+
 /* ── Safe areas (edge-to-edge Android 15+) ───────────────────────────────────
    Source de vérité unique pour les insets des barres système. Deux mécanismes
    coexistent et il faut les couvrir tous les deux :
@@ -116,7 +118,7 @@ html:is([data-theme-switch="dusk"], [data-theme-switch="dawn"]) {
 // (fond du groupe) apparaît, puis la nouvelle couleur le recouvre.
 @mixin m-switch-band($i, $delay) {
   &::view-transition-group(m-band-#{$i}) {
-    background-color: nth($m-twilight, $i);
+    background-color: list.nth($m-twilight, $i);
   }
 
   &::view-transition-old(m-band-#{$i}) {

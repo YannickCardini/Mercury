@@ -64,11 +64,7 @@ export class SessionManager {
             try {
                 const msg = JSON.parse(raw.data as string) as ClientMessage;
                 if (msg.type === 'inviteResponse') {
-                    this.presence.send(msg.fromUserId, {
-                        type: 'gameInviteResponse',
-                        fromUserId: userId,
-                        accepted: msg.accepted,
-                    });
+                    this.customGames.handleInviteResponse(userId, msg.fromUserId, msg.accepted);
                 }
             } catch { /* ignore */ }
         };

@@ -81,7 +81,23 @@ export class TeamVsBannerComponent implements OnDestroy {
   });
 }
 
+/** Longueur max d'un nom affiché (l'ellipse comprise) : tient dans le fronton sur un écran étroit. */
+const MAX_NAME = 7;
+
+/**
+ * Nom court d'un siège. Le prénom s'il tient ; sinon la première partie d'un
+ * prénom composé (« Louis-Marie » donne « Louis »), puis le plus court des
+ * autres mots du nom ; en dernier recours le prénom coupé avec une ellipse.
+ * Sans nom : la couleur du siège.
+ */
 function firstName(p: TeamIntroPlayer): string {
-  const first = p.name?.trim().split(/\s+/)[0];
-  return first || p.color.charAt(0).toUpperCase() + p.color.slice(1);
+  const words = (p.name ?? "").trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return p.color.charAt(0).toUpperCase() + p.color.slice(1);
+  const first = words[0];
+  if (first.length <= MAX_NAME) return first;
+  const head = first.split(/[-']/)[0];
+  if (head.length >= 3 && head.length <= MAX_NAME) return head;
+  const others = words.slice(1).filter((w) => w.length >= 3 && w.length <= MAX_NAME).sort((a, b) => a.length - b.length);
+  if (others.length > 0) return others[0];
+  return first.slice(0, MAX_NAME - 1) + "\u2026";
 }

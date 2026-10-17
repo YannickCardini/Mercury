@@ -142,7 +142,10 @@
   width: 56px;
   height: 22px;
   opacity: 0;
-  filter: drop-shadow(0 0 6px rgba(143, 166, 207, 0.5));
+  // Pas de `filter` ici : un filtre sur un calque qui se déplace en continu,
+  // sous des lettres elles-mêmes animées (titre de l'accueil), faisait lâcher
+  // le calque au passage (disparition d'un coup). Le halo est dessiné dans le
+  // SVG (ellipse dégradée).
   will-change: transform, opacity;
   animation-name: spaceship-ltr;
   animation-timing-function: linear;
@@ -165,17 +168,17 @@
 }
 
 @keyframes spaceship-ltr {
-  0% { transform: translateX(-20vw); opacity: 0; }
+  0% { transform: translate3d(-20vw, 0, 0); opacity: 0; }
   12% { opacity: 0.7; }
   88% { opacity: 0.7; }
-  100% { transform: translateX(120vw); opacity: 0; }
+  100% { transform: translate3d(120vw, 0, 0); opacity: 0; }
 }
 
 @keyframes spaceship-rtl {
-  0% { transform: translateX(120vw); opacity: 0; }
+  0% { transform: translate3d(120vw, 0, 0); opacity: 0; }
   12% { opacity: 0.7; }
   88% { opacity: 0.7; }
-  100% { transform: translateX(-20vw); opacity: 0; }
+  100% { transform: translate3d(-20vw, 0, 0); opacity: 0; }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════

@@ -12,25 +12,25 @@ import { Router, type Request, type Response } from 'express';
  * (LATEST_VERSION_CODE / LATEST_VERSION_NAME / MIN_VERSION_CODE / STORE_URL)
  * pour pouvoir annoncer une nouvelle version sans redéployer le code.
  */
-const LATEST_VERSION_CODE = Number(process.env['LATEST_VERSION_CODE'] ?? 202);
-const LATEST_VERSION_NAME = process.env['LATEST_VERSION_NAME'] ?? '2.1.0';
-/** En dessous de ce code → mise à jour forcée (réservé pour un usage futur). */
-const MIN_VERSION_CODE = Number(process.env['MIN_VERSION_CODE'] ?? 1.0);
-const STORE_URL =
-    process.env['STORE_URL'] ??
-    'https://play.google.com/store/apps/details?id=online.mercury.game';
+const DEFAULT_LATEST_VERSION_CODE = 202;
+const DEFAULT_LATEST_VERSION_NAME = '2.1.0';
+const DEFAULT_STORE_URL = 'https://play.google.com/store/apps/details?id=online.mercury.game';
 
 const router = Router();
 
 // GET /api/version — public, sans authentification.
 // Permet à l'app mobile de savoir si un build plus récent existe afin de
 // proposer (ou forcer) une mise à jour.
+// Variables lues à chaque requête, pas à l'import : en ESM les imports sont
+// évalués AVANT le dotenv.config() d'index.ts, et des constantes de module
+// ignoraient donc les valeurs du .env (même piège que train-mode.ts).
 router.get('/', (_req: Request, res: Response) => {
     res.json({
-        latestVersionCode: LATEST_VERSION_CODE,
-        latestVersionName: LATEST_VERSION_NAME,
-        minVersionCode: MIN_VERSION_CODE,
-        storeUrl: STORE_URL,
+        latestVersionCode: Number(process.env['LATEST_VERSION_CODE'] ?? DEFAULT_LATEST_VERSION_CODE),
+        latestVersionName: process.env['LATEST_VERSION_NAME'] ?? DEFAULT_LATEST_VERSION_NAME,
+        /** En dessous de ce code → mise à jour forcée (réservé pour un usage futur). */
+        minVersionCode: Number(process.env['MIN_VERSION_CODE'] ?? 1),
+        storeUrl: process.env['STORE_URL'] ?? DEFAULT_STORE_URL,
     });
 });
 

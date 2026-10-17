@@ -765,6 +765,10 @@ export class GameStateService {
           // avoir été réattribuée, ex. repli d'une custom room incomplète vers
           // le matchmaking public). On écrase toute couleur locale pré-lancement.
           this.myPlayerColor.set(welcomeMsg.myColor);
+          // `welcome` ouvre une NOUVELLE partie : rien de la précédente (écran
+          // de fin, points, boosters…) ne doit survivre, même si elle a été
+          // quittée sans passer par reset() (bouton retour Android).
+          this.resetPerGameState();
           // welcome with gameState: null is just an identity message, don't update data
           if (welcomeMsg.gameState) {
             this.data.set(welcomeMsg as unknown as GameStateMessage);
@@ -933,6 +937,10 @@ export class GameStateService {
       if (this.intentionalClose) return;
       if (event.code === 4001) {
         this.tabLock.releaseSession();
+        // Un autre onglet / appareil a repris la partie : plus aucune reprise
+        // automatique d'ici (sinon les deux se la volent en boucle), seul le
+        // bouton Resume de l'accueil la reprend (claimSession).
+        this.tabLock.wasReplaced.set(true);
         this.sessionReplaced$.next();
       } else if (this.data() === null) {
         this.connectionError$.next();
@@ -976,12 +984,19 @@ export class GameStateService {
    * de suite. No-op s'il n'y a pas de partie active stockée.
    * @param url URL WebSocket à utiliser si aucune connexion n'a encore eu lieu
    *            cette session (sinon on réutilise la dernière URL connue).
+   * @param force Rouvre une socket même si l'actuelle semble ouverte : après un
+   *            changement de réseau ou un retour d'arrière-plan sur mobile, elle
+   *            peut être à moitié morte sans que le navigateur le sache encore
+   *            (il n'envoie pas de ping). Le serveur bascule proprement sur la
+   *            nouvelle. Sans `force`, une socket ouverte est laissée telle quelle
+   *            (un `joinGame` dessus serait ignoré par le serveur).
    */
-  reconnectNow(url?: string): void {
+  reconnectNow(url?: string, force = false): void {
     const guestPlayerId = localStorage.getItem('guest_player_id');
     const activeGameId = localStorage.getItem('active_game_id');
     const target = url ?? this.lastUrl;
     if (!guestPlayerId || !activeGameId || !target) return;
+    if (!force && this.isConnected()) return;
 
     // Annule un rejoin programmé et remet le backoff à zéro.
     if (this.rejoinTimer) {
@@ -989,12 +1004,6 @@ export class GameStateService {
       this.rejoinTimer = null;
     }
     this.rejoinDelayMs = 1000;
-
-    if (this.isConnected()) {
-      // La socket a survécu : un simple joinGame rafraîchit l'état.
-      this.sendJoinGame(guestPlayerId, activeGameId);
-      return;
-    }
 
     this.reconnecting$.next();
     console.log('🔄 Reconnexion immédiate à la partie en cours…');
@@ -1011,7 +1020,16 @@ export class GameStateService {
     localStorage.removeItem('guest_player_id');
     this.activeGameId.set(null);
     this.guestPlayerId.set(null);
+    this.activeSessionCleared$.next();
   }
+
+  /**
+   * Émis à chaque purge des clés de reconnexion. AppResumeService s'y abonne
+   * pour éteindre `hasActiveGame` : sans ça, le bandeau « ongoing game » (et
+   * le blocage de Play Now) survivait à une partie déjà purgée, et son clic
+   * était renvoyé à l'accueil par le game guard sans rien afficher.
+   */
+  readonly activeSessionCleared$ = new Subject<void>();
 
   // ── Configuration de partie ───────────────────────────────────────────────
 
@@ -1130,13 +1148,7 @@ export class GameStateService {
   /** Reset all game state so navigation to home starts clean. */
   reset(): void {
     this.data.set(null);
-    this.winners.set([]);
-    this.winReason.set(null);
-    this.gameStats.set(null);
-    this.boostsByColor.set({});
-    this.bountyBase.set({});
-    this.bountyLocal.set(0);
-    this.bountyCoinsInFlight.set(0);
+    this.resetPerGameState();
     this.myPlayerColor.set(null);
     this.guestPlayerId.set(null);
     this.activeGameId.set(null);
@@ -1149,13 +1161,10 @@ export class GameStateService {
     this.discardCardStarts.set([]);
     this.boardContainerSize.set(0);
     this.isConnected.set(false);
-    this.isReplayTurn.set(false);
-    this.lastActionPlayed = null;
     this.tutorialHintId.set(null);
     this.teamIntroPlaying.set(false);
     this.openOverlays.set(new Set());
     this.boardEditMode.set(false);
-    this.finishedColorsSeen.clear();
     this.intentionalClose = true;
     if (this.rejoinTimer) {
       clearTimeout(this.rejoinTimer);
@@ -1168,6 +1177,23 @@ export class GameStateService {
     this.rejoinDelayMs = 1000;
     this.ws?.close();
     this.ws = null;
+  }
+
+  /**
+   * État propre à UNE partie (résultat, points, boosters, Bounty, rejeu,
+   * couleurs déjà terminées). Remis à zéro par reset() et à chaque `welcome`.
+   */
+  private resetPerGameState(): void {
+    this.winners.set([]);
+    this.winReason.set(null);
+    this.gameStats.set(null);
+    this.boostsByColor.set({});
+    this.bountyBase.set({});
+    this.bountyLocal.set(0);
+    this.bountyCoinsInFlight.set(0);
+    this.isReplayTurn.set(false);
+    this.lastActionPlayed = null;
+    this.finishedColorsSeen.clear();
   }
 
   sendJoinGame(guestPlayerId: string, activeGameId: string): void {

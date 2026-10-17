@@ -2,14 +2,14 @@
 
 ## 📌 Project Overview
 Mercury is a real-time multiplayer board game (similar to Tock / Keezen) played with cards and marbles.
-- Requires exactly 4 players per board (solo, custom room or matchmaking). It is always played as 2v2 teams (unnamed teams: red+blue vs green+orange).
+- Requires exactly 4 players per board (matchmaking or custom room; seats left empty in matchmaking are filled by AI agents). It is always played as 2v2 teams (unnamed teams: red+blue vs green+orange).
 - Frontend ships as a web app and as a native Android app (Capacitor).
 
 ---
 
 ## 🧭 Context
 - **Who plays**: signed in with Google (or as a guest, browser-id only, no account). Bots (AI opponents) also authenticate as regular accounts via a dedicated bot-login endpoint and can fill empty seats.
-- **How a game is reached**: solo vs bots, matchmaking (random opponents), or a custom room (shareable code, invite friends). All three converge on the same `Game` engine and `WebSocket` messenger.
+- **How a game is reached**: matchmaking (random opponents, AI agents dispatched to fill seats) or a custom room (shareable code, invite friends; started with fewer than 4 it falls back to matchmaking). A DEBUG-only "vs 3 local bots" game also exists. All converge on the same `Game` engine and `WebSocket` messenger.
 - **State model**: the server is authoritative. All game state lives in memory per-process (`GameRegistry`) and is snapshotted to Azure Blob Storage every turn so a restart/redeploy can rehydrate in-flight games without losing them.
 - **Sessions are long-lived by design**: once a player signs in with Google, the backend issues its own long-lived session token (~27 years) so the client never needs to silently refresh via Google. This has real implications: any "freshness" signal (e.g. last-seen, last-login) must be updated from actual authenticated activity, not from the login/auth endpoint alone, since that endpoint may only ever fire once per device.
 - **No local testing**: nobody runs `npm run dev`/serves the app during a Claude session (see Execution Limits below) — the user tests changes themselves on their own Android device. Treat `tsc`/`build`/unit tests as the full verification loop available in-session.
@@ -38,7 +38,7 @@ npm workspaces: `packages/shared`, `backend`, `frontend`. Build order matters �
 
 - **`backend/`** — Node/Express + `ws` (raw WebSocket, no socket.io), TypeScript, run via `tsx` in dev / compiled to `dist` for prod.
   - `src/index.ts` — HTTP server + WebSocket upgrade handling, top-level routing of WS "setup" messages (`joinMatchmaking`, `createCustomRoom`, `joinCustomRoom`, `registerPresence`, `joinGame`), CORS/origin allowlist, per-IP connection cap, heartbeat/zombie-socket cleanup.
-  - `src/game/` — the game engine itself: `game.ts` (turn/move/win logic), `deck.ts`, `player.ts`, `player-strategy.ts` + `ai-strategy.ts`/`human-strategy.ts` (bot decision-making), `game-messenger.ts` (per-player WS fan-out), `game-snapshot.ts`, `points.ts` (Elo-like scoring). Has the only real unit test suite in the repo (`*.test.ts`, run with `node --test` via `tsx`).
+  - `src/game/` — the game engine itself: `game.ts` (turn/move/win logic), `deck.ts`, `player.ts`, `player-strategy.ts` + `ai-strategy.ts`/`human-strategy.ts` (bot decision-making), `game-messenger.ts` (per-player WS fan-out), `game-snapshot.ts`, `points.ts` (fixed point deltas per result, doubled by the Double Points booster). Has the only real unit test suite in the repo (`*.test.ts`, run with `node --test` via `tsx`).
   - `src/session/` — everything above a single game: `session-manager.ts` (entry point used by `index.ts`), `matchmaking-manager.ts`, `custom-game-manager.ts`, `game-registry.ts` (in-memory `gameId → Game`), `reconnect-registry.ts` (guest/user → active game, survives socket drops), `presence-manager.ts` (userId → open sockets, for pushing invites), `bot-dispatch.ts`, `game-restore.ts` (rehydrates `GameRegistry` from blob snapshots on boot).
   - `src/auth/` — `auth-router.ts` (Google/bot/worker login, profile CRUD, avatar upload, leaderboard — all under `/api/auth`), `session-token.ts` (hand-rolled HS256 JWT, no external JWT lib).
   - `src/storage/` — `blob.ts` (Azure Blob: avatars), `snapshot-store.ts` (Azure Blob: per-turn game snapshots for crash/redeploy recovery).

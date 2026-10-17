@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import { randomUUID } from 'crypto';
 import { getMessagesContainer, getUsersContainer } from '../db.js';
-import { verifyGoogleIdToken } from '../auth/auth-router.js';
+import { verifyAuth } from '../auth/auth-router.js';
 
 const router = Router();
 
@@ -34,17 +34,18 @@ interface Thread {
     unreadCount: number;
 }
 
+// Header Authorization uniquement : le client l'envoie depuis l'introduction de
+// la messagerie, et un token de session (~27 ans) ne doit jamais transiter dans
+// une URL (journaux de proxy) ni dans un corps de requête.
 function extractIdToken(req: Request): string | undefined {
     const header = req.headers.authorization;
-    if (header?.startsWith('Bearer ')) return header.slice('Bearer '.length).trim();
-    const fromBody = (req.body as { idToken?: string } | undefined)?.idToken;
-    return fromBody;
+    return header?.startsWith('Bearer ') ? header.slice('Bearer '.length).trim() : undefined;
 }
 
 // POST /api/messages — send a private message
 router.post('/', async (req: Request, res: Response) => {
     const idToken = extractIdToken(req);
-    const senderId = await verifyGoogleIdToken(idToken);
+    const senderId = await verifyAuth(idToken);
     if (!senderId) {
         res.status(401).json({ error: 'Authentication required' });
         return;
@@ -120,8 +121,8 @@ router.post('/', async (req: Request, res: Response) => {
 
 // GET /api/messages/threads — list of conversations for the authenticated user
 router.get('/threads', async (req: Request, res: Response) => {
-    const idToken = extractIdToken(req) ?? (req.query['idToken'] as string | undefined);
-    const userId = await verifyGoogleIdToken(idToken);
+    const idToken = extractIdToken(req);
+    const userId = await verifyAuth(idToken);
     if (!userId) {
         res.status(401).json({ error: 'Authentication required' });
         return;
@@ -177,8 +178,8 @@ router.get('/threads', async (req: Request, res: Response) => {
 
 // GET /api/messages/thread/:peerId — full conversation between user and peer
 router.get('/thread/:peerId', async (req: Request, res: Response) => {
-    const idToken = extractIdToken(req) ?? (req.query['idToken'] as string | undefined);
-    const userId = await verifyGoogleIdToken(idToken);
+    const idToken = extractIdToken(req);
+    const userId = await verifyAuth(idToken);
     if (!userId) {
         res.status(401).json({ error: 'Authentication required' });
         return;
@@ -214,8 +215,8 @@ router.get('/thread/:peerId', async (req: Request, res: Response) => {
 
 // GET /api/messages/unread-count — count of unread messages for authenticated user
 router.get('/unread-count', async (req: Request, res: Response) => {
-    const idToken = extractIdToken(req) ?? (req.query['idToken'] as string | undefined);
-    const userId = await verifyGoogleIdToken(idToken);
+    const idToken = extractIdToken(req);
+    const userId = await verifyAuth(idToken);
     if (!userId) {
         res.status(401).json({ error: 'Authentication required' });
         return;
@@ -241,7 +242,7 @@ router.get('/unread-count', async (req: Request, res: Response) => {
 // Body: { peerId? } — if provided, only marks messages received from that peer.
 router.post('/mark-read', async (req: Request, res: Response) => {
     const idToken = extractIdToken(req);
-    const userId = await verifyGoogleIdToken(idToken);
+    const userId = await verifyAuth(idToken);
     if (!userId) {
         res.status(401).json({ error: 'Authentication required' });
         return;

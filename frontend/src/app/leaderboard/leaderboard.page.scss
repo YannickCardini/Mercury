@@ -8,7 +8,7 @@
 
 .lb-wrap {
   width: 100%;
-  min-height: 100%;
+  height: 100%;
   box-sizing: border-box;
   background: transparent; // fond spatial global visible à travers la page
   display: flex;
@@ -26,6 +26,11 @@
   max-width: 560px;
   @include m.slab;
   overflow: hidden;
+  // La feuille suit son contenu mais s'arrête au bas de l'écran : au-delà,
+  // c'est la liste qui défile.
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .lb-header {
@@ -148,9 +153,10 @@
   list-style: none;
   margin: 0;
   padding: 0 0 8px;
-  // Bornée aussi par l'écran : sur un téléphone court, la liste défile seule
-  // au lieu d'une liste qui défile dans une page qui défile.
-  max-height: min(480px, 58dvh);
+  // Prend toute la hauteur que la feuille lui laisse et défile seule, au lieu
+  // d'une liste qui défile dans une page qui défile.
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   border-top: 1px solid var(--m-line);
   @include m.scrollbar;

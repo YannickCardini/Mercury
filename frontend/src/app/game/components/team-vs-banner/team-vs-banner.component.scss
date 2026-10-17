@@ -132,13 +132,15 @@
 .tvb-names {
   display: flex;
   align-items: center;
-  gap: 0.3em;
+  gap: 0.22em;
   min-width: 0;
 }
 
+// Les noms sont déjà raccourcis (voir `firstName`) : ils ne rétrécissent plus,
+// sinon « You » se faisait écraser avant les noms longs.
 .tvb-name {
-  min-width: 0;
-  max-width: 6.5em;
+  flex: none;
+  max-width: 7.5em;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -149,6 +151,7 @@
 
 .tvb-amp {
   flex: none;
+  font-size: 0.82em;
   font-weight: 600;
   color: var(--m-fg-3);
 }

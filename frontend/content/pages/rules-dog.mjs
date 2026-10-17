@@ -82,7 +82,7 @@ const SECTIONS = `<section class="rp-section">
               <tr><td>Ass</td><td>Murmel einsetzen, oder 1 Feld vorwärts.</td></tr>
               <tr><td>König</td><td>Murmel einsetzen, oder 13 Felder vorwärts.</td></tr>
               <tr><td>Dame</td><td>12 Felder vorwärts.</td></tr>
-              <tr><td>Bube</td><td>Zwei Murmeln unterschiedlicher Farbe tauschen (Team-Modus).</td></tr>
+              <tr><td>Bube</td><td>Zwei Murmeln unterschiedlicher Farbe tauschen, mindestens eine aus dem eigenen Team.</td></tr>
               <tr><td>7</td><td>7 Schritte aufteilen: zuerst die eigene Murmel, der Rest darf zur Murmel des
                 Partners gehen.</td></tr>
               <tr><td>4</td><td>4 Felder rückwärts.</td></tr>
@@ -98,7 +98,7 @@ const SECTIONS = `<section class="rp-section">
         <h2>Die wichtigsten Sonderregeln</h2>
         <ul>
           <li><strong>Frisch eingesetzte Murmel:</strong> Eine Murmel, die gerade erst auf dem Startfeld eingesetzt
-            wurde (mit Ass oder König), ist vollständig geschützt: Sie blockiert den Weg und kann weder überholt
+            wurde (mit Ass, König oder Joker), ist vollständig geschützt: Sie blockiert den Weg und kann weder überholt
             noch geschlagen, getauscht oder zurückgesetzt werden. Sobald sie vorwärts zieht, entfällt der Schutz
             endgültig.</li>
           <li><strong>Einschränkung beim Buben:</strong> Ein Tausch mit einer Murmel, die bereits im Ziel steht,
@@ -119,8 +119,8 @@ const SECTIONS = `<section class="rp-section">
             <strong>Partners</strong>.</li>
           <li>Bei einer <strong>7</strong> müsst ihr zuerst eure eigene Murmel ziehen; die restlichen Schritte
             dürft ihr danach an die Murmel eures Partners geben.</li>
-          <li>Mit einem <strong>Buben</strong> dürft ihr zwei Murmeln unterschiedlicher Farbe tauschen, ohne dass
-            eine eigene Murmel beteiligt sein muss.</li>
+          <li>Mit einem <strong>Buben</strong> dürft ihr zwei Murmeln unterschiedlicher Farbe tauschen, solange
+            mindestens eine eurem Team gehört: Die Murmel des Partners darf eure ersetzen, zwei gegnerische nie.</li>
           <li><strong>Rettung bei blockierter Hand:</strong> Habt ihr selbst keinen gültigen Zug, aber ein Ass,
             einen König oder einen Joker auf der Hand, hat euer Partner noch Murmeln in Reserve und ist dessen
             Startfeld frei, <strong>müsst</strong> ihr diese Karte spielen, um seine Murmel einzusetzen: Ablegen

@@ -42,7 +42,7 @@ import {
  * du saut, sans incidence sur le rythme serveur (computeMinAnimationDuration) —
  * inutile de la partager. Doit correspondre au keyframe `pawnJostle` (--anim-jostle).
  */
-const JOSTLE_DURATION_MS = 380;
+const JOSTLE_DURATION_MS = 480;
 
 export interface ProfileData {
   name: string;
@@ -109,7 +109,7 @@ export class BoardComponent implements OnDestroy {
   squareAnimations = signal<Record<number, SquareAnimation>>({});
   /**
    * Pions éphémères rendus EN PLUS du pion du modèle sur une même case, le temps
-   * d'une réaction. Sert au « jostle » : un pion survolé par un sauteur est sorti
+   * d'une réaction. Sert au « jostle » : un pion survolé par une bille en mouvement est sorti
    * du modèle et rendu ici avec `marble-jostled`, puis réintégré une fois la
    * réaction terminée (évite deux pions sur la même case).
    */
@@ -836,9 +836,10 @@ export class BoardComponent implements OnDestroy {
   }
 
   /**
-   * Réaction d'un pion survolé par un sauteur. Si la case d'arrivée d'un hop est
+   * Réaction d'un pion survolé par une bille en mouvement. Si la case d'arrivée d'un hop est
    * occupée par un pion adverse (survol SANS capture — la case de capture finale
-   * est gérée ailleurs), ce pion se penche (`marble-jostled`) pour laisser passer.
+   * est gérée ailleurs), ce pion saute sur place (`marble-jostled`) pour l'éviter : la bille passe
+   * dessous, puis il retombe sur sa case.
    *
    * Il est sorti du modèle et rendu en overlay le temps de la réaction, puis
    * réintégré : évite d'avoir deux pions sur une même case. L'animation est
@@ -854,7 +855,7 @@ export class BoardComponent implements OnDestroy {
     this.overlayMarbles.update(prev => ({ ...prev, [square]: {
       color: occupant,
       animClass: 'marble-jostled',
-      // Direction du sauteur (en cases, -1..1) : le pion est poussé dans son sillage.
+      // Sens de déplacement de la bille (en cases, -1..1) : sert à pencher légèrement le pion qui saute.
       jx: Math.sign(((step.to - 1) % this.gridSize) - ((step.from - 1) % this.gridSize)),
       jy: Math.sign(Math.floor((step.to - 1) / this.gridSize) - Math.floor((step.from - 1) / this.gridSize)),
     } }));

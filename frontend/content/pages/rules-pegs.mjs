@@ -82,7 +82,7 @@ const SECTIONS = `<section class="rp-section">
               <tr><td>Ace</td><td>Enter a marble, or move forward 1 space.</td></tr>
               <tr><td>King</td><td>Enter a marble, or move forward 13 spaces.</td></tr>
               <tr><td>Queen</td><td>Move forward 12 spaces.</td></tr>
-              <tr><td>Jack</td><td>Swap any two marbles of different colors (team mode).</td></tr>
+              <tr><td>Jack</td><td>Swap two marbles of different colors, at least one from your team.</td></tr>
               <tr><td>7</td><td>Split 7 steps: your own marble moves first, the rest may go to your teammate's.</td></tr>
               <tr><td>4</td><td>Move backward 4 spaces.</td></tr>
               <tr><td>2 to 10</td><td>Move one marble forward by the number of spaces shown.</td></tr>
@@ -96,7 +96,7 @@ const SECTIONS = `<section class="rp-section">
         <h2>Key Rules to Know</h2>
         <ul>
           <li><strong>Freshly entered marble:</strong> a marble that has just entered on its starting square (via an
-            Ace or King) is fully protected: it blocks passage and cannot be passed, captured, swapped, or moved
+            Ace, King, or Joker) is fully protected: it blocks passage and cannot be passed, captured, swapped, or moved
             backward. Once it moves forward, that protection is lifted for good.</li>
           <li><strong>Jack restriction:</strong> you can never swap with a marble that is already in a home lane.</li>
         </ul>
@@ -115,8 +115,8 @@ const SECTIONS = `<section class="rp-section">
             <strong>teammate's</strong> marbles instead.</li>
           <li>With a <strong>7</strong>, you must move one of your own marbles first; the remaining steps may then
             go to one of your teammate's marbles.</li>
-          <li>With a <strong>Jack</strong>, you can swap any two marbles of different colors, and your own marble
-            doesn't have to be involved.</li>
+          <li>With a <strong>Jack</strong>, you can swap two marbles of different colors as long as at least one
+            belongs to your team: your teammate's marble can replace yours, but two opponents can never be swapped.</li>
           <li><strong>Blocked-hand rescue:</strong> if you have no legal move but hold an Ace, King, or Joker, your
             teammate still has marbles in reserve, and their starting square is free, you <strong>must</strong> play
             that card to bring their marble in. Discarding is not allowed.</li>

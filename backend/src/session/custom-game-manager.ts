@@ -54,7 +54,6 @@ interface CustomPlayer {
 interface CustomRoom {
     code: string;
     creatorColor: MarbleColor;
-    creatorUserId?: string;
     messenger: MultiWsMessenger;
     players: CustomPlayer[];
     expiryTimer: NodeJS.Timeout;
@@ -103,7 +102,6 @@ export class CustomGameManager {
         const room: CustomRoom = {
             code,
             creatorColor: 'red',
-            ...(info.userId ? { creatorUserId: info.userId } : {}),
             messenger,
             players: [],
             expiryTimer: setTimeout(() => this.expireRoom(code), ROOM_INACTIVITY_MS),
@@ -257,7 +255,9 @@ export class CustomGameManager {
             graceTimer: null,
         };
         player.roomMessageListener = (raw) => this.handleRoomMessage(ws, raw, player);
-        player.closeListener = () => this.handleDisconnect(code, color);
+        // Couleur lue à la fermeture, pas figée à l'arrivée : le joueur a pu
+        // changer de siège (selectCustomSlot) depuis l'ouverture de la socket.
+        player.closeListener = () => this.handleDisconnect(code, player.color);
         ws.addEventListener('message', player.roomMessageListener);
         ws.addEventListener('close', player.closeListener);
         return player;
@@ -277,11 +277,7 @@ export class CustomGameManager {
             } else if (msg.type === 'cancelInvite') {
                 this.handleCancelInvite(ws, msg.toUserId, msg.roomCode);
             } else if (msg.type === 'inviteResponse') {
-                this.presence.send(msg.fromUserId, {
-                    type: 'gameInviteResponse',
-                    fromUserId: player.userId ?? '',
-                    accepted: msg.accepted,
-                });
+                if (player.userId) this.handleInviteResponse(player.userId, msg.fromUserId, msg.accepted);
             }
         } catch { /* ignore */ }
     }
@@ -338,6 +334,28 @@ export class CustomGameManager {
 
         room.invitees.add(toUserId);
         this.tryDeliverInvite(room, toUserId);
+    }
+
+    /**
+     * Réponse d'un invité à une invitation. Relayée au créateur seulement si
+     * elle est réellement en attente (pas de faux « accepté / refusé » poussé à
+     * n'importe qui). Un refus retire l'invité de `room.invitees` : sinon
+     * l'invitation revenait à chaque (ré)enregistrement de présence.
+     */
+    handleInviteResponse(inviteeUserId: string, inviterUserId: string, accepted: boolean): void {
+        let pending = false;
+        for (const room of this.rooms.values()) {
+            const creator = room.players.find(p => p.color === room.creatorColor);
+            if (creator?.userId !== inviterUserId || !room.invitees.has(inviteeUserId)) continue;
+            pending = true;
+            if (!accepted) room.invitees.delete(inviteeUserId);
+        }
+        if (!pending) return;
+        this.presence.send(inviterUserId, {
+            type: 'gameInviteResponse',
+            fromUserId: inviteeUserId,
+            accepted,
+        });
     }
 
     /**
@@ -420,6 +438,14 @@ export class CustomGameManager {
         for (const [code, room] of this.rooms) {
             const creator = room.players.find(p => p.color === room.creatorColor);
             if (!creator || creator.ws !== ws) continue;
+            // Un joueur en fenêtre de grâce n'a plus de socket vivante : la
+            // confier à la partie (ou à la file publique) créerait un siège jamais
+            // marqué déconnecté, qui bloquerait 65 s à chacun de ses tours. On
+            // attend qu'il revienne ou que sa grâce expire (60 s au plus).
+            if (room.players.some(p => !p.isConnected)) {
+                wsSend(ws, { type: 'actionRejected', reason: 'A player is reconnecting, please wait' });
+                return;
+            }
             this.cleanupListeners(room);
             this.clearAllGraceTimers(room);
             clearTimeout(room.expiryTimer);

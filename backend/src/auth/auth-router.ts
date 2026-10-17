@@ -3,8 +3,8 @@ import { OAuth2Client } from 'google-auth-library';
 import { createHash, timingSafeEqual } from 'crypto';
 import multer, { MulterError } from 'multer';
 import type { PatchOperation } from '@azure/cosmos';
-import { getUsersContainer, type GuestHistory } from '../db.js';
-import { processToWebp, uploadAvatarWebp } from '../storage/blob.js';
+import { deleteUserMessages, getUsersContainer, type GuestHistory } from '../db.js';
+import { deleteAvatar, processToWebp, uploadAvatarWebp } from '../storage/blob.js';
 import { signSessionToken, verifySessionToken } from './session-token.js';
 import { registerBotUserId } from '../session/bot-dispatch.js';
 import { describeSignupHistory, lookupGuestHistory } from '../session/guest-tracking.js';
@@ -22,6 +22,9 @@ const avatarUpload = multer({
 });
 
 const googleClient = new OAuth2Client();
+
+/** Valeur d'exemple publiée dans .env.example : jamais acceptée comme BOT_SECRET. */
+const BOT_SECRET_PLACEHOLDER = 'change-me-before-prod';
 
 /**
  * Comparaison en temps constant, sans fuite de longueur : on compare les
@@ -55,8 +58,6 @@ export async function verifyAuth(token: string | undefined): Promise<string | nu
     }
 }
 
-/** @deprecated use verifyAuth — kept as alias for any external import. */
-export const verifyGoogleIdToken = verifyAuth;
 
 interface UserDoc {
     id: string;
@@ -79,8 +80,9 @@ interface UserDoc {
     /** Boosters achetés, consommés au lancement de la partie suivante. Même
      *  optionnalité que `coins`, pour la même raison. */
     armedBoosts?: string[];
-    /** Compte d'agent IA, posé à chaque POST /api/auth/bot : exclut les bots
-     *  des stats d'audience (getAudienceStats). */
+    /** Compte d'agent IA, à poser à la création du compte : seul un document
+     *  marqué peut se connecter par POST /api/auth/bot, et le flag exclut les
+     *  bots des stats d'audience (getAudienceStats). */
     isBot?: true;
     /** Parties jouées en invité sur l'appareil de l'inscription, figées à la
      *  création du compte. Absent : compte antérieur, client qui n'envoie pas
@@ -368,7 +370,13 @@ router.get('/user/:id', async (req: Request, res: Response) => {
 router.post('/bot', async (req: Request, res: Response) => {
     const { secret, botId } = req.body as { secret?: string; botId?: string; };
 
-    if (!secret || !process.env['BOT_SECRET'] || !safeEqual(secret, process.env['BOT_SECRET'])) {
+    // La valeur d'exemple de .env.example est publique (dépôt public) : elle
+    // vaut « non configuré », jamais un secret valide.
+    const expected = process.env['BOT_SECRET'];
+    if (expected === BOT_SECRET_PLACEHOLDER) {
+        console.error('🚫 BOT_SECRET vaut encore la valeur publique de .env.example : connexion des bots refusée');
+    }
+    if (!secret || !expected || expected === BOT_SECRET_PLACEHOLDER || !safeEqual(secret, expected)) {
         res.status(401).json({ error: 'Invalid bot secret' });
         return;
     }
@@ -383,14 +391,21 @@ router.post('/bot', async (req: Request, res: Response) => {
         const ops: PatchOperation[] = [
             { op: 'set', path: '/lastLogin', value: nowIso },
             { op: 'set', path: '/lastSeenAt', value: nowIso },
-            { op: 'set', path: '/isBot', value: true },
         ];
         let resource: UserDoc | undefined;
         try {
-            const result = await container.item(botId, botId).patch<UserDoc>(ops);
+            // Seuls les comptes déjà marqués bot reçoivent un token par ce chemin :
+            // sans cette condition, BOT_SECRET ouvrirait n'importe quel compte
+            // (les ids sont publics via le classement) et le marquerait bot.
+            const result = await container.item(botId, botId).patch<UserDoc>({
+                operations: ops,
+                condition: 'FROM c WHERE c.isBot = true',
+            });
             resource = result.resource;
         } catch (err: unknown) {
-            if ((err as { code?: number }).code === 404) {
+            const code = (err as { code?: number }).code;
+            // 412 = document existant mais pas un compte bot.
+            if (code === 404 || code === 412) {
                 res.status(404).json({ error: 'Bot not found' });
                 return;
             }
@@ -473,7 +488,7 @@ router.delete('/user/:id', async (req: Request, res: Response) => {
 
     const authHeader = req.headers['authorization'];
     const idToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
-    const verifiedSub = await verifyGoogleIdToken(idToken);
+    const verifiedSub = await verifyAuth(idToken);
 
     if (!verifiedSub || verifiedSub !== id) {
         res.status(403).json({ error: 'Forbidden' });
@@ -487,7 +502,13 @@ router.delete('/user/:id', async (req: Request, res: Response) => {
             res.status(404).json({ error: 'User not found' });
             return;
         }
+        // Données associées d'abord, document utilisateur en dernier : si une
+        // étape échoue, le compte existe encore et la suppression peut être
+        // relancée (chaque étape est idempotente).
+        const deletedMessages = await deleteUserMessages(id);
+        await deleteAvatar(id);
         await container.item(id, id).delete();
+        console.log(`🗑️ Compte supprimé [user:${id}] (${deletedMessages} message(s), avatar)`);
         res.status(204).send();
     } catch (err) {
         console.error('❌ Cosmos DB error (DELETE /user/:id):', err);

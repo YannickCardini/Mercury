@@ -128,6 +128,14 @@
     [style.top.%]="s.top"
     [style.animation-duration.ms]="s.duration">
     <svg viewBox="0 0 64 24" width="100%" height="100%" fill="none">
+      <defs>
+        <radialGradient id="ship-glow">
+          <stop offset="0" stop-color="#8fa6cf" stop-opacity=".45" />
+          <stop offset="1" stop-color="#8fa6cf" stop-opacity="0" />
+        </radialGradient>
+      </defs>
+      <!-- Halo (remplace un drop-shadow, voir le SCSS) -->
+      <ellipse cx="38" cy="12" rx="30" ry="12" fill="url(#ship-glow)" />
       <!-- Traînée de réacteur -->
       <path class="spaceship__trail" d="M2 12 H22" stroke-linecap="round" />
       <!-- Coque -->

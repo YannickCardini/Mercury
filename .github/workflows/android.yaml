@@ -35,7 +35,16 @@ jobs:
 
       - name: Build Web App (Production)
         run: npm run build --workspace=frontend
-          
+
+      # Même garde-fou que frontend.yml : le script du mode live d'impeccable
+      # (localhost:8400) ne doit jamais finir dans un bundle publié.
+      - name: Refuse the impeccable live script in the build
+        run: |
+          if grep -qE "impeccable-live-start|localhost:8400/live\.js" frontend/www/index.html; then
+            echo "::error file=frontend/src/index.html::the impeccable live script is still injected"
+            exit 1
+          fi
+
       - name: Build Android App Bundle
         run: |
           cd frontend

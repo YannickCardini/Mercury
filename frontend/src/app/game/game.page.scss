@@ -131,7 +131,7 @@ $table-min: 260px;
     // Hôte du tutoriel : ses calques sont en `position: fixed`, l'hôte lui-même
     // n'a pas de boîte utile. Hors du flux, il ne compte plus comme un élément
     // de la rangée/colonne flex (il ajoutait un écart sous la table).
-    > app-tutorial-overlay {
+    >app-tutorial-overlay {
         position: absolute;
     }
 
@@ -139,6 +139,18 @@ $table-min: 260px;
     // pour qu'il recule pendant la partie (horizon et soleils compris).
     @include m.day {
         background: rgba(253, 248, 242, 0.34);
+
+        // En paysage (navigateur, tablette), le ciel pâle occupe la majeure
+        // partie de l'écran : crème sur crème, plateau et table s'y perdaient.
+        // Le voile passe à l'encre ardoise, plus soutenu sur les bords, comme
+        // la nuit : le paysage recule dans l'ombre, le verre clair du plateau
+        // et les panneaux crème ressortent. Le portrait (téléphone) est
+        // inchangé : le plateau y couvre presque tout le fond.
+        @media (min-aspect-ratio: 1/1) {
+            background: radial-gradient(ellipse at 20% 5%,
+                    rgba(var(--m-ink-rgb), 0.05),
+                    rgba(var(--m-ink-rgb), 0.12));
+        }
     }
 }
 

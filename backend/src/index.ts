@@ -3,7 +3,16 @@ import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: resolve(__dirname, '../../.env') });
-import express, { type Request, type Response } from 'express';
+// DEBUG ouvre aussi des contournements d'économie et de règles (mains fixes,
+// édition du plateau par n'importe quel joueur, +500 pièces par appel,
+// GameConfig client avec userIds arbitraires) : jamais en production, même
+// si la variable y traîne par erreur. Lu partout à l'appel, d'où la remise à
+// zéro ici, avant toute requête.
+if (process.env['NODE_ENV'] === 'production' && process.env['DEBUG'] === 'true') {
+    console.error('🚫 DEBUG=true ignoré : NODE_ENV=production');
+    process.env['DEBUG'] = 'false';
+}
+import express, { type NextFunction, type Request, type Response } from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import { createServer, type IncomingMessage } from 'http';
@@ -36,6 +45,31 @@ function markSeen(userId: string | undefined): void {
     });
 }
 
+
+// ─── Champs libres des messages de setup ──────────────────────────────────────
+// Nom et photo viennent du client et sont rediffusés à chaque tour, à chaque
+// joueur, et persistés dans les snapshots : on les borne ici, une seule fois.
+
+/** Même plafond que le nom de profil (PATCH /api/auth/user/:id). */
+const MAX_PLAYER_NAME_LENGTH = 30;
+const MAX_PICTURE_URL_LENGTH = 512;
+
+/** Nom nettoyé (caractères de contrôle retirés, 30 max). '' = nom par défaut. */
+function cleanPlayerName(raw: unknown): string {
+    if (typeof raw !== 'string') return '';
+    return raw.replace(/\p{Cc}/gu, '').trim().slice(0, MAX_PLAYER_NAME_LENGTH);
+}
+
+/** Photo acceptée seulement comme URL https courte (avatar blob, Google). */
+function cleanPicture(raw: unknown): string | undefined {
+    if (typeof raw !== 'string' || raw.length > MAX_PICTURE_URL_LENGTH || !raw.startsWith('https://')) return undefined;
+    return raw;
+}
+
+function withPicture(raw: unknown): { picture?: string } {
+    const picture = cleanPicture(raw);
+    return picture ? { picture } : {};
+}
 
 // ─── Origines autorisées (CORS + WebSocket) ───────────────────────────────────
 // Les requêtes sans header Origin (agent IA, curl, health checks Azure) sont
@@ -72,7 +106,9 @@ app.use('/api/version', versionRouter);
 app.use('/api/shop', shopRouter);
 
 const server = createServer(app);
-const wss = new WebSocketServer({ server });
+// Plafond des trames entrantes : les messages légitimes font quelques Ko, le
+// défaut de ws (100 Mio) laissait un client pousser des Mo rediffusés ensuite.
+const wss = new WebSocketServer({ server, maxPayload: 64 * 1024 });
 
 const PORT = process.env.PORT || 8080;
 
@@ -111,6 +147,20 @@ app.get('/api/active-game', async (req: Request, res: Response) => {
     res.json({ gameId: active.gameId, guestPlayerId: active.guestPlayerId, color: active.color });
 });
 
+// Erreurs non gérées (JSON malformé, exception d'une route) : réponse JSON
+// générique. Sans ce handler, Express renvoie la pile d'appels au client dès
+// que NODE_ENV ≠ production. Déclaré après toutes les routes HTTP.
+app.use((err: unknown, _req: Request, res: Response, next: NextFunction) => {
+    if (res.headersSent) return next(err);
+    const status = (err as { status?: number }).status;
+    if (status !== undefined && status >= 400 && status < 500) {
+        res.status(status).json({ error: 'Bad request' });
+        return;
+    }
+    console.error('❌ Erreur HTTP non gérée:', err);
+    res.status(500).json({ error: 'Internal error' });
+});
+
 // ─── Connexions WebSocket ─────────────────────────────────────────────────────
 
 const MAX_WS_PER_IP = 20;
@@ -139,9 +189,13 @@ setInterval(() => {
 }, HEARTBEAT_INTERVAL_MS).unref();
 
 function clientIp(req: IncomingMessage): string {
+    // Dernière entrée : celle ajoutée par le proxy Azure (même règle que
+    // `trust proxy 1` pour Express). Les premières sont écrites par le client,
+    // qui pouvait ainsi contourner MAX_WS_PER_IP ou épuiser le quota d'un autre.
     const fwd = req.headers['x-forwarded-for'];
-    const first = Array.isArray(fwd) ? fwd[0] : fwd?.split(',')[0];
-    return first?.trim() || req.socket.remoteAddress || 'unknown';
+    const header = Array.isArray(fwd) ? fwd.join(',') : fwd;
+    const last = header?.split(',').at(-1);
+    return last?.trim() || req.socket.remoteAddress || 'unknown';
 }
 
 /** Types de premier message qui établissent une session sur cette socket. */
@@ -233,9 +287,9 @@ async function handleSetupMessage(ws: WebSocket, msg: ClientMessage): Promise<vo
                     });
                 }
                 if (DEBUG && msg.debug === true) {
-                    sessionManager.startDebugGameVsBots(ws, msg.playerName, userId, msg.picture);
+                    sessionManager.startDebugGameVsBots(ws, cleanPlayerName(msg.playerName), userId, cleanPicture(msg.picture));
                 } else {
-                    sessionManager.joinMatchmaking(ws, msg.playerName, msg.browserId, msg.picture, userId);
+                    sessionManager.joinMatchmaking(ws, cleanPlayerName(msg.playerName), msg.browserId, cleanPicture(msg.picture), userId);
                 }
                 break;
             }
@@ -244,9 +298,9 @@ async function handleSetupMessage(ws: WebSocket, msg: ClientMessage): Promise<vo
                 const userId = (await verifyAuth(msg.authToken)) ?? undefined;
                 markSeen(userId);
                 sessionManager.createCustomRoom(ws, {
-                    playerName: msg.playerName,
+                    playerName: cleanPlayerName(msg.playerName),
                     ...(msg.browserId ? { browserId: msg.browserId } : {}),
-                    ...(msg.picture ? { picture: msg.picture } : {}),
+                    ...withPicture(msg.picture),
                     ...(userId ? { userId } : {}),
                 });
                 break;
@@ -256,9 +310,9 @@ async function handleSetupMessage(ws: WebSocket, msg: ClientMessage): Promise<vo
                 const userId = (await verifyAuth(msg.authToken)) ?? undefined;
                 markSeen(userId);
                 sessionManager.joinCustomRoom(ws, msg.code, {
-                    playerName: msg.playerName,
+                    playerName: cleanPlayerName(msg.playerName),
                     ...(msg.browserId ? { browserId: msg.browserId } : {}),
-                    ...(msg.picture ? { picture: msg.picture } : {}),
+                    ...withPicture(msg.picture),
                     ...(userId ? { userId } : {}),
                 });
                 break;

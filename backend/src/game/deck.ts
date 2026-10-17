@@ -122,13 +122,6 @@ export class Deck {
         return drawnCards;
     }
 
-    /**
-     * Vérifie si le deck est vide
-     */
-    isEmpty(): boolean {
-        return this.cards.length === 0;
-    }
-
     isFull(): boolean {
         return this.cards.length === this.BASE_DECK.length;
     }

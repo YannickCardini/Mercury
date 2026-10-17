@@ -7,6 +7,7 @@ import {
   OnDestroy,
   AfterViewInit,
   ChangeDetectionStrategy,
+  inject,
 } from "@angular/core";
 import { Router } from "@angular/router";
 import { BoardComponent } from "./components/board/board.component";
@@ -22,6 +23,7 @@ import { JokerArtComponent } from "../shared/joker-art.component";
 import { GameStateService } from "./services/game-state.service";
 import { SoundService } from "./services/sound.service";
 import { ToastService } from "../shared/toast.service";
+import { AppResumeService } from "../services/app-resume.service";
 import { environment } from "../../environments/environment";
 import { Subscription } from "rxjs";
 import { ARRIVAL_POSITIONS, NEW_TURN_BANNER_DURATION_MS, TEAMS } from "@mercury/shared";
@@ -72,6 +74,7 @@ const ENTRANCE_SETTLE_MS = 1400;
 export class GamePage implements OnDestroy, AfterViewInit {
   readonly isNative = Capacitor.isNativePlatform();
   readonly debug = environment.debug;
+  private readonly appResume = inject(AppResumeService);
   showNewTurnBanner = signal(false);
   showRules = signal(false);
   newTurnColor = signal<string>("");
@@ -537,6 +540,12 @@ export class GamePage implements OnDestroy, AfterViewInit {
     // Évite de laisser le flag partagé bloqué à true si la page est détruite
     // pendant l'annonce (ex. navigation arrière) sans passer par reset().
     this.gameStateService.teamIntroPlaying.set(false);
+    // Partie terminée quittée sans « Back to menu » (bouton retour Android) :
+    // on nettoie comme lui, sinon l'écran de fin et la socket survivent
+    // jusqu'à la partie suivante.
+    if (this.gameStateService.winners().length > 0) {
+      this.gameStateService.reset();
+    }
     // Quitter la partie : on relâche le verrou écran.
     if (Capacitor.isNativePlatform()) {
       void KeepAwake.allowSleep().catch(() => { /* ignore */ });
@@ -578,7 +587,15 @@ export class GamePage implements OnDestroy, AfterViewInit {
     if (this.gameStateService.data() !== null) return; // game already loaded → not a load failure
     if (this.loadError()) return; // already handling a failure
     this.loadError.set(reason || "Unable to join the game");
-    this.gameStateService.clearActiveGameSession();
+    // Seule « Session expired » dit que la partie est morte. Un échec de
+    // connexion (serveur en redéploiement, réseau coupé) garde la session :
+    // le serveur restaure ses parties au redémarrage et le bandeau Resume de
+    // l'accueil permet de réessayer, sans y renvoyer en boucle.
+    if (reason === "Session expired or not found") {
+      this.gameStateService.clearActiveGameSession();
+    } else {
+      this.appResume.suppressNextAutoResume();
+    }
     this.loadFailRedirect = setTimeout(() => {
       if (this.gameStateService.data() !== null) {
         this.loadError.set(null);

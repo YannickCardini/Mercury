@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { Subject, take } from 'rxjs';
+import { Subject, filter, take } from 'rxjs';
 import { App } from '@capacitor/app';
 import { Network } from '@capacitor/network';
 import { Capacitor } from '@capacitor/core';
@@ -63,6 +63,10 @@ export class AppResumeService {
   }
 
   constructor() {
+    // Clés de reconnexion purgées (partie finie, session expirée…) : le
+    // bandeau Resume et les gardes de l'accueil doivent le savoir tout de suite.
+    this.gameStateService.activeSessionCleared$.subscribe(() => this.hasActiveGame.set(false));
+
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
         this.onPotentialResume('visibilitychange');
@@ -88,11 +92,31 @@ export class AppResumeService {
       // revient, on reconnecte immédiatement la partie en cours.
       void Network.addListener('networkStatusChange', (status) => {
         if (!status.connected) return;
-        if (!this.readActiveGameFromStorage()) return;
+        if (!this.readActiveGameFromStorage() || this.tabLock.wasReplaced()) return;
         console.log('[AppResume] réseau revenu — reconnexion immédiate');
-        this.gameStateService.reconnectNow(environment.wsUrl);
+        // force : la socket survivante est probablement à moitié morte.
+        this.gameStateService.reconnectNow(environment.wsUrl, true);
       });
     }
+  }
+
+  /**
+   * Posé par GamePage quand un chargement échoue sans que la partie soit morte
+   * (serveur injoignable, redéploiement) : l'accueil garde la partie et son
+   * bandeau Resume, mais n'y renvoie pas automatiquement, pour ne pas boucler
+   * accueil ↔ partie tant que le serveur ne répond pas.
+   */
+  private suppressAutoResume = false;
+
+  suppressNextAutoResume(): void {
+    this.suppressAutoResume = true;
+  }
+
+  /** Vrai une seule fois après suppressNextAutoResume(). */
+  consumeAutoResumeSuppression(): boolean {
+    const suppressed = this.suppressAutoResume;
+    this.suppressAutoResume = false;
+    return suppressed;
   }
 
   /** Re-sync `hasActiveGame` from localStorage (call when landing on /home). */
@@ -136,6 +160,22 @@ export class AppResumeService {
       return;
     }
 
+    // Partie reprise par un autre onglet / appareil (4001) : on ne la lui
+    // reprend pas automatiquement, seul le bouton Resume le fait.
+    if (this.tabLock.wasReplaced()) {
+      console.log('[AppResume] session replaced elsewhere — skipping validation');
+      return;
+    }
+
+    // Navigateur : une socket encore ouverte n'a rien à revalider (un
+    // joinGame dessus serait ignoré par le serveur). Sur mobile, on rouvre
+    // quand même plus bas : après l'arrière-plan elle peut être à moitié morte.
+    const native = Capacitor.isNativePlatform();
+    if (!native && this.gameStateService.isConnected()) {
+      this.hasActiveGame.set(true);
+      return;
+    }
+
     console.log('[AppResume] validating active game with server', { activeGameId });
     this.validating.set(true);
 
@@ -151,7 +191,13 @@ export class AppResumeService {
       void this.router.navigate(['/game']);
     });
 
-    const rejectedSub = this.gameStateService.actionRejected$.pipe(take(1)).subscribe((reason) => {
+    // Seule « Session expired » dit que la partie est morte : un rejet de coup
+    // (« Not your turn », « Invalid action »…) dans la fenêtre ne doit pas
+    // purger une partie bien vivante.
+    const rejectedSub = this.gameStateService.actionRejected$.pipe(
+      filter(reason => reason === 'Session expired or not found'),
+      take(1),
+    ).subscribe((reason) => {
       if (settled) return;
       settled = true;
       clearTimeout(timeoutId);
@@ -178,10 +224,9 @@ export class AppResumeService {
       // immediate reconnect below.
       this.tabLock.claimSession();
     }
-    // Reconnexion immédiate (reset du backoff) : si la socket a survécu,
-    // reconnectNow se contente de renvoyer joinGame ; sinon il reconnecte tout
-    // de suite sans attendre le rejoinTimer accumulé pendant l'arrière-plan.
-    console.log('[AppResume] triggering immediate reconnect/refresh');
-    this.gameStateService.reconnectNow(environment.wsUrl);
+    // Reconnexion immédiate (reset du backoff), sans attendre le rejoinTimer
+    // accumulé pendant l'arrière-plan ; forcée sur mobile (voir plus haut).
+    console.log('[AppResume] triggering immediate reconnect');
+    this.gameStateService.reconnectNow(environment.wsUrl, native);
   }
 }

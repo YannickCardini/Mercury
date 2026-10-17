@@ -57,13 +57,21 @@
     height: 100%;
     max-height: 100%;
     overflow: hidden;
-    /* Plaque ardoise de l'accueil, un cran plus creuse (paper-lo) que le footer
-       (paper) pour que le plateau se lise comme un puits sous la plaque. */
-    background: var(--m-paper-lo);
-    border: 1px solid var(--m-glass-line);
+    /* Verre dépoli, même recette que le plateau (board-container) : le paysage
+       martien se devine à travers la table. */
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(240, 248, 255, 0.26);
     border-radius: var(--m-r-xl);
-    box-shadow: var(--m-shadow-slab);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(240, 248, 255, 0.3);
     box-sizing: border-box;
+
+    @include m.day {
+        background: rgba(255, 255, 255, 0.4);
+        border-color: rgba(var(--m-ink-rgb), 0.16);
+        box-shadow: 0 10px 28px rgba(var(--m-ink-rgb), 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.75);
+    }
     position: relative;
     /* Aucune sélection de texte dans tout l'écran de jeu : évite la poignée bleue
        et le menu copier / coller / tout sélectionner natif au long-press (Android). */
@@ -1517,7 +1525,11 @@
 }
 
 .card-help-popover {
-    position: fixed;
+    /* Absolute (pas fixed) : .game-board est position: relative, donc les
+       coordonnées calculées dans le repère du panneau restent justes même si
+       le navigateur n'applique plus la containment de layout de
+       `container-type: size` (sinon un fixed part du coin de l'écran). */
+    position: absolute;
     z-index: 150;
     transform: translate(-50%, calc(-100% - 14px));
     display: flex;
@@ -1610,6 +1622,14 @@
    Le rendu web/desktop reste inchangé ; on ne touche qu'au natif (.is-native).
    ========================================================================== */
 :host(.is-native) {
+
+    /* Table en verre : sur WebView le flou est trop coûteux à recomposer, on
+       garde le voile translucide sans backdrop-filter (comme le plateau). */
+    .game-board {
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        background: rgba(255, 255, 255, 0.10);
+    }
 
     /* Overlays à la demande (fonds déjà quasi opaques) : on retire juste le
        flou coûteux. */

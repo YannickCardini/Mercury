@@ -26,16 +26,28 @@ jobs:
         with:
           node-version: '22.x'
 
-      # Doit être buildé EN PREMIER — le frontend en dépend via @mercury/shared
-      - name: Build @mercury/shared
-        run: npm run build:shared
-
-      # Installe toutes les dépendances du monorepo (shared, frontend, backend)
+      # Installe toutes les dépendances du monorepo (shared, frontend, backend).
+      # AVANT le build de shared : sinon il utilisait le tsc de l'image du
+      # runner et non le TypeScript épinglé du projet.
       - name: Install workspace dependencies
         run: npm ci
 
+      # Doit être buildé avant le frontend, qui en dépend via @mercury/shared
+      - name: Build @mercury/shared
+        run: npm run build:shared
+
       - name: Build frontend
         run: npm run build --workspace=frontend
+
+      # Le mode live d'impeccable injecte un script localhost:8400 dans
+      # src/index.html le temps d'une session de design : il ne doit jamais
+      # partir en production (déjà arrivé, commit 025f0e87).
+      - name: Refuse the impeccable live script in the build
+        run: |
+          if grep -qE "impeccable-live-start|localhost:8400/live\.js" frontend/www/index.html; then
+            echo "::error file=frontend/src/index.html::the impeccable live script is still injected"
+            exit 1
+          fi
 
       - name: Build And Deploy
         id: builddeploy

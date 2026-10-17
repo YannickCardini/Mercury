@@ -84,7 +84,7 @@ const SECTIONS = `<section class="rp-section">
               <tr><td>As</td><td>Faire entrer une bille, ou avancer d'1 case.</td></tr>
               <tr><td>Roi</td><td>Faire entrer une bille, ou avancer de 13 cases.</td></tr>
               <tr><td>Dame</td><td>Avancer de 12 cases.</td></tr>
-              <tr><td>Valet</td><td>Échanger deux billes de couleurs différentes (mode équipes).</td></tr>
+              <tr><td>Valet</td><td>Échanger deux billes de couleurs différentes, dont au moins une de votre équipe.</td></tr>
               <tr><td>7</td><td>7 pas à répartir : d'abord sur votre propre bille, le reste peut aller à celle de
                 votre partenaire.</td></tr>
               <tr><td>4</td><td>Reculer de 4 cases.</td></tr>
@@ -99,7 +99,7 @@ const SECTIONS = `<section class="rp-section">
         <h2>Les règles clés à connaître</h2>
         <ul>
           <li><strong>Bille fraîchement entrée :</strong> une bille qui vient d'entrer sur sa case de départ (via un
-            As ou un Roi) est totalement protégée : elle bloque le passage et ne peut être ni doublée, ni capturée,
+            As, un Roi ou un Joker) est totalement protégée : elle bloque le passage et ne peut être ni doublée, ni capturée,
             ni échangée, ni reculée. Dès qu'elle avance, la protection disparaît définitivement.</li>
           <li><strong>Restriction du Valet :</strong> il est impossible d'échanger une bille avec une bille déjà
             arrivée dans une maison.</li>
@@ -119,8 +119,8 @@ const SECTIONS = `<section class="rp-section">
             votre <strong>partenaire</strong>.</li>
           <li>Avec un <strong>7</strong>, vous devez d'abord avancer une de vos propres billes ; les pas restants
             peuvent ensuite être donnés à une bille de votre partenaire.</li>
-          <li>Avec un <strong>Valet</strong>, vous pouvez échanger deux billes de couleurs différentes, sans que l'une
-            des vôtres soit forcément impliquée.</li>
+          <li>Avec un <strong>Valet</strong>, vous pouvez échanger deux billes de couleurs différentes, à condition
+            qu'au moins l'une appartienne à votre équipe : une bille de votre partenaire peut remplacer la vôtre, jamais deux billes adverses.</li>
           <li><strong>Sauvetage main bloquée :</strong> si vous n'avez aucun coup légal mais tenez un As, un Roi ou un
             Joker, que votre partenaire a encore des billes en réserve et que sa case de départ est libre, vous
             <strong>devez</strong> jouer cette carte pour faire entrer sa bille : la défausse n'est pas autorisée.</li>

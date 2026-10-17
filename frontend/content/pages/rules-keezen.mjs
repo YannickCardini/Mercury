@@ -84,7 +84,7 @@ const SECTIONS = `<section class="rp-section">
               <tr><td>Aas</td><td>Pion inzetten, of 1 vak vooruit.</td></tr>
               <tr><td>Heer</td><td>Pion inzetten, of 13 vakken vooruit.</td></tr>
               <tr><td>Vrouw</td><td>12 vakken vooruit.</td></tr>
-              <tr><td>Boer</td><td>Wissel twee pionnen van verschillende kleur (teammodus).</td></tr>
+              <tr><td>Boer</td><td>Wissel twee pionnen van verschillende kleur, minstens één van je eigen team.</td></tr>
               <tr><td>7</td><td>7 stappen te verdelen: eerst je eigen pion, de rest mag naar de pion van je
                 maatje.</td></tr>
               <tr><td>4</td><td>4 vakken achteruit.</td></tr>
@@ -98,8 +98,8 @@ const SECTIONS = `<section class="rp-section">
       <section class="rp-section">
         <h2>Belangrijke spelregels</h2>
         <ul>
-          <li><strong>Vers ingezette pion:</strong> een pion die net is ingezet op het startvak (met een Aas of
-            Heer) is volledig beschermd: hij blokkeert de doorgang en kan niet gepasseerd, geslagen, gewisseld of
+          <li><strong>Vers ingezette pion:</strong> een pion die net is ingezet op het startvak (met een Aas,
+            Heer of Joker) is volledig beschermd: hij blokkeert de doorgang en kan niet gepasseerd, geslagen, gewisseld of
             teruggezet worden. Zodra hij één stap vooruit gaat, vervalt de bescherming definitief.</li>
           <li><strong>Beperking van de Boer:</strong> je mag nooit wisselen met een pion die al in een thuisbasis
             staat.</li>
@@ -119,8 +119,8 @@ const SECTIONS = `<section class="rp-section">
             <strong>maatje</strong> aan.</li>
           <li>Met een <strong>7</strong> moet je eerst je eigen pion zetten; de overige stappen mag je daarna aan een
             pion van je maatje geven.</li>
-          <li>Met een <strong>Boer</strong> mag je twee pionnen van verschillende kleur wisselen, zonder dat een van
-            je eigen pionnen erbij betrokken hoeft te zijn.</li>
+          <li>Met een <strong>Boer</strong> mag je twee pionnen van verschillende kleur wisselen, zolang minstens één
+            van je team is: de pion van je maatje mag de jouwe vervangen, twee pionnen van tegenstanders nooit.</li>
           <li><strong>Redding bij een geblokkeerde hand:</strong> heb je zelf geen geldige zet, maar heb je een Aas,
             Heer of Joker op de hand, staat je maatje nog met pionnen in reserve en is zijn startvak vrij, dan
             <strong>moet</strong> je die kaart spelen om zijn pion in te zetten: weggooien mag niet.</li>

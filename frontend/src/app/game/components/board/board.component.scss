@@ -481,12 +481,18 @@ $colors: (
 }
 
 /* --------------------------------------------------------------------------
-   JOSTLE — Un pion dépassé par un sauteur. Le sauteur passe PAR-DESSUS (z-index
-   12 > 11) et le pion dépassé est poussé dans son sillage (--jx / --jy = sens
-   de déplacement du sauteur), se tasse quand le sauteur est au-dessus, puis
-   revient avec un petit rebond. Transform-only (translate + rotate + scale) :
-   composé par le GPU, aucun repaint, sûr sur WebView mobile.
-   Durée : --anim-jostle (380ms) ; le sauteur est au-dessus à ~50 %.
+   JOSTLE — Une bille en mouvement traverse la case d'un pion adverse. La bille
+   qui passe garde son animation de déplacement normale (marble-moving) ; c'est
+   le pion qui est sur son chemin qui SAUTE sur place pour l'éviter, et elle
+   passe dessous (--jx / --jy = sens de la bille, sert à pencher le pion).
+     1. il se ramasse (écrasé, élargi) ;
+     2. il s'élève verticalement, gonflé (le pion « se rapproche » de l'écran) ;
+     3. il retombe et s'écrase à la réception ;
+     4. un petit ressort amorti le remet en place.
+   Transform-only (translate + rotate + scale) : composé par le GPU, aucun
+   repaint, un seul élément animé à la fois, sûr sur WebView mobile.
+   Durée : --anim-jostle (480ms). Un pas de déplacement dure 200ms : la bille
+   passe sous la case vers 100-300ms, soit autour du sommet du saut (~42 %).
    -------------------------------------------------------------------------- */
 @keyframes pawnJostle {
     0% {
@@ -494,22 +500,28 @@ $colors: (
         animation-timing-function: ease-out;
     }
 
-    25% {
-        /* le sauteur approche : léger recul dans son sens */
-        transform: translate(calc(var(--jx, 0) * 8%), calc(var(--jy, 0) * 8%)) rotate(calc(var(--jx, 0) * 5deg)) scale(0.94);
-        animation-timing-function: ease-in-out;
+    14% {
+        /* ramassé avant l'impulsion */
+        transform: translate(0, 4%) rotate(0deg) scale(1.12, 0.8);
+        animation-timing-function: cubic-bezier(.2, .8, .4, 1);
     }
 
-    50% {
-        /* le sauteur est au-dessus : pion tassé et poussé */
-        transform: translate(calc(var(--jx, 0) * 22%), calc(var(--jy, 0) * 22%)) rotate(calc(var(--jx, 0) * 12deg)) scale(0.86);
-        animation-timing-function: cubic-bezier(.3, .6, .4, 1);
+    42% {
+        /* sommet : haut, gonflé, légèrement penché dans le sens de la bille */
+        transform: translate(0, -95%) rotate(calc((var(--jx, 0) - var(--jy, 0)) * 10deg)) scale(1.22);
+        animation-timing-function: cubic-bezier(.6, 0, .9, .5);
     }
 
-    78% {
-        /* rebond au-delà de la position de repos */
-        transform: translate(calc(var(--jx, 0) * -5%), calc(var(--jy, 0) * -5%)) rotate(calc(var(--jx, 0) * -4deg)) scale(1.07);
+    72% {
+        /* réception : écrasé */
+        transform: translate(0, 2%) rotate(0deg) scale(1.14, 0.84);
         animation-timing-function: ease-out;
+    }
+
+    87% {
+        /* ressort amorti */
+        transform: translate(0, -6%) rotate(0deg) scale(0.97, 1.05);
+        animation-timing-function: ease-in-out;
     }
 
     100% {
@@ -519,9 +531,9 @@ $colors: (
 
 .marble.marble-jostled {
     animation: pawnJostle var(--anim-jostle) linear forwards;
-    /* Sous le sauteur (marble-moving, z-index 12) pour qu'il passe par-dessus,
-       au-dessus du pion du modèle (z-index 10). */
-    z-index: 11;
+    /* Au-dessus de la bille qui passe (marble-moving, z-index 12) : elle passe
+       SOUS le pion en l'air. Au-dessus du pion du modèle (z-index 10). */
+    z-index: 13;
     pointer-events: none;
     will-change: transform;
 }

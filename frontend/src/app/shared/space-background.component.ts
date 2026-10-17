@@ -8,7 +8,19 @@ import {
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { NavigationEnd, Router } from "@angular/router";
 import { filter } from "rxjs";
+import { Capacitor } from "@capacitor/core";
 import { ThemeService } from "../services/theme.service";
+
+/**
+ * true = /game affiche le ciel seul, sans paysage ni animation, sur mobile.
+ * false = le même paysage que /home. Le bureau garde toujours le paysage.
+ */
+const CALM_IN_GAME_MOBILE = false;
+
+/** Mobile = appli native ou écran étroit (même seuil que la mise en page de /game). */
+const isMobile = (): boolean =>
+  Capacitor.isNativePlatform() ||
+  (typeof matchMedia === "function" && matchMedia("(max-width: 780px)").matches);
 
 /** État d'un passage de vaisseau (généré aléatoirement à chaque apparition). */
 interface ShipState {
@@ -116,6 +128,10 @@ export class SpaceBackgroundComponent {
   }
 
   private isGameRoute(url: string): boolean {
+    // ESSAI 2026-10-17 : fond minimal dans /game sur mobile (moins d'énergie,
+    // moins de fatigue visuelle), à comparer au verre dépoli sur paysage complet.
+    // `CALM_IN_GAME_MOBILE = false` rétablit le paysage complet.
+    if (!CALM_IN_GAME_MOBILE || !isMobile()) return false;
     return url.split("?")[0].startsWith("/game");
   }
 

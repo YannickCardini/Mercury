@@ -85,8 +85,13 @@ export class MatchmakingManager {
         // Update reference if provided (in case session already existed)
         if (reconnect) this.session.reconnect = reconnect;
 
-        // Reject duplicate joins from the same browser
-        if (browserId && this.session.players.some(p => p.browserId === browserId)) {
+        // Reject duplicate joins from the same browser — or the same account on
+        // another device: two seats in one game would score twice (+4 and −1
+        // on opposite teams = points guaranteed whatever the result).
+        if (
+            (browserId && this.session.players.some(p => p.browserId === browserId))
+            || (userId && this.session.players.some(p => p.userId === userId))
+        ) {
             wsSend(ws, { type: 'actionRejected', reason: 'Already in matchmaking from another tab' });
             return;
         }

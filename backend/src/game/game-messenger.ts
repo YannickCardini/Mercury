@@ -74,7 +74,6 @@ export class MultiWsMessenger implements GameMessenger {
     private disconnectTimers = new Map<MarbleColor, NodeJS.Timeout>();
     private onPermanentDisconnect: ((color: MarbleColor) => void) | null = null;
     private onTempDisconnect: ((color: MarbleColor) => void) | null = null;
-    private onReconnect: ((color: MarbleColor) => void) | null = null;
 
     /** Register a callback invoked when the 180s reconnection window expires. */
     setOnPermanentDisconnect(cb: (color: MarbleColor) => void): void {
@@ -84,11 +83,6 @@ export class MultiWsMessenger implements GameMessenger {
     /** Register a callback invoked immediately when a player's WebSocket closes. */
     setOnTempDisconnect(cb: (color: MarbleColor) => void): void {
         this.onTempDisconnect = cb;
-    }
-
-    /** Register a callback invoked when a player successfully reconnects. */
-    setOnReconnect(cb: (color: MarbleColor) => void): void {
-        this.onReconnect = cb;
     }
 
     /** Ajoute la connexion d'un joueur humain. */
@@ -141,7 +135,6 @@ export class MultiWsMessenger implements GameMessenger {
         });
 
         console.log(`🔄 ${color} reconnected`);
-        this.onReconnect?.(color);
         return true;
     }
 
@@ -225,7 +218,6 @@ export class MultiWsMessenger implements GameMessenger {
         this.connections.clear();
         this.onPermanentDisconnect = null;
         this.onTempDisconnect = null;
-        this.onReconnect = null;
     }
 
     /** Envoie à tous les clients connectés (broadcast). */

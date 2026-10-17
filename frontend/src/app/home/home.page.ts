@@ -17,6 +17,7 @@ import { HttpClient } from "@angular/common/http";
 import { AndroidAppBannerComponent } from "../shared/android-app-banner.component";
 import { GameRulesModalComponent } from "../shared/game-rules-modal.component";
 import { InviteToastComponent } from "../shared/invite-toast.component";
+import { ToastService } from "../shared/toast.service";
 import { MarbleCloverComponent } from "../shared/marble-clover.component";
 import { CoinCountComponent } from "../shared/coin-count.component";
 import { BoostTokenComponent } from "../shared/boost-token.component";
@@ -80,6 +81,17 @@ interface InviteCandidate {
 }
 
 type MenuId = "play" | "custom" | "leaderboard";
+
+/**
+ * Server rejections that do not end a custom room (custom-game-manager.ts):
+ * shown inline, the player stays in the room. Any other in-room rejection
+ * (creator left, room expired…) sends them back home.
+ */
+const TRANSIENT_ROOM_REJECTIONS: ReadonlySet<string> = new Set([
+  "This seat is already taken",
+  "A player is reconnecting, please wait",
+  "Only the room creator can start the game",
+]);
 /** Dernière plaque active du menu d'accueil, conservée entre deux visites. */
 let lastActiveMenu: MenuId = "play";
 
@@ -208,6 +220,7 @@ export class HomePage implements OnInit, OnDestroy, DoCheck {
 
   private http = inject(HttpClient);
   private shop = inject(ShopService);
+  private toast = inject(ToastService);
   /** Mode jour / nuit, basculé par le bouton du coin haut gauche. */
   protected readonly theme = inject(ThemeService);
   private userSub: Subscription | null = null;
@@ -295,7 +308,11 @@ export class HomePage implements OnInit, OnDestroy, DoCheck {
     // Re-sync the "Resume" banner from storage; AppResumeService keeps it
     // updated afterwards (incl. clearing it when a stale game is detected).
     this.appResume.refreshFromStorage();
-    if (this.appResume.hasActiveGame()) {
+    // Pas de retour automatique si la partie a été reprise ailleurs (4001 :
+    // sinon les deux onglets se la volent en boucle) ou si son chargement vient
+    // d'échouer (serveur injoignable) : le bandeau Resume reste disponible.
+    const autoResumeSuppressed = this.appResume.consumeAutoResumeSuppression();
+    if (this.appResume.hasActiveGame() && !this.tabLock.wasReplaced() && !autoResumeSuppressed) {
       // Don't let a user with an ongoing game linger on /home — bring them
       // straight back into the match. The Resume banner remains as a fallback
       // in case this navigation is cancelled by a guard.
@@ -385,7 +402,7 @@ export class HomePage implements OnInit, OnDestroy, DoCheck {
    * Best-effort: if the server is unreachable, the user simply stays on home.
    */
   private async redirectIfServerHasActiveGame(): Promise<void> {
-    if (!this.auth.user$.getValue()) return;
+    if (!this.auth.user$.getValue() || this.tabLock.wasReplaced()) return;
     try {
       const info = await this.activeGame.fetch();
       if (!info) return;
@@ -536,6 +553,13 @@ export class HomePage implements OnInit, OnDestroy, DoCheck {
   }
 
   resumeGame(): void {
+    // Filet : si les clés ont disparu entre-temps, le bandeau s'éteint au lieu
+    // d'un clic sans effet (le game guard renverrait aussitôt ici).
+    this.appResume.refreshFromStorage();
+    if (!this.appResume.hasActiveGame()) return;
+    // Reprise explicite : reprend la main même si un autre onglet / appareil
+    // avait pris la partie (claimSession lève aussi wasReplaced).
+    this.tabLock.claimSession();
     this.router.navigate(["/game"]);
   }
 
@@ -930,6 +954,7 @@ export class HomePage implements OnInit, OnDestroy, DoCheck {
     this.customRejectedSub = this.gameStateService.actionRejected$.subscribe(
       (reason) => {
         this.customCreating = false;
+        this.customStarting = false;
         this.customError = reason;
         // While searching, a rejection is a transient seat race
         // (MatchmakingManager: "This seat is already taken") — show it and
@@ -944,10 +969,21 @@ export class HomePage implements OnInit, OnDestroy, DoCheck {
         // because the server already rejected us (e.g., room not found).
         if (this.customStage === "choose") {
           this.gameStateService.disconnect();
-        } else {
-          // Mid-room rejection (creator left / room expired) → return to home.
-          this.cancelCustomGame();
+          return;
         }
+        // In the room, a transient rejection (seat taken meanwhile, a player
+        // reconnecting…) is shown inline: leaving would send leaveCustomRoom
+        // and, for the creator, destroy the room for everyone.
+        if (TRANSIENT_ROOM_REJECTIONS.has(reason)) {
+          setTimeout(() => {
+            if (this.customError === reason) this.customError = "";
+          }, 3000);
+          return;
+        }
+        // Mid-room rejection (creator left / room expired) → return to home,
+        // with the reason kept visible (cancelCustomGame clears customError).
+        this.cancelCustomGame();
+        this.toast.show(reason, "error", 4000);
       }
     );
 

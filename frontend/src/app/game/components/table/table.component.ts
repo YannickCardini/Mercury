@@ -238,6 +238,21 @@ enum TURN_PHASE {
     effect(() => {
       if (this.gameStateService.winners().length > 0) this.clearTimer();
     });
+    // Menu ouvert : un tap n'importe où dans l'écran le ferme. Le voile
+    // .menu-backdrop reste confiné au panneau (container-type: size), donc
+    // un tap sur le plateau ou la barre du haut ne l'atteignait pas. Le tap
+    // est absorbé pour ne pas déclencher en plus l'élément touché dessous.
+    effect((onCleanup) => {
+      if (!this.showMenu()) return;
+      const onTap = (e: Event) => {
+        if ((e.target as Element | null)?.closest('.action-menu')) return;
+        e.stopPropagation();
+        e.preventDefault();
+        this.showMenu.set(false);
+      };
+      document.addEventListener('click', onTap, true);
+      onCleanup(() => document.removeEventListener('click', onTap, true));
+    });
     this.gameStateService.publishOverlay('menu', this.showMenu);
     this.gameStateService.publishOverlay('resign', this.showResignConfirm);
   }
@@ -540,10 +555,10 @@ enum TURN_PHASE {
 
     const effect = getCardEffect(card.value);
     const rect = el.getBoundingClientRect();
-    // Le popover est en `position: fixed` dans .game-board, conteneur de
-    // requêtes (container-type: size) qui devient son bloc conteneur : ses
-    // coordonnées partent du coin de .game-board, pas de l'écran, et il est
-    // rogné à ses bords. On calcule donc tout dans le repère du panneau.
+    // Le popover est en `position: absolute` dans .game-board (position:
+    // relative, overflow: hidden) : ses coordonnées partent du coin de
+    // .game-board, pas de l'écran, et il est rogné à ses bords. On calcule
+    // donc tout dans le repère du panneau.
     const box = (el.closest('.game-board') as HTMLElement | null)?.getBoundingClientRect()
       ?? new DOMRect(0, 0, window.innerWidth, window.innerHeight);
     // Ancrage horizontal clampé pour ne pas déborder du panneau (≈ demi-largeur max).

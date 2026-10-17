@@ -68,14 +68,6 @@ export const CARDS_PER_HAND = 5;
 /** Cartes qui permettent d'entrer un pion en jeu. */
 export const ENTER_CARDS: string[] = ['A', 'K', 'Joker'];
 
-// ── Durées d'animation enter+capture (ms) ────────────────────────────────────
-
-/** Durée de l'animation d'impact du pion entrant sur la case (squash/rebound). */
-export const ENTER_IMPACT_DURATION_MS = 500;
-
-/** Durée de l'animation d'éjection du pion ennemi lors d'un enter+capture. */
-export const MARBLE_EJECTED_DURATION_MS = 400;
-
 /** Délai entre chaque carte lors d'un discard (vol en cascade).
  *  Doit correspondre à STAGGER_MS dans board.component.ts > flyDiscardCards. */
 export const DISCARD_CARD_STAGGER_MS = 220;
@@ -106,7 +98,6 @@ function singleMarbleDuration(
   from: number,
   to: number,
   playerColor: MarbleColor,
-  capturedOnEnter?: boolean,
 ): number {
   switch (type) {
     case 'pass':
@@ -126,14 +117,11 @@ function singleMarbleDuration(
       const steps = mainPathStepCount(from, beforeStartPos);
       return steps * MARBLE_ANIMATION_DURATIONS.move + MARBLE_ANIMATION_DURATIONS.promote;
     }
-    case 'enter': {
-      if (capturedOnEnter) {
-        return MARBLE_EJECTED_DURATION_MS
-             + MARBLE_ANIMATION_DURATIONS.enter
-             + ENTER_IMPACT_DURATION_MS;
-      }
+    case 'enter':
+      // Avec ou sans capture : le client joue chute, impact et éjection de la
+      // victime EN PARALLÈLE dans la même durée (board.component.scss, « ENTER
+      // + CAPTURE »). Additionner les trois faisait attendre ~900 ms de trop.
       return MARBLE_ANIMATION_DURATIONS.enter;
-    }
     default:
       return MARBLE_ANIMATION_DURATIONS[type] ?? 0;
   }
@@ -159,7 +147,6 @@ export function computeMinAnimationDuration(action: Action): number {
     action.from,
     action.to,
     marbleColor,
-    action.capturedOnEnter,
   );
 
   if (action.splitFrom !== undefined && action.splitTo !== undefined && action.splitType !== undefined) {

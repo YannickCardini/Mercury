@@ -37,6 +37,11 @@ export class PresenceManager {
         }
         set.add(ws);
         this.byWs.set(ws, userId);
+        // Désinscription garantie à la fermeture, quel que soit le flux qui a
+        // enregistré la socket : une socket de room privée lancée en partie
+        // n'était jamais retirée, et retenait la partie finie en mémoire (via
+        // les listeners du messenger) tout en gonflant presenceUsers.
+        ws.addEventListener('close', () => this.unregister(ws), { once: true });
 
         this.onRegisterCb?.(userId);
     }

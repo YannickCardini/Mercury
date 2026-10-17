@@ -152,6 +152,10 @@ class InactivityTimer {
  *   marbles has its own dedicated overlay/hints (table.component.ts) —
  *   'select-marble' stays silent for it.
  *
+ * Only guests see these hints: a registered player never does (see
+ * `isGuest`). The card-effect help in table.component.ts is separate and
+ * unaffected.
+ *
  * On top of those per-flow gates, hints are suppressed outright while the
  * new-turn banner is up, while the 2v2 team announcement plays
  * (GameStateService.teamIntroPlaying), and while any modal overlay is open
@@ -199,9 +203,19 @@ export class TutorialOverlayComponent implements OnDestroy {
     () => this.gameState.data()?.gameState.canDiscard ?? false,
   );
 
+  /** Tutorial hints are for guests only: a registered player (seat carrying a
+   *  userId) never gets them. Same rule as GamePage.isLocalPlayerGuest. */
+  private isGuest = computed(() => {
+    const color = this.gameState.myPlayerColor();
+    if (!color) return true;
+    const player = this.gameState.data()?.gameState.players.find(p => p.color === color);
+    return !player?.userId;
+  });
+
   /** Current hint to display, or null when the overlay should be hidden. */
   hint = computed<Hint | null>(() => {
     const gs = this.gameState;
+    if (!this.isGuest()) return null;
     if (!gs.cardHelpEnabled()) return null; // bouton menu « Card Help » : coupe tous les hints
     if (this.isBannerVisible()) return null;
     if (gs.teamIntroPlaying()) return null; // pas de hint pendant l'annonce des équipes (2v2)

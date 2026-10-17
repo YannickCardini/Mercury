@@ -18,9 +18,8 @@ import type { PlayerStrategy } from './player-strategy.js';
 // Joker est géré côté Game : l'IA rejoue simplement au tour suivant (même joueur
 // courant).
 //
-// Cartes non gérées pour l'instant (7 : split, 4 : recul) →
-// getLegalAction retourne null pour leurs comportements spéciaux, donc l'IA
-// les passera naturellement si aucun coup standard n'est trouvable.
+// Le 7 (split avec un second pion, éventuellement du coéquipier) et le 4
+// (recul) passent par findLegalMoveForCard comme les autres cartes.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const AI_CARD_PRIORITY: Card['value'][] = [

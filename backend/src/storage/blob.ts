@@ -51,3 +51,13 @@ export async function uploadAvatarWebp(userId: string, data: Buffer): Promise<st
     });
     return block.url;
 }
+
+/**
+ * Supprime l'avatar d'un utilisateur (suppression de compte). Idempotent ;
+ * no-op sans storage configuré (dev local).
+ */
+export async function deleteAvatar(userId: string): Promise<void> {
+    if (!process.env['AZURE_STORAGE_CONNECTION_STRING']) return;
+    const container = await getAvatarsContainer();
+    await container.getBlockBlobClient(`${userId}.webp`).deleteIfExists();
+}

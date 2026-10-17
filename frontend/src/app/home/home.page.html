@@ -638,9 +638,9 @@
             <span class="mm mm-red"></span>
             <span class="mm mm-orange"></span>
           </div>
-          <h2 class="modal-title">
-            {{ customStage === 'choose' ? 'Custom Game' : 'Custom room' }}
-          </h2>
+          @if (customStage === 'choose') {
+          <h2 class="modal-title">Custom Game</h2>
+          }
         </div>
         }
 
@@ -751,8 +751,6 @@
             </div>
           </div>
         </div>
-        <p class="mq-count">{{ customRoomPlayers.length }} / 4 players</p>
-        <p class="mq-hint">Tap an empty seat to choose your team</p>
         <!-- Joined player names -->
         <ul class="custom-players">
           @for (p of customRoomPlayers; track p) {

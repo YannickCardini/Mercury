@@ -38,7 +38,7 @@ import {
 } from '@mercury/shared';
 import { REACTION_EMOJIS } from "@mercury/shared";
 import { SNAPSHOT_SCHEMA_VERSION, type GameSnapshot } from './game-snapshot.js';
-import type { Action, Card, ClientMessage, ConsumableId, GameConfig, GameState, GameStatsMessage, MarbleColor, ReactionEmoji } from "@mercury/shared";
+import type { Action, Card, ClientMessage, ConsumableId, GameConfig, GameEndedMessage, GameState, GameStatsMessage, MarbleColor, ReactionEmoji } from "@mercury/shared";
 
 const REACTION_COOLDOWN_MS = 2000;
 
@@ -122,6 +122,16 @@ export class Game {
 
     /** Vrai quand la partie est terminée (victoire naturelle ou abandon). */
     private gameFinished = false;
+
+    /** Dernier `gameEnded` diffusé : renvoyé à un joueur qui se reconnecte
+     *  après la fin (sinon pas d'écran de fin, voir resendStateToPlayer). */
+    private lastGameEnded: GameEndedMessage | null = null;
+
+    /** Vrai pendant declareLastConnectedWinner, qui libère lui-même la partie. */
+    private winByDefaultPending = false;
+
+    /** Partie déjà retirée du registre (voir releaseGame). */
+    private released = false;
 
     /** UserIds des joueurs déjà pénalisés pour abandon (-2), pour ne pas aussi leur infliger -1. */
     private penalizedUserIds = new Set<string>();
@@ -212,12 +222,13 @@ export class Game {
                 console.error(`💥 Partie ${this.id} interrompue par une exception:`, err);
                 this.gameFinished = true;
                 try {
-                    this.messenger.send({ type: 'gameEnded', winners: [], reason: 'abandoned' });
+                    this.broadcastGameEnded({ type: 'gameEnded', winners: [], reason: 'abandoned' });
                 } catch { /* sockets déjà fermées */ }
             })
             .finally(() => {
-                GameRegistry.delete(this.id);
-                this.onGameEnded?.(this.id);
+                // La victoire par forfait libère elle-même la partie, APRÈS les
+                // points (la boucle, débloquée tout de suite, sort avant).
+                if (!this.winByDefaultPending) this.releaseGame();
             });
     }
 
@@ -265,6 +276,11 @@ export class Game {
 
     setOnSnapshot(cb: (game: Game) => void): void {
         this.onSnapshot = cb;
+        // La distribution initiale a eu lieu dans le constructeur, AVANT ce
+        // câblage : son point de sauvegarde (dealCards → persist) n'a rien
+        // écrit. Sans cette sauvegarde, un crash pendant le 1er tour perdait
+        // la partie entière.
+        this.persist();
     }
 
     // ─── Persistance (survie aux redéploiements) ─────────────────────────────
@@ -437,6 +453,10 @@ export class Game {
             myColor: color,
         });
 
+        // Partie déjà terminée : sans renvoi du gameEnded, le client reste sur
+        // le plateau final sans écran de fin (l'overlay n'écoute que lui).
+        if (this.lastGameEnded) this.messenger.sendTo(color, this.lastGameEnded);
+
         // Le client a perdu son état en mémoire (rechargement, redémarrage de
         // l'app) : ses boosters doivent rester affichés jusqu'au bout.
         this.sendBoosts(color);
@@ -585,7 +605,7 @@ export class Game {
             this.gameFinished = true;
             const winners = this.computeWinners();
             console.log(`🏆 Partie ${this.id} terminée — gagnant(s): ${winners.join(', ')}`);
-            this.messenger.send({ type: 'gameEnded', winners, reason: 'win' });
+            this.broadcastGameEnded({ type: 'gameEnded', winners, reason: 'win' });
             // Calculer et envoyer les points AVANT de libérer le slot de
             // reconnexion et de retirer la partie du registre : sinon, un
             // joueur dont la socket coupe juste au moment de la victoire (cas
@@ -596,8 +616,7 @@ export class Game {
             await this.applyEndGamePoints(winners).catch(err =>
                 console.error('❌ Failed to update points after game end:', err)
             );
-            GameRegistry.delete(this.id);
-            this.onGameEnded?.(this.id);
+            this.releaseGame();
         }
     }
 
@@ -914,6 +933,9 @@ export class Game {
 
     private handleAbandonGame(senderColor: MarbleColor | null): void {
         if (!senderColor) return; // abandon only makes sense in multi-device
+        // Partie finie : un abandon confirmé à cet instant ne doit pas ajouter
+        // -2 par-dessus le décompte de fin de partie.
+        if (this.gameFinished) return;
 
         const player = this.players.find(p => p.color === senderColor);
         if (!player || !player.isHuman) return;
@@ -946,6 +968,17 @@ export class Game {
 
     /** Abort the game if no human players are still connected. */
     private checkAbort(): void {
+        // Les sièges d'agents IA externes sont `isHuman` : sans ce test, une
+        // partie continuait entre bots jusqu'au bout après le départ définitif
+        // du dernier vrai joueur (slots du pool d'agents bloqués, snapshots).
+        // La victoire par forfait ci-dessous garde le décompte complet : elle
+        // ne doit pas offrir la partie dès qu'un humain face à des bots part.
+        const realHumans = this.players.filter(p => p.isHuman && !this.isBotSeat(p));
+        if (realHumans.length > 0 && realHumans.every(p => !p.isConnected)) {
+            this.abortGame();
+            return;
+        }
+
         const humanPlayers = this.players.filter(p => p.isHuman);
         const connectedHumans = humanPlayers.filter(p => p.isConnected);
         if (connectedHumans.length === 0) {
@@ -962,12 +995,13 @@ export class Game {
         if (this.gameFinished) return;
         this.gameFinished = true;
         this.aborted = true;
+        this.winByDefaultPending = true;
 
         console.log(`🏆 Partie ${this.id} terminée — ${winner.name} (${winner.color}) gagne, dernier humain connecté`);
 
         // Le dernier humain connecté fait gagner son ÉQUIPE entière.
         const winners = [winner.color, getTeammateColor(winner.color)];
-        this.messenger.send({ type: 'gameEnded', winners, reason: 'win_by_default' });
+        this.broadcastGameEnded({ type: 'gameEnded', winners, reason: 'win_by_default' });
 
         if (this.pendingHumanActionResolve) {
             const currentPlayer = this.players[this.currentPlayerIndex]!;
@@ -987,8 +1021,7 @@ export class Game {
         await this.applyEndGamePoints(winners).catch(err =>
             console.error('❌ Failed to update points after game end:', err)
         );
-        GameRegistry.delete(this.id);
-        this.onGameEnded?.(this.id);
+        this.releaseGame();
     }
 
     /** Stop the game immediately and clean up. Idempotent. */
@@ -1000,7 +1033,7 @@ export class Game {
         console.log(`🚫 Partie ${this.id} annulée — plus aucun humain connecté`);
 
         // Notify any still-connected clients (unlikely but possible with bots-only race)
-        this.messenger.send({ type: 'gameEnded', winners: [], reason: 'abandoned' });
+        this.broadcastGameEnded({ type: 'gameEnded', winners: [], reason: 'abandoned' });
 
         // Unblock any pending promises so the game loop can exit
         if (this.pendingHumanActionResolve) {
@@ -1016,6 +1049,23 @@ export class Game {
         this.debugResumeResolve?.();
         this.debugResumeResolve = null;
 
+        this.releaseGame();
+    }
+
+    /** Diffuse la fin de partie et la mémorise pour les reconnexions tardives. */
+    private broadcastGameEnded(msg: GameEndedMessage): void {
+        this.lastGameEnded = msg;
+        this.messenger.send(msg);
+    }
+
+    /**
+     * Retire la partie du registre et libère ses slots de reconnexion. Point
+     * unique et idempotent : la fin naturelle, le forfait, l'annulation et le
+     * filet `.finally` du constructeur y passent tous.
+     */
+    private releaseGame(): void {
+        if (this.released) return;
+        this.released = true;
         GameRegistry.delete(this.id);
         this.onGameEnded?.(this.id);
     }
@@ -1062,9 +1112,10 @@ export class Game {
     private validateHumanAction(action: Action, player: Player): Action | null {
         const ctx = this.buildLegalMoveContext(player);
 
-        if (action.type === 'pass') {
-            return { ...action, playerColor: player.color };
-        }
+        // `pass` est réservé à la main vide, que playOneTurn joue lui-même sans
+        // attendre le client : accepté d'un humain, il lui permettrait de sauter
+        // son tour en gardant ses cartes (et de glisser n'importe quel champ).
+        if (action.type === 'pass') return null;
 
         // Mise en jeu solidaire (2v2) : quand elle s'applique, elle est
         // OBLIGATOIRE — la défausse est refusée et la seule action acceptée est
@@ -1079,10 +1130,11 @@ export class Game {
             return { type: 'discard', from: 0, to: 0, cardPlayed: [...player.cards], playerColor: player.color };
         }
 
-        // Vérifier que la carte déclarée est bien dans la main du joueur
-        const card = action.cardPlayed?.[0];
+        // La carte est relue dans la main serveur : seul son id vient du client.
+        // Prendre l'objet du client laisserait jouer n'importe quelle carte sous
+        // une autre valeur (un 2 déclaré Joker → entrée, +18 et rejeu).
+        const card = player.cards.find(c => c.id === action.cardPlayed?.[0]?.id);
         if (!card) return null;
-        if (!player.cards.some(c => c.id === card.id)) return null;
 
         if (solidaire) {
             // On respecte la carte d'entrée et le pion (case de réserve du
@@ -1437,9 +1489,13 @@ export class Game {
             }))
         );
 
-        // Apply deltas in parallel, then recompute rankings once
+        // Apply deltas in parallel, then recompute rankings once. Un échec du
+        // recalcul (429, document atypique) ne doit priver personne de ses
+        // pièces ni de son gameStats : le rang affiché sera juste un peu daté.
         await Promise.all(deltas.map(({ userId, delta }) => updateUserPoints(userId, delta)));
-        await recomputeRankings();
+        await recomputeRankings().catch(err =>
+            console.error('❌ Failed to recompute rankings after game end:', err)
+        );
 
         // ── Pièces de boutique ───────────────────────────────────────────────
         // Monnaie cosmétique, indépendante de l'Elo : un échec ici ne doit

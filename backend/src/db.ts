@@ -1,15 +1,26 @@
 import { CosmosClient, type Container, type PatchOperation } from '@azure/cosmos';
+import { Agent } from 'node:https';
 import type { ClientInfo } from '@mercury/shared';
 
 let client: CosmosClient | null = null;
 
 function getClient(): CosmosClient {
     if (!client) {
-        // L'émulateur Cosmos DB local utilise un certificat auto-signé
-        if (process.env['NODE_ENV'] !== 'production') {
-            process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = '0';
-        }
-        client = new CosmosClient(process.env['COSMOS_CONNECTION_STRING']!);
+        const connectionString = process.env['COSMOS_CONNECTION_STRING']!;
+        // L'émulateur Cosmos DB local utilise un certificat auto-signé : la
+        // vérification TLS n'est relâchée que pour lui, et sur ce seul client.
+        // Ne jamais repasser par NODE_TLS_REJECT_UNAUTHORIZED, qui la coupait
+        // pour TOUT le process (Blob, certificats Google, Telegram, agent IA)
+        // dès que NODE_ENV ≠ production — ce qui était le cas en prod.
+        const endpoint = /AccountEndpoint=([^;]+)/i.exec(connectionString)?.[1] ?? '';
+        const isEmulator = /^https:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(endpoint);
+        client = isEmulator
+            ? new CosmosClient({
+                endpoint,
+                key: /AccountKey=([^;]+)/i.exec(connectionString)?.[1] ?? '',
+                agent: new Agent({ rejectUnauthorized: false }),
+            })
+            : new CosmosClient(connectionString);
     }
     return client;
 }
@@ -40,6 +51,35 @@ export async function getMessagesContainer(): Promise<Container> {
     });
     messagesContainer = container;
     return container;
+}
+
+/**
+ * Supprime tous les messages reçus ET envoyés par un utilisateur (suppression
+ * de compte) : chacun embarque une copie de son nom, de sa photo et du texte.
+ * Idempotent : un message déjà supprimé (404) est ignoré.
+ */
+export async function deleteUserMessages(userId: string): Promise<number> {
+    const container = await getMessagesContainer();
+    const parameters = [{ name: '@uid', value: userId }];
+    const { resources: received } = await container.items
+        .query<{ id: string }>({ query: 'SELECT c.id FROM c WHERE c.toUserId = @uid', parameters }, { partitionKey: userId })
+        .fetchAll();
+    // Envoyés : rangés dans la partition du destinataire, d'où la requête cross-partition.
+    const { resources: sent } = await container.items
+        .query<{ id: string; toUserId: string }>({ query: 'SELECT c.id, c.toUserId FROM c WHERE c.fromUserId = @uid', parameters })
+        .fetchAll();
+    const targets = [
+        ...received.map(m => ({ id: m.id, partitionKey: userId })),
+        ...sent.map(m => ({ id: m.id, partitionKey: m.toUserId })),
+    ];
+    for (const { id, partitionKey } of targets) {
+        try {
+            await container.item(id, partitionKey).delete();
+        } catch (err: unknown) {
+            if ((err as { code?: number }).code !== 404) throw err;
+        }
+    }
+    return targets.length;
 }
 
 /**
@@ -335,7 +375,7 @@ export async function consumeArmedBoosts(userId: string): Promise<string[]> {
 export async function recomputeRankings(): Promise<void> {
     const container = await getUsersContainer();
     const { resources: users } = await container.items
-        .query<{ id: string; points: number }>('SELECT c.id, c.points FROM c ORDER BY c.points DESC')
+        .query<{ id: string; points: number; ranking?: number }>('SELECT c.id, c.points, c.ranking FROM c ORDER BY c.points DESC')
         .fetchAll();
 
     let rank = 1;
@@ -343,7 +383,12 @@ export async function recomputeRankings(): Promise<void> {
         if (i > 0 && users[i]!.points < users[i - 1]!.points) {
             rank = i + 1;
         }
-        const ops: PatchOperation[] = [{ op: 'replace', path: '/ranking', value: rank }];
+        // Seuls les rangs qui changent sont réécrits : une fin de partie ne
+        // déplace que les comptes situés entre l'ancienne et la nouvelle place,
+        // au lieu de réécrire toute la table à chaque appel. `set` (et non
+        // `replace`) tolère un document sans champ `ranking`.
+        if (users[i]!.ranking === rank) continue;
+        const ops: PatchOperation[] = [{ op: 'set', path: '/ranking', value: rank }];
         await container.item(users[i]!.id, users[i]!.id).patch(ops);
     }
 }

@@ -40,11 +40,10 @@ const KIND_LABEL: Record<ShopItemKind, string> = {
 };
 
 /**
- * Ordre des sections, indépendant de celui du catalogue. Les boosters passent
- * en tête : c'est l'achat qu'on refait avant une partie, il ne doit pas se
- * trouver sous toute la collection.
+ * Ordre des sections, indépendant de celui du catalogue. Les emojis passent
+ * en tête, suivis des boosters puis des dos de cartes.
  */
-const KIND_ORDER: readonly ShopItemKind[] = ['consumable', 'emoji', 'cardback'];
+const KIND_ORDER: readonly ShopItemKind[] = ['emoji', 'consumable', 'cardback'];
 
 /** Ligne d'explication sous le titre, pour les familles qui en ont besoin. */
 const KIND_NOTE: Partial<Record<ShopItemKind, string>> = {

@@ -34,7 +34,7 @@ export function getCardEffectTiles(): CardEffectTile[] {
     { val: 'Q', tileClass: 'ca-blue', html: 'Move forward +12' },
     {
       val: 'J', tileClass: 'ca-orange',
-      html: 'Swap any two marbles of different colors',
+      html: 'Swap two marbles of different colors, at least one from your team',
     },
     {
       val: '7', tileClass: 'ca-purple',
@@ -59,7 +59,7 @@ export function getCardEffect(value: CardValue): CardEffect {
     case 'A': return { title: 'Ace', text: 'Enter a marble onto your start, or move one forward by 1.' };
     case 'K': return { title: 'King', text: 'Enter a marble onto your start, or move one forward by 13.' };
     case 'Q': return { title: 'Queen', text: 'Move one marble forward by 12.' };
-    case 'J': return { title: 'Jack', text: 'Swap any two marbles of different colors, yours don\'t have to be involved.' };
+    case 'J': return { title: 'Jack', text: 'Swap two marbles of different colors. At least one must belong to your team (yours or your teammate\'s): two opponents can never be swapped.' };
     case '7': return { title: 'Seven', text: 'Move 7 spaces, split them across two marbles: yours moves first, the remaining steps may go to your teammate\'s.' };
     case '4': return { title: 'Four', text: 'Move one marble backward by 4.' };
     case 'Joker': return { title: 'Joker', text: 'Enter a marble or move forward 18, then play again.' };
