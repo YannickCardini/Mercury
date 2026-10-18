@@ -3,6 +3,9 @@ import {
   ChangeDetectionStrategy,
   OnInit,
   OnDestroy,
+  AfterViewInit,
+  ElementRef,
+  ViewChild,
   signal,
   computed,
   inject,
@@ -55,8 +58,12 @@ const TOGGLE_GUARD_MS = 250;
   // `is-native` : allège en CSS les backdrop-filter coûteux sur WebView Android.
   host: { "[class.is-native]": "isNative" },
 })
-export class EmojiReactionsComponent implements OnInit, OnDestroy {
+export class EmojiReactionsComponent implements OnInit, AfterViewInit, OnDestroy {
   readonly isNative = Capacitor.isNativePlatform();
+
+  /** Calque des emojis flottants, déplacé sous <body> (voir ngAfterViewInit). */
+  @ViewChild("floatsLayer", { static: true })
+  private floatsLayer!: ElementRef<HTMLElement>;
 
   /**
    * La palette garde toujours toutes ses cases, quel que soit l'état du compte :
@@ -110,6 +117,15 @@ export class EmojiReactionsComponent implements OnInit, OnDestroy {
     // inutiles toute la partie.
   }
 
+  ngAfterViewInit(): void {
+    // Les emojis sont en position: fixed avec des coordonnées viewport. Dans la
+    // table, .game-board (backdrop-filter + container-type: size) devient leur
+    // bloc conteneur et les rogne (overflow: hidden) : sur desktop ils
+    // apparaissaient décalés dans le panneau au lieu de partir du badge du
+    // joueur. Sous <body>, le fixed redevient relatif à la fenêtre.
+    document.body.appendChild(this.floatsLayer.nativeElement);
+  }
+
   /** Démarre un tick 250 ms le temps du cooldown, puis s'auto-arrête. */
   private startCooldownTicker(): void {
     if (this.nowTimer) return;
@@ -124,6 +140,7 @@ export class EmojiReactionsComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.sub?.unsubscribe();
+    this.floatsLayer.nativeElement.remove();
     if (this.nowTimer) clearInterval(this.nowTimer);
   }
 
