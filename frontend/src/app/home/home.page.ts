@@ -149,6 +149,15 @@ export class HomePage implements OnInit, OnDestroy, DoCheck {
   private matchmakingSub: Subscription | null = null;
   private gameStartSub: Subscription | null = null;
   private connectionErrorSub: Subscription | null = null;
+  private matchmakingRejectedSub: Subscription | null = null;
+
+  /** Chrono du panneau d'attente (Play Now et repli d'une room privée). */
+  private readonly searchElapsedS = signal(0);
+  readonly searchClock = computed(() => {
+    const s = this.searchElapsedS();
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  });
+  private searchClockTimer: ReturnType<typeof setInterval> | null = null;
   private loginErrorSub: Subscription | null = null;
 
   /** Shown when the user tries to open matchmaking while another tab is active. */
@@ -700,6 +709,7 @@ export class HomePage implements OnInit, OnDestroy, DoCheck {
     this.matchmakingConnected = 0;
     this.myMatchmakingColor = null;
     this.matchmakingTakenColors = [];
+    this.startSearchClock();
 
     const user = this.auth.user$.getValue();
     const playerName = user?.name;
@@ -744,6 +754,23 @@ export class HomePage implements OnInit, OnDestroy, DoCheck {
         this.matchmakingError = true;
         setTimeout(() => (this.matchmakingError = false), 4000);
       });
+
+    // Entrée en file refusée (même compte déjà en file sur un autre onglet ou
+    // appareil, file pleine) : sans ça, le panneau resterait figé sur
+    // « Joining… ». Un siège déjà pris n'est qu'une course au clic : ignoré.
+    this.matchmakingRejectedSub = this.gameStateService.actionRejected$.subscribe(
+      (reason) => {
+        if (reason === "Already in matchmaking from another tab") {
+          this.cancelSearch();
+          this.duplicateTabMessage = true;
+          setTimeout(() => (this.duplicateTabMessage = false), 4000);
+        } else if (reason === "Matchmaking session is full") {
+          this.cancelSearch();
+          this.matchmakingError = true;
+          setTimeout(() => (this.matchmakingError = false), 4000);
+        }
+      }
+    );
   }
 
   cancelMatchmaking(): void {
@@ -791,13 +818,32 @@ export class HomePage implements OnInit, OnDestroy, DoCheck {
     if (user) this.connectPresenceIfIdle(user.id);
   }
 
+  private startSearchClock(): void {
+    this.stopSearchClock();
+    const startedAt = Date.now();
+    this.searchElapsedS.set(0);
+    // Calculé depuis Date.now() : juste même si l'app a été mise en arrière-plan.
+    this.searchClockTimer = setInterval(
+      () => this.searchElapsedS.set(Math.floor((Date.now() - startedAt) / 1000)),
+      1000
+    );
+  }
+
+  private stopSearchClock(): void {
+    if (this.searchClockTimer) clearInterval(this.searchClockTimer);
+    this.searchClockTimer = null;
+  }
+
   private cleanupMatchmaking(): void {
+    this.stopSearchClock();
     this.matchmakingSub?.unsubscribe();
     this.gameStartSub?.unsubscribe();
     this.connectionErrorSub?.unsubscribe();
+    this.matchmakingRejectedSub?.unsubscribe();
     this.matchmakingSub = null;
     this.gameStartSub = null;
     this.connectionErrorSub = null;
+    this.matchmakingRejectedSub = null;
   }
 
   // ── Custom Game ────────────────────────────────────────────────────────────
@@ -872,6 +918,7 @@ export class HomePage implements OnInit, OnDestroy, DoCheck {
       this.gameStateService.matchmakingStatus$.subscribe((status) => {
         if (this.customStage === "in-room") {
           this.customStage = "searching";
+          this.startSearchClock();
           this.customStarting = false;
           this.customError = "";
           // The room is gone: drop the code so nothing tries to show, copy,
@@ -1064,6 +1111,7 @@ export class HomePage implements OnInit, OnDestroy, DoCheck {
   }
 
   private cleanupCustomGame(): void {
+    this.stopSearchClock();
     this.customRoomSub?.unsubscribe();
     this.customMatchmakingSub?.unsubscribe();
     this.customGameStartSub?.unsubscribe();

@@ -289,7 +289,8 @@ async function handleSetupMessage(ws: WebSocket, msg: ClientMessage): Promise<vo
                 if (DEBUG && msg.debug === true) {
                     sessionManager.startDebugGameVsBots(ws, cleanPlayerName(msg.playerName), userId, cleanPicture(msg.picture));
                 } else {
-                    sessionManager.joinMatchmaking(ws, cleanPlayerName(msg.playerName), msg.browserId, cleanPicture(msg.picture), userId);
+                    const newcomer = typeof msg.gamesStarted === 'number' && Number.isFinite(msg.gamesStarted) && msg.gamesStarted < 2;
+                    sessionManager.joinMatchmaking(ws, cleanPlayerName(msg.playerName), msg.browserId, cleanPicture(msg.picture), userId, newcomer);
                 }
                 break;
             }

@@ -274,11 +274,16 @@ export interface BoostsActiveMessage {
  */
 export interface MatchmakingStatusMessage {
   type: 'matchmakingStatus';
+  /** Sièges affichés comme pris (= takenColors.length). */
   connectedCount: number;
   totalNeeded: number;
   myColor: MarbleColor;
   guestPlayerId: string;
-  /** Couleurs actuellement occupées dans la session (par un humain ou un bot). */
+  /**
+   * Couleurs affichées comme prises : joueurs assis (humains ou bots), plus les
+   * sièges réservés à un agent en route ou à un joueur sur le départ. Le
+   * lancement n'a lieu qu'avec 4 joueurs réellement connectés.
+   */
   takenColors: MarbleColor[];
 }
 
@@ -421,8 +426,8 @@ export interface ClientInfo {
 
 /**
  * Rejoint la file d'attente matchmaking publique.
- * Le serveur assigne une couleur et lance la partie dès que 4 joueurs sont présents
- * (ou remplit avec des bots après 60 s).
+ * Le serveur assigne une couleur et lance la partie dès que 4 joueurs sont présents ;
+ * des agents IA comblent les sièges vides selon un script d'arrivée.
  */
 export interface JoinMatchmakingMessage {
   type: 'joinMatchmaking';
@@ -440,6 +445,11 @@ export interface JoinMatchmakingMessage {
   client?: Partial<ClientInfo>;
   /** En mode debug, demande au serveur de lancer immédiatement une partie contre 3 bots IA. Honoré uniquement si le backend est lui-même en DEBUG. */
   debug?: boolean;
+  /**
+   * Parties lancées sur cet appareil (compteur local). Sous 2, le joueur
+   * découvre le jeu : le serveur remplit sa file plus vite. Absent des builds antérieurs.
+   */
+  gamesStarted?: number;
 }
 
 /**

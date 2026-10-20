@@ -246,10 +246,13 @@ export class SessionManager {
 
     /**
      * Rejoint la file d'attente matchmaking publique.
-     * Le serveur assigne une couleur et démarre la partie dès que 4 joueurs sont là
-     * (ou remplit avec des bots après 60 s).
+     * Le serveur assigne une couleur et démarre la partie dès que 4 joueurs sont là ;
+     * les agents IA comblent les sièges vides selon un script d'arrivée
+     * (voir matchmaking-manager.ts).
+     *
+     * @param newcomer Moins de 2 parties sur l'appareil du joueur : file remplie vite.
      */
-    joinMatchmaking(ws: WebSocket, playerName?: string, browserId?: string, picture?: string, userId?: string): void {
+    joinMatchmaking(ws: WebSocket, playerName?: string, browserId?: string, picture?: string, userId?: string, newcomer = false): void {
         // Un agent IA re-dispatché après un redéploiement suit son flux normal
         // (joinMatchmaking) : s'il reste un siège bot vacant dans une partie
         // restaurée, il y est redirigé au lieu de la file d'attente. AVANT
@@ -258,8 +261,13 @@ export class SessionManager {
         // l'agent ne sait pas interpréter.
         if (userId && isBotUserId(userId)
             && trySeatBotInRestoredGame(ws, userId, this)) return;
-        if (userId && this.rejectIfInActiveGame(ws, userId)) return;
-        this.matchmaking.joinQueue(ws, playerName, this.reconnect, browserId, picture, userId);
+        if (userId && this.rejectIfInActiveGame(ws, userId)) {
+            // Un agent ne sait pas interpréter `alreadyInActiveGame` : sans
+            // fermeture, il attendrait indéfiniment et garderait son identité.
+            if (isBotUserId(userId)) ws.close(1000, 'Already in a game');
+            return;
+        }
+        this.matchmaking.joinQueue({ ws, playerName, reconnect: this.reconnect, browserId, picture, userId, newcomer });
     }
 
     /** Crée une custom room et inscrit le créateur (red). */

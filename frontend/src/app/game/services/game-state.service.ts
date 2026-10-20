@@ -3,7 +3,7 @@ import { BehaviorSubject, Subject } from 'rxjs';
 import { TabLockService } from './tab-lock.service';
 import { AuthService } from '../../services/auth.service';
 import { ShopService } from '../../services/shop.service';
-import { getOrCreateBrowserId } from '../../shared/browser-id';
+import { countGameStart, getGamesStartedOnDevice, getOrCreateBrowserId } from '../../shared/browser-id';
 import { getClientInfo } from '../../shared/client-info';
 import {
   Action,
@@ -760,6 +760,7 @@ export class GameStateService {
           this.activeGameId.set(welcomeMsg.gameId);
           localStorage.setItem('guest_player_id', welcomeMsg.guestPlayerId);
           localStorage.setItem('active_game_id', welcomeMsg.gameId);
+          countGameStart(welcomeMsg.gameId);
           // Le serveur est la seule source d'autorité sur la couleur assignée
           // (une couleur choisie en lobby — custom room / matchmaking — peut
           // avoir été réattribuée, ex. repli d'une custom room incomplète vers
@@ -1079,7 +1080,10 @@ export class GameStateService {
 
   sendJoinMatchmaking(playerName?: string, picture?: string, authToken?: string, debug?: boolean): void {
     const browserId = getOrCreateBrowserId();
-    this.send(JSON.stringify({ type: 'joinMatchmaking', playerName, browserId, picture, authToken, debug, client: getClientInfo() }));
+    this.send(JSON.stringify({
+      type: 'joinMatchmaking', playerName, browserId, picture, authToken, debug,
+      client: getClientInfo(), gamesStarted: getGamesStartedOnDevice(),
+    }));
   }
 
   sendSelectMatchmakingSlot(color: MarbleColor): void {

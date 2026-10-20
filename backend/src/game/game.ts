@@ -798,11 +798,17 @@ export class Game {
         }
 
         // Emoji de boutique : il faut un compte qui le possède. Les invités
-        // (pas de userId) et les sièges d'agents IA n'y ont pas accès.
+        // (pas de userId) n'y ont pas accès. Un agent IA n'a pas d'inventaire :
+        // c'est l'agent qui restreint chaque bot à sa propre panoplie (personas
+        // du projet ia), pour que certains « possèdent » des emojis et d'autres non.
         const player = this.players.find(p => p.color === author);
         const userId = player?.userId;
         const itemId = emojiItemId(emoji);
-        if (!player || !userId || itemId === undefined || this.isBotSeat(player)) return;
+        if (!player || !userId || itemId === undefined) return;
+        if (this.isBotSeat(player)) {
+            this.broadcastReaction(author, emoji, now);
+            return;
+        }
 
         const owned = peekOwnedItems(userId);
         if (owned) {

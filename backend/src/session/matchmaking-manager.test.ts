@@ -35,8 +35,8 @@ test('matchmaking — un compte déjà en file est refusé depuis un autre appar
     const phone = fakeWs();
     const laptop = fakeWs();
 
-    matchmaking.joinQueue(phone.ws, 'Alice', undefined, 'browser-phone', undefined, 'u-alice');
-    matchmaking.joinQueue(laptop.ws, 'Alice', undefined, 'browser-laptop', undefined, 'u-alice');
+    matchmaking.joinQueue({ ws: phone.ws, playerName: 'Alice', browserId: 'browser-phone', userId: 'u-alice' });
+    matchmaking.joinQueue({ ws: laptop.ws, playerName: 'Alice', browserId: 'browser-laptop', userId: 'u-alice' });
 
     assert.equal(matchmaking.getQueueSummary().waiting, 1, 'un seul siège pour le compte');
     assert.deepEqual(laptop.sent.at(-1), { type: 'actionRejected', reason: 'Already in matchmaking from another tab' });

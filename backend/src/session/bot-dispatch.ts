@@ -40,11 +40,20 @@ export function accountTag(userId: string | undefined, browserId?: string): stri
     return `guest:${browserId ?? '?'}`;
 }
 
+/** `busy` = 503, tous les bots du pool sont déjà actifs (réessayable). */
+export type DispatchResult = 'ok' | 'busy' | 'failed';
+
+/** Au-delà, l'appel est abandonné : le matchmaking réessaie de lui-même. */
+const DISPATCH_TIMEOUT_MS = 5_000;
+
 /**
  * Réveille un agent IA via POST ${AGENT_URL}/dispatch.
- * `busy` = 503, tous les bots du pool sont déjà actifs (réessayable).
+ *
+ * @param avoidUserIds Bots croisés récemment par les humains de la file :
+ * l'agent choisit d'abord une identité libre hors de cette liste, pour que
+ * les mêmes visages ne reviennent pas partie après partie.
  */
-export async function dispatchBotAgent(): Promise<'ok' | 'busy' | 'failed'> {
+export async function dispatchBotAgent(avoidUserIds: readonly string[] = []): Promise<DispatchResult> {
     const url = process.env['AGENT_URL'];
     const secret = process.env['BOT_SECRET'];
     if (!url || !secret) {
@@ -57,7 +66,8 @@ export async function dispatchBotAgent(): Promise<'ok' | 'busy' | 'failed'> {
         const res = await fetch(`${url.replace(/\/$/, '')}/dispatch`, {
             method: 'POST',
             headers: { 'X-Bot-Secret': secret, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ gameMode: '2v2' }),
+            body: JSON.stringify({ gameMode: '2v2', avoidUserIds }),
+            signal: AbortSignal.timeout(DISPATCH_TIMEOUT_MS),
         });
         if (res.ok) {
             console.log('🤖 Bot agent dispatched');

@@ -545,17 +545,18 @@ export class CustomGameManager {
         // Snapshot players before iterating; joinQueue may close/replace state.
         const players = [...room.players];
         const colors = this.resolveFallbackColors(players.map(p => p.color));
-        players.forEach((p, i) => {
-            this.matchmaking.joinQueue(
-                p.ws,
-                p.name,
-                room.reconnect,
-                p.browserId,
-                p.picture,
-                p.userId,
-                colors[i],
-            );
-        });
+        // En bloc : le script d'arrivée n'est tiré qu'une fois tout le groupe
+        // assis, avec le profil rapide (ces joueurs ont déjà attendu dans la room).
+        this.matchmaking.joinGroup(players.map((p, i) => ({
+            ws: p.ws,
+            playerName: p.name,
+            reconnect: room.reconnect,
+            browserId: p.browserId,
+            picture: p.picture,
+            userId: p.userId,
+            preferredColor: colors[i],
+            newcomer: true,
+        })));
         // Les sockets appartiennent désormais au messenger du matchmaking ;
         // on neutralise l'ancien messenger de la room (timers 180s + handlers
         // close orphelins) pour éviter un faux "permanently disconnected".

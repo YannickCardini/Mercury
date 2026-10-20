@@ -586,7 +586,15 @@
           </div>
         </div>
 
-        <p class="mq-count">{{ matchmakingConnected }} / 4 players</p>
+        <p class="mq-count">
+          @if (matchmakingConnected === 0) {
+          Joining…
+          } @else {
+          {{ matchmakingConnected }} / 4 players
+          }
+          <span class="mq-clock">{{ searchClock() }}</span>
+        </p>
+        <p class="mq-eta">Games usually start within 30 seconds</p>
         <p class="mq-hint">Tap an empty seat to choose your team</p>
         @if (fallback) {
         <p class="mq-note">
