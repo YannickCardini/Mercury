@@ -624,12 +624,6 @@ export class HomePage implements OnInit, OnDestroy, DoCheck {
     }
   }
 
-  /** Web : le lien natif ouvre la page statique. Android : aucune réécriture d'URL, on ouvre la modale. */
-  onHowToPlay(event: Event) {
-    if (!Capacitor.isNativePlatform()) return;
-    event.preventDefault();
-    this.openRules();
-  }
   openRules() {
     this.showRules = true;
   }

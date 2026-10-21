@@ -7,6 +7,7 @@ import { deleteUserMessages, getUsersContainer, type GuestHistory } from '../db.
 import { deleteAvatar, processToWebp, uploadAvatarWebp } from '../storage/blob.js';
 import { signSessionToken, verifySessionToken } from './session-token.js';
 import { registerBotUserId } from '../session/bot-dispatch.js';
+import { parsePersona, type BotPersona } from '../session/bot-persona.js';
 import { describeSignupHistory, lookupGuestHistory } from '../session/guest-tracking.js';
 import { notifyAdmin } from '../admin/telegram.js';
 import { formatClientLabel, resolveClientInfo } from '../admin/client-info.js';
@@ -34,6 +35,17 @@ export function safeEqual(a: string, b: string): boolean {
     const ha = createHash('sha256').update(a).digest();
     const hb = createHash('sha256').update(b).digest();
     return timingSafeEqual(ha, hb);
+}
+
+/** Secret partagé avec le service d'agents IA (POST /bot, GET /bots). */
+function isValidBotSecret(secret: string | undefined): boolean {
+    // La valeur d'exemple de .env.example est publique (dépôt public) : elle
+    // vaut « non configuré », jamais un secret valide.
+    const expected = process.env['BOT_SECRET'];
+    if (expected === BOT_SECRET_PLACEHOLDER) {
+        console.error('🚫 BOT_SECRET vaut encore la valeur publique de .env.example : connexion des bots refusée');
+    }
+    return !!secret && !!expected && expected !== BOT_SECRET_PLACEHOLDER && safeEqual(secret, expected);
 }
 
 /**
@@ -84,6 +96,9 @@ interface UserDoc {
      *  marqué peut se connecter par POST /api/auth/bot, et le flag exclut les
      *  bots des stats d'audience (getAudienceStats). */
     isBot?: true;
+    /** Habitudes d'un agent IA (emojis, bavardage, rythme), cf. session/bot-persona.ts.
+     *  Posée par scripts/add-bot.ts ; absente : persona de repli côté agent. */
+    botPersona?: BotPersona;
     /** Parties jouées en invité sur l'appareil de l'inscription, figées à la
      *  création du compte. Absent : compte antérieur, client qui n'envoie pas
      *  son browser_id, ou historique illisible ce jour-là. */
@@ -370,13 +385,7 @@ router.get('/user/:id', async (req: Request, res: Response) => {
 router.post('/bot', async (req: Request, res: Response) => {
     const { secret, botId } = req.body as { secret?: string; botId?: string; };
 
-    // La valeur d'exemple de .env.example est publique (dépôt public) : elle
-    // vaut « non configuré », jamais un secret valide.
-    const expected = process.env['BOT_SECRET'];
-    if (expected === BOT_SECRET_PLACEHOLDER) {
-        console.error('🚫 BOT_SECRET vaut encore la valeur publique de .env.example : connexion des bots refusée');
-    }
-    if (!secret || !expected || expected === BOT_SECRET_PLACEHOLDER || !safeEqual(secret, expected)) {
+    if (!isValidBotSecret(secret)) {
         res.status(401).json({ error: 'Invalid bot secret' });
         return;
     }
@@ -431,6 +440,31 @@ router.post('/bot', async (req: Request, res: Response) => {
         });
     } catch (err) {
         console.error('❌ Cosmos DB error (POST /bot):', err);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+// GET /api/auth/bots — pool des agents IA, lu par le service d'agents (en-tête
+// X-Bot-Secret). Un bot ajouté en base (scripts/add-bot.ts) devient jouable
+// sans redéploiement de l'agent, avec sa persona.
+router.get('/bots', async (req: Request, res: Response) => {
+    if (!isValidBotSecret(req.header('X-Bot-Secret'))) {
+        res.status(401).json({ error: 'Invalid bot secret' });
+        return;
+    }
+    try {
+        const container = await getUsersContainer();
+        const { resources } = await container.items
+            .query<{ id: string; botPersona?: unknown }>('SELECT c.id, c.botPersona FROM c WHERE c.isBot = true')
+            .fetchAll();
+        res.json({
+            bots: resources.map(({ id, botPersona }) => {
+                const persona = parsePersona(botPersona);
+                return persona ? { id, persona } : { id };
+            }),
+        });
+    } catch (err) {
+        console.error('❌ Cosmos DB error (GET /bots):', err);
         res.status(500).json({ error: 'Database error' });
     }
 });
