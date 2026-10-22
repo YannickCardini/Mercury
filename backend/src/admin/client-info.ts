@@ -11,11 +11,30 @@
 // Les en-têtes sont écrits par le client : le libellé est assemblé à partir de
 // mots fixes, jamais à partir de leur texte, et le User-Agent brut ne sort pas
 // de ce module.
+//
+// Les alertes ajoutent le navigateur (deviné du User-Agent) et une empreinte
+// d'appareil (envoyée par les builds récents). Ni l'un ni l'autre n'est stocké.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { createHmac } from 'node:crypto';
 import type { ClientInfo, ClientPlatform, DeviceType } from '@mercury/shared';
 
 export type PartialClientInfo = Partial<ClientInfo>;
+
+export type BrowserName = 'Chrome' | 'Safari' | 'Firefox' | 'Edge' | 'Opera' | 'Samsung Internet' | 'Facebook' | 'Instagram';
+export type OsName = 'Android' | 'iOS' | 'Windows' | 'macOS' | 'Linux' | 'ChromeOS';
+
+export interface BrowserInfo {
+    browser?: BrowserName;
+    os?: OsName;
+}
+
+/** Ce que l'alerte ajoute à PartialClientInfo, jamais stocké. */
+export interface ClientExtras {
+    browser?: BrowserInfo | undefined;
+    /** Étiquette issue de fingerprintTag. */
+    fingerprint?: string | undefined;
+}
 
 const PLATFORMS: readonly ClientPlatform[] = ['android-app', 'browser'];
 const DEVICES: readonly DeviceType[] = ['mobile', 'tablet', 'desktop'];
@@ -33,6 +52,34 @@ const DEVICE_LABEL: Record<DeviceType, string> = {
     desktop: 'ordinateur',
 };
 const UNKNOWN_LABEL = 'inconnu';
+
+/** Premier motif reconnu gagne : les dérivés de Chrome citent aussi « Chrome »,
+ *  et Chrome cite aussi « Safari ». Facebook et Instagram : navigateurs
+ *  intégrés à ces applis, où la connexion Google est refusée. */
+const BROWSERS: readonly (readonly [RegExp, BrowserName])[] = [
+    [/FBAN|FBAV/, 'Facebook'],
+    [/Instagram/, 'Instagram'],
+    [/Edg(e|A|iOS)?\//, 'Edge'],
+    [/OPR\/|Opera/, 'Opera'],
+    [/SamsungBrowser\//, 'Samsung Internet'],
+    [/Firefox\/|FxiOS\//, 'Firefox'],
+    [/Chrome\/|CriOS\//, 'Chrome'],
+    [/Safari\//, 'Safari'],
+];
+
+/** iOS avant macOS (le UA iPhone cite « Mac OS X »), Android avant Linux. */
+const SYSTEMS: readonly (readonly [RegExp, OsName])[] = [
+    [/iPhone|iPad|iPod/, 'iOS'],
+    [/Android/, 'Android'],
+    [/CrOS/, 'ChromeOS'],
+    [/Windows/, 'Windows'],
+    [/Macintosh|Mac OS X/, 'macOS'],
+    [/Linux/, 'Linux'],
+];
+
+/** Format envoyé par le client : hachage 64 bits en hexadécimal (frontend, shared/client-info.ts). */
+const FINGERPRINT_PATTERN = /^[0-9a-f]{16}$/;
+const FINGERPRINT_TAG_LENGTH = 6;
 
 /** Ne garde que les valeurs attendues d'une déclaration client (jamais de texte libre). */
 export function sanitizeClientInfo(raw: unknown): PartialClientInfo {
@@ -68,12 +115,46 @@ export function resolveClientInfo(declared: unknown, headers: { origin?: unknown
     return { ...detectClientInfo(headers), ...sanitizeClientInfo(declared) };
 }
 
-/** Libellé court pour les alertes, ex. « appli Android, mobile ». Jamais d'exception. */
-export function formatClientLabel(info: PartialClientInfo | undefined): string {
-    const platform = info?.platform ? PLATFORM_LABEL[info.platform] : undefined;
+/** Navigateur et système devinés du User-Agent. Champ inconnu : absent. */
+export function detectBrowser(userAgent: unknown): BrowserInfo {
+    if (typeof userAgent !== 'string') return {};
+    const browser = BROWSERS.find(([pattern]) => pattern.test(userAgent))?.[1];
+    const os = SYSTEMS.find(([pattern]) => pattern.test(userAgent))?.[1];
+    return { ...(browser ? { browser } : {}), ...(os ? { os } : {}) };
+}
+
+/**
+ * Étiquette courte (6 caractères hexadécimaux) de l'empreinte envoyée par le
+ * client, ou undefined si absente ou mal formée. Re-hachée avec la clé des
+ * sessions : le code client est public, l'étiquette ne doit pas pouvoir être
+ * recalculée hors du serveur. Elle change si SESSION_JWT_SECRET change.
+ */
+export function fingerprintTag(raw: unknown): string | undefined {
+    if (typeof raw !== 'string' || !FINGERPRINT_PATTERN.test(raw)) return undefined;
+    return createHmac('sha256', process.env['SESSION_JWT_SECRET'] ?? '')
+        .update(`fingerprint:${raw}`)
+        .digest('hex')
+        .slice(0, FINGERPRINT_TAG_LENGTH);
+}
+
+/** « navigateur Chrome sur Android », ou ce qu'on en sait. */
+function browserLabel({ browser, os }: BrowserInfo): string {
+    const name = browser ? `${PLATFORM_LABEL.browser} ${browser}` : PLATFORM_LABEL.browser;
+    return os ? `${name} sur ${os}` : name;
+}
+
+/**
+ * Libellé court pour les alertes, ex. « appli Android, mobile » ou
+ * « navigateur Safari sur iOS, mobile · empreinte 3fa9c1 ». Jamais d'exception.
+ */
+export function formatClientLabel(info: PartialClientInfo | undefined, extras: ClientExtras = {}): string {
+    // Navigateur précisé hors appli seulement : la WebView de l'appli n'en est pas un.
+    const platform = info?.platform === 'browser' && extras.browser
+        ? browserLabel(extras.browser)
+        : info?.platform ? PLATFORM_LABEL[info.platform] : undefined;
     const device = info?.device ? DEVICE_LABEL[info.device] : undefined;
-    if (!platform && !device) return UNKNOWN_LABEL;
-    return `${platform ?? UNKNOWN_LABEL}, ${device ?? UNKNOWN_LABEL}`;
+    const label = !platform && !device ? UNKNOWN_LABEL : `${platform ?? UNKNOWN_LABEL}, ${device ?? UNKNOWN_LABEL}`;
+    return extras.fingerprint ? `${label} · empreinte ${extras.fingerprint}` : label;
 }
 
 // ── Info par socket ──────────────────────────────────────────────────────────
@@ -82,12 +163,30 @@ export function formatClientLabel(info: PartialClientInfo | undefined): string {
 // construit bien plus loin : on garde l'info par socket plutôt que d'ajouter un
 // paramètre à toute la chaîne joinMatchmaking → joinQueue.
 
-const socketClients = new WeakMap<object, PartialClientInfo>();
-
-export function setSocketClientInfo(ws: object, info: PartialClientInfo): void {
-    socketClients.set(ws, info);
+interface SocketClient extends ClientExtras {
+    info: PartialClientInfo;
 }
 
-export function getSocketClientInfo(ws: object): PartialClientInfo | undefined {
-    return socketClients.get(ws);
+const socketClients = new WeakMap<object, SocketClient>();
+
+/** À la connexion : ce que disent les en-têtes. */
+export function registerSocketClient(ws: object, headers: { origin?: unknown; userAgent?: unknown }): void {
+    socketClients.set(ws, { info: detectClientInfo(headers), browser: detectBrowser(headers.userAgent) });
+}
+
+/**
+ * Au message de setup : la déclaration du client complète les en-têtes.
+ * Renvoie plateforme et appareil retenus, seule partie stockée sur le compte.
+ */
+export function updateSocketClient(ws: object, declared: unknown, rawFingerprint: unknown): PartialClientInfo {
+    const current = socketClients.get(ws) ?? { info: {} };
+    const info = { ...current.info, ...sanitizeClientInfo(declared) };
+    const fingerprint = fingerprintTag(rawFingerprint) ?? current.fingerprint;
+    socketClients.set(ws, { ...current, info, fingerprint });
+    return info;
+}
+
+export function formatSocketClientLabel(ws: object): string {
+    const client = socketClients.get(ws);
+    return formatClientLabel(client?.info, client);
 }

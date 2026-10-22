@@ -193,188 +193,254 @@ $table-min: 260px;
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   OVERLAY NOUVEAU TOUR
+   BANNIÈRE NOUVEAU TOUR
+   Portrait du joueur (photo, bille ou Joker) qui déborde d'un empilement de
+   deux plaques : nom (carré de la couleur du siège au bout), puis à qui est
+   le tour. Une seule matière (--nt-mat) pour toutes les pièces, cerclée et
+   éclairée en haut. Coin haut gauche de `.game-layout`.
    ═══════════════════════════════════════════════════════════════ */
 .new-turn-overlay {
     position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 100;
+    top: 12px;
+    left: max(12px, calc(var(--sa-left) + 8px));
+    z-index: 100; // au-dessus du plateau et du bandeau d'équipes (40)
     pointer-events: none;
-    animation: overlayFade 2.5s ease forwards;
 
-    // Teinte du siège : couleur de l'anneau du jeton et du nom, rien d'autre.
+    // Teinte du siège : voile bas de la photo et carré en bout de plaque.
     --nt-fill: var(--m-ink-3);
-    --nt-deep: var(--m-paper-edge);
-    --nt-fg: var(--m-fg);
+    --nt-rgb: var(--m-ink-rgb);
 
     @each $name in ("red", "green", "blue", "orange") {
         &[data-color="#{$name}"] {
             --nt-fill: var(--m-#{$name});
-            --nt-deep: var(--m-#{$name}-deep);
-            --nt-fg: var(--m-#{$name}-fg);
+            --nt-rgb: var(--m-#{$name}-rgb);
         }
     }
+
+    // Matière de la bannière, une seule pour toutes les pièces. Nuit : lagon
+    // clair cerclé de crème, plus clair que le plateau et la scène, pour s'en
+    // détacher sans éblouir. Jour : parchemin cerclé d'encre.
+    --nt-mat: #265670; // --m-lagoon-hi
+    --nt-ink: #f0f8ff;
+    --nt-ink-soft: rgba(240, 248, 255, 0.8);
+    --nt-hi: rgba(240, 248, 255, 0.24); // filet de lumière en haut
+    --nt-lo: #16374a; // tranche en bas
+    --nt-outline: rgba(240, 248, 255, 0.6);
+    --nt-shadow: 0 8px 18px -6px rgba(0, 0, 0, 0.8);
+
+    @include m.day {
+        --nt-mat: #f4eddf;
+        --nt-ink: #133246;
+        --nt-ink-soft: rgba(19, 50, 70, 0.8); // 7:1 sur le parchemin
+        --nt-hi: #fffaf0;
+        --nt-lo: #dccbac;
+        --nt-outline: #06121b;
+        --nt-shadow: 0 8px 18px -6px rgba(0, 0, 0, 0.6);
+    }
 }
 
-@keyframes overlayFade {
-    0% {
-        opacity: 0;
-    }
-
-    15% {
-        opacity: 1;
-    }
-
-    70% {
-        opacity: 1;
-    }
-
-    100% {
-        opacity: 0;
-    }
+// Rejeu après un Joker : l'or prime sur la teinte du siège (placé après le
+// bloc de teinte pour gagner à spécificité égale).
+.new-turn-overlay.replay {
+    --nt-fill: var(--m-gold);
+    --nt-rgb: var(--m-gold-rgb);
 }
+
+$nt-ease: cubic-bezier(0.16, 1, 0.3, 1); // sortie exponentielle
+$nt-portrait-w: 58px;
+$nt-portrait-h: 70px;
 
 .new-turn-banner {
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
-    padding: 26px 48px 24px;
-    background: var(--m-paper);
-    color: var(--m-fg);
-    border: 1px solid var(--m-glass-line);
-    border-radius: var(--m-r-xl);
-    box-shadow: var(--m-shadow-slab);
+    align-items: flex-start;
     font-family: var(--m-font-text);
-    animation: bannerSlide 2.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    // Tient toute la durée de NEW_TURN_BANNER_DURATION_MS (2.5s), puis
+    // s'efface vers la gauche, d'où il est arrivé.
+    animation: ntHold 2.5s linear forwards;
 }
 
-.new-turn-avatar-wrapper {
-    position: relative;
-    width: 112px;
-    height: 112px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-@keyframes bannerSlide {
-    0% {
-        transform: translateY(-60px) scale(0.8);
-        opacity: 0;
-    }
-
-    18% {
-        transform: translateY(4px) scale(1.03);
+@keyframes ntHold {
+    0%, 84% {
         opacity: 1;
-    }
-
-    25% {
-        transform: translateY(0) scale(1);
-    }
-
-    75% {
-        transform: translateY(0) scale(1);
-        opacity: 1;
+        transform: translateX(0);
     }
 
     100% {
-        transform: translateY(40px) scale(0.9);
         opacity: 0;
+        transform: translateX(-12px);
     }
 }
 
-/* Avatar du joueur dans le banner */
-.new-turn-avatar {
-    width: 112px;
-    height: 112px;
-    border-radius: 50%;
-    object-fit: cover;
+/* ── Portrait ─────────────────────────────────────────────────── */
+.nt-portrait {
+    position: relative;
+    z-index: 1; // les plaques passent dessous
     flex-shrink: 0;
-    border: 4px solid var(--nt-fill);
-    box-shadow: 0 4px 0 0 var(--nt-deep);
-    animation: bannerMarbleSpin 2.5s ease-in-out forwards;
+    box-sizing: border-box;
+    width: $nt-portrait-w;
+    height: $nt-portrait-h;
+    padding: 3px; // passe-partout autour de l'image
+    border-radius: 8px;
+    background: var(--nt-mat);
+    box-shadow:
+        0 0 0 1.5px var(--nt-outline),
+        inset 0 1.5px 0 var(--nt-hi),
+        inset 0 -2px 0 var(--nt-lo),
+        var(--nt-shadow);
+    animation: ntPortraitIn 0.42s $nt-ease both;
 }
 
-/* Bille décorative du banner (fallback quand pas d'avatar) */
+@keyframes ntPortraitIn {
+    from {
+        opacity: 0;
+        transform: translateX(-24px);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+// Photo : recadrée sur le haut du visage, fondue en bas dans la couleur du
+// siège, sertie d'un filet d'encre dans le passe-partout.
+.nt-portrait--photo::after {
+    content: "";
+    position: absolute;
+    inset: 3px;
+    border-radius: 5px;
+    background: linear-gradient(to top, rgba(var(--nt-rgb), 0.7) 0%, rgba(var(--nt-rgb), 0) 46%);
+    box-shadow: inset 0 0 0 1px rgba(19, 50, 70, 0.3);
+    pointer-events: none;
+}
+
+.new-turn-avatar {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 5px;
+    object-fit: cover;
+    object-position: 50% 30%;
+}
+
+// Bille : plus grande que le cadre, elle en sort par le haut, comme le
+// personnage de la référence.
 .new-turn-marble {
-    width: 112px;
-    height: 112px;
-    flex-shrink: 0;
-    animation: bannerMarbleSpin 2.5s ease-in-out forwards;
+    position: absolute;
+    left: 50%;
+    bottom: 14px; // 10px au-dessus du cadre
+    z-index: 1;
+    width: 62px;
+    height: 62px;
+    margin-left: -31px;
+    box-shadow: 0 6px 10px -4px rgba(0, 0, 0, 0.5);
 
     @include planet-base;
     @include planet-variants("ntm"); // red→Mars, green→Terre, blue→Neptune, orange→Jupiter
-    box-shadow: 0 4px 0 0 var(--nt-deep);
 }
 
-@keyframes bannerMarbleSpin {
-    0% {
-        transform: scale(0) rotate(-180deg);
-    }
-
-    20% {
-        transform: scale(1.2) rotate(10deg);
-    }
-
-    30% {
-        transform: scale(1) rotate(0);
-    }
-
-    100% {
-        transform: scale(1) rotate(0);
-    }
+// Joker : le bouffon de la carte, posé sur la matière de la bannière.
+.new-turn-joker {
+    display: block;
+    width: 100%;
+    height: 100%;
 }
 
-.new-turn-text {
+/* ── Plaques ──────────────────────────────────────────────────── */
+.nt-plates {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 4px;
+    align-items: flex-start;
+    gap: 3px;
+    min-width: 0;
+    margin-top: 9px;
+    margin-left: -8px; // glissées sous le bord droit du portrait
+    // Dévoilées de gauche à droite, juste après le portrait. Marge négative
+    // pour ne pas rogner l'ombre une fois ouvertes.
+    animation: ntPlatesWipe 0.5s 0.1s $nt-ease both;
 }
 
-.new-turn-label {
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: var(--m-fg-3);
+@keyframes ntPlatesWipe {
+    from {
+        clip-path: inset(-12px 100% -12px 0);
+    }
+
+    to {
+        clip-path: inset(-12px -12px -12px 0);
+    }
+}
+
+.nt-plate {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    max-width: 46vw;
+    border: 1.5px solid var(--nt-outline);
+    border-left: 0; // le portrait fait la jointure
+    border-radius: 0 4px 4px 0;
+    box-shadow: var(--nt-shadow);
+}
+
+.nt-plate--name {
+    gap: 10px;
+    min-width: 128px;
+    height: 28px;
+    padding: 0 7px 0 16px;
+    background: var(--nt-mat);
+    color: var(--nt-ink);
+    box-shadow:
+        inset 0 1.5px 0 var(--nt-hi),
+        inset 0 -2px 0 var(--nt-lo),
+        var(--nt-shadow);
 }
 
 .new-turn-name {
+    flex: 1;
+    min-width: 0;
     font-family: var(--m-font-display);
-    font-size: 2rem;
+    font-size: 1.05rem;
     font-weight: 700;
-    line-height: 1.1;
-    color: var(--nt-fg);
+    line-height: 1;
+    padding-top: 2px; // Baloo 2 porte sa hauteur d'x bas
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-/* ── Variante « Tour Bonus · Joker » (rejeu après un Joker) ──────────────
-   Accent or, qui prime sur la teinte du siège. Placé APRÈS le bloc de
-   teinte pour gagner à spécificité égale. */
-.new-turn-overlay.replay {
-    --nt-fill: var(--m-gold);
-    --nt-deep: var(--m-gold-deep);
-    --nt-fg: var(--m-gold-fg);
-
-    .new-turn-banner {
-        border-color: rgba(var(--m-gold-rgb), 0.5);
-    }
-}
-
-/* Joker dans le banner (remplace l'avatar/bille pour un rejeu) : le bouffon
-   de la carte sur un jeton papier, au même gabarit que l'avatar (anneau et
-   tranche or du rejeu). */
-.new-turn-joker {
-    width: 112px;
-    height: 112px;
+// Carré de la couleur du siège, en bout de plaque.
+.nt-seat {
     flex-shrink: 0;
-    box-sizing: border-box;
-    border-radius: 50%;
-    background: var(--m-cream);
-    border: 4px solid var(--nt-fill);
-    box-shadow: 0 4px 0 0 var(--nt-deep);
-    animation: bannerMarbleSpin 2.5s ease-in-out forwards;
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    background: var(--nt-fill);
+    box-shadow:
+        0 0 0 1.5px var(--nt-outline),
+        inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.nt-plate--sub {
+    height: 20px;
+    padding: 0 10px 0 16px;
+    background: var(--nt-mat);
+    color: var(--nt-ink-soft); // encre adoucie sous le nom
+    box-shadow:
+        inset 0 1.5px 0 var(--nt-hi),
+        inset 0 -2px 0 var(--nt-lo),
+        var(--nt-shadow);
+    font-size: 0.72rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+// Calques d'animation gardés par la WebView Android (voir CLAUDE.md).
+:host(.is-native) .new-turn-overlay {
+    .new-turn-banner,
+    .nt-portrait {
+        will-change: transform, opacity;
+    }
+
+    .nt-plates {
+        will-change: clip-path;
+    }
 }

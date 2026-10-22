@@ -16,27 +16,34 @@
   @if (gameStateService.data(); as gameData) {
   <div class="game-layout">
 
-    <!-- OVERLAY NOUVEAU TOUR -->
+    <!-- Bannière de nouveau tour, coin haut gauche de l'écran : portrait du
+         joueur qui déborde de deux plaques (nom, puis à qui est le tour). -->
     @if (showNewTurnBanner()) {
     <div class="new-turn-overlay" [class.replay]="isReplayBanner()" [attr.data-color]="newTurnColor()">
-      <div class="new-turn-banner">
-        <div class="new-turn-avatar-wrapper">
-          @if (isReplayBanner()) {
-            <app-joker-art class="new-turn-joker" label="Joker" />
-          } @else if (newTurnPicture(); as pic) {
-            <img class="new-turn-avatar" [src]="pic" alt="" referrerpolicy="no-referrer" />
-          } @else {
-            <div class="new-turn-marble" [class]="'ntm-' + newTurnColor()"></div>
-          }
+      <div class="new-turn-banner" role="status">
+        @if (isReplayBanner()) {
+        <div class="nt-portrait nt-portrait--joker">
+          <app-joker-art class="new-turn-joker" label="Joker" />
         </div>
-        <div class="new-turn-text">
-          <span class="new-turn-label">{{ isReplayBanner() ? 'Bonus turn, Joker' : 'New turn' }}</span>
-          <span class="new-turn-name">{{ isReplayBanner() && gameStateService.isMyTurn() ? 'Play Again!' : newTurnName() }}</span>
+        } @else if (newTurnPicture(); as pic) {
+        <div class="nt-portrait nt-portrait--photo">
+          <img class="new-turn-avatar" [src]="pic" alt="" referrerpolicy="no-referrer" />
+        </div>
+        } @else {
+        <div class="nt-portrait nt-portrait--marble">
+          <div class="new-turn-marble" [class]="'ntm-' + newTurnColor()"></div>
+        </div>
+        }
+        <div class="nt-plates">
+          <div class="nt-plate nt-plate--name">
+            <span class="new-turn-name">{{ newTurnName() }}</span>
+            <span class="nt-seat" aria-hidden="true"></span>
+          </div>
+          <div class="nt-plate nt-plate--sub">{{ newTurnSubtitle() }}</div>
         </div>
       </div>
     </div>
     }
-
     <div class="board-wrapper">
       @if (mountBoard()) {
       <app-board (ready)="boardReady.set(true)"></app-board>

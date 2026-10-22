@@ -10,7 +10,7 @@ import { registerBotUserId } from '../session/bot-dispatch.js';
 import { parsePersona, type BotPersona } from '../session/bot-persona.js';
 import { describeSignupHistory, lookupGuestHistory } from '../session/guest-tracking.js';
 import { notifyAdmin } from '../admin/telegram.js';
-import { formatClientLabel, resolveClientInfo } from '../admin/client-info.js';
+import { detectBrowser, fingerprintTag, formatClientLabel, resolveClientInfo } from '../admin/client-info.js';
 import type { ClientInfo } from '@mercury/shared';
 
 const router = Router();
@@ -128,8 +128,11 @@ function toProfileResponse(user: UserDoc) {
 
 // POST /api/auth/google
 router.post('/google', async (req: Request, res: Response) => {
-    // browserId : identifiant d'installation, absent des clients antérieurs.
-    const { idToken, browserId, client: declaredClient } = req.body as { idToken?: string; browserId?: unknown; client?: unknown };
+    // browserId : identifiant d'installation, absent des clients antérieurs ;
+    // fingerprint : empreinte d'appareil, pour l'alerte seulement.
+    const { idToken, browserId, client: declaredClient, fingerprint } = req.body as {
+        idToken?: string; browserId?: unknown; client?: unknown; fingerprint?: unknown;
+    };
 
     if (!idToken) {
         res.status(400).json({ error: 'idToken is required' });
@@ -205,7 +208,10 @@ router.post('/google', async (req: Request, res: Response) => {
             await container.items.create(user);
             const guestPast = guestHistory ? ` (${describeSignupHistory(guestHistory)})` : '';
             // Nom seul, pas l'email : la notification transite par les serveurs Telegram.
-            const clientLabel = formatClientLabel(clientInfo);
+            const clientLabel = formatClientLabel(clientInfo, {
+                browser: detectBrowser(req.headers['user-agent']),
+                fingerprint: fingerprintTag(fingerprint),
+            });
             console.log(`🆕 Inscription — ${user.name} [user:${user.id}]${guestPast} [${clientLabel}]`);
             notifyAdmin(`🆕 Nouvel inscrit : ${user.name || '(sans nom)'}${guestPast} [${clientLabel}]`);
         }

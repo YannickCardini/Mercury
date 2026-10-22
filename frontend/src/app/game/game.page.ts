@@ -26,7 +26,7 @@ import { ToastService } from "../shared/toast.service";
 import { AppResumeService } from "../services/app-resume.service";
 import { environment } from "../../environments/environment";
 import { Subscription } from "rxjs";
-import { ARRIVAL_POSITIONS, NEW_TURN_BANNER_DURATION_MS, TEAMS } from "@mercury/shared";
+import { ARRIVAL_POSITIONS, NEW_TURN_BANNER_DURATION_MS, TEAMS, sameTeam } from "@mercury/shared";
 import type { MarbleColor } from "@mercury/shared";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { Capacitor } from "@capacitor/core";
@@ -82,6 +82,21 @@ export class GamePage implements OnDestroy, AfterViewInit {
   newTurnPicture = signal<string | null>(null);
   /** Vrai quand la bannière du tour courant doit afficher la variante « Tour Bonus · Joker ». */
   isReplayBanner = signal(false);
+  /** Lien du joueur annoncé avec le joueur local (null : pas de siège local). */
+  newTurnRelation = signal<"me" | "partner" | "opponent" | null>(null);
+  /** Seconde ligne de la bannière de tour, sous le nom. */
+  newTurnSubtitle = computed(() => {
+    const relation = this.newTurnRelation();
+    if (this.isReplayBanner()) {
+      return relation === "me" ? "Joker, play again" : "Joker, bonus turn";
+    }
+    switch (relation) {
+      case "me": return "Your turn";
+      case "partner": return "Partner's turn";
+      case "opponent": return "Opponent's turn";
+      default: return "New turn";
+    }
+  });
 
   /**
    * Error message shown on the loading screen when the game fails to
@@ -398,6 +413,13 @@ export class GamePage implements OnDestroy, AfterViewInit {
       this.newTurnName.set(player?.name ?? currentTurn);
       this.newTurnPicture.set(player?.picture ?? null);
       this.isReplayBanner.set(this.gameStateService.isReplayTurn());
+      const myColor = this.gameStateService.myPlayerColor();
+      this.newTurnRelation.set(
+        !myColor ? null
+          : myColor === currentTurn ? "me"
+          : sameTeam(myColor, currentTurn) ? "partner"
+          : "opponent"
+      );
       // Pas de bannière de tour pendant l'annonce des équipes (2v2) : les
       // deux occupent le plateau et se superposeraient.
       if (this.phase() === "announcing") return;

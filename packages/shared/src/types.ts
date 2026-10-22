@@ -443,6 +443,12 @@ export interface JoinMatchmakingMessage {
   authToken?: string;
   /** Plateforme et format d'appareil déclarés par le client. Absent des builds antérieurs. */
   client?: Partial<ClientInfo>;
+  /**
+   * Empreinte de l'appareil (16 caractères hexadécimaux), affichée réduite dans
+   * l'alerte admin pour reconnaître un invité qui revient sans son browserId.
+   * Jamais stockée. Absente des builds antérieurs.
+   */
+  fingerprint?: string;
   /** En mode debug, demande au serveur de lancer immédiatement une partie contre 3 bots IA. Honoré uniquement si le backend est lui-même en DEBUG. */
   debug?: boolean;
   /**

@@ -5,7 +5,7 @@ import { GoogleSignIn } from '@capawesome/capacitor-google-sign-in';
 import { Capacitor } from '@capacitor/core';
 import { environment } from 'src/environments/environment';
 import { getOrCreateBrowserId } from '../shared/browser-id';
-import { getClientInfo } from '../shared/client-info';
+import { getClientInfo, getDeviceFingerprint } from '../shared/client-info';
 
 export interface AuthUser {
     id: string;
@@ -132,7 +132,7 @@ export class AuthService {
         try { browserId = getOrCreateBrowserId(); } catch { /* stockage ou crypto indisponible */ }
         try {
             const response = await firstValueFrom(
-                this.http.post<AuthUser & { sessionToken?: string }>(`${environment.apiUrl}/api/auth/google`, { idToken, browserId, client: getClientInfo() })
+                this.http.post<AuthUser & { sessionToken?: string }>(`${environment.apiUrl}/api/auth/google`, { idToken, browserId, client: getClientInfo(), fingerprint: getDeviceFingerprint() })
             );
             const { sessionToken, ...user } = response;
             console.log('[Auth] Server verification success, user:', user.email);

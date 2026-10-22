@@ -28,7 +28,7 @@ import { GameRegistry } from './game-registry.js';
 import { isBotUserId, dispatchBotAgent, accountTag, type DispatchResult } from './bot-dispatch.js';
 import { isTrainMode } from '../train-mode.js';
 import { notifyAdmin } from '../admin/telegram.js';
-import { formatClientLabel, getSocketClientInfo } from '../admin/client-info.js';
+import { formatSocketClientLabel } from '../admin/client-info.js';
 import { describeGuest, lookupGuestHistory, trackGuestGameStarts } from './guest-tracking.js';
 import { queueSaveSnapshot, queueDeleteSnapshot, isSnapshotStorageConfigured } from '../storage/snapshot-store.js';
 import { planArrivals, describeScript, uniform, lognormal, type ArrivalScript, type PlanInput, type ScriptEvent } from './matchmaking-script.js';
@@ -400,7 +400,7 @@ export class MatchmakingManager {
 
     private announce(player: MatchPlayer, waiting: number): void {
         // Calculé ici, avant le lookup asynchrone des invités.
-        const clientLabel = formatClientLabel(getSocketClientInfo(player.ws));
+        const clientLabel = formatSocketClientLabel(player.ws);
         const announce = (who: string) =>
             notifyAdmin(`🔍 ${player.name} (${who}) cherche une partie, ${waiting}/4 en file [${clientLabel}]`);
         if (player.userId) {

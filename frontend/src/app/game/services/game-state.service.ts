@@ -4,7 +4,7 @@ import { TabLockService } from './tab-lock.service';
 import { AuthService } from '../../services/auth.service';
 import { ShopService } from '../../services/shop.service';
 import { countGameStart, getGamesStartedOnDevice, getOrCreateBrowserId } from '../../shared/browser-id';
-import { getClientInfo } from '../../shared/client-info';
+import { getClientInfo, getDeviceFingerprint } from '../../shared/client-info';
 import {
   Action,
   Card,
@@ -1082,7 +1082,7 @@ export class GameStateService {
     const browserId = getOrCreateBrowserId();
     this.send(JSON.stringify({
       type: 'joinMatchmaking', playerName, browserId, picture, authToken, debug,
-      client: getClientInfo(), gamesStarted: getGamesStartedOnDevice(),
+      client: getClientInfo(), fingerprint: getDeviceFingerprint(), gamesStarted: getGamesStartedOnDevice(),
     }));
   }
 
