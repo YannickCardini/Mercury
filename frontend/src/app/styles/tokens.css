@@ -74,6 +74,7 @@
   --m-paper-lo: #0e2736; /* creux, rangée survolée */
   --m-paper-edge: #081a26; /* tranche sous un bouton */
   --m-paper-mid: #112d3e; /* premier étage de la tranche d'un bouton */
+  --m-slab-mid: #0d2636; /* premier étage de la tranche d'une plaque (entre --m-paper et l'arête) */
   --m-glass-line: #25536b; /* filet d'une surface : bleu acier mat */
   --m-ink-night: #0e2736; /* bleu nuit d'encre : second fond opaque */
 
@@ -177,8 +178,8 @@
      surface est donc dite par sa tranche (un liseré plein sous la carte),
      l'ombre diffuse ne fait que la détacher. */
   --m-ledge: 0 3px 0 0 var(--m-paper-edge);
-  --m-shadow-slab: 0 4px 0 0 var(--m-paper-edge), 0 22px 40px -22px rgba(0, 0, 0, 0.7);
-  --m-shadow-pop: 0 2px 0 0 var(--m-paper-edge), 0 12px 24px -14px rgba(0, 0, 0, 0.6);
+  --m-shadow-slab: inset 0 2px 0 0 rgba(var(--m-cream-rgb), 0.08), 0 4px 0 -1px var(--m-slab-mid), 0 8px 0 -1px var(--m-paper-edge), 0 26px 40px -22px rgba(0, 0, 0, 0.7);
+  --m-shadow-pop: inset 0 2px 0 0 rgba(var(--m-cream-rgb), 0.08), 0 2px 0 -1px var(--m-slab-mid), 0 4px 0 -1px var(--m-paper-edge), 0 14px 24px -14px rgba(0, 0, 0, 0.6);
   --m-focus: 0 0 0 3px rgba(var(--m-blue-rgb), 0.3);
 
   /* Mouvement. */
@@ -310,6 +311,7 @@
   --m-paper-lo: #ebe2d0;
   --m-paper-edge: #c8b28a;
   --m-paper-mid: #e1d3b8;
+  --m-slab-mid: #dccfb4;
   --m-glass-line: #dccbac;
 
   /* Texte sur papier : l'ardoise de la nuit devient l'encre du jour. Mêmes
@@ -321,8 +323,8 @@
   --m-ink-4: rgba(19, 50, 70, 0.45);
 
   --m-scrim: rgba(12, 34, 48, 0.5);
-  --m-shadow-slab: 0 4px 0 0 var(--m-paper-edge), 0 20px 36px -22px rgba(19, 50, 70, 0.5);
-  --m-shadow-pop: 0 2px 0 0 var(--m-paper-edge), 0 12px 24px -14px rgba(19, 50, 70, 0.42);
+  --m-shadow-slab: inset 0 2px 0 0 rgba(255, 252, 246, 0.6), 0 4px 0 -1px var(--m-slab-mid), 0 8px 0 -1px var(--m-paper-edge), 0 24px 36px -22px rgba(19, 50, 70, 0.5);
+  --m-shadow-pop: inset 0 2px 0 0 rgba(255, 252, 246, 0.6), 0 2px 0 -1px var(--m-slab-mid), 0 4px 0 -1px var(--m-paper-edge), 0 14px 24px -14px rgba(19, 50, 70, 0.42);
 
   /* Matin sur Mars : ciel en bandes nettes, de la perle froide du zénith à
      l'abricot de l'horizon, puis le sol (palette « day » du générateur). Tout

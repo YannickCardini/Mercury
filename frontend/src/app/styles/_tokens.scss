@@ -52,12 +52,13 @@
 
 // ─── Surfaces ────────────────────────────────────────────────────────────────
 
-// Plaque opaque : la carte, la modale, le panneau. Aplat ardoise mat, filet
-// bleu acier, tranche sous la plaque.
+// Plaque opaque : la carte, la modale, le panneau. Aplat ardoise mat, contour
+// bleu acier de 2px, reflet en haut, tranche à deux étages sous la plaque
+// (même touche que les boutons, en plus épais).
 @mixin slab($radius: var(--m-r-xl), $shadow: var(--m-shadow-slab)) {
   background: var(--m-paper);
   color: var(--m-fg);
-  border: 1px solid var(--m-glass-line);
+  border: 2px solid var(--m-glass-line);
   border-radius: $radius;
   box-shadow: $shadow;
 }

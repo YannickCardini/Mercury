@@ -99,7 +99,7 @@ components:
 
 **Creative North Star: "Matte Lagoon Boards on a Night Sky"**
 
-Every surface a player touches (card, modal, panel, toast, secondary button) is an opaque matte lagoon-blue slab (#1d4459, with #16374a ink-night for the matchmaking card at night; by day the matchmaking card is a cream paper card like the other modals), with cream text (#f0f8ff) and a 1px muted cyan line (#2e637e), set over the always-visible Mars landscape background. The feel is a modern board game: warm, solid, no transparency, no blur, no glow. The primary action is a matte sage-mint green (#00c885). MERCURY and its subtitle stay as they are.
+Every surface a player touches (card, modal, panel, toast, secondary button) is an opaque matte lagoon-blue slab (#1d4459, with #16374a ink-night for the matchmaking card at night; by day the matchmaking card is a cream paper card like the other modals), with cream text (#f0f8ff) and a 2px muted cyan outline (#2e637e) and a two-tier solid base, set over the always-visible Mars landscape background. The feel is a modern board game: warm, solid, no transparency, no blur, no glow. The primary action is a matte sage-mint green (#00c885). MERCURY and its subtitle stay as they are.
 
 The tone is sober and readable, a real well-drawn object rather than decoration. Baloo 2 gives titles and numbers a rounded, friendly weight; Plus Jakarta Sans carries everything else. Color is used as a small set of named accents on buttons and tints, never as ambient decoration.
 
@@ -109,7 +109,7 @@ The previous dark neon look, a "solar system" interface theme, a pulsing-halo "q
 
 **Key Characteristics:**
 - Opaque matte lagoon-blue surfaces with cream text on a visible Mars landscape
-- 1px muted cyan line and a solid ledge under slabs; buttons are keycaps (2px outline, two-tier solid ledge); no backdrop blur or translucent glow
+- 2px muted cyan outline and a two-tier solid base under slabs and overlays; buttons are keycaps (2px outline, two-tier solid ledge); no backdrop blur or translucent glow
 - Rounded display type for titles and numbers, geometric sans for text
 - Six named accents, each with a fill, a deep ledge, and a light text variant
 - One flat, stacked-plane Mars landscape anchored on one horizon line, with a night palette and a day palette; cream ink on it at night, slate ink by day
@@ -219,8 +219,8 @@ In `/game` the landscape stays, calmed. By day it sits under a uniform pale nacr
 
 ### Shadow Vocabulary
 - **Ledge** (`box-shadow: 0 3px 0 0 #0f2938`): secondary buttons and chips.
-- **Slab** (`0 4px 0 0 #0f2938, 0 22px 40px -22px rgba(0,0,0,0.7)`): cards, modals, panels.
-- **Pop** (`0 2px 0 0 #0f2938, 0 12px 24px -14px rgba(0,0,0,0.6)`): toasts and small floating items.
+- **Slab** (`inset 0 2px 0 cream 8%, 0 4px 0 -1px <slab-mid>, 0 8px 0 -1px <paper-edge>, 0 26px 40px -22px rgba(0,0,0,0.7)`): cards, modals, panels. The same two-tier base as the buttons, thicker (4px per tier), with a faint top light (60% cream-white by day). `--m-slab-mid` sits between the slab fill and the edge: #0d2636 at night, #dccfb4 by day.
+- **Pop** (`inset top light, 0 2px 0 -1px <slab-mid>, 0 4px 0 -1px <paper-edge>, 0 14px 24px -14px rgba(0,0,0,0.6)`): toasts, tips, floating plates and the small in-game capsules (phase, timer, card help, timeout banner).
 - **Keycap** (`inset 0 2px 0 cream 22%, 0 3px 0 -1px <accent>-mid, 0 6px 0 -1px <accent>-deep`): filled and paper buttons. The -1px spread makes the ledge a touch narrower than the face. The step is `--m-btn-lift` (3px, 2px on nav pills); pressed, the face drops one step, the mid tier disappears and the face rests on the deep tier.
 - **Focus** (`0 0 0 3px rgba(4,119,189,0.3)`): field focus.
 
@@ -231,7 +231,7 @@ In `/game` the landscape stays, calmed. By day it sits under a uniform pale nacr
 
 ## Shapes
 
-Soft, generous rounding. Surfaces use 28px (xl), inner wells 14px (md), small tiles 10px (sm), larger tiles 20px (lg). Buttons are keycaps with a 16px radius (`--m-r-btn`): a firm rounded rectangle that reads as a pill only on small chips, where the radius caps at half the height. Icon buttons are circles (32px default) with a one-tier 2px ledge. Surfaces get a 1px muted cyan (#2e637e) border.
+Soft, generous rounding. Surfaces use 28px (xl), inner wells 14px (md), small tiles 10px (sm), larger tiles 20px (lg). Buttons are keycaps with a 16px radius (`--m-r-btn`): a firm rounded rectangle that reads as a pill only on small chips, where the radius caps at half the height. Icon buttons are circles (32px default) with a one-tier 2px ledge. Surfaces get a 2px muted cyan (#2e637e) outline.
 
 The Mars landscape has a grammar of two primitives, the same in both modes. **Horizontal bands**: the sky, the wavy ground strata, the mesa strata lines and the mist pills (rounded bars that fade out at both ends). **Concentric rings**: the sun and moon halos, the crater rims and ejecta rings, the lake ripples, the dome arcs, the light of the colony windows. Silhouettes (mesas with flat tops, cosine-shaped hills, lumpy Phobos) are the only other forms; the landforms read as bands seen edge-on. Stars are points.
 
@@ -252,7 +252,7 @@ Inspired by a keycap reference (chunky face, firm outline, stacked ledge); the c
 - **Scope:** every button of the app, /game included (menu, action and discard buttons, emoji and boosters pills, back arrow of the 7 sheet, resign dialog, victory back button), at the owner's request. Round pills there use a 2px lift. Flat list rows (menu items, emoji options) stay flat. The static content site and the Google sign-in button (white face, grey tiers) keep their own colours.
 
 ### Cards / Containers
-- **Slab:** Dark Lagoon, cream text, 28px radius, Slab shadow, 1px muted cyan line. The standard card, modal and panel.
+- **Slab:** Dark Lagoon, cream text, 28px radius, Slab shadow (two-tier base), 2px muted cyan outline. The standard card, modal and panel; same keycap family as the buttons.
 - **Inset:** a faint well (4% ink) with a 1px line border and 14px radius, inside a slab.
 - **Tint tile:** accent at 12% with 30% accent border, for status banners and badges.
 
