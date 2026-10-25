@@ -30,33 +30,48 @@
 }
 
 // ─── Card ─────────────────────────────────────────────────────────────────────
-// Plaque de papier (le template lui donne `m-paper`). Police déclarée ici : la
-// modale peut s'ouvrir par-dessus /game, dont l'hôte neutralise la police
-// globale.
+// Chemise à onglet vert (le template lui donne `m-paper`) : le message sur le
+// corps, la mise à jour sur le talon. Elle ne rogne pas son onglet : c'est
+// `.update-scroll` qui défile. Police déclarée ici : la modale peut s'ouvrir
+// par-dessus /game, dont l'hôte neutralise la police globale.
 .update-card {
   position: relative;
   width: 100%;
   max-width: 380px;
-  max-height: calc(100dvh - var(--sa-top, 0px) - var(--sa-bottom, 0px) - 24px);
-  overflow-y: auto;
+  margin-top: var(--m-tab-h);
+  max-height: calc(100dvh - var(--sa-top, 0px) - var(--sa-bottom, 0px) - 24px - var(--m-tab-h));
   display: flex;
   flex-direction: column;
   @include m.slab;
+  background: none; // le corps et le talon peignent la chemise
   font-family: var(--m-font-text);
   transform: translateY(24px) scale(0.97);
   opacity: 0;
   transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.22s ease;
 }
 
-// ─── Header ───────────────────────────────────────────────────────────────────
-.update-header {
-  flex-shrink: 0;
+.update-scroll {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  min-height: 0;
+  overflow-y: auto;
+  border-radius: inherit;
+}
+
+// ─── Body ─────────────────────────────────────────────────────────────────────
+.update-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 26px 24px 24px;
+}
+
+// Les quatre billes au-dessus du titre, calés à gauche sous l'onglet.
+.update-header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   gap: 6px;
-  padding: 26px 24px 16px;
-  border-bottom: 1px solid var(--m-line-2);
 }
 
 .update-marbles {
@@ -65,9 +80,9 @@
 }
 
 .update-title {
-  margin: 0;
+  margin: 2px 0 0;
   @include m.display(700);
-  font-size: 1.6rem;
+  font-size: 1.9rem;
   color: var(--m-fg);
 }
 
@@ -89,30 +104,24 @@
   @include planet-variants("mm"); // red→Mars, green→Terre, blue→Neptune, orange→Jupiter
 }
 
-// ─── Body ─────────────────────────────────────────────────────────────────────
-.update-body {
-  flex: 1;
-  // 6px de plus en bas : la tranche du bouton dépasse de sa boîte.
-  padding: 22px 24px 34px;
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
-}
-
 .update-message {
   margin: 0;
   font-size: 0.92rem;
   color: var(--m-fg-2);
   line-height: 1.65;
-  text-align: center;
 }
 
-// ─── Update button ────────────────────────────────────────────────────────────
+// ─── Update button (stub) ─────────────────────────────────────────────────────
+.update-stub {
+  // 6px de plus en bas : la tranche du bouton dépasse de sa boîte.
+  padding: 24px 24px 28px;
+}
+
 .update-btn {
   @include m.btn(13px 16px, var(--m-r-md));
   @include m.btn-fill(green);
   @include m.display(700);
-  align-self: stretch;
+  width: 100%;
   font-size: 1.1rem;
   line-height: 1.25;
 }

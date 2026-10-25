@@ -1,25 +1,33 @@
 <!-- Mandatory update: no way to close (no close button, overlay not clickable). -->
 <div class="update-overlay" [class.active]="show">
   <div class="update-card m-paper">
+    <div class="m-tabs">
+      <span class="m-tab m-tab--green">Update Required</span>
+    </div>
 
-    <div class="update-header">
-      <div class="update-marbles">
-        <span class="mm mm-red"></span>
-        <span class="mm mm-green"></span>
-        <span class="mm mm-blue"></span>
-        <span class="mm mm-orange"></span>
+    <!-- Seul ce conteneur défile : la chemise ne rogne pas son onglet. -->
+    <div class="update-scroll">
+      <div class="m-ticket-body update-body">
+        <div class="update-header">
+          <div class="update-marbles" aria-hidden="true">
+            <span class="mm mm-red"></span>
+            <span class="mm mm-green"></span>
+            <span class="mm mm-blue"></span>
+            <span class="mm mm-orange"></span>
+          </div>
+          <h2 class="update-title">Mercury</h2>
+          <p class="update-subtitle">Tock Board Game</p>
+        </div>
+
+        <p class="update-message">
+          A new version of Mercury is available. You must update the app to continue
+          playing.
+        </p>
       </div>
-      <h2 class="update-title">Update Required</h2>
-      <p class="update-subtitle">Mercury, Tock Board Game</p>
-    </div>
 
-    <div class="update-body">
-      <p class="update-message">
-        A new version of Mercury is available. You must update the app to continue
-        playing.
-      </p>
-      <button class="update-btn" (click)="openStore()">Update</button>
+      <div class="m-ticket-stub update-stub">
+        <button class="update-btn" (click)="openStore()">Update</button>
+      </div>
     </div>
-
   </div>
 </div>

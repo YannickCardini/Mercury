@@ -1,4 +1,4 @@
-@use "sass:list";
+@use "app/styles/tokens" as m;
 
 /* ── Safe areas (edge-to-edge Android 15+) ───────────────────────────────────
    Source de vérité unique pour les insets des barres système. Deux mécanismes
@@ -64,10 +64,8 @@ html {
    Sans View Transitions, ou avec mouvement réduit, la bascule est immédiate
    (décidé dans le service). */
 $m-sky-bands: 9;
-// Bleu du crépuscule martien, une teinte par bande, du zénith (profond) à
-// l'horizon (pâle) : la couleur de passage entre le jour et la nuit, qui
-// n'existe que pendant la bascule.
-$m-twilight: #1f2a44, #263453, #2e3f62, #384b71, #43597f, #50688e, #5f789c, #7089a9, #8299b4;
+// Le bleu du crépuscule martien de chaque bande (la couleur de passage entre
+// le jour et la nuit) est --m-twilight-1 à 9, dans tokens.css.
 // Calques du paysage, du plus lointain au plus proche : (classe, nom).
 $m-land: (
   mars-far: m-far,
@@ -112,13 +110,29 @@ html:is([data-theme-switch="dusk"], [data-theme-switch="dawn"]) {
   .app-toast {
     view-transition-name: m-toast;
   }
+
+  // Le hublot du ciel (bascule de l'accueil) fait traverser sa barre jour / nuit
+  // par une transition (sky-toggle.component.scss) : sorti de l'instantané de la page,
+  // il est montré en direct pendant toute la bascule, sans fondu.
+  .sky-toggle {
+    view-transition-name: m-sky-toggle;
+  }
+
+  &::view-transition-old(m-sky-toggle) {
+    animation: none;
+    opacity: 0;
+  }
+
+  &::view-transition-new(m-sky-toggle) {
+    animation: none;
+  }
 }
 
 // Une bande du ciel : l'ancienne couleur s'efface, le bleu du crépuscule
 // (fond du groupe) apparaît, puis la nouvelle couleur le recouvre.
 @mixin m-switch-band($i, $delay) {
   &::view-transition-group(m-band-#{$i}) {
-    background-color: list.nth($m-twilight, $i);
+    background-color: var(--m-twilight-#{$i});
   }
 
   &::view-transition-old(m-band-#{$i}) {
@@ -260,6 +274,68 @@ app-root {
   -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
   /* Sécurité pour certains navigateurs */
 }
+/* ── Chemises (voir _tokens.scss, « Chemises ») ─────────────────────────────
+   Classes partagées par toutes les fenêtres : l'onglet qui les nomme, la
+   pastille qui les ferme, et les deux parties d'un ticket (le corps au-dessus
+   de la perforation, le talon des actions en dessous). La chemise elle-même
+   (position, largeur, animation) reste dans le composant ; elle est
+   positionnée, ne rogne pas, et réserve `--m-tab-h` au-dessus d'elle. */
+.m-tabs {
+  position: absolute;
+  bottom: 100%;
+  left: 22px;
+  right: 56px; /* le coin de la pastille de fermeture reste libre */
+  z-index: 1;
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  pointer-events: none;
+
+  > * {
+    pointer-events: auto;
+  }
+}
+
+.m-tab {
+  @include m.folder-tab-shape;
+}
+
+@each $accent in ("red", "blue", "green", "orange", "gold", "violet") {
+  .m-tab--#{$accent} {
+    background: var(--m-#{$accent});
+    color: var(--m-on-#{$accent});
+  }
+}
+
+.m-tab-back {
+  @include m.folder-tab-back;
+}
+
+.m-close {
+  @include m.folder-close;
+}
+
+/* Corps : mordu aux deux coins bas. Seul (sans talon), il redevient une
+   feuille pleine. */
+.m-ticket-body {
+  @include m.ticket-part(bottom);
+  border-radius: var(--m-r-folder) var(--m-r-folder) 0 0;
+
+  &:last-child {
+    background: var(--m-paper);
+    border-radius: var(--m-r-folder);
+  }
+}
+
+/* Talon : mordu aux deux coins hauts, le pointillé sur sa couture. Il porte
+   les actions de la fenêtre. */
+.m-ticket-stub {
+  position: relative;
+  @include m.ticket-part(top);
+  @include m.ticket-seam(top);
+  border-radius: 0 0 var(--m-r-folder) var(--m-r-folder);
+}
+
 /* ── Toast global (ToastService) ─────────────────────────────────────────── */
 .app-toast {
   position: fixed;

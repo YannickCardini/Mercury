@@ -1,0 +1,89 @@
+<!-- Le même horizon dessiné deux fois, au jour à gauche et à la nuit à droite,
+     coupé par une barre en diagonale (le terminateur). L'heure qu'il est prend
+     la plus grande part ; à la bascule, la barre traverse le hublot (voir le
+     SCSS). Dans chaque scène, du fond vers l'avant : ciel, astres, relief. -->
+<button class="sky-toggle" [class.is-day]="theme.isDay()" (click)="theme.toggle()"
+  [attr.aria-label]="theme.isDay() ? 'Switch to night mode' : 'Switch to day mode'"
+  [title]="theme.isDay() ? 'Night mode' : 'Day mode'">
+  <span class="sky-porthole">
+    <!-- Jour : le grand soleil, perle, presque levé ; le petit, or pâle, qui
+         perce à peine contre la mesa (caché quand la nuit gagne). -->
+    <svg class="sp-scene sp-scene--day" viewBox="0 0 32 32" aria-hidden="true">
+      <rect class="sp-band-5" x="0" y="0" width="32" height="9.4" />
+      <rect class="sp-band-6" x="0" y="9" width="32" height="4.2" />
+      <rect class="sp-band-7" x="0" y="12.9" width="32" height="3.6" />
+      <rect class="sp-band-8" x="0" y="16.2" width="32" height="3" />
+      <rect class="sp-band-9" x="0" y="18.9" width="32" height="3" />
+      <g class="sp-sun-halo">
+        <circle cx="6.8" cy="17" r="7.3" opacity=".22" />
+        <circle cx="6.8" cy="17" r="5.4" opacity=".38" />
+      </g>
+      <g class="sp-sun2-halo">
+        <circle cx="12.6" cy="19.6" r="4.4" opacity=".14" />
+        <circle cx="12.6" cy="19.6" r="3.1" opacity=".3" />
+      </g>
+      <circle class="sp-sun" cx="6.8" cy="17" r="3.9" />
+      <circle class="sp-sun2" cx="12.6" cy="19.6" r="1.9" />
+      <circle class="sp-sun2-core" cx="12.6" cy="19.6" r="1.15" />
+      <!-- Ombre de la mesa du côté opposé aux soleils (à droite). -->
+      <path class="sp-mesa" d="M12.2 21.4L14.4 15.9L15.2 15.4H20.6L21.6 16.2L24.6 21.4Z" />
+      <path class="sp-mesa-shade" d="M18.8 21.4L19.6 15.4H20.6L21.6 16.2L24.6 21.4Z" opacity=".58" />
+      <path class="sp-strata" d="M13.5 17.9H22.7" />
+      <path class="sp-hill" d="M21.5 21.4C25.5 21.4 26 18.4 30 18.4S34.5 21.4 38.5 21.4Z" />
+      <path class="sp-hill-rim" d="M24.4 20.4C25.8 19.4 27.4 18.5 30 18.4" />
+      <path class="sp-g0" d="M0 21H32V32H0Z" />
+      <path class="sp-g1" d="M0 23.7Q8 23.1 16 23.6T32 23.4V32H0Z" />
+      <path class="sp-g2" d="M0 26.4Q8 26.9 16 26.3T32 26.5V32H0Z" />
+      <path class="sp-g3" d="M0 29.1Q8 28.6 16 29.1T32 28.9V32H0Z" />
+    </svg>
+
+    <!-- Nuit : Phobos, Deimos, quelques étoiles (certaines n'apparaissent que
+         quand la nuit prend la plus grande part). -->
+    <svg class="sp-scene sp-scene--night" viewBox="0 0 32 32" aria-hidden="true">
+      <defs>
+        <clipPath id="sky-porthole-phobos">
+          <path d="M30.3 10L30.5 11.1L30 12.2L29.3 13.2L28.5 14L27.4 14.5L26.3 14.8L25.1 15L23.8 15L22.7 14.4L22.3 13.3L22.2 12.3L22.1 11.3L22.2 10.3L22.8 9.3L23.7 8.5L24.9 7.9L26.1 7.6L27.3 7.9L28.2 8.5L29.1 9L30 9.7Z" />
+        </clipPath>
+      </defs>
+      <rect class="sp-band-5" x="0" y="0" width="32" height="9.4" />
+      <rect class="sp-band-6" x="0" y="9" width="32" height="4.2" />
+      <rect class="sp-band-7" x="0" y="12.9" width="32" height="3.6" />
+      <rect class="sp-band-8" x="0" y="16.2" width="32" height="3" />
+      <rect class="sp-band-9" x="0" y="18.9" width="32" height="3" />
+      <g class="sp-stars">
+        <circle cx="21.8" cy="16.6" r=".4" opacity=".8" />
+        <circle cx="29.6" cy="16.2" r=".35" opacity=".6" />
+        <circle cx="18.6" cy="5.4" r=".45" />
+        <circle cx="22.4" cy="2.6" r=".35" opacity=".7" />
+      </g>
+      <g class="sp-moon-halo">
+        <circle cx="26" cy="11.4" r="13.3" opacity=".03" />
+        <circle cx="26" cy="11.4" r="9.2" opacity=".05" />
+        <circle cx="26" cy="11.4" r="6.1" opacity=".09" />
+      </g>
+      <path class="sp-phobos"
+        d="M30.3 10L30.5 11.1L30 12.2L29.3 13.2L28.5 14L27.4 14.5L26.3 14.8L25.1 15L23.8 15L22.7 14.4L22.3 13.3L22.2 12.3L22.1 11.3L22.2 10.3L22.8 9.3L23.7 8.5L24.9 7.9L26.1 7.6L27.3 7.9L28.2 8.5L29.1 9L30 9.7Z" />
+      <g clip-path="url(#sky-porthole-phobos)">
+        <ellipse class="sp-phobos-shade" cx="23.1" cy="11.7" rx="3.6" ry="4.8" opacity=".6" />
+        <ellipse class="sp-phobos-crater" cx="24.6" cy="12.2" rx="1.1" ry="1" />
+      </g>
+      <g class="sp-deimos-halo">
+        <circle cx="26.6" cy="5.2" r="2.9" opacity=".06" />
+        <circle cx="26.6" cy="5.2" r="1.8" opacity=".12" />
+      </g>
+      <circle class="sp-deimos" cx="26.6" cy="5.2" r=".8" />
+      <!-- Ombre de la mesa du côté opposé à Phobos (à gauche). -->
+      <path class="sp-mesa" d="M12.2 21.4L14.4 15.9L15.2 15.4H20.6L21.6 16.2L24.6 21.4Z" />
+      <path class="sp-mesa-shade" d="M12.2 21.4L14.4 15.9L15.2 15.4H16.6L15.6 21.4Z" opacity=".6" />
+      <path class="sp-strata" d="M13.5 17.9H22.7" />
+      <path class="sp-hill" d="M21.5 21.4C25.5 21.4 26 18.4 30 18.4S34.5 21.4 38.5 21.4Z" />
+      <path class="sp-hill-rim" d="M24.4 20.4C25.8 19.4 27.4 18.5 30 18.4" />
+      <path class="sp-g0" d="M0 21H32V32H0Z" />
+      <path class="sp-g1" d="M0 23.7Q8 23.1 16 23.6T32 23.4V32H0Z" />
+      <path class="sp-g2" d="M0 26.4Q8 26.9 16 26.3T32 26.5V32H0Z" />
+      <path class="sp-g3" d="M0 29.1Q8 28.6 16 29.1T32 28.9V32H0Z" />
+    </svg>
+
+    <span class="sp-bar"></span>
+  </span>
+</button>

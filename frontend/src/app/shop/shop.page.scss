@@ -8,9 +8,11 @@
 }
 
 // ── Coquille : même famille que le leaderboard et le profil ──────────────────
-// Une feuille de papier posée sur le ciel. Les objets en vente, eux, se
-// regardent à travers un hublot rond ouvert sur la nuit : la pièce et les
-// jetons de booster (pastilles mates) se posent sur ce fond sombre.
+// Une chemise posée sur le ciel : l'onglet retour et l'onglet « Shop » sur son
+// bord haut, le solde au-dessus de la perforation, le catalogue sur le talon.
+// Les objets en vente, eux, se regardent à travers un hublot rond ouvert sur
+// la nuit : la pièce et les jetons de booster (pastilles mates) se posent sur
+// ce fond sombre.
 
 // html/body sont en overflow: hidden : la page ne défile jamais d'elle-même.
 // La hauteur est donc bornée à l'écran (height et non min-height) et c'est la
@@ -28,51 +30,23 @@
   overflow: hidden;
 }
 
+// Onglets et pastille dépassent de la chemise : elle ne rogne pas, elle
+// réserve la hauteur de l'onglet au-dessus d'elle, et ses parties peignent le
+// papier (le solde et le catalogue ; le catalogue seul pour un invité).
 .sh-card {
   @include m.above-sky;
   display: flex;
   flex-direction: column;
   width: 100%;
   max-width: 560px;
-  max-height: 100%;
+  margin-top: var(--m-tab-h);
+  max-height: calc(100% - var(--m-tab-h));
   @include m.slab;
-  overflow: hidden;
-}
-
-// ── En-tête ──────────────────────────────────────────────────────────────────
-
-// Strictement l'en-tête du leaderboard et du profil : la boutique est une page
-// de plus dans la même famille, elle ne mérite pas sa propre grammaire de titre.
-.sh-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 20px 20px 14px;
-}
-
-.sh-back {
-  @include m.btn(6px 12px 6px 8px);
-  @include m.btn-quiet;
-  gap: 2px;
-  font-size: 14px;
-
-  svg {
-    width: 16px;
-    height: 16px;
-  }
-}
-
-.sh-title {
-  flex: 1;
-  margin: 0;
-  @include m.display(700);
-  font-size: 28px;
-  color: var(--m-fg);
+  background: none;
 }
 
 // ── Zone défilante ───────────────────────────────────────────────────────────
 
-.sh-header,
 .sh-vault {
   flex: none;
 }
@@ -82,9 +56,18 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  // Filet fixe : il marque le bord sous lequel la liste défile.
-  border-top: 1px solid var(--m-line);
   @include m.scrollbar;
+
+  // Le pointillé défilerait avec la liste : c'est le solde qui le porte.
+  &::before {
+    display: none;
+  }
+}
+
+// Invité : pas de solde, le catalogue est la chemise entière.
+.sh-card:not(.sh-card--ticket) .sh-scroll {
+  background: var(--m-paper);
+  border-radius: var(--m-r-folder);
 }
 
 // ── États de chargement ──────────────────────────────────────────────────────
@@ -156,11 +139,19 @@
 
 .sh-vault {
   position: relative;
-  margin: 0 16px 14px;
-  padding: 14px 16px 13px;
-  background: color-mix(in srgb, var(--m-paper) 60%, var(--m-paper-lo));
-  border: 1px solid var(--m-line);
-  border-radius: var(--m-r-lg);
+  padding: 22px 24px 20px;
+
+  // Le pointillé de la perforation, au pied du solde.
+  &::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: calc(var(--m-perf-r) + 8px);
+    right: calc(var(--m-perf-r) + 8px);
+    height: 2px;
+    background: var(--m-perf-dash-x);
+    pointer-events: none;
+  }
 }
 
 .sh-vault-row {
@@ -610,13 +601,21 @@
   }
 }
 
+// Chemise à onglet « Shop » : l'objet et son prix sur le corps, payer ou
+// équiper sur le talon.
 .modal-card {
+  position: relative;
   width: 100%;
   max-width: 340px;
   box-sizing: border-box;
-  padding: 26px 22px 20px;
+  margin-top: var(--m-tab-h);
   @include m.slab;
+  background: none;
   text-align: center;
+}
+
+.sh-confirm-body {
+  padding: 26px 22px 20px;
 }
 
 // L'objet convoité, présenté comme sur sa vignette mais plus grand : le joueur
@@ -710,7 +709,7 @@
 }
 
 .sh-confirm-text {
-  margin: 0 0 20px;
+  margin: 0;
   font-size: 13.5px;
   font-weight: 500;
   line-height: 1.6;
@@ -726,8 +725,8 @@
 .sh-confirm-actions {
   display: flex;
   gap: 10px;
-  // Réserve pour la tranche des deux boutons.
-  padding-bottom: 6px;
+  // 6px de plus en bas : la tranche des deux boutons.
+  padding: 20px 22px 24px;
 }
 
 .sh-btn {
@@ -805,26 +804,11 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
-    border-radius: var(--m-r-lg);
     max-width: 100%;
   }
 
-  .sh-header {
-    padding: 14px 14px 12px;
-    gap: 8px;
-  }
-
-  .sh-title {
-    font-size: 24px;
-  }
-
-  .sh-back {
-    font-size: 13px;
-  }
-
   .sh-vault {
-    margin: 0 12px 12px;
-    padding: 12px 14px;
+    padding: 18px 16px 16px;
   }
 
   .sh-signin {
@@ -872,14 +856,6 @@
   .sh-wrap {
     padding: 8px calc(6px + var(--sa-right)) calc(12px + var(--sa-bottom))
       calc(6px + var(--sa-left));
-  }
-
-  .sh-header {
-    padding: 10px;
-  }
-
-  .sh-title {
-    font-size: 22px;
   }
 
   .sh-vault-amount {

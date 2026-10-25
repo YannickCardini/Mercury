@@ -19,41 +19,14 @@
   overflow-y: auto;
 }
 
-// Feuille de papier posée sur le ciel (le template lui donne `m-paper`).
+// Chemise posée sur le ciel (le template lui donne `m-paper`) : l'onglet
+// retour et l'onglet titre sur son bord haut. Elle ne rogne pas ses onglets.
 .pf-card {
   @include m.above-sky;
   width: 100%;
   max-width: 560px;
+  margin-top: var(--m-tab-h);
   @include m.slab;
-  overflow: hidden;
-}
-
-.pf-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 20px 20px 14px;
-  border-bottom: 1px solid var(--m-line);
-}
-
-.pf-back {
-  @include m.btn(6px 12px 6px 8px);
-  @include m.btn-quiet;
-  gap: 2px;
-  font-size: 14px;
-
-  svg {
-    width: 16px;
-    height: 16px;
-  }
-}
-
-.pf-title {
-  flex: 1;
-  margin: 0;
-  @include m.display(700);
-  font-size: 28px;
-  color: var(--m-fg);
 }
 
 .pf-state {
@@ -105,36 +78,28 @@
   font-size: 13px;
 }
 
+// Fiche du joueur : lignes à points de conduite, comme la fiche « About ».
 .pf-meta {
   width: 100%;
   margin: 0;
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--m-line-2);
-  border-radius: var(--m-r-md);
-  overflow: hidden;
+  gap: 12px;
 }
 
 .pf-meta-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  padding: 11px 14px;
-  border-bottom: 1px solid var(--m-line);
-  font-size: 13px;
-
-  &:last-child {
-    border-bottom: 0;
-  }
+  @include m.leader-row;
+  font-size: 13.5px;
 
   dt {
+    flex: none;
     margin: 0;
-    font-weight: 600;
+    font-weight: 500;
     color: var(--m-fg-3);
   }
 
   dd {
+    flex: none;
     margin: 0;
     font-weight: 700;
     color: var(--m-fg);
@@ -225,40 +190,25 @@
   position: relative;
   width: 100%;
   max-width: 440px;
+  margin-top: var(--m-tab-h);
   @include m.slab;
-  padding: 24px 22px 22px;
+  background: none; // le corps et le talon peignent la chemise
 }
 
-.modal-close {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  @include m.icon-btn(32px);
-
-  &:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
+.msg-body {
+  padding: 24px 22px 18px;
 }
 
-.modal-header {
-  margin-bottom: 16px;
-  // Dégage le bouton de fermeture.
-  padding-right: 36px;
-}
-
-.modal-title {
-  margin: 0;
-  @include m.display(700);
-  font-size: 22px;
-  color: var(--m-fg);
+.msg-stub {
+  // 6px de plus en bas : la tranche du bouton dépasse de sa boîte.
+  padding: 20px 22px 26px;
 }
 
 .modal-subtitle {
-  margin: 2px 0 0;
-  font-size: 13px;
+  margin: 0 0 12px;
+  font-size: 14px;
   font-weight: 600;
-  color: var(--m-fg-3);
+  color: var(--m-fg-2);
 }
 
 .msg-textarea {
@@ -303,9 +253,6 @@
 .msg-send-btn {
   @include m.btn(12px 18px, var(--m-r-md));
   @include m.btn-fill(blue);
-  margin-top: 14px;
-  // La tranche du bouton dépasse de 6px sous sa boîte.
-  margin-bottom: 6px;
   width: 100%;
   font-size: 14px;
 }
@@ -325,20 +272,18 @@
       calc(10px + var(--sa-left));
   }
 
-  .pf-card {
-    border-radius: var(--m-r-lg);
-  }
-
-  .pf-header {
-    padding: 14px 14px 12px;
-  }
-
-  .pf-title {
-    font-size: 24px;
-  }
-
   .pf-body {
     padding: 22px 16px 26px;
     gap: 14px;
+  }
+}
+
+// Android : sans calques promus, la WebView lâche l'animation à la fin de
+// l'ouverture et la page derrière clignote une image (voir CLAUDE.md).
+:host(.is-native) .modal-overlay.active {
+  will-change: opacity;
+
+  .modal-card {
+    will-change: transform, opacity;
   }
 }

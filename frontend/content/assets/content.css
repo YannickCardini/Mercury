@@ -1200,6 +1200,20 @@ strong {
   padding: 12px 32px 34px;
 }
 
+/* Plateau animé (lib/board-demo.mjs) en tête de la feuille : image
+   décorative, chargée à l'approche du pli ; ses attributs width/height
+   réservent sa place. */
+.hp-board {
+  max-width: 600px;
+  margin: 26px auto 0;
+}
+
+.hp-board img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
 @media (min-width: 960px) {
   .hp-fold {
     padding: 26px 32px 18px;
@@ -1245,6 +1259,12 @@ strong {
   .hp-below-inner {
     padding: 6px 18px 28px;
     border-radius: var(--m-r-lg);
+  }
+
+  /* Le plateau prend la marge de la feuille : ses pointes gauche et droite
+     ne sont que des coins, les billes y gagnent un dixième de taille. */
+  .hp-board {
+    margin: 18px -12px 0;
   }
 
   .hp-brand-name {

@@ -25,6 +25,7 @@ import { spaceBackground } from "./space-bg.mjs";
 // <img> ne coûte aucune requête supplémentaire, le navigateur dédoublonne
 // sur l'URL.
 import { CSS, FONT_PRELOADS, LOGO_PATH } from "./styles.mjs";
+import { BOARD_DEMO_PATH, BOARD_DEMO_SIZE } from "./board-demo.mjs";
 
 /**
  * Aperçu vidéo de la partie, dans la carte « jouer ». Hébergée hors du repo
@@ -212,6 +213,10 @@ export function renderLandingPage({
 
   <div class="hp-below">
     <div class="hp-below-inner m-paper">
+
+      <div class="hp-board">
+        <img src="${BOARD_DEMO_PATH}" width="${BOARD_DEMO_SIZE.width}" height="${BOARD_DEMO_SIZE.height}" alt="" loading="lazy" decoding="async" />
+      </div>
 
       <section class="rp-section">
         <h2>${free.heading}</h2>

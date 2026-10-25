@@ -19,41 +19,14 @@
     calc(16px + var(--sa-left));
 }
 
-// Feuille de papier posée sur le ciel (le template lui donne `m-paper`).
+// Chemise posée sur le ciel (le template lui donne `m-paper`) : l'onglet
+// retour et l'onglet titre sur son bord haut. Elle ne rogne pas ses onglets.
 .pp-card {
   @include m.above-sky;
   width: 100%;
   max-width: 640px;
+  margin-top: var(--m-tab-h);
   @include m.slab;
-  overflow: hidden;
-}
-
-.pp-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 20px 20px 14px;
-  border-bottom: 1px solid var(--m-line);
-}
-
-.pp-back {
-  @include m.btn(6px 12px 6px 8px);
-  @include m.btn-quiet;
-  gap: 2px;
-  font-size: 14px;
-
-  svg {
-    width: 16px;
-    height: 16px;
-  }
-}
-
-.pp-title {
-  flex: 1;
-  margin: 0;
-  @include m.display(700);
-  font-size: 28px;
-  color: var(--m-fg);
 }
 
 .pp-body {
@@ -124,18 +97,6 @@
   .pp-wrap {
     padding: 12px calc(10px + var(--sa-right)) calc(32px + var(--sa-bottom))
       calc(10px + var(--sa-left));
-  }
-
-  .pp-card {
-    border-radius: var(--m-r-lg);
-  }
-
-  .pp-header {
-    padding: 14px 14px 12px;
-  }
-
-  .pp-title {
-    font-size: 24px;
   }
 
   .pp-body {

@@ -48,7 +48,7 @@ export const SCRIPT = {
      * longtemps, et un autre humain a plus de chances de la rejoindre avant
      * qu'elle soit pleine. Sans effet sur le profil nouveau joueur.
      */
-    REGULAR_STRETCH: 1.3,
+    REGULAR_STRETCH: 1.8,
     /** Plafond du temps de remplissage d'un joueur régulier. */
     REGULAR_CAP_MS: 45_000,
     NEWCOMER_MIN_MS: 3_000,

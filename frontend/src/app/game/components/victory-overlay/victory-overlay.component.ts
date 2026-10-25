@@ -12,6 +12,7 @@ import {
   ChangeDetectionStrategy,
 } from "@angular/core";
 import { NgTemplateOutlet } from "@angular/common";
+import { Capacitor } from "@capacitor/core";
 import {
   BOOST_MULTIPLIER,
   MarbleColor,
@@ -111,8 +112,13 @@ interface FlyingCoin {
   styleUrl: "./victory-overlay.component.scss",
   changeDetection: ChangeDetectionStrategy.Eager,
   imports: [NgTemplateOutlet, BoostTokenComponent],
+  // `is-native` : garde en CSS les calques du voile et de la chemise sur
+  // WebView Android (flash d'une frame à la fin de l'animation d'entrée).
+  host: { "[class.is-native]": "isNative" },
 })
 export class VictoryOverlayComponent {
+  readonly isNative = Capacitor.isNativePlatform();
+
   /** Gagnant(s) : les deux coéquipiers. */
   winners = input.required<ReadonlyArray<VictoryPlayer>>();
   /** Perdant(s) : les deux coéquipiers adverses. */

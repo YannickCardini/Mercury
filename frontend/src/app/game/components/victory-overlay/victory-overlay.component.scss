@@ -4,14 +4,8 @@
 @use "../../../styles/planets" as *; // rendu billes « planètes » partagé
 @use "../../../styles/coin" as *; // recette partagée de la pièce
 
-// Couleurs joueur (sièges) — utilisées pour les anneaux d'avatar, les noms
-// et le halo de la card.
-$player-colors: (
-  "red": $c-red,
-  "green": $c-green,
-  "blue": $c-blue,
-  "orange": $c-orange,
-);
+// Sièges : l'anneau d'avatar et le nom de chaque joueur prennent sa couleur.
+$seats: "red", "green", "blue", "orange";
 
 // Halo « planète » par couleur, pour les slots d'arrivée remplis.
 $slot-glows: (
@@ -22,6 +16,8 @@ $slot-glows: (
 );
 
 // ── Overlay plein écran ──────────────────────────────────────────
+// Le voile des autres fenêtres, sans flou. La chemise prend la couleur du
+// mode (charbon la nuit, papier le jour) comme toutes les autres.
 
 .victory-overlay {
   position: fixed;
@@ -33,46 +29,13 @@ $slot-glows: (
   overflow: hidden;
   padding: max(12px, var(--sa-top)) max(12px, var(--sa-right)) max(12px, var(--sa-bottom))
     max(12px, var(--sa-left));
-  background: rgba($bg-dark, 0.82);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background: var(--m-scrim);
   animation: overlayIn 0.5s ease forwards;
 
   // Pas de box-sizing border-box global dans l'app : indispensable ici pour
   // que les blocs `width: 100%` + padding (plaques, stats) ne débordent pas
   // de la card → scrollbar horizontale.
   &, & * { box-sizing: border-box; }
-
-  @each $name, $hex in $player-colors {
-    &[data-color="#{$name}"] .victory-card {
-      border-color: rgba($hex, 0.7);
-      box-shadow:
-        0 0 60px rgba($hex, 0.4),
-        0 0 120px rgba($hex, 0.15),
-        inset 0 1px 0 rgba(255, 255, 255, 0.12);
-    }
-  }
-
-  // 2v2 : halo bicolore — bordure en dégradé + lueur de chaque côté de la
-  // carte aux couleurs des deux coéquipiers (la double contrainte d'attributs
-  // l'emporte sur la variante mono-couleur ci-dessus).
-  @each $a, $ahex in $player-colors {
-    @each $b, $bhex in $player-colors {
-      @if $a != $b {
-        &[data-color="#{$a}"][data-color2="#{$b}"] .victory-card {
-          border-color: transparent;
-          background:
-            linear-gradient(rgba(10, 18, 40, 0.94), rgba(10, 18, 40, 0.94)) padding-box,
-            linear-gradient(100deg, rgba($ahex, 0.85), rgba($bhex, 0.85)) border-box;
-          box-shadow:
-            -28px 0 80px rgba($ahex, 0.32),
-            28px 0 80px rgba($bhex, 0.32),
-            0 0 120px rgba(color.mix($ahex, $bhex), 0.12),
-            inset 0 1px 0 rgba(255, 255, 255, 0.12);
-        }
-      }
-    }
-  }
 }
 
 @keyframes overlayIn {
@@ -111,48 +74,67 @@ $slot-glows: (
 }
 
 // ── Carte de victoire ─────────────────────────────────────────────
+// Une chemise : l'onglet « Game Over » (or si l'équipe a gagné, rouge sinon)
+// dépasse au-dessus, elle ne rogne donc pas ; `.vc-sheet` défile si besoin.
+// Le corps porte le résultat, le talon le retour au menu.
 
 .victory-card {
   position: relative;
   z-index: 1;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  // Gaps et paddings en dvh : le layout se compacte en continu sur les écrans
-  // courts au lieu de déclencher un scroll.
-  gap: clamp(8px, 1.6dvh, 14px);
-  padding: clamp(14px, 3dvh, 28px) clamp(14px, 4.5vw, 28px) clamp(12px, 2.4dvh, 20px);
   width: min(92vw, 460px);
+  margin-top: var(--m-tab-h);
   // Miroir du padding de .victory-overlay ci-dessus : 100dvh inclut les barres
-  // système, on retranche exactement ce que l'overlay réserve de chaque côté.
-  max-height: calc(100dvh - max(12px, var(--sa-top)) - max(12px, var(--sa-bottom)));
-  // Filet de sécurité uniquement : les media queries « écrans courts »
-  // ci-dessous retirent des éléments avant d'en arriver là.
-  overflow-y: auto;
-  overflow-x: hidden;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
-  overscroll-behavior: contain;
-  background: rgba(10, 18, 40, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 24px;
+  // système, on retranche exactement ce que l'overlay réserve de chaque côté,
+  // et l'onglet.
+  max-height: calc(100dvh - max(12px, var(--sa-top)) - max(12px, var(--sa-bottom)) - var(--m-tab-h));
+  @include m.slab;
+  background: none; // le corps et le talon peignent la chemise
+  font-family: var(--m-font-text);
   text-align: center;
-  animation: cardIn 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation: cardIn 0.6s var(--m-ease) forwards;
   animation-delay: 0.1s;
   opacity: 0;
 }
 
+// Filet de sécurité uniquement : les media queries « écrans courts »
+// ci-dessous retirent des éléments avant d'en arriver là.
+.vc-sheet {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  border-radius: inherit;
+  @include m.scrollbar;
+}
+
+.vc-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  // Gaps et paddings en dvh : le layout se compacte en continu sur les écrans
+  // courts au lieu de déclencher un scroll.
+  gap: clamp(8px, 1.6dvh, 14px);
+  padding: clamp(16px, 3dvh, 28px) clamp(14px, 4.5vw, 26px) clamp(14px, 2.4dvh, 20px);
+}
+
+.vc-stub {
+  display: flex;
+  justify-content: center;
+  // 6px de plus en bas : la tranche du bouton dépasse de sa boîte.
+  padding: clamp(14px, 2.4dvh, 20px) 24px clamp(18px, 3dvh, 26px);
+}
+
 @keyframes cardIn {
-  0% {
-    transform: scale(0.6) translateY(40px);
+  from {
+    transform: translateY(32px) scale(0.92);
     opacity: 0;
   }
-  70% {
-    transform: scale(1.04) translateY(-4px);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(1) translateY(0);
+  to {
+    transform: none;
     opacity: 1;
   }
 }
@@ -184,26 +166,19 @@ $slot-glows: (
 // ── Titre & sous-titre ────────────────────────────────────────────
 
 .victory-title {
-  font-size: clamp(1.6rem, 5vw, 2.4rem);
-  font-weight: 900;
-  color: $c-gold;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  text-shadow: 0 0 24px rgba($c-gold, 0.7);
-  animation: titleGlow 2s ease-in-out infinite;
+  @include m.display(700);
+  font-size: clamp(1.7rem, 5vw, 2.3rem);
+  color: var(--m-gold-fg);
 }
 
-@keyframes titleGlow {
-  0%, 100% { text-shadow: 0 0 24px rgba($c-gold, 0.6), 0 0 40px rgba($c-gold, 0.2); }
-  50%       { text-shadow: 0 0 32px rgba($c-gold, 1.0), 0 0 60px rgba($c-gold, 0.4); }
+.victory-overlay.defeat .victory-title {
+  color: var(--m-red-fg);
 }
 
 .winner-subtitle {
-  font-size: clamp(0.78rem, 2vw, 0.95rem);
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.55);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-size: clamp(0.82rem, 2vw, 0.95rem);
+  font-weight: 600;
+  color: var(--m-fg-2);
 }
 
 // ── Plaques d'équipe (gagnants / perdants) ────────────────────────
@@ -217,10 +192,10 @@ $slot-glows: (
   gap: clamp(6px, 2vw, 14px);
   width: 100%;
   padding: 14px 10px 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 16px;
-  animation: squadIn 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+  background: var(--m-well);
+  border: 1px solid var(--m-line);
+  border-radius: var(--m-r-lg);
+  animation: squadIn 0.5s var(--m-ease) backwards;
 }
 
 @keyframes squadIn {
@@ -234,89 +209,51 @@ $slot-glows: (
   }
 }
 
-// Plaque des gagnants — écrin doré : dégradé chaud, halo qui respire et
-// traînée de brillance qui balaie la plaque.
+// Plaque des gagnants : un écrin doré, plat.
 .squad--winners {
-  position: relative;
-  overflow: hidden; // clippe la traînée de brillance
   padding: 16px 10px 14px;
-  background: linear-gradient(180deg, rgba($c-gold, 0.16), rgba($c-gold, 0.05) 55%, rgba(255, 255, 255, 0.03));
-  border-color: rgba($c-gold, 0.5);
-  animation:
-    squadIn 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s backwards,
-    squadGlowGold 2.8s ease-in-out 1.2s infinite;
-
-  &::after {
-    content: "";
-    position: absolute;
-    top: -20%;
-    bottom: -20%;
-    left: 0;
-    width: 36%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.14), transparent);
-    transform: translateX(-140%) skewX(-18deg);
-    animation: squadShine 3.4s ease-in-out 1.6s infinite;
-    pointer-events: none;
-  }
+  background: rgba(var(--m-gold-rgb), 0.1);
+  border-color: rgba(var(--m-gold-rgb), 0.45);
+  animation-delay: 0.3s;
 
   // Les vainqueurs prennent plus de place que les vaincus.
   .vp .vp-avatar { width: clamp(56px, 15vw, 70px); }
   .vp-name { font-size: clamp(0.95rem, 3.2vw, 1.15rem); }
 }
 
-@keyframes squadGlowGold {
-  0%, 100% { box-shadow: 0 0 18px rgba($c-gold, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.12); }
-  50%       { box-shadow: 0 0 36px rgba($c-gold, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.12); }
-}
-
-@keyframes squadShine {
-  0%        { transform: translateX(-140%) skewX(-18deg); }
-  45%, 100% { transform: translateX(420%) skewX(-18deg); }
-}
-
-// Plaque des perdants — nettement en retrait : plus sombre, désaturée,
-// avatars et billes réduits.
+// Plaque des perdants — nettement en retrait : avatars et billes réduits,
+// l'ensemble atténué.
 .squad--losers {
   animation-delay: 0.45s;
   padding: 10px 10px 9px;
-  background: rgba(0, 0, 0, 0.24);
-  border-color: rgba(255, 255, 255, 0.06);
-  filter: grayscale(0.4) saturate(0.7) brightness(0.82);
-  opacity: 0.9;
+  opacity: 0.72;
 
   .vp { gap: 5px; }
-  // Spécificité (0,3,0) : l'emporte sur les anneaux colorés du @each .vp--*.
   .vp .vp-avatar {
     width: clamp(38px, 10vw, 46px);
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.45);
   }
   .vp .vp-name {
     font-size: clamp(0.78rem, 2.4vw, 0.92rem);
     font-weight: 700;
-    text-shadow: none;
   }
   .vp-slot { width: clamp(9px, 2.6vw, 12px); }
 }
 
-// Séparateur « — Defeated — » entre les deux plaques.
+// Séparateur « Defeated » entre les deux plaques.
 .squad-divider {
   display: flex;
   align-items: center;
   gap: 10px;
   width: 100%;
   margin: -2px 0;
-  font-size: 0.64rem;
-  font-weight: 700;
-  letter-spacing: 0.24em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.38);
+  @include m.label;
 
   &::before,
   &::after {
     content: "";
     flex: 1;
-    height: 1px;
-    background: rgba(255, 255, 255, 0.14);
+    height: 2px;
+    background: var(--m-perf-dash-x);
   }
 }
 
@@ -340,9 +277,9 @@ $slot-glows: (
   width: clamp(50px, 14vw, 64px);
   aspect-ratio: 1;
   border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.35);
+  border: 3px solid var(--m-line-3);
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--m-well-2);
 
   img {
     width: 100%;
@@ -360,45 +297,40 @@ $slot-glows: (
   @include planet-variants("vpm"); // red→Mars, green→Terre, blue→Neptune, orange→Jupiter
 }
 
-// Badge « You » — petit sceau en coin d'avatar, clin d'œil comic (cf. VS intro).
+// Badge « You » — petit tampon en coin d'avatar, posé de biais comme le rang
+// de la carte du joueur.
 .vp-you {
   position: absolute;
   top: -6px;
   right: -10px;
-  padding: 2px 8px;
-  font-size: 0.56rem;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: $bg-dark;
-  background: $c-gold;
-  border-radius: 999px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+  padding: 3px 8px 2px;
+  @include m.display(800);
+  font-size: 0.7rem;
+  color: var(--m-on-gold);
+  background: var(--m-gold);
+  border-radius: var(--m-r-pill);
   transform: rotate(8deg);
 }
 
 .vp-name {
   max-width: 100%;
+  @include m.display(700);
   font-size: clamp(0.9rem, 3vw, 1.1rem);
-  font-weight: 800;
-  letter-spacing: 0.03em;
-  color: white;
+  color: var(--m-fg);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-// Anneau, halo et nom aux couleurs du joueur.
-@each $name, $hex in $player-colors {
-  .vp--#{$name} {
+// Anneau et nom aux couleurs du joueur.
+@each $seat in $seats {
+  .vp--#{$seat} {
     .vp-avatar {
-      border-color: rgba($hex, 0.9);
-      box-shadow: 0 0 14px rgba($hex, 0.4), 0 4px 10px rgba(0, 0, 0, 0.45);
+      border-color: var(--m-#{$seat});
     }
 
     .vp-name {
-      color: $hex;
-      text-shadow: 0 0 12px rgba($hex, 0.6);
+      color: var(--m-#{$seat}-fg);
     }
   }
 }
@@ -422,9 +354,9 @@ $slot-glows: (
   width: clamp(11px, 3.2vw, 14px);
   aspect-ratio: 1;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--m-line-2);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 .vp-slot--filled {
@@ -477,30 +409,29 @@ $slot-glows: (
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  padding: 10px 24px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
+  padding: 12px 24px;
+  background: var(--m-well);
+  border: 1px solid var(--m-line);
+  border-radius: var(--m-r-lg);
   width: 100%;
   min-width: 180px;
 }
 
 .stats-delta {
-  font-size: clamp(1.3rem, 4vw, 1.7rem);
-  font-weight: 800;
-  letter-spacing: 0.04em;
+  @include m.display(800);
+  font-size: clamp(1.4rem, 4vw, 1.8rem);
+  font-variant-numeric: tabular-nums;
 
-  &.gain { color: #4ade80; text-shadow: 0 0 12px rgba(74, 222, 128, 0.6); }
-  &.loss { color: #f87171; text-shadow: 0 0 12px rgba(248, 113, 113, 0.6); }
-  &:not(.gain):not(.loss) { color: rgba(255, 255, 255, 0.7); }
+  &.gain { color: var(--m-green-fg); }
+  &.loss { color: var(--m-red-fg); }
+  &:not(.gain):not(.loss) { color: var(--m-fg-2); }
 }
 
 .stats-total,
 .stats-rank {
-  font-size: clamp(0.8rem, 1.8vw, 1rem);
-  color: rgba(255, 255, 255, 0.55);
-  font-weight: 500;
-  letter-spacing: 0.06em;
+  font-size: clamp(0.8rem, 1.8vw, 0.95rem);
+  color: var(--m-fg-3);
+  font-weight: 600;
 }
 
 // Gain de pièces : c'est ici que le joueur découvre la monnaie, donc la ligne
@@ -515,12 +446,11 @@ $slot-glows: (
   margin-top: 4px;
   padding: 4px 12px;
   border-radius: 999px;
-  background: rgba($c-gold, 0.12);
-  border: 1px solid rgba($c-gold, 0.3);
+  background: rgba(var(--m-gold-rgb), 0.12);
+  border: 1px solid rgba(var(--m-gold-rgb), 0.35);
   font-size: clamp(0.85rem, 1.9vw, 1.05rem);
   font-weight: 800;
-  color: $c-gold;
-  letter-spacing: 0.04em;
+  color: var(--m-gold-fg);
   /* Chiffres à chasse fixe : le compteur monte de 1 à 8 sans que la pastille
      change de largeur à chaque arrivée. */
   font-variant-numeric: tabular-nums;
@@ -545,7 +475,7 @@ $slot-glows: (
   &.is-loss {
     background: rgba(var(--m-red-rgb), 0.14);
     border-color: rgba(var(--m-red-rgb), 0.4);
-    color: var(--m-red-light);
+    color: var(--m-red-fg);
     transition: background-color 0.2s, border-color 0.2s, color 0.2s, opacity 0.22s ease-out,
       transform 0.35s cubic-bezier(0.2, 1.5, 0.4, 1);
   }
@@ -557,10 +487,10 @@ $slot-glows: (
 
 @keyframes coins-complete {
   0% {
-    box-shadow: 0 0 0 0 rgba($c-gold, 0.55);
+    box-shadow: 0 0 0 0 rgba(var(--m-gold-rgb), 0.55);
   }
   100% {
-    box-shadow: 0 0 0 16px rgba($c-gold, 0);
+    box-shadow: 0 0 0 16px rgba(var(--m-gold-rgb), 0);
   }
 }
 
@@ -704,8 +634,7 @@ $slot-glows: (
   margin-top: 2px;
   font-size: clamp(0.7rem, 1.7vw, 0.8rem);
   font-weight: 600;
-  letter-spacing: 0.03em;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--m-fg-2);
   font-variant-numeric: tabular-nums;
   opacity: 0;
   transition: opacity 0.3s ease-out;
@@ -754,7 +683,7 @@ $slot-glows: (
   margin-top: 6px;
   font-size: clamp(0.7rem, 1.7vw, 0.8rem);
   line-height: 1.35;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--m-fg-3);
 }
 
 .stats-note-token {
@@ -825,7 +754,7 @@ $slot-glows: (
 
 .stats-calculating {
   font-size: clamp(0.85rem, 2vw, 1rem);
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--m-fg-3);
   font-style: italic;
   animation: pulse 1.4s ease-in-out infinite;
 }
@@ -838,50 +767,32 @@ $slot-glows: (
 // ── Back to menu button ───────────────────────────────────────────
 
 .back-btn {
-  @include m.btn(12px 32px);
+  @include m.btn(13px 32px, var(--m-r-md));
   @include m.btn-fill(green);
-  margin-top: 2px;
-  margin-bottom: 6px; // la tranche du bouton dépasse de sa boîte
-  font-size: clamp(0.9rem, 2.2vw, 1.05rem);
+  width: 100%;
+  max-width: 320px;
+  font-size: clamp(0.95rem, 2.2vw, 1.05rem);
   touch-action: manipulation;
 }
 
 // ── Variante "Victory by Forfeit" ─────────────────────────────────
-// Ton plus sobre que la vraie victoire : argenté au lieu de doré,
-// sous-titre plus visible pour expliquer le contexte.
-
-$c-silver: #cbd5e1;
+// Ton plus sobre que la vraie victoire : titre à l'encre, sous-titre plus
+// lisible pour expliquer le contexte, plaque des gagnants neutre.
 
 .victory-card.by-default {
   .victory-title {
-    color: $c-silver;
-    text-shadow: 0 0 24px rgba($c-silver, 0.5);
-    animation: titleGlowSilver 2.4s ease-in-out infinite;
+    color: var(--m-fg);
   }
 
   .winner-subtitle {
-    color: rgba(255, 255, 255, 0.78);
-    font-size: clamp(0.95rem, 2.2vw, 1.2rem);
-    text-transform: none;
-    letter-spacing: 0.04em;
-    font-style: italic;
+    color: var(--m-fg);
+    font-size: clamp(0.95rem, 2.2vw, 1.15rem);
   }
 
-  // Pas de célébration dorée pour un forfait : plaque neutre, sans halo
-  // pulsé ni traînée de brillance.
   .squad--winners {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(255, 255, 255, 0.14);
-    box-shadow: none;
-    animation: squadIn 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s backwards;
-
-    &::after { display: none; }
+    background: var(--m-well);
+    border-color: var(--m-line-2);
   }
-}
-
-@keyframes titleGlowSilver {
-  0%, 100% { text-shadow: 0 0 20px rgba($c-silver, 0.4), 0 0 40px rgba($c-silver, 0.15); }
-  50%       { text-shadow: 0 0 28px rgba($c-silver, 0.7), 0 0 56px rgba($c-silver, 0.3); }
 }
 
 // ── Écrans courts — on retire le décorum plutôt que de scroller ───────────────
@@ -914,7 +825,7 @@ $c-silver: #cbd5e1;
 
   .stats-block { padding: 6px 16px; }
 
-  .back-btn { padding: 9px 26px; }
+  .back-btn { padding: 10px 26px; }
 }
 
 // ── Paysage (laptop 1366×768, tablette, mobile couché) ─────────────────────────
@@ -932,16 +843,18 @@ $c-silver: #cbd5e1;
 // courte à une colonne).
 @media (min-width: 900px) and (max-height: 820px) {
   .victory-card:has(.stats-block) {
+    width: min(94vw, 880px);
+  }
+
+  .victory-card:has(.stats-block) .vc-body {
     display: grid;
     grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
     grid-template-areas:
       "head  head"
-      "squads side"
-      "foot  foot";
+      "squads side";
     align-items: stretch;
     row-gap: clamp(10px, 2dvh, 18px);
     column-gap: clamp(14px, 2.4vw, 26px);
-    width: min(94vw, 880px);
 
     .vc-head {
       grid-area: head;
@@ -955,7 +868,7 @@ $c-silver: #cbd5e1;
       column-gap: clamp(12px, 2vw, 22px);
       text-align: left;
       padding-bottom: clamp(8px, 1.6dvh, 14px);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      border-bottom: 1px solid var(--m-line);
 
       .trophy { grid-area: trophy; font-size: clamp(2.2rem, 7dvh, 3.4rem); }
       .victory-title { grid-area: title; font-size: clamp(1.5rem, 3.4vw, 2.2rem); }
@@ -977,17 +890,9 @@ $c-silver: #cbd5e1;
       justify-content: center;
       gap: 6px;
       padding: 12px 20px;
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.04));
     }
 
     .stats-delta { font-size: clamp(1.7rem, 3.2vw, 2.2rem); }
-
-    .back-btn {
-      grid-area: foot;
-      justify-self: center;
-      margin-top: 0;
-      min-width: 220px;
-    }
   }
 }
 
@@ -995,4 +900,14 @@ $c-silver: #cbd5e1;
 // n'est pas vraiment réduite (le palier 540px le masque de nouveau ci-dessus).
 @media (min-width: 900px) and (min-height: 541px) and (max-height: 820px) {
   .victory-card:has(.stats-block) .trophy { display: inline-block; }
+}
+
+// Android : sans calques promus, la WebView lâche l'animation à la fin de
+// l'ouverture et la partie derrière clignote une image (voir CLAUDE.md).
+:host(.is-native) .victory-overlay {
+  will-change: opacity;
+
+  .victory-card {
+    will-change: transform, opacity;
+  }
 }

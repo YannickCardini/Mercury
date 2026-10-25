@@ -20,6 +20,7 @@ import { InviteToastComponent } from "../shared/invite-toast.component";
 import { ToastService } from "../shared/toast.service";
 import { MarbleCloverComponent } from "../shared/marble-clover.component";
 import { CoinCountComponent } from "../shared/coin-count.component";
+import { SkyToggleComponent } from "../shared/sky-toggle.component";
 import { PlayerCardComponent } from "../shared/player-card.component";
 import { BoosterLoadoutComponent } from "../boosters/loadout/booster-loadout.component";
 import { BoosterIntentService } from "../services/booster-intent.service";
@@ -34,7 +35,6 @@ import { AuthService, type AuthUser } from "../services/auth.service";
 import { ActiveGameService } from "../services/active-game.service";
 import { PresenceService } from "../services/presence.service";
 import { ShopService } from "../services/shop.service";
-import { ThemeService } from "../services/theme.service";
 import { TEAMS } from "@mercury/shared";
 import type {
   GameInviteMessage,
@@ -113,6 +113,7 @@ let lastActiveMenu: MenuId = "play";
     InviteToastComponent,
     MarbleCloverComponent,
     CoinCountComponent,
+    SkyToggleComponent,
     PlayerCardComponent,
     BoosterLoadoutComponent,
   ],
@@ -235,8 +236,6 @@ export class HomePage implements OnInit, OnDestroy, DoCheck {
   private http = inject(HttpClient);
   private shop = inject(ShopService);
   private toast = inject(ToastService);
-  /** Mode jour / nuit, basculé par le bouton du coin haut gauche. */
-  protected readonly theme = inject(ThemeService);
   private userSub: Subscription | null = null;
 
   private alreadyInGameSub: Subscription | null = null;
@@ -584,11 +583,6 @@ export class HomePage implements OnInit, OnDestroy, DoCheck {
     // avait pris la partie (claimSession lève aussi wasReplaced).
     this.tabLock.claimSession();
     this.router.navigate(["/game"]);
-  }
-
-  /** Bascule jour / nuit : le soir tombe ou l'aube se lève (ThemeService). */
-  toggleTheme(): void {
-    this.theme.toggle();
   }
 
   openSettings() {

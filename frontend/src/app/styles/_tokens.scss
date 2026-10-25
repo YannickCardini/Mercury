@@ -52,13 +52,14 @@
 
 // ─── Surfaces ────────────────────────────────────────────────────────────────
 
-// Plaque opaque : la carte, la modale, le panneau. Aplat ardoise mat, contour
-// bleu acier de 2px, reflet en haut, tranche à deux étages sous la plaque
-// (même touche que les boutons, en plus épais).
-@mixin slab($radius: var(--m-r-xl), $shadow: var(--m-shadow-slab)) {
+// Chemise : la carte, la modale, le panneau. Aplat charbon mat (papier crème
+// le jour), sans contour ni tranche, grands arrondis, une ombre douce. Ce qui
+// la nomme et la ferme (onglet, pastille) se pose sur ses bords : voir
+// « Chemises » plus bas.
+@mixin slab($radius: var(--m-r-folder), $shadow: var(--m-shadow-slab)) {
   background: var(--m-paper);
   color: var(--m-fg);
-  border: 2px solid var(--m-glass-line);
+  border: 0;
   border-radius: $radius;
   box-shadow: $shadow;
 }
@@ -248,6 +249,172 @@
   &:focus-visible {
     outline: 2px solid var(--m-blue-fg);
     outline-offset: 2px;
+  }
+}
+
+// ─── Chemises ────────────────────────────────────────────────────────────────
+// Toute fenêtre est une chemise sortie de la boîte de jeu :
+//   - un onglet de couleur posé sur son bord haut la nomme (`.m-tabs` et
+//     `.m-tab--<accent>`, classes globales de styles.scss) ;
+//   - une pastille crème à cheval sur le coin haut droit la ferme (`.m-close`) ;
+//   - une perforation de ticket détache le talon qui porte les actions
+//     (`ticket-part` et `ticket-seam`, ci-dessous).
+// Onglets et pastille dépassent de la chemise : elle ne doit pas rogner
+// (`overflow: visible`), c'est un enfant qui défile, et elle réserve la
+// hauteur de l'onglet au-dessus d'elle (`margin-top: var(--m-tab-h)`).
+
+// L'onglet : une étiquette pleine, coins hauts arrondis, pied à fleur du bord
+// de la chemise.
+@mixin folder-tab($accent) {
+  @include folder-tab-shape;
+  background: var(--m-#{$accent});
+  color: var(--m-on-#{$accent});
+}
+
+@mixin folder-tab-shape {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+  height: var(--m-tab-h);
+  margin: 0; // l'onglet porte souvent le titre de la page (h1, h2)
+  padding: 2px 18px 0;
+  border: 0;
+  border-radius: var(--m-r-sm) var(--m-r-sm) 0 0;
+  font-family: var(--m-font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+// L'onglet retour : la même étiquette dans la teinte de la pastille de
+// fermeture, un chevron seul. À l'appui il s'enfonce dans la chemise (sa
+// hauteur baisse, son pied reste posé).
+@mixin folder-tab-back {
+  @include folder-tab-shape;
+  justify-content: center;
+  min-width: 42px;
+  padding: 2px 10px 0 8px;
+  background: var(--m-close);
+  color: var(--m-on-close);
+  cursor: pointer;
+  transition: height var(--m-press) ease-out;
+
+  svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  &:active {
+    height: calc(var(--m-tab-h) - 4px);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--m-blue-fg);
+    outline-offset: 2px;
+  }
+}
+
+// La pastille de fermeture : un disque plein (crème la nuit, charbon le jour)
+// à cheval sur le coin haut droit, une croix sombre, une tranche qui cède à
+// l'appui comme celle des boutons.
+@mixin folder-close($size: 40px) {
+  position: absolute;
+  top: -14px;
+  right: -12px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: $size;
+  height: $size;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--m-close);
+  color: var(--m-on-close);
+  cursor: pointer;
+  box-shadow: 0 3px 0 0 var(--m-close-edge), 0 10px 18px -8px rgba(0, 0, 0, 0.55);
+  transition: transform var(--m-press) ease-out, box-shadow var(--m-press) ease-out;
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(3px);
+    box-shadow: 0 0 0 0 var(--m-close-edge), 0 6px 12px -8px rgba(0, 0, 0, 0.5);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--m-blue-fg);
+    outline-offset: 3px;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+// Une partie de ticket : elle peint elle-même le papier, mordu d'une encoche
+// en quart de cercle aux deux coins du côté `$cut` (top, bottom, left, right ;
+// les fonds `--m-cut-*` de tokens.css). Deux parties voisines forment ainsi
+// deux vrais trous à leur couture (le voile se voit au travers), où que tombe
+// la couture : pas de mesure en JS. La chemise qui les porte n'a pas de fond
+// propre (`background: none`) ni de padding ; chaque partie donne ses
+// arrondis extérieurs.
+@mixin ticket-part($cut) {
+  background: var(--m-cut-#{$cut});
+}
+
+// Le pointillé de la perforation, posé sur le bord `$side` de la partie qui
+// le porte (sa couture), entre les deux encoches. La partie doit être
+// positionnée (`position: relative`).
+@mixin ticket-seam($side: top) {
+  &::before {
+    content: "";
+    position: absolute;
+    pointer-events: none;
+
+    @if $side == top or $side == bottom {
+      #{$side}: -1px;
+      left: calc(var(--m-perf-r) + 8px);
+      right: calc(var(--m-perf-r) + 8px);
+      height: 2px;
+      background: var(--m-perf-dash-x);
+    } @else {
+      #{$side}: -1px;
+      top: calc(var(--m-perf-r) + 8px);
+      bottom: calc(var(--m-perf-r) + 8px);
+      width: 2px;
+      background: var(--m-perf-dash-y);
+    }
+  }
+}
+
+// Ligne de fiche : libellé à gauche, valeur à droite, reliés par des points
+// de conduite. À poser sur la rangée ; ses enfants sont le libellé puis la
+// valeur.
+@mixin leader-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+
+  &::after {
+    content: "";
+    order: 1;
+    flex: 1 1 24px;
+    min-width: 24px;
+    border-bottom: 2px dotted var(--m-perf-line);
+    transform: translateY(-4px);
+  }
+
+  > :last-child {
+    order: 2;
   }
 }
 

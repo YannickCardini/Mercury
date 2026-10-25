@@ -38,6 +38,42 @@
         "value": "plus jakarta sans",
         "createdAt": "2026-10-25T08:27:29.669Z",
         "reason": "Claude: Plus Jakarta Sans is the body face the owner chose for Mercury on 2026-10-10 (DESIGN.md typography)"
+      },
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "src/app/home/home.page.html"
+        ],
+        "createdAt": "2026-10-25T17:47:29.362Z",
+        "reason": "Claude: Angular [src] property bindings on avatars (user.picture, thread.peerPicture, invite candidates); no literal src for the static detector"
+      },
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "src/app/shared/player-card.component.html"
+        ],
+        "createdAt": "2026-10-25T17:47:29.367Z",
+        "reason": "Claude: Angular [src]=picture() binding, rendered only inside @if (picture())"
+      },
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "src/app/leaderboard/leaderboard.page.html"
+        ],
+        "createdAt": "2026-10-25T17:47:29.387Z",
+        "reason": "Claude: Angular [src]=entry.picture binding inside @if (entry.picture)"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "sfmono-regular",
+        "files": [
+          "src/app/home/home.page.scss"
+        ],
+        "createdAt": "2026-10-25T17:47:29.393Z",
+        "reason": "Claude: pre-existing monospace for the 6-character room code so O and 0 stay distinct (comment in home.page.scss)"
       }
     ]
   }

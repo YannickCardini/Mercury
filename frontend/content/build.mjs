@@ -3,6 +3,7 @@
  *
  *   www/content/{en,fr,nl,de}/index.html   les 4 pages « jouer », une par marché
  *   www/content/rules/*.html               les 4 pages de règles (URLs inchangées)
+ *   www/content/board.svg                  le plateau animé des landings
  *   www/sitemap.xml                    lastmod réel + grappes hreflang
  *   www/llms.txt                       résumé du site pour les moteurs IA
  *
@@ -24,6 +25,7 @@ import rulesDog from "./pages/rules-dog.mjs";
 import rulesPegs from "./pages/rules-pegs.mjs";
 
 import { SITE_URL, BUILD_DATE, LANDING_PATH, RULES_PATH, url } from "./lib/site.mjs";
+import { BOARD_DEMO_FILE, boardDemoSvg } from "./lib/board-demo.mjs";
 
 const OUT_DIR = fileURLToPath(new URL("../www/", import.meta.url));
 
@@ -180,6 +182,7 @@ for (const page of PAGES) {
 }
 checkClusters();
 
+written.push(write(BOARD_DEMO_FILE, boardDemoSvg()));
 written.push(write("sitemap.xml", sitemap()));
 written.push(write("llms.txt", llmsTxt()));
 

@@ -30,41 +30,35 @@
 }
 
 // ─── Card ─────────────────────────────────────────────────────────────────────
-// Feuille de règles : une plaque de papier, à l'accueil comme en partie (le
-// template lui donne `m-paper`). La police est déclarée ici et non héritée :
-// dans /game, l'hôte de la page neutralise la police globale.
+// Feuille de règles : une chemise à onglet bleu, à l'accueil comme en partie
+// (le template lui donne `m-paper`). Onglet et pastille de fermeture (classes
+// globales) dépassent de ses bords : elle ne rogne pas, c'est le corps qui
+// défile. La police est déclarée ici et non héritée : dans /game, l'hôte de
+// la page neutralise la police globale.
 .rules-card {
   position: relative;
   width: 100%;
   max-width: 420px;
+  margin-top: var(--m-tab-h);
   // dvh mesure l'écran barres système comprises : on retranche les insets pour
-  // que la carte reste entièrement dans la zone sûre.
-  max-height: calc(88dvh - var(--sa-top) - var(--sa-bottom));
+  // que la carte reste entièrement dans la zone sûre, et l'onglet.
+  max-height: calc(88dvh - var(--sa-top) - var(--sa-bottom) - var(--m-tab-h));
   display: flex;
   flex-direction: column;
   @include m.slab;
   font-family: var(--m-font-text);
   transform: translateY(24px) scale(0.97);
   opacity: 0;
-  overflow: hidden;
   transition: transform 0.3s var(--m-ease), opacity 0.25s ease;
 }
 
-// ─── Close ────────────────────────────────────────────────────────────────────
-.rules-close {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  z-index: 2;
-  @include m.icon-btn(32px);
-}
-
 // ─── Header ───────────────────────────────────────────────────────────────────
+// Les quatre billes au-dessus du titre, calés à gauche sous l'onglet.
 .rules-header {
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   gap: 6px;
   padding: 26px 24px 16px;
   border-bottom: 1px solid var(--m-line-2);
@@ -76,9 +70,9 @@
 }
 
 .rules-title {
-  margin: 0;
+  margin: 2px 0 0;
   @include m.display(700);
-  font-size: 1.6rem;
+  font-size: 1.9rem;
   color: var(--m-fg);
 }
 
@@ -104,6 +98,8 @@
 .rules-body {
   flex: 1;
   overflow-y: auto;
+  // Le corps défile : il rogne son contenu aux arrondis bas de la chemise.
+  border-radius: 0 0 var(--m-r-folder) var(--m-r-folder);
   padding: 20px 22px 28px;
   display: flex;
   flex-direction: column;

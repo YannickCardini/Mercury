@@ -276,15 +276,23 @@
   <!-- ===== CONFIRM RESIGN OVERLAY ===== -->
   @if (showResignConfirm()) {
   <div class="resign-overlay" (click)="cancelResign()">
-    <div class="resign-dialog" (click)="$event.stopPropagation()">
-      <p class="resign-dialog__title">Abandon the game?</p>
-      <p class="resign-dialog__text">You will not be able to rejoin this game.</p>
-      @if (authService.user$ | async) {
-      <p class="resign-dialog__warning">Resigning will cause you to lose ranking points and drop in the leaderboard</p>
-      }
-      <div class="resign-dialog__actions">
-        <button class="resign-dialog__cancel" (click)="cancelResign()">Cancel</button>
-        <button class="resign-dialog__confirm" (click)="confirmResign()">Resign</button>
+    <!-- Chemise à onglet rouge : la question sur le corps, la réponse sur le talon. -->
+    <div class="resign-dialog m-paper" (click)="$event.stopPropagation()">
+      <div class="m-tabs">
+        <span class="m-tab m-tab--red">Resign</span>
+      </div>
+      <div class="resign-dialog__scroll">
+        <div class="m-ticket-body resign-dialog__body">
+          <p class="resign-dialog__title">Abandon the game?</p>
+          <p class="resign-dialog__text">You will not be able to rejoin this game.</p>
+          @if (authService.user$ | async) {
+          <p class="resign-dialog__warning">Resigning will cause you to lose ranking points and drop in the leaderboard</p>
+          }
+        </div>
+        <div class="m-ticket-stub resign-dialog__actions">
+          <button class="resign-dialog__cancel" (click)="cancelResign()">Cancel</button>
+          <button class="resign-dialog__confirm" (click)="confirmResign()">Resign</button>
+        </div>
       </div>
     </div>
   </div>

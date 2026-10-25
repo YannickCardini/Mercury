@@ -3,14 +3,15 @@
 // ═══════════════════════════════════════════════════════════════════════════
 //  Carte du joueur — « qui il est »
 // ───────────────────────────────────────────────────────────────────────────
-//  Une seule colonne centrée, un seul axe : la photo, le nom, deux tuiles de
-//  chiffres (même matière que les creux des boosters), puis les boosters
-//  posés côte à côte. Le rythme vertical est réglé une fois (--pc-gap) et
-//  vaut pour tous les blocs : rien n'y est empilé au hasard.
+//  Une seule colonne centrée, un seul axe : la photo cerclée de la couleur de
+//  l'onglet (rouge, « Profile ») avec le rang tamponné sur l'anneau, le nom,
+//  les points, puis les boosters posés côte à côte. Le rythme vertical est
+//  réglé une fois (--pc-gap) et vaut pour tous les blocs.
 // ═══════════════════════════════════════════════════════════════════════════
 
 :host {
   --pc-gap: 18px;
+  --pc-ring: var(--m-red);
 
   display: flex;
   flex-direction: column;
@@ -20,16 +21,16 @@
 }
 
 // ── Photo ──────────────────────────────────────────────────────────────────
-// Un anneau plein du filet de la surface la détache, comme le badge du
-// joueur sur le plateau.
+// Un anneau de la couleur de l'onglet, un liseré du fond de la chemise, puis
+// la photo.
 
 .pc-avatar {
   position: relative;
-  width: 96px;
-  height: 96px;
+  width: 108px;
+  height: 108px;
   border-radius: 50%;
-  padding: 3px;
-  background: var(--m-line-3);
+  border: 3px solid var(--pc-ring);
+  padding: 4px;
   box-sizing: border-box;
 }
 
@@ -39,18 +40,39 @@
   height: 100%;
   border-radius: 50%;
   object-fit: cover;
-  border: 3px solid var(--m-surface);
-  box-sizing: border-box;
-  background: var(--m-surface);
+  background: var(--m-well-2);
 
   &--fallback {
-    background: var(--m-well-2);
+    background: var(--m-well-3);
   }
+}
+
+// Le rang : un petit tampon rond posé de biais sur l'anneau, en bas à droite.
+.pc-rank {
+  position: absolute;
+  right: -14px;
+  bottom: -6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+  height: 42px;
+  padding: 0 5px;
+  box-sizing: border-box;
+  border-radius: var(--m-r-pill);
+  border: 3px solid var(--pc-ring);
+  background: var(--m-surface);
+  color: var(--m-red-fg);
+  @include m.display(800);
+  font-size: 15px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  transform: rotate(-10deg);
 }
 
 .pc-name {
   max-width: 100%;
-  margin: calc(var(--pc-gap) * -0.4) 0 0;
+  margin: calc(var(--pc-gap) * -0.15) 0 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -59,39 +81,21 @@
   color: var(--m-fg);
 }
 
-// ── Chiffres ───────────────────────────────────────────────────────────────
+// ── Points ─────────────────────────────────────────────────────────────────
 
-.pc-stats {
-  display: flex;
-  gap: 10px;
-  width: 100%;
-  margin: 0;
+.pc-points {
+  margin: calc(var(--pc-gap) * -0.75) 0 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--m-fg-2);
 }
 
-.pc-stat {
-  flex: 1;
-  display: flex;
-  flex-direction: column-reverse; // la valeur au-dessus, le libellé dessous
-  align-items: center;
-  gap: 2px;
-  padding: 10px 8px 9px;
-  border-radius: var(--m-r-md);
-  background: var(--m-well);
-  border: 1px solid var(--m-line);
-}
-
-.pc-stat-value {
-  margin: 0;
+.pc-points-value {
+  margin-right: 3px;
   @include m.display(800);
-  font-size: 26px;
-  line-height: 1;
+  font-size: 19px;
   color: var(--m-fg);
   font-variant-numeric: tabular-nums;
-}
-
-.pc-stat-label {
-  @include m.label;
-  font-size: 12px;
 }
 
 // ── Boosters ───────────────────────────────────────────────────────────────
@@ -100,26 +104,36 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   width: 100%;
+  margin-top: 4px;
 }
 
+// Titre à gauche, un filet, le compte à droite.
 .pc-boosts-head {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: baseline;
-  gap: 2px 8px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
   margin: 0;
 }
 
 .pc-boosts-title {
+  flex: none;
   @include m.display(700);
-  font-size: 18px;
+  font-size: 17px;
   color: var(--m-fg);
 }
 
+.pc-boosts-rule {
+  flex: 1 1 auto;
+  min-width: 16px;
+  height: 2px;
+  background: var(--m-line-2);
+}
+
 .pc-boosts-note {
+  flex: none;
   @include m.label;
   font-size: 12.5px;
 }
@@ -149,16 +163,18 @@
   }
 
   .pc-avatar {
-    width: 80px;
-    height: 80px;
+    width: 88px;
+    height: 88px;
+  }
+
+  .pc-rank {
+    min-width: 36px;
+    height: 36px;
+    font-size: 13px;
   }
 
   .pc-name {
     font-size: 24px;
-  }
-
-  .pc-stat-value {
-    font-size: 22px;
   }
 
   .pc-shelf {

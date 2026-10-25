@@ -19,45 +19,19 @@
   overflow-y: auto;
 }
 
-// Feuille de papier posée sur le ciel (le template lui donne `m-paper`).
+// Chemise posée sur le ciel (le template lui donne `m-paper`) : l'onglet
+// retour et l'onglet titre sur son bord haut. Elle ne rogne pas ses onglets.
 .lb-card {
   @include m.above-sky;
   width: 100%;
   max-width: 560px;
+  margin-top: var(--m-tab-h);
   @include m.slab;
-  overflow: hidden;
-  // La feuille suit son contenu mais s'arrête au bas de l'écran : au-delà,
-  // c'est la liste qui défile.
-  max-height: 100%;
+  // La feuille suit son contenu mais s'arrête au bas de l'écran (onglet
+  // compris) : au-delà, c'est la liste qui défile.
+  max-height: calc(100% - var(--m-tab-h));
   display: flex;
   flex-direction: column;
-}
-
-.lb-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 20px 20px 14px;
-}
-
-.lb-back {
-  @include m.btn(6px 12px 6px 8px);
-  @include m.btn-quiet;
-  gap: 2px;
-  font-size: 14px;
-
-  svg {
-    width: 16px;
-    height: 16px;
-  }
-}
-
-.lb-title {
-  flex: 1;
-  margin: 0;
-  @include m.display(700);
-  font-size: 28px;
-  color: var(--m-fg);
 }
 
 .lb-state {
@@ -89,7 +63,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 0 16px 10px;
+  margin: 20px 16px 12px;
   padding: 10px 14px;
   background: var(--m-field);
   border: 1.5px solid var(--m-line-2);
@@ -159,6 +133,8 @@
   min-height: 0;
   overflow-y: auto;
   border-top: 1px solid var(--m-line);
+  // La liste défile : elle rogne ses rangées aux arrondis bas de la chemise.
+  border-radius: 0 0 var(--m-r-folder) var(--m-r-folder);
   @include m.scrollbar;
 }
 
@@ -269,7 +245,6 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
-    border-radius: var(--m-r-lg);
     max-width: 100%;
   }
 
@@ -278,21 +253,8 @@
     max-height: none;
   }
 
-  .lb-header {
-    padding: 14px 14px 12px;
-    gap: 8px;
-  }
-
-  .lb-title {
-    font-size: 24px;
-  }
-
-  .lb-back {
-    font-size: 13px;
-  }
-
   .lb-search-wrap {
-    margin: 0 12px 10px;
+    margin: 16px 12px 10px;
   }
 
   .lb-row {
@@ -318,14 +280,6 @@
   .lb-wrap {
     padding: 8px calc(6px + var(--sa-right)) calc(12px + var(--sa-bottom))
       calc(6px + var(--sa-left));
-  }
-
-  .lb-header {
-    padding: 10px 10px 10px;
-  }
-
-  .lb-title {
-    font-size: 22px;
   }
 
   .lb-row {

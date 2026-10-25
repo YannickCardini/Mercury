@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════════════
- *  Mercury design tokens — « ardoise mat sur ciel »
+ *  Mercury design tokens — « chemises de charbon sur ciel »
  * ───────────────────────────────────────────────────────────────────────────
  *  Source unique de vérité, en CSS pur pour être lue par les deux mondes :
  *    • l'app Angular     → chargée par angular.json (avant styles.scss) ;
@@ -66,33 +66,35 @@
   --m-font-display: "Baloo 2", ui-rounded, "Segoe UI", system-ui, sans-serif;
   --m-font-text: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 
-  /* Ardoise : la matière de toutes les surfaces. Aplats opaques et mats, sans
-     transparence ni flou. Les noms --m-paper* sont conservés : ce sont ceux
-     que référencent les composants. */
-  --m-paper: #133246; /* carte, modale, panneau : bleu ardoise sombre */
-  --m-paper-hi: #1b4157; /* champ de saisie, bouton secondaire */
-  --m-paper-lo: #0e2736; /* creux, rangée survolée */
-  --m-paper-edge: #081a26; /* tranche sous un bouton */
-  --m-paper-mid: #112d3e; /* premier étage de la tranche d'un bouton */
-  --m-slab-mid: #0d2636; /* premier étage de la tranche d'une plaque (entre --m-paper et l'arête) */
-  --m-glass-line: #25536b; /* filet d'une surface : bleu acier mat */
-  --m-ink-night: #0e2736; /* bleu nuit d'encre : second fond opaque */
+  /* Charbon : la matière de toutes les surfaces (chemises, panneaux, table de
+     jeu, pastilles). Aplats opaques et mats, sans transparence ni flou. Les
+     noms --m-paper* sont conservés : ce sont ceux que référencent les
+     composants. La tranche d'un bouton est plus claire que sa face : un chant
+     éclairé, lisible sur le charbon comme sur le ciel de nuit. */
+  --m-paper: #2a2523; /* chemise, modale, panneau : charbon chaud */
+  --m-paper-hi: #36302d; /* champ de saisie, bouton secondaire */
+  --m-paper-lo: #221e1c; /* creux, rangée survolée */
+  --m-paper-edge: #544943; /* dernier étage de la tranche d'un bouton */
+  --m-paper-mid: #463d38; /* premier étage de la tranche d'un bouton */
+  --m-slab-mid: #3d3531; /* premier étage de la tranche d'une capsule */
+  --m-glass-line: #3b3430; /* filet d'une surface : à peine plus clair que la face */
+  --m-ink-night: #221e1c; /* charbon profond : second fond opaque */
 
-  /* Texte sur verre : blanc cassé, quatre niveaux. Les trois premiers tiennent
-     4.5:1 sur le verre ; le quatrième est réservé aux placeholders et aux états
-     désactivés. */
-  --m-ink: #f0f8ff;
-  --m-ink-rgb: 240, 248, 255;
-  --m-ink-2: rgba(240, 248, 255, 0.78);
-  --m-ink-3: rgba(240, 248, 255, 0.62);
-  --m-ink-4: rgba(240, 248, 255, 0.4);
+  /* Texte sur charbon : crème chaude, quatre niveaux. Les trois premiers
+     tiennent 4.5:1 sur le charbon ; le quatrième est réservé aux placeholders
+     et aux états désactivés. */
+  --m-ink: #f3ebdd;
+  --m-ink-rgb: 243, 235, 221;
+  --m-ink-2: rgba(243, 235, 221, 0.78);
+  --m-ink-3: rgba(243, 235, 221, 0.62);
+  --m-ink-4: rgba(243, 235, 221, 0.4);
   /* Encre sombre : seulement pour un libellé posé sur un aplat clair (médaille,
-     bouton orange ou or). */
-  --m-ink-solid: #0c2230;
+     bouton orange ou or, onglet orange ou or). */
+  --m-ink-solid: #241b16;
 
   /* Crème : le texte posé directement sur le ciel. */
-  --m-cream: #f0f8ff;
-  --m-cream-rgb: 240, 248, 255;
+  --m-cream: #f3ebdd;
+  --m-cream-rgb: 243, 235, 221;
 
   /* Nuit : le ciel et les rares surfaces sombres conservées. */
   --m-night: #0f172a;
@@ -146,7 +148,7 @@
   /* Boosters : ex-violet, banni. Le nom --m-violet est conservé pour les
      composants, la teinte est un cyan vif (72 % de saturation). Il respecte
      DESIGN.md, « Color Guidelines & Anti-Patterns » : jamais posé sur du noir
-     pur, toujours sur des surfaces lagon ou du papier. */
+     pur, toujours sur des surfaces charbon ou du papier. */
   --m-violet: #22b8cf;
   --m-violet-rgb: 34, 184, 207;
   --m-violet-deep: #168499;
@@ -174,13 +176,45 @@
   --m-r-btn: 16px; /* touche de bouton : rectangle franc, arrondi généreux */
   --m-r-pill: 999px;
 
-  /* Ombres. Sur le ciel une ombre portée ne se voit pas : l'épaisseur d'une
-     surface est donc dite par sa tranche (un liseré plein sous la carte),
-     l'ombre diffuse ne fait que la détacher. */
+  /* Ombres. Une chemise est plate : pas de tranche, une ombre douce la
+     détache seulement (invisible sur le voile de nuit, utile le jour). Les
+     capsules flottantes (toast, pastilles de /game) gardent leur tranche. */
   --m-ledge: 0 3px 0 0 var(--m-paper-edge);
-  --m-shadow-slab: inset 0 2px 0 0 rgba(var(--m-cream-rgb), 0.08), 0 4px 0 -1px var(--m-slab-mid), 0 8px 0 -1px var(--m-paper-edge), 0 26px 40px -22px rgba(0, 0, 0, 0.7);
+  --m-shadow-slab: 0 30px 56px -30px rgba(0, 0, 0, 0.85);
   --m-shadow-pop: inset 0 2px 0 0 rgba(var(--m-cream-rgb), 0.08), 0 2px 0 -1px var(--m-slab-mid), 0 4px 0 -1px var(--m-paper-edge), 0 14px 24px -14px rgba(0, 0, 0, 0.6);
   --m-focus: 0 0 0 3px rgba(var(--m-blue-rgb), 0.3);
+
+  /* Chemise : toute fenêtre (modale, panneau) est une chemise sortie de la
+     boîte de jeu. Un onglet de couleur sur son bord haut la nomme, une
+     pastille de fermeture crème chevauche le coin haut droit, et une
+     perforation de ticket (deux vrais trous, un pointillé) détache le talon
+     qui porte les actions. */
+  --m-r-folder: 22px;
+  --m-tab-h: 34px; /* hauteur d'un onglet, posé au-dessus de la chemise */
+  --m-perf-r: 10px; /* rayon des encoches de la perforation */
+  --m-perf-line: #4a413c; /* pointillé de la perforation, points de conduite */
+  --m-close: #f3ebdd; /* pastille de fermeture, onglet retour */
+  --m-close-edge: #bfb19a; /* sa tranche */
+  --m-on-close: #2a2523; /* sa croix, son chevron */
+
+  /* Parties d'un ticket : le papier mordu d'une encoche en quart de cercle aux
+     deux coins d'un côté (voir ticket-part dans _tokens.scss). Calculées sur
+     <html>, où --m-paper et --m-perf-line prennent la valeur du mode. */
+  --m-cut-top:
+    radial-gradient(circle at 0 0, transparent var(--m-perf-r), var(--m-paper) calc(var(--m-perf-r) + 0.5px)) left top / 51% 100% no-repeat,
+    radial-gradient(circle at 100% 0, transparent var(--m-perf-r), var(--m-paper) calc(var(--m-perf-r) + 0.5px)) right top / 51% 100% no-repeat;
+  --m-cut-bottom:
+    radial-gradient(circle at 0 100%, transparent var(--m-perf-r), var(--m-paper) calc(var(--m-perf-r) + 0.5px)) left bottom / 51% 100% no-repeat,
+    radial-gradient(circle at 100% 100%, transparent var(--m-perf-r), var(--m-paper) calc(var(--m-perf-r) + 0.5px)) right bottom / 51% 100% no-repeat;
+  --m-cut-left:
+    radial-gradient(circle at 0 0, transparent var(--m-perf-r), var(--m-paper) calc(var(--m-perf-r) + 0.5px)) left top / 100% 51% no-repeat,
+    radial-gradient(circle at 0 100%, transparent var(--m-perf-r), var(--m-paper) calc(var(--m-perf-r) + 0.5px)) left bottom / 100% 51% no-repeat;
+  --m-cut-right:
+    radial-gradient(circle at 100% 0, transparent var(--m-perf-r), var(--m-paper) calc(var(--m-perf-r) + 0.5px)) right top / 100% 51% no-repeat,
+    radial-gradient(circle at 100% 100%, transparent var(--m-perf-r), var(--m-paper) calc(var(--m-perf-r) + 0.5px)) right bottom / 100% 51% no-repeat;
+  /* Le pointillé de la perforation, horizontal puis vertical. */
+  --m-perf-dash-x: repeating-linear-gradient(90deg, var(--m-perf-line) 0 5px, transparent 5px 10px);
+  --m-perf-dash-y: repeating-linear-gradient(180deg, var(--m-perf-line) 0 5px, transparent 5px 10px);
 
   /* Mouvement. */
   --m-ease: cubic-bezier(0.22, 1, 0.36, 1);
@@ -225,12 +259,13 @@
   --m-brand: var(--m-cream);
   --m-brand-ledge: rgba(var(--m-night-rgb), 0.7);
 
-  /* Plaques du menu de l'accueil au repos (la plaque active est verte). */
-  --m-plate: #265670;
-  --m-plate-line: #2e637e;
-  --m-plate-edge: #0f2938;
-  --m-plate-mid: #1b4054;
-  --m-plate-fg: var(--m-ink-solid);
+  /* Plaques du menu de l'accueil au repos (la plaque active est verte) : la
+     touche charbon des boutons secondaires. */
+  --m-plate: var(--m-paper-hi);
+  --m-plate-line: var(--m-glass-line);
+  --m-plate-edge: var(--m-paper-edge);
+  --m-plate-mid: var(--m-paper-mid);
+  --m-plate-fg: var(--m-ink);
 
   /* Pastille inversée (infobulle, numéro) : aplat de la couleur du texte. */
   --m-invert: var(--m-ink);
@@ -243,6 +278,73 @@
   :root {
     --m-horizon: 64%;
   }
+}
+
+/* Bleu du crépuscule martien, une teinte par bande du ciel, du zénith
+   (profond) à l'horizon (pâle) : la couleur de passage entre le jour et la
+   nuit, qui n'existe que pendant la bascule (styles.scss). */
+:root {
+  --m-twilight-1: #1f2a44;
+  --m-twilight-2: #263453;
+  --m-twilight-3: #2e3f62;
+  --m-twilight-4: #384b71;
+  --m-twilight-5: #43597f;
+  --m-twilight-6: #50688e;
+  --m-twilight-7: #5f789c;
+  --m-twilight-8: #7089a9;
+  --m-twilight-9: #8299b4;
+}
+
+/* Hublot du ciel : la bascule jour / nuit de l'accueil (sky-toggle) est une
+   fenêtre sur l'horizon du paysage, les bandes 5 à 9 du ciel, une mesa, une
+   colline et le sol, sous les soleils à gauche et sous Phobos et Deimos à
+   droite. Les deux heures y sont dessinées à la fois, de part et d'autre
+   d'une barre, d'où des valeurs sans mode, posées une fois ici. Mêmes teintes que les palettes
+   « day » et « night » de resources/mars/generate-mars-landscape.py (bandes,
+   mx-far, mx-strata, mx-hill, mx-hill-rim, mx-g0 à mx-g3) et que les astres
+   de space-background : à garder en phase. */
+:root {
+  --m-porthole-sky-5-day: #e0dccf;
+  --m-porthole-sky-6-day: #e5d6c5;
+  --m-porthole-sky-7-day: #e8cebb;
+  --m-porthole-sky-8-day: #e9c0a4;
+  --m-porthole-sky-9-day: #eabb9b;
+  --m-porthole-sky-5-night: #0b101e;
+  --m-porthole-sky-6-night: #0d1222;
+  --m-porthole-sky-7-night: #0f1426;
+  --m-porthole-sky-8-night: #11172a;
+  --m-porthole-sky-9-night: #131a2e;
+
+  --m-porthole-mesa-day: #edcdbb;
+  --m-porthole-mesa-night: #272027;
+  --m-porthole-mesa-shade-day: #e4bfac;
+  --m-porthole-mesa-shade-night: #19141a;
+  --m-porthole-strata-day: #f2d6c6;
+  --m-porthole-strata-night: #322a32;
+  --m-porthole-hill-day: #e8c39f;
+  --m-porthole-hill-night: #1f181c;
+  --m-porthole-hill-rim-day: #efd0ae;
+  --m-porthole-hill-rim-night: #3a2f36;
+  --m-porthole-ground-0-day: #f3dbc3;
+  --m-porthole-ground-0-night: #22191c;
+  --m-porthole-ground-1-day: #f0d4b8;
+  --m-porthole-ground-1-night: #1e161a;
+  --m-porthole-ground-2-day: #edceaf;
+  --m-porthole-ground-2-night: #1b1417;
+  --m-porthole-ground-3-day: #eac8a7;
+  --m-porthole-ground-3-night: #171114;
+
+  --m-porthole-sun: #fffaf1;
+  --m-porthole-sun-halo: #fff6e8;
+  --m-porthole-sun2: #ffdca6;
+  --m-porthole-sun2-core: #fff0d6;
+  --m-porthole-sun2-halo: #ffe7c4;
+  --m-porthole-phobos: #cdc6bb;
+  --m-porthole-phobos-shade: #8e887f;
+  --m-porthole-phobos-crater: #a59e94;
+  --m-porthole-moon-halo: #c9d6f0;
+  --m-porthole-deimos: #f1eee8;
+  --m-porthole-deimos-halo: #dfe6f5;
 }
 
 /* Contrôles natifs (barres de défilement, champs) accordés au mode. Posé
@@ -277,7 +379,7 @@
   --m-violet-fg: var(--m-violet-light);
 }
 
-/* Ardoise : à poser sur toute surface opaque (carte, modale, panneau, toast).
+/* Charbon : à poser sur toute surface opaque (carte, modale, panneau, toast).
    Les alias restent ceux du ciel (texte crème) : un composant se lit pareil
    posé sur le fond ou dans une carte. Seuls le fond et le champ changent. */
 .m-paper {
@@ -293,9 +395,9 @@
  *
  *  Le même paysage martien que la nuit (voir space-background), un matin
  *  clair : seuls le ciel et sa palette changent. Les plaques passent en
- *  papier crème à texte ardoise ; ce qui est posé directement sur le paysage
+ *  papier crème à texte charbon ; ce qui est posé directement sur le paysage
  *  (titre, pied de page, écran de chargement) porte .m-sky et prend aussi
- *  l'encre ardoise. Les aplats d'accent, les objets du jeu (billes, cartes,
+ *  l'encre charbon. Les aplats d'accent, les objets du jeu (billes, cartes,
  *  pièce) et les libellés posés sur un aplat ne changent pas.
  *
  *  Seules les valeurs qui changent sont redéclarées. Une variable qui en
@@ -314,21 +416,28 @@
   --m-slab-mid: #dccfb4;
   --m-glass-line: #dccbac;
 
-  /* Texte sur papier : l'ardoise de la nuit devient l'encre du jour. Mêmes
+  /* Texte sur papier : le charbon de la nuit devient l'encre du jour. Mêmes
      paliers d'usage (4.5:1 sur papier pour les trois premiers). */
-  --m-ink: #133246;
-  --m-ink-rgb: 19, 50, 70;
-  --m-ink-2: rgba(19, 50, 70, 0.8);
-  --m-ink-3: rgba(19, 50, 70, 0.68);
-  --m-ink-4: rgba(19, 50, 70, 0.45);
+  --m-ink: #2a2523;
+  --m-ink-rgb: 42, 37, 35;
+  --m-ink-2: rgba(42, 37, 35, 0.8);
+  --m-ink-3: rgba(42, 37, 35, 0.68);
+  --m-ink-4: rgba(42, 37, 35, 0.45);
 
-  --m-scrim: rgba(12, 34, 48, 0.5);
-  --m-shadow-slab: inset 0 2px 0 0 rgba(255, 252, 246, 0.6), 0 4px 0 -1px var(--m-slab-mid), 0 8px 0 -1px var(--m-paper-edge), 0 24px 36px -22px rgba(19, 50, 70, 0.5);
-  --m-shadow-pop: inset 0 2px 0 0 rgba(255, 252, 246, 0.6), 0 2px 0 -1px var(--m-slab-mid), 0 4px 0 -1px var(--m-paper-edge), 0 14px 24px -14px rgba(19, 50, 70, 0.42);
+  --m-scrim: rgba(42, 37, 35, 0.48);
+  --m-shadow-slab: 0 26px 44px -24px rgba(42, 37, 35, 0.5);
+  --m-shadow-pop: inset 0 2px 0 0 rgba(255, 252, 246, 0.6), 0 2px 0 -1px var(--m-slab-mid), 0 4px 0 -1px var(--m-paper-edge), 0 14px 24px -14px rgba(42, 37, 35, 0.42);
+
+  /* Chemise de papier : même onglet et même perforation, la pastille de
+     fermeture passe en charbon. */
+  --m-perf-line: #d3c2a2;
+  --m-close: #2a2523;
+  --m-close-edge: #0f0d0c;
+  --m-on-close: #f3ebdd;
 
   /* Matin sur Mars : ciel en bandes nettes, de la perle froide du zénith à
      l'abricot de l'horizon, puis le sol (palette « day » du générateur). Tout
-     est clair : le texte posé dessus est ardoise (.m-sky, plus bas) et les
+     est clair : le texte posé dessus est charbon (.m-sky, plus bas) et les
      icônes de la barre d'état passent en sombre le jour (ThemeService).
      --m-sky et --m-sky-open (base, plus haut) se recomposent avec ces bandes
      et ce sol. */
@@ -345,7 +454,7 @@
   --m-sky-ground: #eed2b6;
   --m-page: #c3d2d9;
 
-  /* Lettres MERCURY posées sur ce ciel clair : ardoise, tranche de papier. */
+  /* Lettres MERCURY posées sur ce ciel clair : charbon, tranche de papier. */
   --m-brand: var(--m-ink);
   --m-brand-ledge: rgba(255, 252, 246, 0.7);
 
@@ -358,7 +467,7 @@
   --m-on-invert: var(--m-paper);
 }
 
-/* Alias de contexte du jour : encre ardoise sur le papier, qui est le cas par
+/* Alias de contexte du jour : encre charbon sur le papier, qui est le cas par
    défaut. Les teintes -ink des accents remplacent les -light. */
 :root[data-theme="day"],
 :root[data-theme="day"] .m-sky {
@@ -384,9 +493,10 @@
 }
 
 /* Texte crème et filets clairs pour tout un sous-arbre, quel que soit le mode :
-   - .m-night : élément sombre conservé tel quel (carte de matchmaking,
-     overlay de victoire).
-   En mode jour, .m-sky (posé sur le ciel clair) reprend l'encre ardoise. */
+   - .m-night : un élément qui doit rester sombre en mode jour. Plus aucun
+     gabarit ne l'utilise depuis les chemises (matchmaking et victoire sont
+     des chemises comme les autres) ; gardé pour un besoin futur.
+   En mode jour, .m-sky (posé sur le ciel clair) reprend l'encre charbon. */
 .m-night {
   color-scheme: dark;
   --m-surface: var(--m-ink-night);

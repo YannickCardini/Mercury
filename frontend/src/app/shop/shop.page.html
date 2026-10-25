@@ -1,17 +1,18 @@
 <div class="sh-wrap">
-  <div class="sh-card m-paper">
-    <header class="sh-header">
-      <button class="sh-back" (click)="goBack()">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Chemise : l'onglet retour et l'onglet « Shop » sur son bord haut ; le
+       solde au-dessus de la perforation, le catalogue sur le talon. -->
+  <div class="sh-card m-paper" [class.sh-card--ticket]="signedIn()">
+    <div class="m-tabs">
+      <button class="m-tab-back" (click)="goBack()" aria-label="Back">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <polyline points="15 18 9 12 15 6"></polyline>
         </svg>
-        Back
       </button>
-      <h1 class="sh-title">Shop</h1>
-    </header>
+      <h1 class="m-tab m-tab--gold">Shop</h1>
+    </div>
 
     @if (signedIn()) {
-      <section class="sh-vault">
+      <section class="sh-vault m-ticket-body">
         <div class="sh-vault-row">
           <span class="sh-vault-coin" aria-hidden="true"></span>
           <app-coin-count class="sh-vault-amount" [value]="balance()" />
@@ -35,7 +36,7 @@
 
     <!-- Seule la liste défile : en-tête et solde restent en place, le solde est
          aussi le point de départ des pièces en vol lors d'un achat. -->
-    <div class="sh-scroll">
+    <div class="sh-scroll" [class.m-ticket-stub]="signedIn()">
     @if (loading()) {
       <div class="sh-state">
         <div class="sh-spinner"></div>
@@ -171,19 +172,50 @@
            l'équiper dans le profil, en sachant s'il reste une place. -->
       <div class="modal-card m-paper" role="dialog" aria-modal="true" aria-labelledby="sh-confirm-title"
            [attr.data-effect]="b.effect" (click)="$event.stopPropagation()">
-        <app-boost-cup class="sh-confirm-cup" [effect]="b.effect"
-          [class.is-ghost]="boostPhase() !== 'owned'" [class.is-seated]="seated()" />
+        <div class="m-tabs">
+          <span class="m-tab m-tab--gold">Shop</span>
+        </div>
 
-        @if (boostPhase() !== 'owned') {
-          <h2 id="sh-confirm-title" class="sh-confirm-title">Unlock {{ b.label }}</h2>
-          <!-- Le pari se lit avant de payer : Double Points joue aussi sur la perte. -->
-          <p class="sh-confirm-effect">{{ b.description }}</p>
-          <p class="sh-confirm-scope">Yours for good. You equip it from your profile.</p>
-          <p class="sh-confirm-text">
-            Costs <span class="sh-coin" aria-hidden="true"></span><strong>{{ b.price }}</strong>
-            of your <span class="sh-coin" aria-hidden="true"></span><strong>{{ balance() }}</strong> coins.
-          </p>
-          <div class="sh-confirm-actions">
+        <div class="m-ticket-body sh-confirm-body">
+          <app-boost-cup class="sh-confirm-cup" [effect]="b.effect"
+            [class.is-ghost]="boostPhase() !== 'owned'" [class.is-seated]="seated()" />
+
+          @if (boostPhase() !== 'owned') {
+            <h2 id="sh-confirm-title" class="sh-confirm-title">Unlock {{ b.label }}</h2>
+            <!-- Le pari se lit avant de payer : Double Points joue aussi sur la perte. -->
+            <p class="sh-confirm-effect">{{ b.description }}</p>
+            <p class="sh-confirm-scope">Yours for good. You equip it from your profile.</p>
+            <p class="sh-confirm-text">
+              Costs <span class="sh-coin" aria-hidden="true"></span><strong>{{ b.price }}</strong>
+              of your <span class="sh-coin" aria-hidden="true"></span><strong>{{ balance() }}</strong> coins.
+            </p>
+          } @else {
+            <h2 id="sh-confirm-title" class="sh-confirm-title" aria-live="polite">{{ b.label }} is yours</h2>
+            <p class="sh-confirm-effect">{{ b.description }}</p>
+
+            <!-- Les emplacements du joueur tels qu'ils sont, et celui où irait le
+                 booster : la proposition se lit avant de la toucher. -->
+            <div class="sh-preview" aria-hidden="true">
+              @for (slot of previewSlots(); track $index; let i = $index) {
+                <app-boost-cup class="sh-preview-cup"
+                  [effect]="i === freeSlot() ? b.effect : (slot?.effect ?? null)"
+                  [class.is-ghost]="i === freeSlot()"
+                  [class.is-target]="i === freeSlot()" />
+              }
+            </div>
+            <p class="sh-confirm-scope">
+              @if (freeSlot() !== -1) {
+                Slot {{ freeSlot() + 1 }} is free. Equip it and it plays in every game.
+              } @else {
+                All {{ shop.slots() }} of your slots are in use. Remove a booster in your profile to make room, or unlock a new slot there.
+              }
+            </p>
+          }
+        </div>
+
+        <!-- Talon : payer, puis aller l'équiper. -->
+        <div class="m-ticket-stub sh-confirm-actions">
+          @if (boostPhase() !== 'owned') {
             <button class="sh-btn sh-btn--ghost" (click)="cancel()" [disabled]="boostPhase() === 'buying'">Cancel</button>
             <button class="sh-btn sh-btn--primary" (click)="buy()" [disabled]="boostPhase() === 'buying'">
               @if (boostPhase() === 'buying') {
@@ -192,49 +224,31 @@
                 Unlock
               }
             </button>
-          </div>
-        } @else {
-          <h2 id="sh-confirm-title" class="sh-confirm-title" aria-live="polite">{{ b.label }} is yours</h2>
-          <p class="sh-confirm-effect">{{ b.description }}</p>
-
-          <!-- Les emplacements du joueur tels qu'ils sont, et celui où irait le
-               booster : la proposition se lit avant de la toucher. -->
-          <div class="sh-preview" aria-hidden="true">
-            @for (slot of previewSlots(); track $index; let i = $index) {
-              <app-boost-cup class="sh-preview-cup"
-                [effect]="i === freeSlot() ? b.effect : (slot?.effect ?? null)"
-                [class.is-ghost]="i === freeSlot()"
-                [class.is-target]="i === freeSlot()" />
-            }
-          </div>
-          <p class="sh-confirm-scope">
-            @if (freeSlot() !== -1) {
-              Slot {{ freeSlot() + 1 }} is free. Equip it and it plays in every game.
-            } @else {
-              All {{ shop.slots() }} of your slots are in use. Remove a booster in your profile to make room, or unlock a new slot there.
-            }
-          </p>
-
-          <div class="sh-confirm-actions">
+          } @else {
             <button class="sh-btn sh-btn--ghost" (click)="cancel()">Later</button>
             <button class="sh-btn sh-btn--equip" (click)="equipInProfile(b)">
               {{ freeSlot() !== -1 ? 'Equip in profile' : 'Open my profile' }}
             </button>
-          </div>
-        }
+          }
+        </div>
       </div>
     } @else if (pending(); as item) {
       <div class="modal-card m-paper" role="dialog" aria-modal="true" aria-labelledby="sh-confirm-title"
            (click)="$event.stopPropagation()">
-        <span class="sh-confirm-orb" aria-hidden="true">
-          <span class="sh-confirm-glyph">{{ previewOf(item) }}</span>
-        </span>
-        <h2 id="sh-confirm-title" class="sh-confirm-title">Unlock {{ item.label }}</h2>
-        <p class="sh-confirm-text">
-          Costs <span class="sh-coin" aria-hidden="true"></span><strong>{{ item.price }}</strong>
-          of your <span class="sh-coin" aria-hidden="true"></span><strong>{{ balance() }}</strong> coins.
-        </p>
-        <div class="sh-confirm-actions">
+        <div class="m-tabs">
+          <span class="m-tab m-tab--gold">Shop</span>
+        </div>
+        <div class="m-ticket-body sh-confirm-body">
+          <span class="sh-confirm-orb" aria-hidden="true">
+            <span class="sh-confirm-glyph">{{ previewOf(item) }}</span>
+          </span>
+          <h2 id="sh-confirm-title" class="sh-confirm-title">Unlock {{ item.label }}</h2>
+          <p class="sh-confirm-text">
+            Costs <span class="sh-coin" aria-hidden="true"></span><strong>{{ item.price }}</strong>
+            of your <span class="sh-coin" aria-hidden="true"></span><strong>{{ balance() }}</strong> coins.
+          </p>
+        </div>
+        <div class="m-ticket-stub sh-confirm-actions">
           <button class="sh-btn sh-btn--ghost" (click)="cancel()">Cancel</button>
           <button class="sh-btn sh-btn--primary" (click)="buy()">Unlock</button>
         </div>

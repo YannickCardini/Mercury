@@ -1,0 +1,162 @@
+@use "../styles/tokens" as m;
+
+:host {
+  display: block;
+  flex: none;
+}
+
+// Bascule jour / nuit : « hublot du ciel ». Un disque plat, sans tranche, dans
+// la matière des pastilles de la barre du haut (papier le jour, charbon la
+// nuit), percé d'une fenêtre sur l'horizon du paysage. La fenêtre montre le
+// même horizon au jour, à gauche, et à la nuit, à droite (palette :
+// tokens.css, « Hublot du ciel »), séparés par une barre en diagonale de la
+// matière du cadre : le terminateur, la ligne entre le jour et la nuit d'une
+// planète. L'heure qu'il est prend 60 % de la fenêtre ; à la bascule, la
+// barre traverse la fenêtre pendant que le soir tombe (ou que l'aube se
+// lève) sur le paysage. Rien ne bouge au repos.
+//
+// --sp-at : abscisse de la barre à mi-hauteur. Le découpage de la nuit et la
+// barre la lisent tous les deux, avec la même transition, pour rester
+// ensemble pendant la traversée.
+$sp-lean: 20%; // la tête de la barre est 20 % à droite de son milieu, le pied 20 % à gauche
+$sp-sweep: 1100ms cubic-bezier(0.65, 0, 0.35, 1);
+
+.sky-toggle {
+  @include m.btn(0);
+  --sp-at: 40%;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--m-paper-hi);
+  border: 1.5px solid var(--m-glass-line);
+
+  &.is-day {
+    --sp-at: 60%;
+  }
+
+  &:hover:not(:disabled) {
+    border-color: rgba(var(--m-ink-rgb), 0.3);
+  }
+
+  // Sans tranche, l'appui se lit au disque qui rentre un peu.
+  &:active:not(:disabled) {
+    transform: scale(0.94);
+  }
+}
+
+// La fenêtre, cerclée d'un filet du ton de la tranche des boutons.
+.sky-porthole {
+  position: relative;
+  display: block;
+  width: 31px;
+  height: 31px;
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px var(--m-paper-edge);
+}
+
+.sp-scene {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+// La nuit couvre tout ce qui est à droite de la barre.
+.sp-scene--night {
+  clip-path: polygon(calc(var(--sp-at) + #{$sp-lean}) 0, 100% 0, 100% 100%, calc(var(--sp-at) - #{$sp-lean}) 100%);
+  transition: clip-path $sp-sweep;
+}
+
+// La barre : un trait fin de la matière du cadre, sans filet (épaissie et
+// cerclée, l'anneau barré se lisait comme un panneau d'interdiction). Elle
+// penche de atan(2 × 20 %) = 21,8° et dépasse la fenêtre, qui la coupe.
+.sp-bar {
+  position: absolute;
+  top: -10%;
+  left: var(--sp-at);
+  width: 2px;
+  height: 120%;
+  background: var(--m-paper-hi);
+  transform: translateX(-50%) rotate(21.8deg);
+  transition: left $sp-sweep;
+}
+
+// Une scène peinte à son heure.
+@mixin sp-hour($hour) {
+  @for $n from 5 through 9 {
+    .sp-band-#{$n} {
+      fill: var(--m-porthole-sky-#{$n}-#{$hour});
+    }
+  }
+
+  .sp-mesa {
+    fill: var(--m-porthole-mesa-#{$hour});
+  }
+
+  .sp-mesa-shade {
+    fill: var(--m-porthole-mesa-shade-#{$hour});
+  }
+
+  .sp-strata {
+    stroke: var(--m-porthole-strata-#{$hour});
+  }
+
+  .sp-hill {
+    fill: var(--m-porthole-hill-#{$hour});
+  }
+
+  .sp-hill-rim {
+    stroke: var(--m-porthole-hill-rim-#{$hour});
+  }
+
+  @for $g from 0 through 3 {
+    .sp-g#{$g} {
+      fill: var(--m-porthole-ground-#{$g}-#{$hour});
+    }
+  }
+}
+
+.sp-scene--day {
+  @include sp-hour(day);
+}
+
+.sp-scene--night {
+  @include sp-hour(night);
+}
+
+.sp-strata,
+.sp-hill-rim {
+  fill: none;
+  stroke-linecap: round;
+}
+
+.sp-strata {
+  stroke-width: 0.6;
+}
+
+.sp-hill-rim {
+  stroke-width: 0.7;
+}
+
+.sp-sun-halo { fill: var(--m-porthole-sun-halo); }
+.sp-sun2-halo { fill: var(--m-porthole-sun2-halo); }
+.sp-sun { fill: var(--m-porthole-sun); }
+.sp-sun2 { fill: var(--m-porthole-sun2); }
+.sp-sun2-core { fill: var(--m-porthole-sun2-core); }
+.sp-stars { fill: var(--m-porthole-deimos); }
+.sp-moon-halo { fill: var(--m-porthole-moon-halo); }
+.sp-phobos { fill: var(--m-porthole-phobos); }
+.sp-phobos-shade { fill: var(--m-porthole-phobos-shade); }
+.sp-phobos-crater { fill: var(--m-porthole-phobos-crater); }
+.sp-deimos-halo { fill: var(--m-porthole-deimos-halo); }
+.sp-deimos { fill: var(--m-porthole-deimos); }
+
+@media (prefers-reduced-motion: reduce) {
+  .sp-scene--night,
+  .sp-bar {
+    transition: none;
+  }
+}

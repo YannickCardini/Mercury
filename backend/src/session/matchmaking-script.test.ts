@@ -71,7 +71,7 @@ test('script — joueur régulier : plafond 45 s, médiane raisonnable', () => {
     }
     const full = scripts(3, false).map(s => s.fullAt);
     const m = median(full);
-    assert.ok(m >= 10_000 && m <= 25_000, `médiane plein : ${m} ms`);
+    assert.ok(m >= 10_000 && m <= 30_000, `médiane plein : ${m} ms`);
 });
 
 test('script — archétypes et surcouches dans les proportions prévues', () => {

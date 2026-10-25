@@ -1,6 +1,4 @@
-<!-- `m-night` : l'overlay reste sombre en mode jour, ses textes d'accent aussi. -->
-<div class="victory-overlay m-night" [attr.data-color]="winners()[0]?.color" [attr.data-color2]="winners()[1]?.color"
-  [class.defeat]="!isWinner()">
+<div class="victory-overlay" [class.defeat]="!isWinner()">
 
   <!-- Confetti — only for the winner -->
   @if (isWinner()) {
@@ -41,10 +39,18 @@
     </div>
   </ng-template>
 
-  <!-- Card centrale -->
-  <div class="victory-card" [class.by-default]="byDefault()">
+  <!-- Chemise centrale : onglet or (victoire) ou rouge (défaite), le résultat
+       sur le corps, le retour au menu sur le talon. -->
+  <div class="victory-card m-paper" [class.by-default]="byDefault()">
+    <div class="m-tabs">
+      <span class="m-tab" [class.m-tab--gold]="isWinner()" [class.m-tab--red]="!isWinner()">Game Over</span>
+    </div>
+
+    <!-- Seul ce conteneur défile : la chemise ne rogne pas son onglet. -->
+    <div class="vc-sheet">
     <!-- vc-head / vc-squads / vc-side : transparents (display: contents) en
          portrait ; en paysage ils deviennent les zones d'une grille (voir le SCSS). -->
+    <div class="m-ticket-body vc-body">
     <div class="vc-head">
     <div class="trophy">{{ byDefault() ? '🏳️' : (isWinner() ? '🏆' : '💀') }}</div>
     <div class="victory-title">
@@ -163,8 +169,12 @@
     }
 
     </div>
+    </div>
 
-    <button class="back-btn" (click)="backToMenu.emit()">Back to menu</button>
+    <div class="m-ticket-stub vc-stub">
+      <button class="back-btn" (click)="backToMenu.emit()">Back to menu</button>
+    </div>
+    </div>
   </div>
 
   <!-- Scène des pièces gagnées. Toujours montée, même vide : elle sert de repère

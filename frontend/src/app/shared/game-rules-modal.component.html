@@ -1,22 +1,25 @@
 <div class="rules-overlay" [class.active]="show" (click)="closeModal.emit()">
   <div class="rules-card m-paper" (click)="$event.stopPropagation()">
 
-    <button class="rules-close" (click)="closeModal.emit()">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-        stroke-linecap="round" stroke-linejoin="round">
+    <div class="m-tabs">
+      <span class="m-tab m-tab--blue">Game Rules</span>
+    </div>
+    <button class="m-close" (click)="closeModal.emit()" aria-label="Close">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"
+        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M18 6 6 18M6 6l12 12" />
       </svg>
     </button>
 
     <div class="rules-header">
-      <div class="rules-marbles">
+      <div class="rules-marbles" aria-hidden="true">
         <span class="mm mm-red"></span>
         <span class="mm mm-green"></span>
         <span class="mm mm-blue"></span>
         <span class="mm mm-orange"></span>
       </div>
-      <h2 class="rules-title">Game Rules</h2>
-      <p class="rules-subtitle">Mercury, Keezen/Tock Board Game</p>
+      <h2 class="rules-title">Mercury</h2>
+      <p class="rules-subtitle">Keezen/Tock Board Game</p>
     </div>
 
     <div class="rules-body">

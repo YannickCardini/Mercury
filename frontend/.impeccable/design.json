@@ -1,40 +1,126 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-15T12:48:32.361930+00:00",
+  "generatedAt": "2026-10-25T17:54:56.150212+00:00",
   "title": "Design System: Mercury",
   "extensions": {
     "colorMeta": {
-      "lagoon": {
+      "charcoal": {
         "role": "neutral",
-        "displayName": "Dark Lagoon"
+        "displayName": "Warm Charcoal (night folder face)",
+        "tonalRamp": [
+          "#221e1c",
+          "#2a2523",
+          "#36302d",
+          "#3b3430",
+          "#3d3531",
+          "#463d38",
+          "#544943"
+        ]
       },
-      "lagoon-hi": {
+      "charcoal-hi": {
         "role": "neutral",
-        "displayName": "Lagoon Lift"
+        "displayName": "Charcoal Lift (secondary buttons, fields, home plates)"
       },
-      "lagoon-lo": {
+      "charcoal-lo": {
         "role": "neutral",
-        "displayName": "Lagoon Well"
+        "displayName": "Charcoal Well"
       },
-      "lagoon-line": {
+      "charcoal-line": {
         "role": "neutral",
-        "displayName": "Muted Cyan"
+        "displayName": "Charcoal Line"
       },
-      "lagoon-edge": {
+      "charcoal-mid": {
         "role": "neutral",
-        "displayName": "Lagoon Edge"
+        "displayName": "Lit Edge, first tier"
+      },
+      "charcoal-edge": {
+        "role": "neutral",
+        "displayName": "Lit Edge, last tier"
+      },
+      "charcoal-slab-mid": {
+        "role": "neutral",
+        "displayName": "Capsule Mid"
       },
       "ink-night": {
         "role": "neutral",
-        "displayName": "Ink Night"
+        "displayName": "Charcoal Well (--m-ink-night)"
       },
       "ink": {
         "role": "neutral",
-        "displayName": "Cream Ink"
+        "displayName": "Warm Cream (night ink)"
+      },
+      "cream": {
+        "role": "neutral",
+        "displayName": "Warm Cream (text on the sky)"
       },
       "ink-solid": {
         "role": "neutral",
-        "displayName": "Lagoon Ink"
+        "displayName": "Dark Ink (labels on light fills)"
+      },
+      "perf-line": {
+        "role": "neutral",
+        "displayName": "Perforation Line (night)"
+      },
+      "close": {
+        "role": "neutral",
+        "displayName": "Close Disc (night)"
+      },
+      "close-edge": {
+        "role": "neutral",
+        "displayName": "Close Disc ledge (night)"
+      },
+      "day-paper": {
+        "role": "neutral",
+        "displayName": "Cream Paper (day folder face)",
+        "tonalRamp": [
+          "#c8b28a",
+          "#dccbac",
+          "#dccfb4",
+          "#e1d3b8",
+          "#ebe2d0",
+          "#f4eddf",
+          "#faf5ea"
+        ]
+      },
+      "day-paper-hi": {
+        "role": "neutral",
+        "displayName": "Paper Lift (day)"
+      },
+      "day-paper-lo": {
+        "role": "neutral",
+        "displayName": "Paper Well (day)"
+      },
+      "day-paper-mid": {
+        "role": "neutral",
+        "displayName": "Paper ledge, first tier (day)"
+      },
+      "day-paper-edge": {
+        "role": "neutral",
+        "displayName": "Paper ledge, last tier (day)"
+      },
+      "day-slab-mid": {
+        "role": "neutral",
+        "displayName": "Capsule Mid (day)"
+      },
+      "day-line": {
+        "role": "neutral",
+        "displayName": "Paper Line (day)"
+      },
+      "day-ink": {
+        "role": "neutral",
+        "displayName": "Charcoal Ink (day --m-ink)"
+      },
+      "day-perf-line": {
+        "role": "neutral",
+        "displayName": "Perforation Line (day)"
+      },
+      "day-close": {
+        "role": "neutral",
+        "displayName": "Close Disc (day)"
+      },
+      "day-close-edge": {
+        "role": "neutral",
+        "displayName": "Close Disc ledge (day)"
       },
       "night": {
         "role": "neutral",
@@ -54,9 +140,26 @@
         "tonalRamp": [
           "#1b6e50",
           "#008f5f",
+          "#00ab72",
           "#00c885",
           "#6fd0a9"
         ]
+      },
+      "green-mid": {
+        "role": "primary",
+        "displayName": "Sage Mint ledge, first tier"
+      },
+      "green-deep": {
+        "role": "primary",
+        "displayName": "Sage Mint ledge, last tier"
+      },
+      "green-ink": {
+        "role": "primary",
+        "displayName": "Sage Mint text on paper"
+      },
+      "green-light": {
+        "role": "primary",
+        "displayName": "Sage Mint text on charcoal or sky"
       },
       "blue": {
         "role": "secondary",
@@ -64,9 +167,26 @@
         "tonalRamp": [
           "#0b639a",
           "#0c5d8c",
+          "#086aa4",
           "#0477bd",
           "#7fc4f0"
         ]
+      },
+      "blue-mid": {
+        "role": "secondary",
+        "displayName": "Harbor Blue ledge, first tier"
+      },
+      "blue-deep": {
+        "role": "secondary",
+        "displayName": "Harbor Blue ledge, last tier"
+      },
+      "blue-ink": {
+        "role": "secondary",
+        "displayName": "Harbor Blue text on paper"
+      },
+      "blue-light": {
+        "role": "secondary",
+        "displayName": "Harbor Blue text on charcoal or sky"
       },
       "orange": {
         "role": "tertiary",
@@ -74,9 +194,26 @@
         "tonalRamp": [
           "#a8501a",
           "#c96a2b",
+          "#e07d3c",
           "#f7914e",
           "#f9a56c"
         ]
+      },
+      "orange-mid": {
+        "role": "tertiary",
+        "displayName": "Ember Orange ledge, first tier"
+      },
+      "orange-deep": {
+        "role": "tertiary",
+        "displayName": "Ember Orange ledge, last tier"
+      },
+      "orange-ink": {
+        "role": "tertiary",
+        "displayName": "Ember Orange text on paper"
+      },
+      "orange-light": {
+        "role": "tertiary",
+        "displayName": "Ember Orange text on charcoal or sky"
       },
       "red": {
         "role": "tertiary",
@@ -84,9 +221,26 @@
         "tonalRamp": [
           "#9c3220",
           "#b53a25",
+          "#b23b28",
           "#c8452f",
           "#f08a76"
         ]
+      },
+      "red-mid": {
+        "role": "tertiary",
+        "displayName": "Brick Red ledge, first tier"
+      },
+      "red-deep": {
+        "role": "tertiary",
+        "displayName": "Brick Red ledge, last tier"
+      },
+      "red-ink": {
+        "role": "tertiary",
+        "displayName": "Brick Red text on paper"
+      },
+      "red-light": {
+        "role": "tertiary",
+        "displayName": "Brick Red text on charcoal or sky"
       },
       "gold": {
         "role": "tertiary",
@@ -94,9 +248,26 @@
         "tonalRamp": [
           "#8a6400",
           "#c78a00",
+          "#e3a002",
           "#ffb703",
           "#ffc83d"
         ]
+      },
+      "gold-mid": {
+        "role": "tertiary",
+        "displayName": "Coin Gold ledge, first tier"
+      },
+      "gold-deep": {
+        "role": "tertiary",
+        "displayName": "Coin Gold ledge, last tier"
+      },
+      "gold-ink": {
+        "role": "tertiary",
+        "displayName": "Coin Gold text on paper"
+      },
+      "gold-light": {
+        "role": "tertiary",
+        "displayName": "Coin Gold text on charcoal or sky"
       },
       "cyan": {
         "role": "tertiary",
@@ -104,32 +275,53 @@
         "tonalRamp": [
           "#0e6e7f",
           "#168499",
+          "#1c9eb4",
           "#22b8cf",
           "#6fdcec"
         ]
       },
-      "day-ink": {
+      "cyan-mid": {
+        "role": "tertiary",
+        "displayName": "Cyan ledge, first tier"
+      },
+      "violet-deep": {
+        "role": "tertiary",
+        "displayName": "Cyan ledge, last tier"
+      },
+      "violet-ink": {
+        "role": "tertiary",
+        "displayName": "Cyan text on paper"
+      },
+      "violet-light": {
+        "role": "tertiary",
+        "displayName": "Cyan text on charcoal or sky"
+      },
+      "silver": {
         "role": "neutral",
-        "displayName": "Slate Ink (day --m-ink)"
+        "displayName": "Silver medal"
+      },
+      "bronze": {
+        "role": "neutral",
+        "displayName": "Bronze medal"
       },
       "mars-sky-zenith": {
         "role": "neutral",
-        "displayName": "Cool Pearl (day sky zenith)",
+        "displayName": "Pale Haze (day sky zenith)",
         "tonalRamp": [
-          "#e2e9eb",
-          "#e6ebea",
-          "#eaece8",
-          "#eeebe4",
-          "#f2e8de",
-          "#f4e3d6",
-          "#f6dccc",
-          "#f7d4bf",
-          "#f7ccb2"
+          "#c3d2d9",
+          "#c9d6d9",
+          "#d0d9d7",
+          "#d8dbd3",
+          "#e0dccf",
+          "#e5d6c5",
+          "#e8cebb",
+          "#e9c0a4",
+          "#eabb9b"
         ]
       },
       "mars-sky-horizon": {
         "role": "neutral",
-        "displayName": "Apricot Horizon (day)"
+        "displayName": "Apricot Horizon (day sky horizon)"
       },
       "mars-ground": {
         "role": "neutral",
@@ -250,33 +442,52 @@
       "label": {
         "displayName": "Label",
         "purpose": "Field and section labels in --m-fg-3, sentence case."
+      },
+      "title": {
+        "displayName": "Title (Baloo 2, folder tabs)",
+        "purpose": "Folder tab labels, which carry the window or page title."
       }
     },
     "shadows": [
       {
-        "name": "ledge",
-        "value": "0 3px 0 0 var(--m-paper-edge)",
-        "purpose": "Secondary buttons and chips."
+        "name": "folder",
+        "value": "0 30px 56px -30px rgba(0,0,0,0.85)",
+        "purpose": "Folders and panels at night (--m-shadow-slab). Soft drop only."
       },
       {
-        "name": "slab",
-        "value": "0 4px 0 0 var(--m-paper-edge), 0 22px 40px -22px rgba(0,0,0,0.7)",
-        "purpose": "Cards, modals, panels (night)."
-      },
-      {
-        "name": "slab-day",
-        "value": "0 4px 0 0 var(--m-paper-edge), 0 20px 36px -22px rgba(19,50,70,0.5)",
-        "purpose": "Cards, modals, panels (day)."
+        "name": "folder-day",
+        "value": "0 26px 44px -24px rgba(42,37,35,0.5)",
+        "purpose": "Folders and panels by day."
       },
       {
         "name": "pop",
-        "value": "0 2px 0 0 var(--m-paper-edge), 0 12px 24px -14px rgba(0,0,0,0.6)",
-        "purpose": "Toasts and small floating items."
+        "value": "inset 0 2px 0 0 rgba(243,235,221,0.08), 0 2px 0 -1px var(--m-slab-mid), 0 4px 0 -1px var(--m-paper-edge), 0 14px 24px -14px rgba(0,0,0,0.6)",
+        "purpose": "Toasts, tips, floating plates and small in-game capsules."
       },
       {
-        "name": "accent-ledge",
-        "value": "0 3px 0 0 var(--m-<accent>-deep)",
-        "purpose": "Filled buttons."
+        "name": "pop-day",
+        "value": "inset 0 2px 0 0 rgba(255,252,246,0.6), 0 2px 0 -1px var(--m-slab-mid), 0 4px 0 -1px var(--m-paper-edge), 0 14px 24px -14px rgba(42,37,35,0.42)",
+        "purpose": "Same, by day."
+      },
+      {
+        "name": "keycap",
+        "value": "inset 0 2px 0 0 rgba(243,235,221,0.22), 0 3px 0 -1px <accent>-mid, 0 6px 0 -1px <accent>-deep",
+        "purpose": "Filled and paper buttons; pressed drops one 3px step."
+      },
+      {
+        "name": "close-disc",
+        "value": "0 3px 0 0 var(--m-close-edge), 0 10px 18px -8px rgba(0,0,0,0.55)",
+        "purpose": "Folder close disc."
+      },
+      {
+        "name": "ledge",
+        "value": "0 3px 0 0 var(--m-paper-edge)",
+        "purpose": "Chips and small icon buttons."
+      },
+      {
+        "name": "table-glass",
+        "value": "0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(240,248,255,0.3)",
+        "purpose": "/game table panel, glass family with the board (with rgba(255,255,255,0.15) and blur(8px))."
       },
       {
         "name": "focus",
@@ -293,7 +504,7 @@
       {
         "name": "press",
         "value": "90ms",
-        "purpose": "Button press: translateY 2px, ledge to 1px."
+        "purpose": "Button and close-disc press: face drops one --m-btn-lift step (3px)."
       },
       {
         "name": "mars-mist-drift",
@@ -329,6 +540,10 @@
       {
         "name": "horizon-landscape",
         "value": "(orientation: landscape) --m-horizon: 64%"
+      },
+      {
+        "name": "two-pane-profile",
+        "value": "(min-width: 820px) and (min-height: 520px)"
       }
     ]
   },
@@ -337,17 +552,33 @@
       "name": "Primary Button (fill green)",
       "kind": "button",
       "refersTo": "button-fill-green",
-      "description": "Main action (play, confirm): accent fill on a solid deep ledge that presses down.",
-      "html": "<button class=\"ds-btn ds-btn-fill\">Play now</button>",
-      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 18px; border-radius: var(--m-r-pill, 999px); font-family: var(--m-font-text); font-weight: 700; line-height: 1.2; cursor: pointer; transition: transform 90ms ease-out, box-shadow 90ms ease-out, background-color .18s, border-color .18s, color .18s, filter .18s; } .ds-btn:focus-visible { outline: 2px solid var(--m-blue-fg, #7fc4f0); outline-offset: 2px; } .ds-btn:disabled { opacity: .5; cursor: not-allowed; } .ds-btn-fill { background: var(--m-green, #00c885); color: var(--m-on-green, #0c2230); border: 0; box-shadow: 0 3px 0 0 var(--m-green-deep, #008f5f); } .ds-btn-fill:hover { filter: brightness(1.07); } .ds-btn-fill:active { transform: translateY(2px); box-shadow: 0 1px 0 0 var(--m-green-deep, #008f5f); filter: none; }"
+      "description": "Main action: green keycap with a two-tier ledge.",
+      "html": "<button class=\"ds-btn-fill\">Play Now</button>",
+      "css": ".ds-btn-fill { display:inline-flex; align-items:center; gap:8px; padding:11px 18px; margin-bottom:6px; border-radius:16px; font-family:var(--m-font-text); font-weight:700; line-height:1.2; cursor:pointer; background:#00c885; color:#241b16; border:2px solid #008f5f; box-shadow: inset 0 2px 0 0 rgba(243,235,221,0.22), 0 3px 0 -1px #00ab72, 0 6px 0 -1px #008f5f; transition: transform 90ms ease-out, box-shadow 90ms ease-out, filter .18s; } .ds-btn-fill:hover { filter:brightness(1.07); } .ds-btn-fill:active { transform:translateY(3px); box-shadow: inset 0 2px 0 0 rgba(243,235,221,0.12), 0 0 0 -1px #00ab72, 0 3px 0 -1px #008f5f; } .ds-btn-fill:focus-visible { outline:2px solid #7fc4f0; outline-offset:2px; }"
     },
     {
-      "name": "Secondary Button (paper)",
+      "name": "Secondary Button (paper, lit edge)",
       "kind": "button",
       "refersTo": "button-paper",
-      "description": "Secondary action, same relief as the fill without colour; works on the sky and in cards.",
-      "html": "<button class=\"ds-btn ds-btn-paper\">Custom game</button>",
-      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 18px; border-radius: var(--m-r-pill, 999px); font-family: var(--m-font-text); font-weight: 700; line-height: 1.2; cursor: pointer; transition: transform 90ms ease-out, box-shadow 90ms ease-out, background-color .18s, border-color .18s, color .18s, filter .18s; } .ds-btn:focus-visible { outline: 2px solid var(--m-blue-fg, #7fc4f0); outline-offset: 2px; } .ds-btn:disabled { opacity: .5; cursor: not-allowed; } .ds-btn-paper { background: var(--m-paper-hi, #265670); color: var(--m-ink, #f0f8ff); border: 1px solid var(--m-glass-line, #2e637e); box-shadow: 0 3px 0 0 var(--m-paper-edge, #0f2938); } .ds-btn-paper:hover { border-color: rgba(var(--m-ink-rgb, 240,248,255), .3); } .ds-btn-paper:active { transform: translateY(2px); box-shadow: 0 1px 0 0 var(--m-paper-edge, #0f2938); }"
+      "description": "Charcoal keycap whose ledge is lighter than its face.",
+      "html": "<button class=\"ds-btn-paper\">Custom Game</button>",
+      "css": ".ds-btn-paper { display:inline-flex; align-items:center; gap:8px; padding:11px 18px; margin-bottom:6px; border-radius:16px; font-family:var(--m-font-text); font-weight:700; line-height:1.2; cursor:pointer; background:#36302d; color:#f3ebdd; border:2px solid #3b3430; box-shadow: inset 0 2px 0 0 rgba(243,235,221,0.22), 0 3px 0 -1px #463d38, 0 6px 0 -1px #544943; transition: transform 90ms ease-out, box-shadow 90ms ease-out, border-color .18s; } .ds-btn-paper:hover { border-color: rgba(243,235,221,0.3); } .ds-btn-paper:active { transform:translateY(3px); box-shadow: inset 0 2px 0 0 rgba(243,235,221,0.12), 0 0 0 -1px #463d38, 0 3px 0 -1px #544943; } .ds-btn-paper:focus-visible { outline:2px solid #7fc4f0; outline-offset:2px; }"
+    },
+    {
+      "name": "Folder with tab, close disc and ticket stub",
+      "kind": "card",
+      "refersTo": "folder",
+      "description": "Every modal and floating panel: flat charcoal sheet, colour tab, close disc, perforated stub carrying the actions.",
+      "html": "<div class=\"ds-folder\"><div class=\"ds-tabs\"><span class=\"ds-tab\">About</span></div><button class=\"ds-close\" aria-label=\"Close\"><svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.6\" stroke-linecap=\"round\"><path d=\"M6 6l12 12M18 6L6 18\"/></svg></button><div class=\"ds-body\"><p class=\"ds-row\"><span>Version</span><span>2.1.0</span></p><p class=\"ds-row\"><span>Players</span><span>4</span></p></div><div class=\"ds-stub\"><a>Privacy policy</a><a>Delete account</a></div></div>",
+      "css": ".ds-folder { --r:22px; --p:10px; position:relative; width:300px; margin-top:34px; border-radius:var(--r); box-shadow:0 30px 56px -30px rgba(0,0,0,0.85); color:#f3ebdd; font-family:var(--m-font-text); overflow:visible; } .ds-tabs { position:absolute; bottom:100%; left:22px; right:56px; display:flex; gap:6px; } .ds-tab { display:inline-flex; align-items:center; height:34px; padding:2px 18px 0; border-radius:10px 10px 0 0; background:#f7914e; color:#241b16; font-family:var(--m-font-display); font-size:1.15rem; font-weight:700; line-height:1; } .ds-close { position:absolute; top:-14px; right:-12px; z-index:3; display:inline-flex; align-items:center; justify-content:center; width:40px; height:40px; padding:0; border:0; border-radius:50%; background:#f3ebdd; color:#2a2523; cursor:pointer; box-shadow:0 3px 0 0 #bfb19a, 0 10px 18px -8px rgba(0,0,0,0.55); transition:transform 90ms ease-out, box-shadow 90ms ease-out; } .ds-close:active { transform:translateY(3px); box-shadow:0 0 0 0 #bfb19a, 0 6px 12px -8px rgba(0,0,0,0.5); } .ds-close:focus-visible { outline:2px solid #7fc4f0; outline-offset:3px; } .ds-body { padding:24px; border-radius:var(--r) var(--r) 0 0; background: radial-gradient(circle at 0 100%, transparent var(--p), #2a2523 calc(var(--p) + .5px)) left bottom / 51% 100% no-repeat, radial-gradient(circle at 100% 100%, transparent var(--p), #2a2523 calc(var(--p) + .5px)) right bottom / 51% 100% no-repeat; } .ds-row { display:flex; align-items:baseline; gap:8px; margin:0 0 8px; } .ds-row::after { content:''; order:1; flex:1 1 24px; border-bottom:2px dotted #4a413c; transform:translateY(-4px); } .ds-row > :last-child { order:2; } .ds-stub { position:relative; display:flex; gap:16px; padding:18px 24px; border-radius:0 0 var(--r) var(--r); color:#f9a56c; font-weight:700; background: radial-gradient(circle at 0 0, transparent var(--p), #2a2523 calc(var(--p) + .5px)) left top / 51% 100% no-repeat, radial-gradient(circle at 100% 0, transparent var(--p), #2a2523 calc(var(--p) + .5px)) right top / 51% 100% no-repeat; } .ds-stub::before { content:''; position:absolute; top:-1px; left:18px; right:18px; height:2px; background:repeating-linear-gradient(90deg, #4a413c 0 5px, transparent 5px 10px); }"
+    },
+    {
+      "name": "Folder tabs (accents)",
+      "kind": "chip",
+      "refersTo": "folder-tab-red",
+      "description": "Colour tabs naming a window; several side by side on multi-pane folders.",
+      "html": "<div class=\"ds-tabrow\"><span class=\"ds-t ds-red\">Profile</span><span class=\"ds-t ds-blue\">Messages</span><span class=\"ds-t ds-gold\">Shop</span><span class=\"ds-t ds-green\">Play Now</span></div>",
+      "css": ".ds-tabrow { display:flex; gap:6px; align-items:flex-end; border-bottom:6px solid #2a2523; } .ds-t { display:inline-flex; align-items:center; height:34px; padding:2px 18px 0; border-radius:10px 10px 0 0; font-family:var(--m-font-display); font-size:1.15rem; font-weight:700; line-height:1; } .ds-red { background:#c8452f; color:#f3ebdd; } .ds-blue { background:#0477bd; color:#f3ebdd; } .ds-gold { background:#ffb703; color:#241b16; } .ds-green { background:#00c885; color:#241b16; }"
     },
     {
       "name": "Quiet Button",
@@ -382,20 +613,12 @@
       "css": ".ds-field { padding: 10px 14px; background: var(--m-field); color: var(--m-fg); border: 1.5px solid var(--m-line-2); border-radius: var(--m-r-md, 14px); font-family: var(--m-font-text); outline: none; transition: border-color .18s, box-shadow .18s; } .ds-field::placeholder { color: var(--m-fg-4); } .ds-field:focus { border-color: var(--m-blue-fg); box-shadow: var(--m-focus); }"
     },
     {
-      "name": "Slab",
-      "kind": "card",
-      "refersTo": "slab",
-      "description": "Standard card, modal and panel: opaque matte fill, 1px line, solid ledge.",
-      "html": "<div class=\"ds-slab\"><h3 class=\"ds-slab-title\">Custom game</h3><p class=\"ds-slab-body\">Share the code with three friends.</p></div>",
-      "css": ".ds-slab { background: var(--m-paper, #1d4459); color: var(--m-fg, #f0f8ff); border: 1px solid var(--m-glass-line, #2e637e); border-radius: var(--m-r-xl, 28px); box-shadow: var(--m-shadow-slab); padding: 20px 22px; max-width: 320px; } .ds-slab-title { margin: 0 0 6px; font-family: var(--m-font-display); font-weight: 700; line-height: 1.1; font-size: 1.4rem; } .ds-slab-body { margin: 0; font-family: var(--m-font-text); color: var(--m-fg-2); }"
-    },
-    {
       "name": "Mars landscape, day (simplified)",
       "kind": "custom",
       "refersTo": "mars-sky-zenith",
       "description": "Schematic of the day palette: banded pearl-to-apricot sky to the horizon, ring sun, flat mesa band, banded sand ground, slate ink text via m-sky. The real layer is generated SVG.",
       "html": "<div class=\"ds-mars\"><div class=\"ds-mars-sun\"></div><div class=\"ds-mars-mesa\"></div><div class=\"ds-mars-ground\"></div><p class=\"ds-mars-title\">MERCURY</p></div>",
-      "css": ".ds-mars { --hz: 53%; position: relative; width: 320px; height: 260px; overflow: hidden; border-radius: 14px; background: linear-gradient(180deg, #e2e9eb 0 calc(var(--hz)*.16), #e6ebea 0 calc(var(--hz)*.32), #eaece8 0 calc(var(--hz)*.46), #eeebe4 0 calc(var(--hz)*.58), #f2e8de 0 calc(var(--hz)*.69), #f4e3d6 0 calc(var(--hz)*.79), #f6dccc 0 calc(var(--hz)*.875), #f7d4bf 0 calc(var(--hz)*.945), #f7ccb2 0 var(--hz), #eed2b6 0); } .ds-mars-sun { position: absolute; left: 76%; top: calc(var(--hz) - 34px); width: 40px; height: 40px; border-radius: 50%; background: #fffaf1; box-shadow: 0 0 0 10px rgba(255,246,232,.38), 0 0 0 22px rgba(255,246,232,.2); } .ds-mars-mesa { position: absolute; left: 8%; top: calc(var(--hz) - 22px); width: 90px; height: 22px; background: #edcdbb; clip-path: polygon(0 100%, 30% 0, 70% 0, 100% 100%); } .ds-mars-ground { position: absolute; left: 0; right: 0; top: calc(var(--hz) + 30px); bottom: 0; background: linear-gradient(180deg, #f0d4b8 0 30%, #edceaf 0 65%, #eac8a7 0); } .ds-mars-title { position: absolute; top: 18px; left: 0; right: 0; margin: 0; text-align: center; font-family: var(--m-font-display); font-weight: 800; font-size: 2rem; color: #133246; }"
+      "css": ".ds-mars { --hz: 53%; position: relative; width: 320px; height: 260px; overflow: hidden; border-radius: 14px; background: linear-gradient(180deg, #c3d2d9 0 calc(var(--hz)*.16), #c9d6d9 0 calc(var(--hz)*.32), #d0d9d7 0 calc(var(--hz)*.46), #d8dbd3 0 calc(var(--hz)*.58), #e0dccf 0 calc(var(--hz)*.69), #e5d6c5 0 calc(var(--hz)*.79), #e8cebb 0 calc(var(--hz)*.875), #e9c0a4 0 calc(var(--hz)*.945), #eabb9b 0 var(--hz), #eed2b6 0); } .ds-mars-sun { position: absolute; left: 76%; top: calc(var(--hz) - 34px); width: 40px; height: 40px; border-radius: 50%; background: #fffaf1; box-shadow: 0 0 0 10px rgba(255,246,232,.38), 0 0 0 22px rgba(255,246,232,.2); } .ds-mars-mesa { position: absolute; left: 8%; top: calc(var(--hz) - 22px); width: 90px; height: 22px; background: #edcdbb; clip-path: polygon(0 100%, 30% 0, 70% 0, 100% 100%); } .ds-mars-ground { position: absolute; left: 0; right: 0; top: calc(var(--hz) + 30px); bottom: 0; background: linear-gradient(180deg, #f0d4b8 0 30%, #edceaf 0 65%, #eac8a7 0); } .ds-mars-title { position: absolute; top: 18px; left: 0; right: 0; margin: 0; text-align: center; font-family: var(--m-font-display); font-weight: 800; font-size: 2rem; color: #133246; }"
     },
     {
       "name": "Mars landscape, night (simplified)",
@@ -407,25 +630,26 @@
     }
   ],
   "narrative": {
-    "northStar": "Matte Lagoon Boards on a Night Sky",
-    "overview": "**Creative North Star: \"Matte Lagoon Boards on a Night Sky\"**\n\nEvery surface a player touches (card, modal, panel, toast, secondary button) is an opaque matte lagoon-blue slab (#1d4459, with #16374a ink-night for the matchmaking card), with cream text (#f0f8ff) and a 1px muted cyan line (#2e637e), set over the always-visible Mars landscape background. The feel is a modern board game: warm, solid, no transparency, no blur, no glow. The primary action is a matte sage-mint green (#00c885). MERCURY and its subtitle stay as they are.\n\nThe tone is sober and readable, a real well-drawn object rather than decoration. Baloo 2 gives titles and numbers a rounded, friendly weight; Plus Jakarta Sans carries everything else. Color is used as a small set of named accents on buttons and tints, never as ambient decoration.\n\nBehind everything is one place, a terraformed Mars seen flat and frontal, built from two primitives only: horizontal bands and concentric rings. The same landscape is drawn in two lights. At night it lies under a near-uniform navy sky with fixed stars, Phobos and Deimos, its colony windows lit in the four seat colours. By day it is a pale morning with a double sunrise. In both modes it stays low in contrast so that the text and plates placed on it read anywhere, and nothing in it competes with the menu.\n\nThe previous dark neon look, a \"solar system\" interface theme, a pulsing-halo \"quicksilver\" direction and the nebula space sky are all discarded and must not return.",
+    "northStar": "Folders from the Game Box",
+    "overview": "Every window a player opens (modal, overlay, floating panel) is a folder pulled from the game box: a flat, opaque warm-charcoal card (#2a2523) with warm cream text (#f3ebdd). A colour tab standing on its top edge names it, a cream close disc rides its top-right corner, and where the window has actions a ticket perforation (two real semicircle holes and a short dashed line) tears off the stub that carries them. By day the same folders are cream paper (#f4eddf) with charcoal ink, the same tabs and cuts, and a charcoal close disc. Everything sits over the always-visible Mars landscape. The feel is a modern board game: warm, solid, no transparency, no blur, no glow. The primary action is a matte sage-mint green (#00c885). MERCURY and its subtitle stay as they are.\n\nThe tone is sober and readable, a real well-drawn object rather than decoration. Baloo 2 gives titles, tabs and numbers a rounded, friendly weight; Plus Jakarta Sans carries everything else. Colour is used as a small set of named accents on buttons, tabs and tints, never as ambient decoration. A player reads which window is open from its tab colour and name, finds the close in the same corner every time, and knows the actions live on the stub below the perforation.\n\nBehind everything is one place, a terraformed Mars seen flat and frontal, built from two primitives only: horizontal bands and concentric rings. The same landscape is drawn in two lights. At night it lies under a near-uniform navy sky with fixed stars, Phobos and Deimos, its colony windows lit in the four seat colours. By day it is a pale morning with a double sunrise. In both modes it stays low in contrast so that the text and folders placed on it read anywhere, and nothing in it competes with the menu.\n\nThe previous dark neon look, a \"solar system\" interface theme, a pulsing-halo \"quicksilver\" direction, the nebula space sky, and the slate and lagoon-blue surfaces are all discarded and must not return. The generic centred card with a title row and an icon close is refused.",
     "keyCharacteristics": [
-      "Opaque matte lagoon-blue surfaces with cream text on a visible Mars landscape",
-      "1px muted cyan line, a solid ledge under slabs and buttons, no backdrop blur or translucent glow",
-      "Rounded display type for titles and numbers, geometric sans for text",
-      "Six named accents, each with a fill, a deep ledge, and a light text variant",
-      "One flat, stacked-plane Mars landscape anchored on one horizon line, with a night palette and a day palette; cream ink on it at night, slate ink by day",
-      "Protected, out of scope for restyling: game cards, board and its components, matchmaking overlay, Mars background (night and day), logo and icon, shop purchase coin animation"
+      "Flat, opaque warm-charcoal folders with cream text at night, cream paper with charcoal ink by day, on a visible Mars landscape",
+      "Every window is named by a colour tab on its top edge and closed by a disc on its top-right corner; actions sit on a stub below a ticket perforation",
+      "Folders are flat (soft drop shadow only, no outline, no ledge); buttons are keycaps whose two-tier ledge is lighter than the face at night (a lit edge)",
+      "Rounded display type for titles, tabs and numbers, geometric sans for text",
+      "Six named accents, each with a fill, a mid and a deep ledge tier, a paper text variant and a sky text variant",
+      "One flat, stacked-plane Mars landscape anchored on one horizon line, with a night palette and a day palette; cream ink on it at night, charcoal ink by day",
+      "Protected, out of scope for restyling: game cards, board and its components, Mars background (night and day), logo and icon, shop purchase coin animation"
     ],
     "rules": [
       {
         "name": "The Context Alias Rule",
-        "body": "Components use the context aliases (`--m-fg`, `--m-line`, `--m-well`, `--m-*-fg`). Sky and lagoon surfaces share the same light-on-dark aliases; lagoon surfaces still carry the `m-paper` class for their fill.",
+        "body": "Components use the context aliases (`--m-fg`, `--m-line`, `--m-well`, `--m-*-fg`). Sky and charcoal surfaces share the same light-on-dark aliases; surfaces still carry the `m-paper` class (or paint `--m-paper` through a ticket part) for their fill.",
         "section": "colors"
       },
       {
         "name": "The One Source Rule",
-        "body": "Values live only in `tokens.css`, shared by the Angular app and the static content site. Never copy a hex into a component. The Mars landscape is the one exception: both its palettes live in its generator, and the sky bands and ground fill of `--m-sky` (night and day) must stay in step with the generator's `PALETTES[..][\"sky\"]` and `PALETTES[..][\"ground\"]`, verbatim.",
+        "body": "Values live only in `tokens.css`, shared by the Angular app and the static content site. Never copy a hex into a component. The Mars landscape is the one exception: both its palettes live in its generator, and the sky bands and ground fill (`--m-sky-bands`, `--m-sky-ground`, night and day) must stay in step with the generator's `PALETTES[..][\"sky\"]` and `PALETTES[..][\"ground\"]`, verbatim.",
         "section": "colors"
       },
       {
@@ -435,22 +659,32 @@
       },
       {
         "name": "The Sky Ink Rule",
-        "body": "Anything placed directly on the background (the MERCURY title, the home footer, the loading screen) carries the `m-sky` class. At night it takes cream ink; in day mode it takes slate ink (#133246) and the accent `-ink` variants. `m-night` is reserved for dark elements kept dark in both modes (matchmaking card, victory overlay), never for text on the day landscape.",
+        "body": "Anything placed directly on the background (the MERCURY title, the home footer, the loading screen) carries the `m-sky` class. At night it takes cream ink; in day mode it takes charcoal ink (#2a2523) and the accent `-ink` variants. `m-night` (cream text kept in both modes on a `--m-ink-night` surface) is reserved for elements that stay dark by day, never for text on the day landscape; since the folders change, no template uses it.",
+        "section": "colors"
+      },
+      {
+        "name": "The Lit Edge Rule",
+        "body": "At night a charcoal button's ledge is lighter than its face (#463d38 then #544943 under #36302d), so its thickness reads on charcoal and on the night sky alike. Never darken it back into a shadow tier.",
         "section": "colors"
       },
       {
         "name": "The No Shouting Rule",
-        "body": "No uppercase and no letter-spaced capitals for labels. Sentence case, weight does the emphasis.",
+        "body": "No uppercase and no letter-spaced capitals for labels or tabs. Sentence or title case, weight does the emphasis.",
         "section": "typography"
       },
       {
         "name": "The Game Page Exception",
-        "body": "`/game` keeps its own typography (`font-family: initial` on its host); the global fonts do not apply there until a separate task says so.",
+        "body": "`/game` keeps its own typography (`font-family: initial` on its host); the global fonts do not apply there until a separate task says so. The folder tabs used in /game (Resign, Game Over) set their own Baloo 2 through the tab recipe.",
         "section": "typography"
       },
       {
         "name": "The Matte Rule",
-        "body": "No backdrop blur anywhere in the app UI. Scrims are a flat rgba(6,8,16,0.68).",
+        "body": "No backdrop blur anywhere in the app UI, except the /game glass family (board and table panel). Scrims are flat: rgba(6,8,16,0.68) at night, rgba(42,37,35,0.48) by day.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Flat Folder Rule",
+        "body": "A folder is a flat sheet: no outline, no two-tier base, one soft drop shadow. Relief is for what you press (buttons, the close disc) and for small floating capsules.",
         "section": "elevation"
       },
       {
@@ -459,27 +693,36 @@
         "section": "elevation"
       },
       {
+        "name": "The Never Clip Rule",
+        "body": "A folder never clips (`overflow: visible`): its tab and its close disc overflow its edges. A child scrolls instead.",
+        "section": "shapes"
+      },
+      {
         "name": "The Two Primitives Rule",
         "body": "Any new element of the landscape, in either mode, is a band or a set of rings. If it needs another shape, it does not belong in the background. The shooting stars and the spaceship, kept from the previous night sky, are the only exceptions.",
         "section": "shapes"
       }
     ],
     "dos": [
-      "Do use opaque lagoon surfaces with cream text over the sky, and add the `m-paper` class to each of them.",
+      "Do make every new modal or floating panel a folder: flat `--m-paper` sheet at 22px, a colour tab naming it, the close disc on its top-right corner, actions on a stub below a ticket perforation when it has any.",
+      "Do let the tab and close disc overflow the folder; scroll a child, never the folder, and reserve `--m-tab-h` above it.",
+      "Do pick the tab colour from the six accents and keep the label in `--m-on-<accent>`.",
       "Do reference `--m-*` tokens and context aliases; add values to `tokens.css` only.",
-      "Do show thickness with a solid ledge and press feedback (translateY 2px), 90ms.",
-      "Do use the `-light` accent variant for text on lagoon and on the sky.",
+      "Do build buttons with `m.btn` plus `m.btn-fill`, `m.btn-paper` or `m.keycap(mid, deep)`; show thickness with the two-tier ledge and press it by one step (`--m-btn-lift`), 90ms. Reserve 6px under a button for its ledge.",
+      "Do use the `-light` accent variant for text on charcoal and on the night sky, the `-ink` variant on day paper (through `--m-*-fg`).",
       "Do use `--sa-*` variables for any safe-area spacing.",
-      "Do give anything placed directly on the background the `m-sky` class, so it reads slate on the day landscape and cream at night.",
+      "Do give anything placed directly on the background the `m-sky` class, so it reads charcoal on the day landscape and cream at night.",
       "Do position any landscape element, in either mode, from `--m-horizon` and size it in vh.",
-      "Do change the Mars landscape (geometry and both palettes) through `resources/mars/generate-mars-landscape.py`, using bands and concentric rings only, and keep both `--m-sky` gradients in step with its `PALETTES[\"night\"]` and `PALETTES[\"day\"]` sky bands and ground."
+      "Do change the Mars landscape (geometry and both palettes) through `resources/mars/generate-mars-landscape.py`, using bands and concentric rings only, and keep the `--m-sky-bands` and `--m-sky-ground` values in step with its `PALETTES[\"night\"]` and `PALETTES[\"day\"]` sky bands and ground."
     ],
     "donts": [
       "Don't use violet, purple or any derivative in the UI (the Mars background and /game are outside this rule).",
-      "Don't use backdrop blur, translucent glass, glowing borders or pure white fills or text.",
-      "Don't use uppercase spaced labels.",
-      "Don't restyle the game cards, the board, the matchmaking overlay, the Mars background (night or day), the logo or the purchase coin animation without an explicit request.",
-      "Don't introduce ambient looping animations on surfaces (pulsing halos, breathing thumbnails); they were deliberately removed. The motion of the background (mist drift; at night also the beacon, twinkles, shooting stars and spaceship) is background, not surface, and stays there.",
+      "Don't bring back slate or lagoon-blue surfaces, or a dark ledge under a charcoal button.",
+      "Don't give a folder an outline, a ledge, `overflow: hidden`, or a title row with an icon close.",
+      "Don't use backdrop blur, translucent glass on app surfaces (the board and the table panel in /game are the only glass), glowing borders, or pure white fills or text.",
+      "Don't use uppercase spaced labels, on tabs included.",
+      "Don't restyle the game cards, the board and its components, the Mars background (night or day), the logo and icon, or the purchase coin animation without an explicit request.",
+      "Don't introduce ambient looping animations on surfaces (pulsing halos, breathing thumbnails); they were deliberately removed. The motion of the background is background, not surface, and stays there.",
       "Don't use `color-mix()` or Google Fonts.",
       "Don't turn the landscape into a gradient-and-glow sunrise wallpaper or bring back a nebula space sky, and don't add raster textures, saturated colour (beyond the colony's seat windows and beacon) or high-contrast elements to it. At night, no glow marks the horizon.",
       "Don't hand-edit the generated `mars:` blocks of `space-background.component.html` or `_mars-palette.scss`."

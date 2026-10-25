@@ -67,7 +67,6 @@
   .home-nav,
   .hero-title-wrap,
   .home-orbit,
-  .theme-icon,
   .hero-actions .action-btn {
     animation: none !important;
     opacity: 1 !important;
@@ -100,40 +99,6 @@
   display: flex;
   align-items: center;
   gap: 12px;
-}
-
-// Bascule jour / nuit : même pastille papier que le profil et le solde, en
-// rond. L'icône montre le ciel qu'on obtient (soleil la nuit, lune le jour)
-// et entre en tournant quand le mode change.
-.theme-toggle {
-  @include m.btn(0);
-  @include m.btn-paper;
-  flex: none;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-}
-
-.theme-icon {
-  width: 20px;
-  height: 20px;
-  animation: themeIconIn 0.5s var(--m-ease) both;
-}
-
-.theme-icon--sun {
-  color: var(--m-gold-fg);
-}
-
-@keyframes themeIconIn {
-  from {
-    opacity: 0;
-    transform: rotate(-70deg) scale(0.55);
-  }
-
-  to {
-    opacity: 1;
-    transform: none;
-  }
 }
 
 .nav-brand {
@@ -381,16 +346,6 @@
   }
 }
 
-.ab-badge {
-  @include m.tint(orange);
-  font-family: var(--m-font-text);
-  font-size: 10px;
-  font-weight: 700;
-  border-radius: var(--m-r-pill);
-  padding: 2px 8px;
-  white-space: nowrap;
-}
-
 // Marble badges on buttons
 .ab-marble {
   position: relative;
@@ -495,29 +450,62 @@
 }
 
 // ─── Modal card ───────────────────────────────────────────────────────────────
-// Plaque de papier. Le template lui donne aussi `m-paper`, qui fait passer
-// tout son contenu en texte encre ; la carte de matchmaking ne la porte pas
-// et reste une fenêtre sur le ciel (voir plus bas).
+// Chemise (le template lui donne `m-paper`). Son onglet et sa pastille de
+// fermeture (classes globales `.m-tabs`, `.m-close`) dépassent de ses bords :
+// elle ne rogne jamais, c'est `.folder-scroll` qui défile, et elle réserve la
+// hauteur de l'onglet au-dessus d'elle. Toutes les chemises de l'accueil sont
+// des tickets : elles n'ont ni fond ni padding propres, leurs parties (corps
+// et talon, `.m-ticket-body` / `.m-ticket-stub`) peignent le papier.
 .modal-card {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   width: 100%;
   max-width: 380px;
+  margin-top: var(--m-tab-h);
   @include m.slab;
-  padding: 28px 24px 24px;
+  background: none;
+  padding: 0;
   transform: translateY(24px) scale(0.96);
   opacity: 0;
   transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
     opacity 0.25s ease;
 }
 
-.modal-close {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  @include m.icon-btn(32px);
+// Ce qui défile dans une chemise, arrondi comme elle.
+.folder-scroll {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border-radius: inherit;
+  @include m.scrollbar;
+}
+
+// En-tête d'une chemise : les quatre billes au-dessus du titre, calés à
+// gauche sous l'onglet. Le nom de la fenêtre est sur l'onglet, le titre dit
+// ce qu'elle contient.
+.folder-head {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+
+  .mm {
+    width: 12px;
+    height: 12px;
+  }
+
+  .modal-title {
+    font-size: 1.9rem;
+  }
 }
 
 // ─── Modal header ─────────────────────────────────────────────────────────────
+// En-tête centré du panneau de recherche (matchmaking, salon replié).
 .modal-header {
   display: flex;
   flex-direction: column;
@@ -553,115 +541,51 @@
   color: var(--m-fg);
 }
 
-// ─── Login form ───────────────────────────────────────────────────────────────
-.modal-form {
+// Action secondaire du talon (invité, annuler) : la touche charbon.
+.btn-guest {
+  @include m.btn(12px 18px, var(--m-r-md));
+  @include m.btn-paper;
+  width: 100%;
+  font-size: 0.9rem;
+}
+
+// ─── Sign in (guest) ──────────────────────────────────────────────────────────
+// Corps : Google ; talon : jouer sans compte.
+.lg-body {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  margin-bottom: 20px;
-}
+  padding: 26px 24px 24px;
 
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.form-label {
-  @include m.label;
-}
-
-.form-input {
-  @include m.field;
-  padding: 11px 14px;
-  font-size: 0.95rem;
-}
-
-.form-submit {
-  @include m.btn(13px, var(--m-r-md));
-  @include m.btn-fill(blue);
-  margin-top: 6px;
-  font-size: 0.95rem;
-}
-
-// ─── Modal footer (login) ─────────────────────────────────────────────────────
-.modal-footer {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-}
-
-.btn-switch {
-  background: none;
-  border: none;
-  color: var(--m-fg-3);
-  font-size: 0.83rem;
-  cursor: pointer;
-  transition: color 0.2s;
-
-  b {
-    color: var(--m-blue-fg);
-  }
-
-  &:hover {
-    color: var(--m-fg-2);
+  .folder-head {
+    margin-bottom: 4px;
   }
 }
 
-.or-divider {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--m-fg-3);
-  font-size: 0.78rem;
-
-  &::before,
-  &::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--m-line-2);
-  }
-}
-
-// Action discrète de bas de carte (invité, annuler). Suit le contexte : elle
-// sert dans les cartes papier comme dans la carte de matchmaking.
-.btn-guest {
-  @include m.btn(10px 18px, var(--m-r-md));
-  @include m.btn-quiet;
-  width: 100%;
-  font-size: 0.85rem;
+.lg-stub {
+  padding: 22px 24px 24px;
 }
 
 // ─── Matchmaking card ─────────────────────────────────────────────────────────
-// La nuit, élément conservé tel quel : une carte de verre sombre, premier pas
-// vers le plateau (`m-night`, texte crème). Le jour, elle porte `m-paper` à la
-// place et redevient une plaque de papier comme les autres cartes (recette
-// de `.modal-card`), texte ardoise. Rayon et typographie suivent le reste.
+// Une chemise comme les autres, onglet vert « Play Now » : le panneau de
+// recherche en corps, Annuler sur le talon.
 .matchmaking-card {
   max-width: 340px;
   text-align: center;
-
-  &.m-night {
-    background: var(--m-ink-night);
-    border: 1px solid var(--m-line);
-    color: var(--m-fg);
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(var(--m-cream-rgb), 0.04);
-
-    // Sur la nuit, les billes gardent leur halo coloré (retiré sur le papier,
-    // où il ne ferait qu'une tache).
-    .mm {
-      box-shadow: 0 0 6px var(--planet-glow, transparent);
-    }
-  }
 }
 
 // Shared "finding players" panel — rendered both in .matchmaking-card (already
 // centered) and inside .custom-card once the room fell back to the queue.
 .mq-panel {
   text-align: center;
+}
+
+.mq-body {
+  padding: 24px 22px 18px;
+}
+
+.mq-stub {
+  padding: 20px 22px 22px;
 }
 
 // Fallback-only: says who will take the seats the room could not fill.
@@ -780,7 +704,7 @@
   display: flex;
   gap: 6px;
   justify-content: center;
-  margin-bottom: 20px;
+  margin: 4px 0 6px;
 
   span {
     width: 6px;
@@ -816,87 +740,85 @@
 
 
 
-// ─── Settings rules button ────────────────────────────────────────────────────
-// Rangée cliquable des réglages : papier, libellé à gauche, chevron à droite.
-.settings-rules-btn {
-  @include m.btn(12px 16px, var(--m-r-md));
-  @include m.btn-paper;
-  justify-content: flex-start;
-  gap: 10px;
-  width: 100%;
-  margin-bottom: 14px;
-  font-size: 0.88rem;
+// ─── About ────────────────────────────────────────────────────────────────────
+// Corps : la fiche (billes, nom de l'app, lignes à points de conduite) ;
+// talon : ce qui mène ailleurs.
+.settings-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 26px 24px 26px;
+}
 
-  span {
-    flex: 1;
-    text-align: left;
-  }
+.settings-stub {
+  display: flex;
+  flex-direction: column;
+  // 14px entre deux touches : la tranche (6px) dépasse sous chacune.
+  gap: 14px;
+  padding: 26px 24px 26px;
+}
+
+// Rangée cliquable du talon : libellé à gauche, chevron à droite.
+.settings-rules-btn {
+  @include m.btn(14px 18px, var(--m-r-md));
+  @include m.btn-paper;
+  justify-content: space-between;
+  width: 100%;
+  font-size: 0.95rem;
 
   .chevron {
-    opacity: 0.4;
+    flex: none;
+    opacity: 0.6;
     transition: transform 0.2s, opacity 0.2s;
   }
 
   &:hover .chevron {
     transform: translateX(3px);
-    opacity: 0.7;
+    opacity: 0.9;
   }
 }
 
-// Action destructive : plaque pleine rouge, libellé clair.
+// Action destructive : touche pleine rouge, libellé clair.
 .settings-delete-btn {
   @include m.btn-fill(red);
 }
 
-// ─── Settings card ────────────────────────────────────────────────────────────
 .settings-info {
   display: flex;
   flex-direction: column;
-  gap: 0;
-  margin-bottom: 20px;
-  border: 1px solid var(--m-line-2);
-  border-radius: var(--m-r-md);
-  overflow: hidden;
+  gap: 16px;
+  margin: 0;
 }
 
 .info-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--m-line);
-
-  &:last-child {
-    border-bottom: none;
-  }
+  @include m.leader-row;
 }
 
 .info-key {
-  flex: 1;
-  font-size: 0.85rem;
-  font-weight: 600;
+  flex: none;
+  font-size: 0.9rem;
+  font-weight: 500;
   color: var(--m-fg-3);
 }
 
 .info-val {
-  font-size: 0.85rem;
+  flex: none;
+  font-size: 0.9rem;
   font-weight: 700;
   color: var(--m-fg);
 }
 
 .info-link {
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   font-weight: 700;
   color: var(--m-blue-fg);
-  text-decoration: none;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
   // Une adresse e-mail longue ne doit pas pousser la carte hors de l'écran.
   min-width: 0;
   overflow-wrap: anywhere;
   text-align: right;
-
-  &:hover {
-    text-decoration: underline;
-  }
 }
 
 // ─── Google Sign-In nav button ────────────────────────────────────────────────
@@ -1229,92 +1151,167 @@
 // conversation, l'équipement des boosters). Sur téléphone ils s'empilent ;
 // à partir de 820 × 520 ils se posent côte à côte (voir plus bas).
 .login-card {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
   max-width: 420px;
-  // dvh mesure l'écran barres système comprises : on retranche les insets.
-  max-height: min(85dvh - var(--sa-top) - var(--sa-bottom), 720px);
-  overflow-y: auto; // filet de sécurité : la vue principale ne doit jamais déborder
-  @include m.scrollbar;
+  // dvh mesure l'écran barres système comprises : on retranche les insets,
+  // et l'onglet posé au-dessus de la chemise.
+  max-height: min(85dvh - var(--sa-top) - var(--sa-bottom) - var(--m-tab-h), 720px);
 }
 
-// Conversation et équipement prennent toute la carte : elle ne défile pas,
-// leur propre liste défile.
-.login-card--player[data-view="thread"],
-.login-card--player[data-view="boosters"] {
-  overflow: hidden;
+// Onglets du joueur. Sur téléphone, un seul : celui de ce qui est en tête de
+// la fenêtre (le profil, ou la conversation / l'équipement quand ils la
+// prennent entière). Sur grand écran, un par volet (voir plus bas).
+.pl-tabs {
+  .pl-tab-activity {
+    display: none;
+  }
+
+  &[data-view="thread"],
+  &[data-view="boosters"] {
+    .pl-tab-profile {
+      display: none;
+    }
+
+    .pl-tab-activity {
+      display: inline-flex;
+    }
+  }
 }
 
+// Non-lus sur l'onglet Messages : une pastille crème, chiffre bleu.
+.pl-tab-count {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--m-r-pill);
+  background: var(--m-on-blue);
+  color: var(--m-blue-deep);
+  font-family: var(--m-font-text);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+// Les deux volets sont les deux parties d'un ticket : la carte du joueur au-
+// dessus de la perforation, l'activité en dessous. C'est ce conteneur qui
+// défile, arrondi comme la chemise.
 .pl-panes {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
+  overflow-y: auto; // filet de sécurité : la vue principale ne doit jamais déborder
+  border-radius: inherit;
+  @include m.scrollbar;
 }
 
 .pl-identity {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 4px 0 0;
+  padding: 30px 24px 24px;
+  @include m.ticket-part(bottom);
+  border-radius: var(--m-r-folder) var(--m-r-folder) 0 0;
 }
 
-// L'activité, sous la carte : séparée par un filet, comme une page suivante.
 .pl-activity {
+  position: relative;
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
-  margin-top: 24px;
-  padding-top: 20px;
-  border-top: 1px solid var(--m-line-2);
+  padding: 22px 24px 22px;
+  @include m.ticket-part(top);
+  @include m.ticket-seam(top);
+  border-radius: 0 0 var(--m-r-folder) var(--m-r-folder);
 }
 
+// Conversation et équipement prennent toute la chemise : elle ne défile pas,
+// leur propre liste défile, et il n'y a plus de couture.
 .pl-panes[data-view="thread"],
 .pl-panes[data-view="boosters"] {
+  overflow: hidden;
+
   .pl-identity {
     display: none;
   }
 
   .pl-activity {
-    margin-top: 0;
-    padding-top: 0;
-    border-top: 0;
+    padding-top: 24px;
+    background: var(--m-paper);
+    border-radius: var(--m-r-folder);
+
+    &::before {
+      display: none;
+    }
   }
 }
 
 // Le clavier Android couvrirait les messages, et l'édition reste une tâche
-// isolée : sur téléphone ils se retirent pendant qu'on édite.
-.pl-panes.is-editing .pl-activity {
-  display: none;
+// isolée : sur téléphone ils se retirent pendant qu'on édite, et la carte
+// redevient une feuille pleine.
+.pl-panes.is-editing {
+  .pl-activity {
+    display: none;
+  }
+
+  .pl-identity {
+    background: var(--m-paper);
+    border-radius: var(--m-r-folder);
+  }
 }
 
 // Sous les boosters : les gérer. Puis, en pied de carte, le compte.
 .pl-manage {
-  @include m.btn(7px 16px);
+  @include m.btn(10px 22px);
   @include m.btn-paper;
-  font-size: 13px;
+  font-size: 0.88rem;
 }
 
+// Le compte : deux liens soulignés, Sign out en rouge.
 .pl-account {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 8px;
+  gap: 4px 18px;
   width: 100%;
-  padding-top: 16px;
-  border-top: 1px solid var(--m-line);
 }
 
 .pl-link {
-  @include m.btn(6px 12px);
-  @include m.btn-quiet;
-  gap: 6px;
-  font-size: 13px;
+  padding: 6px 2px;
+  border: 0;
+  background: none;
+  color: var(--m-fg-2);
+  font-family: var(--m-font-text);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+  text-decoration-color: rgba(var(--m-ink-rgb), 0.35);
+  cursor: pointer;
+  transition: color 0.18s, text-decoration-color 0.18s;
+
+  &:hover {
+    color: var(--m-fg);
+    text-decoration-color: currentColor;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--m-blue-fg);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
 
   &--danger {
-    @include m.btn-tint(red);
+    color: var(--m-red-fg);
+    text-decoration-color: rgba(var(--m-red-rgb), 0.5);
+
+    &:hover {
+      color: var(--m-red-fg);
+    }
   }
 }
 
@@ -1692,13 +1689,16 @@
 }
 
 @media (max-width: 480px) {
-  .login-card {
-    padding-left: 16px;
-    padding-right: 16px;
+  .pl-identity,
+  .pl-activity,
+  .lg-body,
+  .lg-stub {
+    padding-left: 18px;
+    padding-right: 18px;
   }
 
-  .login-card--player[data-view="thread"],
-  .login-card--player[data-view="boosters"] {
+  .pl-panes[data-view="thread"] .pl-activity,
+  .pl-panes[data-view="boosters"] .pl-activity {
     padding: 24px 14px 16px;
   }
 
@@ -1730,30 +1730,44 @@
 }
 
 // ─── Profile modal, wide: two panes ───────────────────────────────────────────
-// La carte s'élargit et prend une hauteur fixe : le volet gauche (un creux
-// plus sombre, comme le présentoir des boosters) porte la carte du joueur, le
-// volet droit l'activité, qui défile seule. Les deux restent visibles quoi
-// qu'on ouvre à droite, même pendant l'édition.
+// La chemise s'élargit et prend une hauteur fixe : le volet gauche porte la
+// carte du joueur, le volet droit l'activité, qui défile seule. La
+// perforation devient verticale entre eux, ses encoches sur les bords haut et
+// bas ; chaque volet a son onglet. Les deux restent visibles quoi qu'on ouvre
+// à droite, même pendant l'édition.
 @media (min-width: 820px) and (min-height: 520px) {
   .login-card--player {
     max-width: 800px;
-    height: min(85dvh - var(--sa-top) - var(--sa-bottom), 640px);
-    padding: 0;
-    overflow: hidden;
+    height: min(85dvh - var(--sa-top) - var(--sa-bottom) - var(--m-tab-h), 640px);
+  }
+
+  // L'onglet de l'activité se pose au-dessus du volet droit (320px).
+  .pl-tabs .pl-tab-profile,
+  .pl-tabs[data-view] .pl-tab-profile,
+  .pl-tabs .pl-tab-activity {
+    display: inline-flex;
+  }
+
+  .pl-tabs .pl-tab-activity {
+    position: absolute;
+    bottom: 0;
+    left: 320px;
   }
 
   .login-card--player .pl-panes {
     display: grid;
     grid-template-columns: 320px minmax(0, 1fr);
     height: 100%;
+    overflow: hidden;
   }
 
   .login-card--player .pl-identity,
-  .login-card--player .pl-panes[data-view] .pl-identity {
+  .login-card--player .pl-panes[data-view] .pl-identity,
+  .login-card--player .pl-panes.is-editing .pl-identity {
     display: flex;
-    padding: 36px 28px 24px;
-    background: var(--m-paper-lo);
-    border-right: 1px solid var(--m-line);
+    padding: 34px 28px 24px;
+    @include m.ticket-part(right);
+    border-radius: var(--m-r-folder) 0 0 var(--m-r-folder);
     overflow-y: auto;
     @include m.scrollbar;
 
@@ -1774,12 +1788,32 @@
     display: flex;
     margin: 0;
     padding: 30px 26px 20px;
-    border: 0;
+    @include m.ticket-part(left);
+    border-radius: 0 var(--m-r-folder) var(--m-r-folder) 0;
+
+    // Le pointillé suit la couture verticale.
+    &::before {
+      display: block;
+      top: calc(var(--m-perf-r) + 8px);
+      bottom: calc(var(--m-perf-r) + 8px);
+      left: -1px;
+      right: auto;
+      width: 2px;
+      height: auto;
+      background: var(--m-perf-dash-y);
+    }
   }
 
-  // Le bouton de fermeture flotte en haut à droite, au-dessus de l'activité.
-  .login-messages-head {
-    padding-right: 34px;
+  // L'onglet nomme déjà le volet : le titre de la liste et celui de
+  // l'équipement ne restent que pour les lecteurs d'écran.
+  .login-messages-head,
+  .login-view-title {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
   }
 
   .inbox-body {
@@ -1795,14 +1829,34 @@
 // ─── Custom Game modal ────────────────────────────────────────────────────────
 .custom-card {
   max-width: 440px;
+  // dvh mesure l'écran barres système comprises : on retranche les insets,
+  // et l'onglet posé au-dessus de la chemise.
+  max-height: min(85dvh - var(--sa-top) - var(--sa-bottom) - var(--m-tab-h), 760px);
+}
+
+// Choix : créer un salon au-dessus de la perforation, en rejoindre un sur le
+// talon.
+.custom-choose {
   display: flex;
   flex-direction: column;
-  // dvh mesure l'écran barres système comprises : on retranche les insets.
-  max-height: min(85dvh - var(--sa-top) - var(--sa-bottom), 760px);
-  min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  @include m.scrollbar;
+  padding: 26px 24px 22px;
+}
+
+.custom-join-stub {
+  padding: 20px 24px 22px;
+}
+
+.custom-join-label {
+  @include m.label;
+  margin: 0 0 10px;
+}
+
+// Dans le salon : le code, les sièges, les joueurs, l'invitation ; le
+// départ est sur le talon.
+.custom-room {
+  display: flex;
+  flex-direction: column;
+  padding: 24px 22px 20px;
 }
 
 // Fallback to the public queue: same footprint as the Play Now modal, since it
@@ -1815,6 +1869,7 @@
   @include m.btn(14px 16px, var(--m-r-md));
   @include m.btn-fill(orange);
   @include m.display(700);
+  width: 100%;
   gap: 10px;
   font-size: 1.08rem;
   line-height: 1.25;
@@ -1824,24 +1879,6 @@
   .ab-marble {
     width: 18px;
     height: 18px;
-  }
-}
-
-.custom-divider {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 14px 0;
-  color: var(--m-fg-3);
-  font-size: 0.8rem;
-  font-weight: 600;
-
-  &::before,
-  &::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--m-line-2);
   }
 }
 
@@ -2213,17 +2250,15 @@
 
 .custom-actions {
   display: flex;
-  gap: 8px;
-  margin-top: 14px;
-  // 3px de plus en bas : la tranche du bouton « Start » dépasse de sa boîte.
-  padding: 12px 0 3px;
-  border-top: 1px solid var(--m-line-2);
+  flex-direction: column;
   flex-shrink: 0;
+  // La tranche du bouton « Start » dépasse de 6px sous sa boîte.
+  padding: 22px 22px 22px;
 }
 
 // Warns the host, BEFORE the tap, what "Start anyway" actually does.
 .custom-start-hint {
-  margin: 8px 0 0;
+  margin: 14px 0 0;
   font-size: 0.76rem;
   line-height: 1.4;
   text-align: center;
@@ -2232,10 +2267,10 @@
 }
 
 .custom-start-btn {
-  @include m.btn(11px 16px, var(--m-r-md));
+  @include m.btn(13px 16px, var(--m-r-md));
   @include m.btn-fill(green);
-  flex: 1;
-  font-size: 0.9rem;
+  width: 100%;
+  font-size: 0.95rem;
 }
 
 // ─── Worker (staff) login ─────────────────────────────────────────────────────
@@ -2277,7 +2312,7 @@
 }
 
 // ─── Custom modal — in-room ───────────────────────────────────────────────────
-// Pas de titre dans la salle : les deux billes en tête, puis une barre
+// Pas de titre dans la salle (l'onglet le porte) : en tête, une barre
 // compacte (~60px) : le code (libellé au-dessus, chiffres en grand) à gauche,
 // Copy à droite.
 .custom-card.custom-card--in-room {
@@ -2321,10 +2356,6 @@
     justify-self: end;
   }
 
-  // Seules les deux billes restent en tête : un en-tête réduit à leur hauteur.
-  .modal-header {
-    margin-bottom: 14px;
-  }
 }
 
 // Écrans courts : on masque aussi les sièges, la liste des joueurs les résume.

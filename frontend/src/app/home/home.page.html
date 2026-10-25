@@ -3,23 +3,7 @@
     <!-- ── Top navigation ─────────────────────────────── -->
     <nav class="home-nav">
       <div class="nav-start">
-        <!-- Bascule jour / nuit : l'icône montre le ciel qu'on obtient. -->
-        <button class="theme-toggle" (click)="toggleTheme()"
-          [attr.aria-label]="theme.isDay() ? 'Switch to night mode' : 'Switch to day mode'"
-          [title]="theme.isDay() ? 'Night mode' : 'Day mode'">
-          @if (theme.isDay()) {
-          <svg class="theme-icon theme-icon--moon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-          </svg>
-          } @else {
-          <svg class="theme-icon theme-icon--sun" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="4.5" />
-            <path d="M12 1.5v2.2M12 20.3v2.2M4.58 4.58l1.56 1.56M17.86 17.86l1.56 1.56M1.5 12h2.2M20.3 12h2.2M4.58 19.42l1.56-1.56M17.86 6.14l1.56-1.56" />
-          </svg>
-          }
-        </button>
+        <app-sky-toggle />
         <div class="nav-brand">
           @for (l of titleLetters; track i; let i = $index) {
           <span class="nav-letter" [style.--i]="i"> </span>
@@ -169,17 +153,40 @@
     <div class="modal-overlay" [class.active]="showLogin" (click)="closeLogin()">
       <div class="modal-card login-card m-paper" [class.login-card--player]="!!(auth.user$ | async)"
         [attr.data-view]="loginView" (click)="$event.stopPropagation()">
-        <button class="modal-close" (click)="closeLogin()" aria-label="Close">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-            stroke-linecap="round" stroke-linejoin="round">
+        <!-- Onglets. Connecté : « Profile » au-dessus de la carte du joueur,
+             l'activité (Messages ou Boosters) au-dessus du volet droit. Sur
+             téléphone, seul l'onglet de ce qui est en tête de la fenêtre. -->
+        @if (auth.user$ | async) {
+        <div class="m-tabs pl-tabs" [attr.data-view]="loginView" [class.is-editing]="editingProfile">
+          <span class="m-tab m-tab--red pl-tab-profile">Profile</span>
+          @if (loginView === 'boosters') {
+          <span class="m-tab m-tab--violet pl-tab-activity">Boosters</span>
+          } @else {
+          <span class="m-tab m-tab--blue pl-tab-activity">
+            Messages
+            @if (unreadCount > 0) {
+            <span class="pl-tab-count">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
+            }
+          </span>
+          }
+        </div>
+        } @else {
+        <div class="m-tabs">
+          <span class="m-tab m-tab--blue">{{ loginMode === 'login' ? 'Sign In' : 'Create Account' }}</span>
+        </div>
+        }
+        <button class="m-close" (click)="closeLogin()" aria-label="Close">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"
+            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M18 6 6 18M6 6l12 12" />
           </svg>
         </button>
 
-        <!-- ─── Connecté : deux volets. À gauche qui tu es (la carte du joueur,
-             ou son édition), à droite l'activité : les messages, une
-             conversation ou l'équipement des boosters. Sur téléphone les
-             volets s'empilent, et une conversation ou l'équipement prend
+        <!-- ─── Connecté : deux volets, deux parties d'un même ticket. À gauche
+             qui tu es (la carte du joueur, ou son édition), à droite
+             l'activité : les messages, une conversation ou l'équipement des
+             boosters. Sur téléphone les volets s'empilent de part et d'autre
+             de la perforation, et une conversation ou l'équipement prend
              toute la fenêtre. ─── -->
         @if (auth.user$ | async; as user) {
         <div class="pl-panes" [attr.data-view]="loginView" [class.is-editing]="editingProfile">
@@ -237,21 +244,8 @@
               </button>
               }
               <div class="pl-account">
-                <button class="pl-link" (click)="toggleEditProfile(user)">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                  </svg>
-                  Edit profile
-                </button>
-                <button class="pl-link pl-link--danger" (click)="logout()">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
-                  </svg>
-                  Sign out
-                </button>
+                <button class="pl-link" (click)="toggleEditProfile(user)">Edit profile</button>
+                <button class="pl-link pl-link--danger" (click)="logout()">Sign out</button>
               </div>
             </app-player-card>
             }
@@ -393,54 +387,50 @@
         </div>
         }
 
-        <!-- ─── Invité : se connecter ─── -->
-        @if (loginView === 'main') {
-        <!-- Header: only when not logged in -->
-        @if (!(auth.user$ | async)) {
-        <div class="modal-header">
-          <div class="modal-marbles">
-            <span class="mm mm-red"></span>
-            <span class="mm mm-green"></span>
-            <span class="mm mm-blue"></span>
-            <span class="mm mm-orange"></span>
+        <!-- ─── Invité : se connecter. Le corps porte Google, le talon la partie
+             sans compte. ─── -->
+        @if (loginView === 'main' && !(auth.user$ | async)) {
+        <div class="m-ticket-body lg-body">
+          <div class="folder-head">
+            <div class="modal-marbles" aria-hidden="true">
+              <span class="mm mm-red"></span>
+              <span class="mm mm-green"></span>
+              <span class="mm mm-blue"></span>
+              <span class="mm mm-orange"></span>
+            </div>
+            <h2 class="modal-title">Mercury</h2>
           </div>
-          <h2 class="modal-title">
-            {{ loginMode === 'login' ? 'Sign In' : 'Create Account' }}
-          </h2>
-        </div>
-        }
-
-        <!-- Formulaire si non connecté -->
-        @if (!(auth.user$ | async)) { @if (loginError) {
-        <div class="login-error-banner">{{ loginErrorMessage }}</div>
-        } @if (loginPromptReason === 'custom-game') {
-        <div class="login-info-banner">
-          Custom Game requires an account to play.
-        </div>
-        }
-        <button class="btn-google" (click)="loginWithGoogle()" [disabled]="auth.isLoading$ | async">
-          @if (auth.isLoading$ | async) {
-          <span class="btn-spinner"></span>
-          } @if (!(auth.isLoading$ | async)) {
-          <svg width="18" height="18" viewBox="0 0 48 48">
-            <path fill="#EA4335"
-              d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
-            <path fill="#4285F4"
-              d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
-            <path fill="#FBBC05"
-              d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
-            <path fill="#34A853"
-              d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.35-8.16 2.35-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
-          </svg>
+          @if (loginError) {
+          <div class="login-error-banner">{{ loginErrorMessage }}</div>
+          } @if (loginPromptReason === 'custom-game') {
+          <div class="login-info-banner">
+            Custom Game requires an account to play.
+          </div>
           }
-          <span>{{ (auth.isLoading$ | async) ? 'Signing in…' : 'Continue with
-            Google' }}</span>
-        </button>
-        <div class="or-divider"><span>or</span></div>
-        <button class="btn-guest" (click)="continueAsGuest()">
-          Continue without account&nbsp;→
-        </button>
-        }
+          <button class="btn-google" (click)="loginWithGoogle()" [disabled]="auth.isLoading$ | async">
+            @if (auth.isLoading$ | async) {
+            <span class="btn-spinner"></span>
+            } @if (!(auth.isLoading$ | async)) {
+            <svg width="18" height="18" viewBox="0 0 48 48">
+              <path fill="#EA4335"
+                d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+              <path fill="#4285F4"
+                d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+              <path fill="#FBBC05"
+                d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+              <path fill="#34A853"
+                d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.35-8.16 2.35-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+            </svg>
+            }
+            <span>{{ (auth.isLoading$ | async) ? 'Signing in…' : 'Continue with
+              Google' }}</span>
+          </button>
+        </div>
+        <div class="m-ticket-stub lg-stub">
+          <button class="btn-guest" (click)="continueAsGuest()">
+            Continue without account&nbsp;→
+          </button>
+        </div>
         }
       </div>
     </div>
@@ -448,83 +438,82 @@
     <!-- ══════════════ SETTINGS / INFO MODAL ══════════════ -->
     <div class="modal-overlay" [class.active]="showSettings" (click)="closeSettings()">
       <div class="modal-card settings-card m-paper" (click)="$event.stopPropagation()">
-        <button class="modal-close" (click)="closeSettings()">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-            stroke-linecap="round" stroke-linejoin="round">
+        <div class="m-tabs">
+          <span class="m-tab m-tab--orange">About</span>
+        </div>
+        <button class="m-close" (click)="closeSettings()" aria-label="Close">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"
+            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M18 6 6 18M6 6l12 12" />
           </svg>
         </button>
 
-        <div class="modal-header">
-          <div class="modal-marbles">
-            <span class="mm mm-gold"></span>
-            <span class="mm mm-blue"></span>
+        <div class="m-ticket-body settings-body">
+          <div class="folder-head">
+            <div class="modal-marbles" aria-hidden="true">
+              <span class="mm mm-red"></span>
+              <span class="mm mm-green"></span>
+              <span class="mm mm-blue"></span>
+              <span class="mm mm-orange"></span>
+            </div>
+            <h2 class="modal-title">Mercury</h2>
           </div>
-          <h2 class="modal-title">About</h2>
+
+          <div class="settings-info">
+            <div class="info-row">
+              <span class="info-key">Version</span>
+              <span class="info-val" (click)="onVersionTap()" style="cursor: default; user-select: none">{{ appVersion()
+                }}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-key">Contact</span>
+              <a class="info-link" href="mailto:yannick.cardini@gmail.com">yannick.cardini@gmail.com</a>
+            </div>
+            <div class="info-row">
+              <span class="info-key">Developer</span>
+              <span class="info-val">Cardini Yannick</span>
+            </div>
+          </div>
         </div>
 
-        <div class="settings-info">
-          <div class="info-row">
-            <span class="info-key">Version</span>
-            <span class="info-val" (click)="onVersionTap()" style="cursor: default; user-select: none">{{ appVersion()
-              }}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-key">Contact</span>
-            <a class="info-link" href="mailto:yannick.cardini@gmail.com">yannick.cardini@gmail.com</a>
-          </div>
-          <div class="info-row">
-            <span class="info-key">Developer</span>
-            <span class="info-val">Cardini Yannick</span>
-          </div>
-        </div>
-
-        <button class="settings-rules-btn" (click)="openPrivacyPolicy()">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-          </svg>
-          <span>Privacy Policy</span>
-          <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M9 18l6-6-6-6" />
-          </svg>
-        </button>
-
-        <button class="settings-rules-btn settings-delete-btn" (click)="openDeleteAccount()">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="3 6 5 6 21 6"></polyline>
-            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
-            <path d="M10 11v6M14 11v6"></path>
-            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>
-          </svg>
-          <span>Delete Account</span>
-          <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M9 18l6-6-6-6" />
-          </svg>
-        </button>
-
-        @if (workerLoginVisible) {
-        <div class="worker-login-section">
-          <p class="worker-login-label">Staff access</p>
-          <input class="worker-login-input" type="text" placeholder="Username" [(ngModel)]="workerUsername"
-            autocomplete="off" />
-          <input class="worker-login-input" type="password" placeholder="Password" [(ngModel)]="workerPassword"
-            autocomplete="off" />
-          @if (workerLoginError) {
-          <p class="worker-login-error">{{ workerLoginError }}</p>
-          }
-          <button class="worker-login-btn" (click)="loginAsWorker()" [disabled]="workerLoginLoading">
-            @if (workerLoginLoading) {
-            <span class="btn-spinner"></span>
-            } @if (!workerLoginLoading) {
-            <span>Sign in</span>
-            }
+        <!-- Talon : ce qui mène ailleurs. -->
+        <div class="m-ticket-stub settings-stub">
+          <button class="settings-rules-btn" (click)="openPrivacyPolicy()">
+            <span>Privacy policy</span>
+            <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M9 18l6-6-6-6" />
+            </svg>
           </button>
+
+          <button class="settings-rules-btn settings-delete-btn" (click)="openDeleteAccount()">
+            <span>Delete account</span>
+            <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M9 18l6-6-6-6" />
+            </svg>
+          </button>
+
+          @if (workerLoginVisible) {
+          <div class="worker-login-section">
+            <p class="worker-login-label">Staff access</p>
+            <input class="worker-login-input" type="text" placeholder="Username" [(ngModel)]="workerUsername"
+              autocomplete="off" />
+            <input class="worker-login-input" type="password" placeholder="Password" [(ngModel)]="workerPassword"
+              autocomplete="off" />
+            @if (workerLoginError) {
+            <p class="worker-login-error">{{ workerLoginError }}</p>
+            }
+            <button class="worker-login-btn" (click)="loginAsWorker()" [disabled]="workerLoginLoading">
+              @if (workerLoginLoading) {
+              <span class="btn-spinner"></span>
+              } @if (!workerLoginLoading) {
+              <span>Sign in</span>
+              }
+            </button>
+          </div>
+          }
         </div>
-        }
       </div>
     </div>
 
@@ -536,102 +525,106 @@
          adds the explanation about who fills the remaining seats. -->
     <ng-template #searchPanel let-fallback>
       <div class="mq-panel">
-        <div class="modal-header">
-          <div class="modal-marbles">
-            <span class="mm mm-red"></span>
-            <span class="mm mm-green"></span>
-            <span class="mm mm-blue"></span>
-            <span class="mm mm-orange"></span>
+        <div class="m-ticket-body mq-body">
+          <div class="modal-header">
+            <div class="modal-marbles">
+              <span class="mm mm-red"></span>
+              <span class="mm mm-green"></span>
+              <span class="mm mm-blue"></span>
+              <span class="mm mm-orange"></span>
+            </div>
+            <h2 class="modal-title">Finding a game…</h2>
           </div>
-          <h2 class="modal-title">Finding a game…</h2>
-        </div>
 
-        <!-- Player slots — grouped by team (red+blue vs green+orange). Tap an
-             empty seat to move there and pick your team while waiting. -->
-        <div class="custom-teams">
-          <div class="custom-team">
-            <span class="custom-team-label">Team 1</span>
-            <div class="mq-slots">
-              <div class="mq-slot mq-slot-red" [class.mq-filled]="matchmakingSlotTaken('red')"
-                [class.mq-mine]="myMatchmakingColor === 'red'" [class.mq-clickable]="!matchmakingSlotTaken('red')"
-                (click)="selectMatchmakingSlot('red')">
-                @if (matchmakingSlotTaken('red')) {
-                <span class="mm mm-red"></span>
-                } @if (!matchmakingSlotTaken('red')) {
-                <span class="mq-empty"></span>
-                }
+          <!-- Player slots — grouped by team (red+blue vs green+orange). Tap an
+               empty seat to move there and pick your team while waiting. -->
+          <div class="custom-teams">
+            <div class="custom-team">
+              <span class="custom-team-label">Team 1</span>
+              <div class="mq-slots">
+                <div class="mq-slot mq-slot-red" [class.mq-filled]="matchmakingSlotTaken('red')"
+                  [class.mq-mine]="myMatchmakingColor === 'red'" [class.mq-clickable]="!matchmakingSlotTaken('red')"
+                  (click)="selectMatchmakingSlot('red')">
+                  @if (matchmakingSlotTaken('red')) {
+                  <span class="mm mm-red"></span>
+                  } @if (!matchmakingSlotTaken('red')) {
+                  <span class="mq-empty"></span>
+                  }
+                </div>
+                <div class="mq-slot mq-slot-blue" [class.mq-filled]="matchmakingSlotTaken('blue')"
+                  [class.mq-mine]="myMatchmakingColor === 'blue'" [class.mq-clickable]="!matchmakingSlotTaken('blue')"
+                  (click)="selectMatchmakingSlot('blue')">
+                  @if (matchmakingSlotTaken('blue')) {
+                  <span class="mm mm-blue"></span>
+                  } @if (!matchmakingSlotTaken('blue')) {
+                  <span class="mq-empty"></span>
+                  }
+                </div>
               </div>
-              <div class="mq-slot mq-slot-blue" [class.mq-filled]="matchmakingSlotTaken('blue')"
-                [class.mq-mine]="myMatchmakingColor === 'blue'" [class.mq-clickable]="!matchmakingSlotTaken('blue')"
-                (click)="selectMatchmakingSlot('blue')">
-                @if (matchmakingSlotTaken('blue')) {
-                <span class="mm mm-blue"></span>
-                } @if (!matchmakingSlotTaken('blue')) {
-                <span class="mq-empty"></span>
-                }
+            </div>
+            <span class="custom-teams-vs">vs</span>
+            <div class="custom-team">
+              <span class="custom-team-label">Team 2</span>
+              <div class="mq-slots">
+                <div class="mq-slot mq-slot-green" [class.mq-filled]="matchmakingSlotTaken('green')"
+                  [class.mq-mine]="myMatchmakingColor === 'green'" [class.mq-clickable]="!matchmakingSlotTaken('green')"
+                  (click)="selectMatchmakingSlot('green')">
+                  @if (matchmakingSlotTaken('green')) {
+                  <span class="mm mm-green"></span>
+                  } @if (!matchmakingSlotTaken('green')) {
+                  <span class="mq-empty"></span>
+                  }
+                </div>
+                <div class="mq-slot mq-slot-orange" [class.mq-filled]="matchmakingSlotTaken('orange')"
+                  [class.mq-mine]="myMatchmakingColor === 'orange'" [class.mq-clickable]="!matchmakingSlotTaken('orange')"
+                  (click)="selectMatchmakingSlot('orange')">
+                  @if (matchmakingSlotTaken('orange')) {
+                  <span class="mm mm-orange"></span>
+                  } @if (!matchmakingSlotTaken('orange')) {
+                  <span class="mq-empty"></span>
+                  }
+                </div>
               </div>
             </div>
           </div>
-          <span class="custom-teams-vs">vs</span>
-          <div class="custom-team">
-            <span class="custom-team-label">Team 2</span>
-            <div class="mq-slots">
-              <div class="mq-slot mq-slot-green" [class.mq-filled]="matchmakingSlotTaken('green')"
-                [class.mq-mine]="myMatchmakingColor === 'green'" [class.mq-clickable]="!matchmakingSlotTaken('green')"
-                (click)="selectMatchmakingSlot('green')">
-                @if (matchmakingSlotTaken('green')) {
-                <span class="mm mm-green"></span>
-                } @if (!matchmakingSlotTaken('green')) {
-                <span class="mq-empty"></span>
-                }
-              </div>
-              <div class="mq-slot mq-slot-orange" [class.mq-filled]="matchmakingSlotTaken('orange')"
-                [class.mq-mine]="myMatchmakingColor === 'orange'" [class.mq-clickable]="!matchmakingSlotTaken('orange')"
-                (click)="selectMatchmakingSlot('orange')">
-                @if (matchmakingSlotTaken('orange')) {
-                <span class="mm mm-orange"></span>
-                } @if (!matchmakingSlotTaken('orange')) {
-                <span class="mq-empty"></span>
-                }
-              </div>
-            </div>
-          </div>
-        </div>
 
-        <p class="mq-count">
-          @if (matchmakingConnected === 0) {
-          Joining…
-          } @else {
-          {{ matchmakingConnected }} / 4 players
+          <p class="mq-count">
+            @if (matchmakingConnected === 0) {
+            Joining…
+            } @else {
+            {{ matchmakingConnected }} / 4 players
+            }
+            <span class="mq-clock">{{ searchClock() }}</span>
+          </p>
+          <p class="mq-eta">Games usually start within 40 seconds</p>
+          <p class="mq-hint">Tap an empty seat to choose your team</p>
+          @if (fallback) {
+          <p class="mq-note">
+            The room is closed. The remaining seats will be filled by other
+            players.
+          </p>
+          } @if (fallback && customError) {
+          <div class="custom-error">{{ customError }}</div>
           }
-          <span class="mq-clock">{{ searchClock() }}</span>
-        </p>
-        <p class="mq-eta">Games usually start within 30 seconds</p>
-        <p class="mq-hint">Tap an empty seat to choose your team</p>
-        @if (fallback) {
-        <p class="mq-note">
-          The room is closed. The remaining seats will be filled by other
-          players.
-        </p>
-        } @if (fallback && customError) {
-        <div class="custom-error">{{ customError }}</div>
-        }
 
-        <div class="mq-dots"><span></span><span></span><span></span></div>
+          <div class="mq-dots"><span></span><span></span><span></span></div>
+        </div>
 
-        <button class="btn-guest" (click)="cancelSearch()">Cancel</button>
+        <div class="m-ticket-stub mq-stub">
+          <button class="btn-guest" (click)="cancelSearch()">Cancel</button>
+        </div>
       </div>
     </ng-template>
 
     <!-- ══════════════ MATCHMAKING MODAL ══════════════ -->
-    <!-- La nuit, une carte sombre (`m-night`) ; le jour, une plaque de papier
-         comme les autres cartes (`m-paper`). Voir home.page.scss. -->
     <div class="modal-overlay" [class.active]="showMatchmaking">
-      <div class="modal-card matchmaking-card" [class.m-night]="!theme.isDay()" [class.m-paper]="theme.isDay()"
-        (click)="$event.stopPropagation()">
-        <button class="modal-close" (click)="cancelMatchmaking()">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-            stroke-linecap="round" stroke-linejoin="round">
+      <div class="modal-card matchmaking-card m-paper" (click)="$event.stopPropagation()">
+        <div class="m-tabs">
+          <span class="m-tab m-tab--green">Play Now</span>
+        </div>
+        <button class="m-close" (click)="cancelMatchmaking()" aria-label="Cancel search">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"
+            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M18 6 6 18M6 6l12 12" />
           </svg>
         </button>
@@ -644,57 +637,59 @@
     <div class="modal-overlay" [class.active]="showCustomGame">
       <div class="modal-card custom-card m-paper" [class.custom-card--in-room]="customStage === 'in-room'"
         [class.custom-card--searching]="customStage === 'searching'" (click)="$event.stopPropagation()">
-        <button class="modal-close" (click)="cancelCustomGame()">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-            stroke-linecap="round" stroke-linejoin="round">
+        <div class="m-tabs">
+          <span class="m-tab m-tab--orange">Custom Game</span>
+        </div>
+        <button class="m-close" (click)="cancelCustomGame()" aria-label="Close">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"
+            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M18 6 6 18M6 6l12 12" />
           </svg>
         </button>
 
-        <!-- The searching stage brings its own header from the shared panel. -->
-        @if (customStage !== 'searching') {
-        <div class="modal-header">
-          <div class="modal-marbles">
-            <span class="mm mm-red"></span>
-            <span class="mm mm-orange"></span>
-          </div>
-          @if (customStage === 'choose') {
-          <h2 class="modal-title">Custom Game</h2>
-          }
-        </div>
-        }
-
+        <!-- Seul ce conteneur défile : la chemise ne rogne pas son onglet. -->
+        <div class="folder-scroll">
         <!-- ── Stage 3: the room fell back to the public queue ── -->
         @if (customStage === 'searching') {
         <ng-container *ngTemplateOutlet="searchPanel; context: { $implicit: true }"></ng-container>
         }
 
-        <!-- ── Stage 1: choose between Create or Join with code ── -->
+        <!-- ── Stage 1: create a room above the perforation, join one with a
+             code on the stub ── -->
         @if (customStage === 'choose') {
-        <button class="custom-create-btn" (click)="createCustomRoom()" [disabled]="customCreating">
-          @if (!customCreating) {
-          <span class="ab-marble ab-orange"></span>
-          }
-          <span>{{ customCreating ? 'Creating…' : 'Create new room' }}</span>
-        </button>
-        @if (!customCreating) {
-        <div class="custom-divider"><span>or join with a code</span></div>
-        } @if (!customCreating) {
-        <form class="custom-join" (ngSubmit)="joinCustomRoomByCode()">
-          <input type="text" class="custom-join-input" [(ngModel)]="customJoinCode" name="customJoinCode"
-            placeholder="ABCD12" maxlength="6" autocomplete="off" spellcheck="false"
-            (input)="customJoinCode = customJoinCode.toUpperCase()" />
-          <button type="submit" class="custom-join-btn"
-            [disabled]="customJoinCode.trim().length !== 6 || customCreating">
-            {{ customCreating ? 'Joining…' : 'Join' }}
+        <div class="m-ticket-body custom-choose">
+          <button class="custom-create-btn" (click)="createCustomRoom()" [disabled]="customCreating">
+            @if (!customCreating) {
+            <span class="ab-marble ab-orange"></span>
+            }
+            <span>{{ customCreating ? 'Creating…' : 'Create new room' }}</span>
           </button>
-        </form>
-        } @if (customError) {
-        <div class="custom-error">{{ customError }}</div>
-        } }
+          @if (customError && customCreating) {
+          <div class="custom-error">{{ customError }}</div>
+          }
+        </div>
+        @if (!customCreating) {
+        <div class="m-ticket-stub custom-join-stub">
+          <p class="custom-join-label">Or join with a code</p>
+          <form class="custom-join" (ngSubmit)="joinCustomRoomByCode()">
+            <input type="text" class="custom-join-input" [(ngModel)]="customJoinCode" name="customJoinCode"
+              placeholder="ABCD12" maxlength="6" autocomplete="off" spellcheck="false" aria-label="Room code"
+              (input)="customJoinCode = customJoinCode.toUpperCase()" />
+            <button type="submit" class="custom-join-btn"
+              [disabled]="customJoinCode.trim().length !== 6 || customCreating">
+              {{ customCreating ? 'Joining…' : 'Join' }}
+            </button>
+          </form>
+          @if (customError) {
+          <div class="custom-error">{{ customError }}</div>
+          }
+        </div>
+        }
+        }
 
-        <!-- ── Stage 2: in-room ── -->
+        <!-- ── Stage 2: in-room. The host's Start button sits on the stub. ── -->
         @if (customStage === 'in-room') {
+        <div class="m-ticket-body custom-room">
         <!-- Room code -->
         <div class="custom-code-block">
           <span class="custom-code-label">Room code</span>
@@ -875,22 +870,31 @@
           }
         </div>
         }
-        <!-- Actions -->
+        @if (!iAmCreator && customError) {
+        <div class="custom-error">{{ customError }}</div>
+        }
+        </div>
+        <!-- Stub: the host starts the game -->
         @if (iAmCreator) {
-        <div class="custom-actions">
+        <div class="m-ticket-stub custom-actions">
           <button class="custom-start-btn" [disabled]="customStarting" (click)="startCustomRoom()">
             @if (customStarting) { Starting… } @else if (customRoomPlayers.length
             === 4) { Start game } @else { Start anyway ({{
             customRoomPlayers.length }}/4) }
           </button>
-        </div>
-        @if (customRoomPlayers.length < 4) { <p class="custom-start-hint">
-          The room will close and the missing seats will be filled by other
-          players.
+          @if (customRoomPlayers.length < 4) {
+          <p class="custom-start-hint">
+            The room will close and the missing seats will be filled by other
+            players.
           </p>
-          } } @if (customError) {
+          }
+          @if (customError) {
           <div class="custom-error">{{ customError }}</div>
-          } }
+          }
+        </div>
+        }
+        }
+        </div>
       </div>
     </div>
 

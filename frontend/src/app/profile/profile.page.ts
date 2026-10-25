@@ -15,6 +15,7 @@ import { PlayerCardComponent } from "../shared/player-card.component";
 import { BoosterIntentService } from "../services/booster-intent.service";
 import { HttpClient, HttpErrorResponse } from "@angular/common/http";
 import { firstValueFrom, Subscription } from "rxjs";
+import { Capacitor } from "@capacitor/core";
 import { environment } from "src/environments/environment";
 import { AuthService, type AuthUser } from "../services/auth.service";
 
@@ -35,8 +36,12 @@ interface ProfileResponse {
   styleUrls: ["./profile.page.scss"],
   changeDetection: ChangeDetectionStrategy.Eager,
   imports: [FormsModule, PlayerCardComponent],
+  // `is-native` : garde en CSS les calques de la modale ouverte sur WebView
+  // Android (flash d'une frame à la fin de l'animation d'entrée).
+  host: { "[class.is-native]": "isNative" },
 })
 export class ProfilePage implements OnInit, OnDestroy {
+  readonly isNative = Capacitor.isNativePlatform();
   private http = inject(HttpClient);
   private route = inject(ActivatedRoute);
   private location = inject(Location);
