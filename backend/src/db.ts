@@ -1,6 +1,13 @@
 import { CosmosClient, type Container, type PatchOperation } from '@azure/cosmos';
 import { Agent } from 'node:https';
-import type { ClientInfo } from '@mercury/shared';
+import {
+    BOOST_SLOT_PRICE,
+    FREE_BOOST_SLOTS,
+    boostSlotsOf,
+    maxBoostSlots,
+    sanitizeLoadout,
+    type ClientInfo,
+} from '@mercury/shared';
 
 let client: CosmosClient | null = null;
 
@@ -201,7 +208,7 @@ export async function getUserPointsAndRanking(userId: string): Promise<{ points:
 const walletReady = new Set<string>();
 
 /**
- * Crée `coins`, `ownedItems` et `armedBoosts` s'ils manquent. Idempotent,
+ * Crée `coins`, `ownedItems`, `armedBoosts`, `equippedBoosts` et `boostSlots` s'ils manquent. Idempotent,
  * mémorisé par process. Un patch séparé par champ, chacun conditionné sur SON
  * champ : une condition unique (« l'un OU l'autre est absent ») remettrait
  * `coins` à 0 chez un joueur qui a déjà des pièces mais pas encore d'inventaire.
@@ -213,6 +220,8 @@ export async function ensureWalletFields(userId: string): Promise<void> {
         { path: '/coins', field: 'coins', value: 0 },
         { path: '/ownedItems', field: 'ownedItems', value: [] },
         { path: '/armedBoosts', field: 'armedBoosts', value: [] },
+        { path: '/equippedBoosts', field: 'equippedBoosts', value: [] },
+        { path: '/boostSlots', field: 'boostSlots', value: FREE_BOOST_SLOTS },
     ];
     for (const { path, field, value } of seeds) {
         try {
@@ -232,21 +241,31 @@ export async function ensureWalletFields(userId: string): Promise<void> {
 
 export interface UserWallet {
     coins: number;
-    /** Objets de collection, acquis pour toujours (emojis, dos de cartes). */
+    /** Tout ce qui est acquis pour toujours : emojis, boosters, plus tard dos de cartes. */
     ownedItems: string[];
-    /** Boosters achetés et pas encore consommés : ils valent pour la PROCHAINE
-     *  partie du joueur (voir consumeArmedBoosts). Un exemplaire de chaque au plus. */
+    /** Héritage : boosters achetés quand ils ne valaient qu'une partie, et pas
+     *  encore joués. Plus rien n'y entre ; takeGameBoosts les consomme à la
+     *  partie suivante, comme promis à l'achat. */
     armedBoosts: string[];
+    /** Boosters possédés équipés pour chaque partie, dans l'ordre des
+     *  emplacements, au plus `boostSlots`. */
+    equippedBoosts: string[];
+    /** Emplacements d'équipement : FREE_BOOST_SLOTS offerts, les suivants
+     *  achetés (purchaseBoostSlot), jusqu'à maxBoostSlots(). */
+    boostSlots: number;
 }
 
-/** Champ d'inventaire visé par un achat. */
-export type WalletInventory = 'ownedItems' | 'armedBoosts';
-
 function toWallet(resource: Partial<UserWallet>): UserWallet {
+    const ownedItems = resource.ownedItems ?? [];
+    const boostSlots = boostSlotsOf(resource.boostSlots);
     return {
         coins: resource.coins ?? 0,
-        ownedItems: resource.ownedItems ?? [],
+        ownedItems,
         armedBoosts: resource.armedBoosts ?? [],
+        // Relu à travers la règle partagée : un id retiré du catalogue ou
+        // écrit à la main dans Cosmos ne s'affiche ni ne s'applique.
+        equippedBoosts: sanitizeLoadout(resource.equippedBoosts, ownedItems, boostSlots),
+        boostSlots,
     };
 }
 
@@ -280,6 +299,58 @@ export async function awardCoins(userId: string, delta: number): Promise<number 
     }
 }
 
+/** Tentatives d'un débit lié à l'etag avant d'abandonner face à des écritures concurrentes. */
+const DEBIT_ATTEMPTS = 3;
+
+/**
+ * Applique une variation de pièces signée et renvoie la variation réellement
+ * appliquée avec le nouveau solde, ou null si le compte n'existe pas.
+ *
+ * Un gain passe par awardCoins. Une perte (malus Bounty) ne fait jamais
+ * passer le solde sous 0 : elle est bornée par le solde lu, et l'écriture est
+ * liée à cette lecture par l'etag, pour qu'un crédit ou un achat concurrent ne
+ * soit ni effacé ni compté deux fois. Si la contention persiste, la perte
+ * n'est pas appliquée (et le journal le dit) : mieux vaut un malus oublié
+ * qu'un solde faux.
+ */
+export async function applyCoinDelta(
+    userId: string,
+    delta: number,
+): Promise<{ applied: number; coins: number } | null> {
+    if (delta >= 0) {
+        const coins = await awardCoins(userId, delta);
+        return coins === null ? null : { applied: delta, coins };
+    }
+    await ensureWalletFields(userId);
+    const container = await getUsersContainer();
+    const item = container.item(userId, userId);
+    for (let attempt = 0; attempt < DEBIT_ATTEMPTS; attempt++) {
+        let resource: (Partial<UserWallet> & { _etag?: string }) | undefined;
+        try {
+            ({ resource } = await item.read<Partial<UserWallet> & { _etag?: string }>());
+        } catch (err: unknown) {
+            if ((err as { code?: number }).code === 404) return null;
+            throw err;
+        }
+        if (!resource?._etag) return null;
+        const balance = resource.coins ?? 0;
+        const applied = Math.max(delta, -balance);
+        if (applied === 0) return { applied, coins: balance };
+        try {
+            await item.patch([{ op: 'incr', path: '/coins', value: applied }], {
+                accessCondition: { type: 'IfMatch', condition: resource._etag },
+            });
+            return { applied, coins: balance + applied };
+        } catch (err: unknown) {
+            const code = (err as { code?: number }).code;
+            if (code === 404) return null;
+            if (code !== 412) throw err;
+        }
+    }
+    console.warn(`⚠️ Débit de ${-delta} pièce(s) non appliqué pour ${userId} : document modifié en continu`);
+    return null;
+}
+
 export type PurchaseResult =
     | ({ ok: true } & UserWallet)
     | { ok: false; reason: 'not_found' | 'rejected' };
@@ -289,11 +360,6 @@ export type PurchaseResult =
  * La condition porte à la fois sur le solde et sur la non-possession, donc le
  * solde ne peut pas devenir négatif et deux requêtes concurrentes ne peuvent pas
  * débiter deux fois (la seconde échoue en 412, sans application partielle).
- *
- * `inventory` choisit le champ : `ownedItems` pour un objet de collection,
- * `armedBoosts` pour un booster. Même règle dans les deux cas (un exemplaire au
- * plus), c'est seulement la durée de vie qui diffère : un booster quitte
- * `armedBoosts` au lancement de la partie suivante et peut alors être racheté.
  *
  * `reason: 'rejected'` couvre indifféremment « pas assez de pièces » et « déjà
  * possédé » : l'appelant relit le porte-monnaie pour distinguer les deux, hors
@@ -306,7 +372,6 @@ export async function purchaseItem(
     userId: string,
     itemId: string,
     price: number,
-    inventory: WalletInventory = 'ownedItems',
 ): Promise<PurchaseResult> {
     await ensureWalletFields(userId);
     const container = await getUsersContainer();
@@ -315,9 +380,9 @@ export async function purchaseItem(
         const { resource } = await container.item(userId, userId).patch<Partial<UserWallet>>({
             operations: [
                 { op: 'incr', path: '/coins', value: -cost },
-                { op: 'add', path: `/${inventory}/-`, value: itemId },
+                { op: 'add', path: '/ownedItems/-', value: itemId },
             ],
-            condition: `FROM c WHERE c.coins >= ${cost} AND NOT ARRAY_CONTAINS(c.${inventory}, "${itemId}")`,
+            condition: `FROM c WHERE c.coins >= ${cost} AND NOT ARRAY_CONTAINS(c.ownedItems, "${itemId}")`,
         });
         if (!resource) return { ok: false, reason: 'not_found' };
         return { ok: true, ...toWallet(resource) };
@@ -329,24 +394,72 @@ export async function purchaseItem(
     }
 }
 
+/**
+ * Achète un emplacement d'équipement de plus : débit et ajout dans un seul
+ * patch conditionné sur le solde et sur le plafond, comme purchaseItem (pas
+ * de solde négatif, pas de double débit sur deux requêtes concurrentes).
+ * `reason: 'rejected'` couvre « pas assez de pièces » et « plafond atteint » :
+ * l'appelant relit le porte-monnaie pour distinguer les deux.
+ */
+export async function purchaseBoostSlot(userId: string): Promise<PurchaseResult> {
+    await ensureWalletFields(userId);
+    const container = await getUsersContainer();
+    try {
+        const { resource } = await container.item(userId, userId).patch<Partial<UserWallet>>({
+            operations: [
+                { op: 'incr', path: '/coins', value: -BOOST_SLOT_PRICE },
+                { op: 'incr', path: '/boostSlots', value: 1 },
+            ],
+            condition: `FROM c WHERE c.coins >= ${BOOST_SLOT_PRICE} AND c.boostSlots < ${maxBoostSlots()}`,
+        });
+        if (!resource) return { ok: false, reason: 'not_found' };
+        return { ok: true, ...toWallet(resource) };
+    } catch (err: unknown) {
+        const code = (err as { code?: number }).code;
+        if (code === 404) return { ok: false, reason: 'not_found' };
+        if (code === 412) return { ok: false, reason: 'rejected' };
+        throw err;
+    }
+}
+
+/**
+ * Remplace l'équipement. `boosts` doit déjà être passé par sanitizeLoadout
+ * contre l'inventaire lu juste avant : la possession ne se perd jamais (pas de
+ * revente), donc aucune écriture concurrente ne peut l'invalider entre-temps.
+ */
+export async function setEquippedBoosts(userId: string, boosts: string[]): Promise<UserWallet | null> {
+    const container = await getUsersContainer();
+    try {
+        const { resource } = await container.item(userId, userId).patch<Partial<UserWallet>>([
+            { op: 'set', path: '/equippedBoosts', value: boosts },
+        ]);
+        return resource ? toWallet(resource) : null;
+    } catch (err: unknown) {
+        if ((err as { code?: number }).code === 404) return null;
+        throw err;
+    }
+}
+
 /** Tentatives de consommation avant d'abandonner face à des écritures concurrentes. */
 const CONSUME_BOOSTS_ATTEMPTS = 3;
 
 /**
- * Vide `armedBoosts` et renvoie ce qu'il contenait : ce sont les boosters de la
- * partie qui démarre. Appelé une seule fois, au lancement.
+ * Boosters de la partie qui démarre, lus une seule fois au lancement : les
+ * boosters équipés, plus les boosters « armés » d'avant les boosters
+ * permanents, qui valent encore pour cette partie et sont consommés ici.
  *
- * La lecture et l'écriture sont liées par l'etag : un achat qui s'intercale
+ * La consommation est liée à la lecture par l'etag : un achat qui s'intercale
  * (autre appareil) fait échouer le patch en 412 au lieu d'être effacé sans
  * avoir été appliqué, et on relit. Les écritures de points et de classement
  * (recomputeRankings touche tous les comptes à chaque fin de partie) peuvent
  * produire le même 412, d'où quelques tentatives. Si la contention persiste,
- * on ne consomme rien : les boosters restent armés pour la partie suivante,
- * ce qui vaut mieux qu'un booster débité sans effet.
+ * la partie part avec ses seuls boosters équipés : les armés restent pour la
+ * suivante, ce qui vaut mieux qu'un booster débité sans effet.
  */
-export async function consumeArmedBoosts(userId: string): Promise<string[]> {
+export async function takeGameBoosts(userId: string): Promise<string[]> {
     const container = await getUsersContainer();
     const item = container.item(userId, userId);
+    let equipped: string[] = [];
     for (let attempt = 0; attempt < CONSUME_BOOSTS_ATTEMPTS; attempt++) {
         let resource: (Partial<UserWallet> & { _etag?: string }) | undefined;
         try {
@@ -355,21 +468,23 @@ export async function consumeArmedBoosts(userId: string): Promise<string[]> {
             if ((err as { code?: number }).code === 404) return [];
             throw err;
         }
-        const armed = resource?.armedBoosts ?? [];
-        if (!resource?._etag || armed.length === 0) return [];
+        if (!resource) return [];
+        equipped = toWallet(resource).equippedBoosts;
+        const armed = (resource.armedBoosts ?? []).filter(id => !equipped.includes(id));
+        if (!resource._etag || (resource.armedBoosts ?? []).length === 0) return equipped;
         try {
             await item.patch([{ op: 'set', path: '/armedBoosts', value: [] }], {
                 accessCondition: { type: 'IfMatch', condition: resource._etag },
             });
-            return armed;
+            return [...equipped, ...armed];
         } catch (err: unknown) {
             const code = (err as { code?: number }).code;
             if (code === 404) return [];
             if (code !== 412) throw err;
         }
     }
-    console.warn(`⚠️ Boosters de ${userId} non consommés : document modifié en continu`);
-    return [];
+    console.warn(`⚠️ Boosters armés de ${userId} non consommés : document modifié en continu`);
+    return equipped;
 }
 
 export async function recomputeRankings(): Promise<void> {

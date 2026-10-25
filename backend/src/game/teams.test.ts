@@ -79,3 +79,12 @@ test('computeEndGamePointsDeltas — deux gagnants (équipe) : +4/+4, perdants -
         { userId: 'u-orange', delta: -1 },
     ]);
 });
+
+test('computeEndGamePointsDeltas — Perfect Game : +100 ajouté au gain, doublé par Double Points', () => {
+    const deltas = computeEndGamePointsDeltas([
+        { userId: 'a', points: 1000, isWinner: true, bonus: 100 },
+        { userId: 'b', points: 1000, isWinner: true, bonus: 100, multiplier: 2 },
+        { userId: 'c', points: 1000, isWinner: false },
+    ]);
+    assert.deepEqual(deltas.map(d => d.delta), [104, 208, -1]);
+});

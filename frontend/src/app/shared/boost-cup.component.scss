@@ -1,0 +1,206 @@
+@use "../styles/tokens" as m;
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  Emplacement de booster — un creux taillé dans la plaque
+// ───────────────────────────────────────────────────────────────────────────
+//  Même recette que l'alvéole des billes du bandeau d'équipes : un fond plus
+//  sombre que la plaque, une ombre portée vers l'intérieur par le haut, et une
+//  lèvre claire d'un pixel sous le bord. Pas de halo, pas de dégradé.
+// ═══════════════════════════════════════════════════════════════════════════
+
+:host {
+  --cup-size: 64px;
+  --cup-well: var(--m-paper-edge);
+  --cup-shade: rgba(0, 0, 0, 0.5);
+  --cup-lip: rgba(var(--m-cream-rgb), 0.14);
+
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--cup-size);
+  height: var(--cup-size);
+  border-radius: 50%;
+  background: var(--cup-well);
+  box-shadow:
+    inset 0 calc(var(--cup-size) * 0.05) calc(var(--cup-size) * 0.09) var(--cup-shade),
+    0 1px 0 var(--cup-lip);
+  color: var(--m-fg-3);
+}
+
+// Papier crème : le creux se lit par l'ombre d'encre, la lèvre est blanche.
+:host([data-effect="double_points"]) {
+  --cup-accent: var(--m-violet);
+}
+
+:host([data-effect="double_coins"]) {
+  --cup-accent: var(--m-gold);
+}
+
+:host([data-effect="capture_coins"]) {
+  --cup-accent: var(--m-red);
+}
+
+:host([data-effect="pair_home"]) {
+  --cup-accent: var(--m-green);
+}
+
+:host([data-effect="pair_capture"]) {
+  --cup-accent: var(--m-orange);
+}
+
+:host([data-effect="perfect_win"]) {
+  --cup-accent: var(--m-blue);
+}
+
+:host-context(html[data-theme="day"]) {
+  --cup-well: rgba(var(--m-ink-rgb), 0.1);
+  --cup-shade: rgba(var(--m-ink-rgb), 0.3);
+  --cup-lip: rgba(255, 255, 255, 0.85);
+}
+
+.cup-token {
+  // Le jeton repose au fond du creux : il en laisse voir le bord tout autour.
+  --bt-size: calc(var(--cup-size) * 0.66);
+  transition: opacity 0.3s ease-out;
+}
+
+.cup-plus {
+  width: 38%;
+  height: 38%;
+}
+
+// ── États posés par le parent ──────────────────────────────────────────────
+// .is-landing : un jeton vole vers ce creux, qui reste vide jusqu'à l'arrivée.
+// .is-seated  : le jeton vient d'arriver : il s'écrase au fond du creux puis
+//               reprend sa forme, et deux anneaux concentriques partent du
+//               bord, à la couleur du booster. Il part de sa taille d'arrivée :
+//               aucun saut entre le vol et lui.
+// .is-released : le creux vient d'être vidé : un anneau gris s'y referme.
+// .is-lifting : le jeton se soulève et s'efface avant que le creux se vide.
+// .is-ghost   : le jeton en filigrane : pas encore payé, ou « irait ici ». Il
+//               reprend toute sa présence en fondu quand la classe tombe.
+// .is-target  : le creux désigné, cerclé d'un pointillé à la couleur du focus.
+
+:host(.is-landing) .cup-token {
+  visibility: hidden;
+}
+
+:host(.is-seated) .cup-token {
+  animation: cup-seat 0.42s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+// Deux anneaux, comme les ondes autour d'une bille qui tombe dans un trou :
+// la grammaire des anneaux concentriques du système, sans halo ni flou.
+:host(.is-seated)::before,
+:host(.is-seated)::after,
+:host(.is-released)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+:host(.is-seated)::before {
+  border: 2px solid var(--cup-accent, var(--m-line-3));
+  animation: cup-ring 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+:host(.is-seated)::after {
+  border: 1.5px solid var(--cup-accent, var(--m-line-3));
+  animation: cup-ring 0.75s cubic-bezier(0.16, 1, 0.3, 1) 0.09s both;
+}
+
+:host(.is-released)::after {
+  border: 2px solid var(--m-line-3);
+  animation: cup-close 0.36s ease-in both;
+}
+
+:host(.is-lifting) .cup-token {
+  animation: cup-lift 0.16s ease-in forwards;
+}
+
+:host(.is-ghost) .cup-token {
+  opacity: 0.38;
+}
+
+:host(.is-target) {
+  outline: 1.5px dashed rgba(var(--m-blue-rgb), 0.75);
+  outline-offset: 3px;
+}
+
+// Écrasé au contact, étiré au rebond, puis posé : la bille entre dans le trou.
+@keyframes cup-seat {
+  0% {
+    transform: scale(1);
+  }
+  28% {
+    transform: scale(1.12, 0.84);
+  }
+  58% {
+    transform: scale(0.95, 1.06);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes cup-ring {
+  0% {
+    opacity: 0.9;
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.75);
+  }
+}
+
+@keyframes cup-close {
+  0% {
+    opacity: 0;
+    transform: scale(1.45);
+  }
+  40% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+}
+
+@keyframes cup-lift {
+  to {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.7);
+  }
+}
+
+// Mouvement réduit : ni écrasement ni anneaux qui s'étendent. Un seul liseré
+// à la couleur du booster s'allume puis s'éteint sur place : la pose reste
+// visible sans rien déplacer.
+@media (prefers-reduced-motion: reduce) {
+  :host(.is-seated) .cup-token,
+  :host(.is-lifting) .cup-token,
+  :host(.is-released)::after,
+  :host(.is-seated)::after {
+    animation: none;
+    opacity: 0;
+  }
+
+  :host(.is-seated)::before {
+    animation: cup-flash 0.5s ease-out both;
+  }
+}
+
+@keyframes cup-flash {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}

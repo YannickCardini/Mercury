@@ -2,13 +2,17 @@ import {
   Component,
   OnInit,
   OnDestroy,
+  computed,
   inject,
   signal,
   ChangeDetectionStrategy,
 } from "@angular/core";
 import { Location } from "@angular/common";
 import { FormsModule } from "@angular/forms";
-import { ActivatedRoute } from "@angular/router";
+import { ActivatedRoute, Router } from "@angular/router";
+import { getConsumable, type ConsumableShopItem } from "@mercury/shared";
+import { PlayerCardComponent } from "../shared/player-card.component";
+import { BoosterIntentService } from "../services/booster-intent.service";
 import { HttpClient, HttpErrorResponse } from "@angular/common/http";
 import { firstValueFrom, Subscription } from "rxjs";
 import { environment } from "src/environments/environment";
@@ -21,6 +25,8 @@ interface ProfileResponse {
   ranking: number;
   createdAt: string;
   lastSeenAt: string;
+  /** Boosters équipés (ids catalogue). Absent d'un serveur plus ancien. */
+  boosts?: string[];
 }
 
 @Component({
@@ -28,13 +34,15 @@ interface ProfileResponse {
   templateUrl: "./profile.page.html",
   styleUrls: ["./profile.page.scss"],
   changeDetection: ChangeDetectionStrategy.Eager,
-  imports: [FormsModule],
+  imports: [FormsModule, PlayerCardComponent],
 })
 export class ProfilePage implements OnInit, OnDestroy {
   private http = inject(HttpClient);
   private route = inject(ActivatedRoute);
   private location = inject(Location);
   private auth = inject(AuthService);
+  private router = inject(Router);
+  private boosterIntent = inject(BoosterIntentService);
 
   userId = signal<string>("");
   profile = signal<ProfileResponse | null>(null);
@@ -52,6 +60,26 @@ export class ProfilePage implements OnInit, OnDestroy {
   sendError = signal("");
 
   readonly maxLength = 500;
+
+  /**
+   * Boosters équipés du joueur : ce avec quoi il joue chaque partie. null
+   * quand le serveur ne les envoie pas (section masquée). Un id inconnu de ce
+   * client (booster plus récent) est ignoré.
+   */
+  readonly boosts = computed<readonly ConsumableShopItem[] | null>(() => {
+    const ids = this.profile()?.boosts;
+    if (!ids) return null;
+    return ids.flatMap((id) => {
+      const item = getConsumable(id);
+      return item ? [item] : [];
+    });
+  });
+
+  /** Son propre profil : l'équipement se règle dans la fenêtre du profil de l'accueil. */
+  equipMine(): void {
+    this.boosterIntent.requestOpen();
+    void this.router.navigate(["/home"]);
+  }
 
   ngOnInit(): void {
     this.userSub = this.auth.user$.subscribe((u) => this.currentUser.set(u));

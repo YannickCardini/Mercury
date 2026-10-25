@@ -7,9 +7,10 @@ import { getLegalAction, findLegalMoveForCard, getLegalSplit7Action, MAIN_PATH, 
 import { MultiWsMessenger, type GameMessenger } from './game-messenger.js';
 import { GameRegistry } from '../session/game-registry.js';
 import { isBotUserId } from '../session/bot-dispatch.js';
-import { updateUserPoints, recomputeRankings, getUserPointsAndRanking, awardCoins, consumeArmedBoosts } from '../db.js';
+import { botLoadout } from '../session/bot-persona.js';
+import { updateUserPoints, recomputeRankings, getUserPointsAndRanking, applyCoinDelta, takeGameBoosts } from '../db.js';
 import { computeEndGamePointsDeltas } from './points.js';
-import { computeEndGameCoins, computeWinCoins } from './coins.js';
+import { computeCoinParts, computeWinCoins, emptyTally, type SeatTally } from './coins.js';
 import { loadOwnedItems, peekOwnedItems, prefetchOwnedItems } from '../shop/entitlements.js';
 import { isTrainMode } from '../train-mode.js';
 import {
@@ -34,7 +35,11 @@ import {
     getConsumable,
     hasBoost,
     areOpponents,
-    COINS_PER_CAPTURE,
+    countHomeEntries,
+    endGameCoinDelta,
+    perfectGameBonus,
+    PAIR_THRESHOLD,
+    type CoinParts,
 } from '@mercury/shared';
 import { REACTION_EMOJIS } from "@mercury/shared";
 import { SNAPSHOT_SCHEMA_VERSION, type GameSnapshot } from './game-snapshot.js';
@@ -158,17 +163,20 @@ export class Game {
     private lastGameStats = new Map<MarbleColor, GameStatsMessage>();
 
     /**
-     * Boosters de boutique actifs par siège, consommés au lancement (voir
+     * Boosters de boutique actifs par siège, figés au lancement (voir
      * activateBoosts) et appliqués par applyEndGamePoints. Aucune entrée pour
-     * les invités, les IA et les sièges d'agents IA externes.
+     * les invités et les IA internes ; un agent IA externe a celle de son
+     * profil (botLoadout).
      */
     private boosts = new Map<MarbleColor, ConsumableId[]>();
 
     /**
-     * Pions adverses capturés par chaque siège (voir areOpponents). Tenu pour
-     * tous les sièges, il ne rapporte qu'à ceux qui ont activé Bounty.
+     * Ce que chaque siège a accompli pour les boosters qui paient en jeu :
+     * captures adverses et alliées (Bounty), coups doubles (Homecoming,
+     * Double Strike). Tenu pour tous les sièges, il ne rapporte qu'à ceux qui
+     * ont équipé le booster correspondant (voir computeCoinParts).
      */
-    private captureCounts = new Map<MarbleColor, number>();
+    private tallies = new Map<MarbleColor, SeatTally>();
 
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -321,7 +329,14 @@ export class Game {
             if (ps.isBot) this.botSeatColors.add(ps.color);
             const boosts = (ps.boosts ?? []).filter(isConsumableId);
             if (boosts.length > 0) this.boosts.set(ps.color, boosts);
-            if (ps.captures) this.captureCounts.set(ps.color, ps.captures);
+            if (ps.captures || ps.allyCaptures || ps.pairHomes || ps.pairCaptures) {
+                this.tallies.set(ps.color, {
+                    captures: ps.captures ?? 0,
+                    allyCaptures: ps.allyCaptures ?? 0,
+                    pairHomes: ps.pairHomes ?? 0,
+                    pairCaptures: ps.pairCaptures ?? 0,
+                });
+            }
             const player = this.players[i]!;
             player.cards = [...ps.cards];
             player.marblePositions = [...ps.marblePositions];
@@ -361,9 +376,30 @@ export class Game {
                 ...(p.picture !== undefined ? { picture: p.picture } : {}),
                 ...(p.userId !== undefined ? { userId: p.userId } : {}),
                 ...(this.boosts.has(p.color) ? { boosts: [...this.boosts.get(p.color)!] } : {}),
-                ...(this.captureCounts.has(p.color) ? { captures: this.captureCounts.get(p.color)! } : {}),
+                ...this.tallySnapshot(p.color),
             })),
         };
+    }
+
+    /** Compteurs non nuls d'un siège, sous les noms de champs du snapshot. */
+    private tallySnapshot(color: MarbleColor): Partial<Pick<GameSnapshot['players'][number], 'captures' | 'allyCaptures' | 'pairHomes' | 'pairCaptures'>> {
+        const t = this.tallies.get(color);
+        if (!t) return {};
+        return {
+            ...(t.captures ? { captures: t.captures } : {}),
+            ...(t.allyCaptures ? { allyCaptures: t.allyCaptures } : {}),
+            ...(t.pairHomes ? { pairHomes: t.pairHomes } : {}),
+            ...(t.pairCaptures ? { pairCaptures: t.pairCaptures } : {}),
+        };
+    }
+
+    private tallyOf(color: MarbleColor): SeatTally {
+        let t = this.tallies.get(color);
+        if (!t) {
+            t = emptyTally();
+            this.tallies.set(color, t);
+        }
+        return t;
     }
 
     /** Siège tenu par un agent IA externe : compte authentifié comme bot dans
@@ -527,8 +563,10 @@ export class Game {
     // ─── Boosters de boutique ────────────────────────────────────────────────
 
     /**
-     * Consomme les boosters armés de chaque humain authentifié et les annonce à
-     * son seul siège. Hors de la boucle : la partie démarre sans attendre
+     * Lit les boosters équipés de chaque humain authentifié (et consomme ses
+     * derniers boosters armés d'avant les boosters permanents), puis les
+     * annonce à son seul siège. Ils sont figés pour toute la partie : changer
+     * d'équipement pendant qu'elle se joue ne vaut que pour la suivante. Hors de la boucle : la partie démarre sans attendre
      * Cosmos, et la réponse arrive bien avant la fin de partie.
      *
      * Pas de persist() ici : la réponse peut tomber au milieu d'un tour (coup
@@ -537,10 +575,14 @@ export class Game {
      * suivant embarque les boosters.
      */
     private async activateBoosts(): Promise<void> {
-        const seats = this.players.filter(p => p.isHuman && p.userId && !this.isBotSeat(p));
+        const seats = this.players.filter(p => p.isHuman && p.userId);
         await Promise.allSettled(seats.map(async p => {
             try {
-                const boosts = (await consumeArmedBoosts(p.userId!)).filter(isConsumableId);
+                // Un agent IA joue avec l'équipement de son profil (botLoadout),
+                // pour que rien ne le distingue d'un joueur, Double Points compris.
+                const boosts = this.isBotSeat(p)
+                    ? botLoadout(p.userId!)
+                    : (await takeGameBoosts(p.userId!)).filter(isConsumableId);
                 if (boosts.length === 0) return;
                 this.boosts.set(p.color, boosts);
                 console.log(`⚡ Boosters actifs pour ${p.name} (${p.color}) : ${boosts.join(', ')}`);
@@ -554,12 +596,19 @@ export class Game {
     private sendBoosts(color: MarbleColor): void {
         const boosts = this.boosts.get(color);
         if (!boosts) return;
+        // L'agent n'affiche rien : inutile de lui envoyer un message qu'il ignore.
+        const seat = this.players.find(p => p.color === color);
+        if (seat && this.isBotSeat(seat)) return;
         this.messenger.sendTo(color, {
             type: 'boostsActive',
             color,
             boosts: [...boosts],
-            // Base du compteur Bounty : non nulle seulement après une reconnexion.
-            ...(hasBoost(boosts, 'capture_coins') ? { captures: this.captureCounts.get(color) ?? 0 } : {}),
+            // Bases des compteurs du dock : non nulles seulement après une reconnexion.
+            ...(hasBoost(boosts, 'capture_coins')
+                ? { captures: this.tallies.get(color)?.captures ?? 0, allyCaptures: this.tallies.get(color)?.allyCaptures ?? 0 }
+                : {}),
+            ...(hasBoost(boosts, 'pair_home') ? { pairHomes: this.tallies.get(color)?.pairHomes ?? 0 } : {}),
+            ...(hasBoost(boosts, 'pair_capture') ? { pairCaptures: this.tallies.get(color)?.pairCaptures ?? 0 } : {}),
         });
     }
 
@@ -1392,9 +1441,20 @@ export class Game {
                 // moitiés déplacées. Tout pion posé sur `to`/`splitTo` est
                 // victime SAUF celui qui vient d'y arriver — y compris un pion
                 // du joueur actif ou de son coéquipier (pas d'immunité d'équipe).
-                this.sendVictimsHome(move.to, mover, index, player);
+                let enemies = this.sendVictimsHome(move.to, mover, index, player);
                 if (splitMover !== null && splitIdx !== -1) {
-                    this.sendVictimsHome(move.splitTo!, splitMover, splitIdx, player);
+                    enemies += this.sendVictimsHome(move.splitTo!, splitMover, splitIdx, player);
+                }
+
+                // 3. Coups doubles, crédités au joueur qui a joué la carte :
+                // seul le 7 partagé peut rentrer ou capturer deux pions à la fois.
+                if (enemies >= PAIR_THRESHOLD) {
+                    this.tallyOf(player.color).pairCaptures++;
+                    console.log(`🎯 ${player.name} a capturé ${enemies} pions adverses dans le même tour`);
+                }
+                if (countHomeEntries(move) >= PAIR_THRESHOLD) {
+                    this.tallyOf(player.color).pairHomes++;
+                    console.log(`🏠 ${player.name} a rentré deux pions dans le même tour`);
                 }
                 break;
             }
@@ -1435,8 +1495,10 @@ export class Game {
      * version qui excluait le joueur actif entier, on peut capturer un pion de
      * n'importe quelle couleur — y compris celle du coéquipier ou du joueur
      * actif (second pion d'un 7 partagé atterrissant sur le premier, etc.).
+     * Renvoie le nombre de pions adverses capturés.
      */
-    private sendVictimsHome(pos: number, mover: Player, moverIndex: number, activePlayer: Player): void {
+    private sendVictimsHome(pos: number, mover: Player, moverIndex: number, activePlayer: Player): number {
+        let enemies = 0;
         for (const victim of this.players) {
             for (let i = 0; i < victim.marblePositions.length; i++) {
                 if (victim === mover && i === moverIndex) continue;
@@ -1447,14 +1509,20 @@ export class Game {
                     victim.marblePositions[i] = emptyHome;
                     victim.marbleInvincible[i] = false;
                     console.log(`💀 ${activePlayer.name} a capturé un pion de ${victim.name}! Retour à la base (${emptyHome}).`);
-                    // Crédit Bounty : au joueur qui a joué la carte, même quand
-                    // le pion déplacé est celui de son coéquipier.
+                    // Bounty : au joueur qui a joué la carte, même quand le pion
+                    // déplacé est celui de son coéquipier. Un pion de son camp
+                    // (le sien ou le coéquipier) compte pour le malus.
+                    const tally = this.tallyOf(activePlayer.color);
                     if (areOpponents(activePlayer.color, victim.color)) {
-                        this.captureCounts.set(activePlayer.color, (this.captureCounts.get(activePlayer.color) ?? 0) + 1);
+                        tally.captures++;
+                        enemies++;
+                    } else {
+                        tally.allyCaptures++;
                     }
                 }
             }
         }
+        return enemies;
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
@@ -1482,9 +1550,27 @@ export class Game {
             })
         );
 
+        // Pions rentrés par camp : l'écart paie les vainqueurs en pièces, et un
+        // camp adverse resté à zéro fait une partie parfaite (Perfect Game).
+        const arrivedOf = (p: Player) => countArrivedMarbles(p.marblePositions, p.color);
+        const winnersArrived = this.players
+            .filter(p => winners.includes(p.color))
+            .reduce((sum, p) => sum + arrivedOf(p), 0);
+        const losersArrived = this.players
+            .filter(p => !winners.includes(p.color))
+            .reduce((sum, p) => sum + arrivedOf(p), 0);
+        // Une victoire par abandon des adversaires ne compte pas : ils n'ont
+        // simplement pas eu le temps de rentrer un pion.
+        const perfectBonuses = new Map<MarbleColor, number>(
+            currentStats.map(p => [
+                p.color,
+                perfectGameBonus(p.boosts, p.isWinner, losersArrived, this.winByDefaultPending),
+            ]),
+        );
+
         // Compute weighted deltas using the Elo-like formula in points.ts
         // (les sièges d'agents IA externes gagnent moins qu'un vrai joueur, voir WIN_DELTA_BOT ;
-        // Double Points multiplie le résultat, perte comprise)
+        // Double Points multiplie le résultat, perte et bonus compris)
         const deltas = computeEndGamePointsDeltas(
             currentStats.map(p => ({
                 userId: p.userId,
@@ -1492,6 +1578,7 @@ export class Game {
                 isWinner: p.isWinner,
                 isBot: p.isBot,
                 multiplier: boostMultiplier(p.boosts, 'double_points'),
+                bonus: perfectBonuses.get(p.color) ?? 0,
             }))
         );
 
@@ -1513,19 +1600,12 @@ export class Game {
         // post-restauration, contrairement au seul isBotUserId — tandis que les
         // invités (pas de userId) et les pénalisés le sont déjà par le filtre
         // `participants`.
-        const arrivedOf = (p: Player) => countArrivedMarbles(p.marblePositions, p.color);
-        const winnersArrived = this.players
-            .filter(p => winners.includes(p.color))
-            .reduce((sum, p) => sum + arrivedOf(p), 0);
-        const losersArrived = this.players
-            .filter(p => !winners.includes(p.color))
-            .reduce((sum, p) => sum + arrivedOf(p), 0);
         const winCoins = computeWinCoins(winnersArrived, losersArrived);
 
         const coinRewards = new Map<MarbleColor, {
             delta: number;
             newCoins: number;
-            base: { victory: number; captures: number };
+            base: CoinParts;
         }>();
         await Promise.allSettled(
             currentStats
@@ -1535,15 +1615,15 @@ export class Game {
                 })
                 .map(async p => {
                     const victory = p.isWinner ? winCoins : 0;
-                    const captures = hasBoost(p.boosts, 'capture_coins')
-                        ? (this.captureCounts.get(p.color) ?? 0) * COINS_PER_CAPTURE
-                        : 0;
-                    const coins = computeEndGameCoins(victory, captures, boostMultiplier(p.boosts, 'double_coins'));
-                    if (coins <= 0) return;
+                    const parts = computeCoinParts(victory, this.tallies.get(p.color) ?? emptyTally(), p.boosts);
+                    const coins = endGameCoinDelta(parts, boostMultiplier(p.boosts, 'double_coins'));
+                    if (coins === 0) return;
                     try {
-                        const newCoins = await awardCoins(p.userId, coins);
-                        if (newCoins !== null) {
-                            coinRewards.set(p.color, { delta: coins, newCoins, base: { victory, captures } });
+                        // Signée : le malus Bounty peut dépasser les gains. Le
+                        // solde ne descend jamais sous 0, d'où `applied`.
+                        const result = await applyCoinDelta(p.userId, coins);
+                        if (result !== null && result.applied !== 0) {
+                            coinRewards.set(p.color, { delta: result.applied, newCoins: result.coins, base: parts });
                         }
                     } catch (err) {
                         console.error(`❌ Failed to award coins to ${p.color}:`, err);
@@ -1570,11 +1650,12 @@ export class Game {
                         newRanking: updated.ranking,
                         color: p.color,
                         ...(reward ? { coinsDelta: reward.delta, newCoins: reward.newCoins, coinsBase: reward.base } : {}),
+                        ...((perfectBonuses.get(p.color) ?? 0) > 0 ? { perfectBonus: perfectBonuses.get(p.color)! } : {}),
                         ...(p.boosts.length > 0 ? { boosts: [...p.boosts] } : {}),
                     };
                     this.lastGameStats.set(p.color, statsMsg);
                     this.messenger.sendTo(p.color, statsMsg);
-                    console.log(`📊 gameStats → ${p.color}: delta=${delta}, total=${updated.points}, rank=#${updated.ranking}${reward ? `, coins=+${reward.delta} (${reward.newCoins})` : ''}${p.boosts.length > 0 ? `, boosts=${p.boosts.join('+')}` : ''}`);
+                    console.log(`📊 gameStats → ${p.color}: delta=${delta}, total=${updated.points}, rank=#${updated.ranking}${reward ? `, coins=${reward.delta > 0 ? '+' : ''}${reward.delta} (${reward.newCoins})` : ''}${p.boosts.length > 0 ? `, boosts=${p.boosts.join('+')}` : ''}`);
                 } catch (err) {
                     console.error(`❌ Failed to send gameStats to ${p.color}:`, err);
                 }

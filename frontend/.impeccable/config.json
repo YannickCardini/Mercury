@@ -20,6 +20,24 @@
         ],
         "createdAt": "2026-10-14T17:06:34.598Z",
         "reason": "Claude: Angular [src] property binding to the player's avatar URL (p.picture); no literal src for the static detector. Pre-existing line, untouched by the day/night task."
+      },
+      {
+        "rule": "design-system-font",
+        "value": "jakarta sans",
+        "createdAt": "2026-10-23T18:50:01.490Z",
+        "reason": "Claude: Plus Jakarta Sans is the declared body face in DESIGN.md; detector splits the family name"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "2",
+        "createdAt": "2026-10-23T18:50:01.494Z",
+        "reason": "Claude: fragment of 'Baloo 2', the declared display face in DESIGN.md"
+      },
+      {
+        "rule": "overused-font",
+        "value": "plus jakarta sans",
+        "createdAt": "2026-10-25T08:27:29.669Z",
+        "reason": "Claude: Plus Jakarta Sans is the body face the owner chose for Mercury on 2026-10-10 (DESIGN.md typography)"
       }
     ]
   }

@@ -1,16 +1,56 @@
+<!-- La face : le dessin du booster, fait des objets du plateau (étoiles des
+     points, pièces, billes, couloir d'arrivée). Aplats mats à l'encre de
+     l'accent ; un second ton (même encre, plus pâle) pour ce qui est derrière. -->
 <span class="bt-face">
-  @if (effect() === 'capture_coins') {
-    <span class="bt-mult"><span class="bt-x">+</span>{{ perCapture }}</span>
-  } @else {
-    <span class="bt-mult"><span class="bt-x">×</span>{{ multiplier }}</span>
-  }
+  <svg class="bt-art" viewBox="0 0 32 32" aria-hidden="true">
+    @switch (effect()) {
+      @case ('double_points') {
+        <!-- Deux étoiles : les points, comptés deux fois. -->
+        <path class="bt-soft" transform="translate(11 11) scale(0.48) translate(-12 -12)" [attr.d]="star" />
+        <path class="bt-ink" transform="translate(17.6 17.6) scale(0.72) translate(-12 -12)" [attr.d]="star" />
+      }
+      @case ('double_coins') {
+        <!-- Deux pièces, l'une devant l'autre : chacune avec son listel. -->
+        <circle class="bt-soft" cx="12.6" cy="12.4" r="6.6" />
+        <circle class="bt-ink" cx="18.4" cy="18.6" r="7.6" />
+        <circle class="bt-rim" cx="18.4" cy="18.6" r="5" />
+        <path class="bt-rim" d="M18.4 15.6v6" />
+      }
+      @case ('capture_coins') {
+        <!-- Une bille frappée : l'impact part en trois éclats. -->
+        <circle class="bt-ink" cx="14" cy="18.4" r="7" />
+        <circle class="bt-shine" cx="11.4" cy="15.8" r="1.7" />
+        <path class="bt-burst" d="M21 11.2l3.4-3.4M22.6 14.6l4-.6M18.4 9.4l.6-4" />
+      }
+      @case ('pair_capture') {
+        <!-- Deux billes frappées d'un seul coup : un éclat commun au-dessus. -->
+        <circle class="bt-ink" cx="10.6" cy="19.6" r="5.2" />
+        <circle class="bt-ink" cx="21.4" cy="19.6" r="5.2" />
+        <circle class="bt-shine" cx="8.8" cy="17.8" r="1.3" />
+        <circle class="bt-shine" cx="19.6" cy="17.8" r="1.3" />
+        <path class="bt-burst" d="M16 11.4V6.2M12.6 12.6l-2.6-3.4M19.4 12.6l2.6-3.4" />
+      }
+      @case ('pair_home') {
+        <!-- Le couloir d'arrivée, quatre cases : deux billes viennent d'y entrer. -->
+        <rect class="bt-cell" x="4.2" y="13" width="5.2" height="6" rx="1.6" />
+        <rect class="bt-cell" x="10.6" y="13" width="5.2" height="6" rx="1.6" />
+        <rect class="bt-cell bt-cell--home" x="17" y="13" width="5.2" height="6" rx="1.6" />
+        <rect class="bt-cell bt-cell--home" x="23.4" y="13" width="5.2" height="6" rx="1.6" />
+        <circle class="bt-ink" cx="19.6" cy="16" r="3.2" />
+        <circle class="bt-ink" cx="26" cy="16" r="3.2" />
+      }
+      @case ('perfect_win') {
+        <!-- Les quatre billes rentrées, sous l'étoile des points : une partie
+             gagnée sans qu'un seul pion adverse ne rentre. -->
+        <path class="bt-ink" transform="translate(16 10.6) scale(0.44) translate(-12 -12)" [attr.d]="star" />
+        <circle class="bt-ink" cx="7" cy="20.6" r="2.9" />
+        <circle class="bt-ink" cx="13" cy="20.6" r="2.9" />
+        <circle class="bt-ink" cx="19" cy="20.6" r="2.9" />
+        <circle class="bt-ink" cx="25" cy="20.6" r="2.9" />
+        <path class="bt-lane" d="M4.6 25.6h22.8" />
+      }
+    }
+  </svg>
 </span>
-<span class="bt-emblem">
-  @if (effect() !== 'double_points') {
-    <span class="bt-coin"></span>
-  } @else {
-    <svg class="bt-star" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M12 1.5c.6 5.6 4.9 9.9 10.5 10.5-5.6.6-9.9 4.9-10.5 10.5C11.4 16.9 7.1 12.6 1.5 12 7.1 11.4 11.4 7.1 12 1.5Z" />
-    </svg>
-  }
-</span>
+<!-- Le montant, en étiquette sur le bord : masquée sur les petits jetons. -->
+<span class="bt-tag"><span class="bt-x">{{ sign() }}</span>{{ amount() }}</span>

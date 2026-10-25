@@ -43,6 +43,12 @@ export interface PlanInput {
 }
 
 export const SCRIPT = {
+    /**
+     * Étire tous les délais d'un joueur régulier : la file reste ouverte plus
+     * longtemps, et un autre humain a plus de chances de la rejoindre avant
+     * qu'elle soit pleine. Sans effet sur le profil nouveau joueur.
+     */
+    REGULAR_STRETCH: 1.3,
     /** Plafond du temps de remplissage d'un joueur régulier. */
     REGULAR_CAP_MS: 45_000,
     NEWCOMER_MIN_MS: 3_000,
@@ -149,7 +155,9 @@ export function planArrivals({ seatsToFill, newcomer, rng }: PlanInput): Arrival
     const archetype: Archetype = newcomer ? 'newcomer' : pickArchetype(rng, n);
     const overlays = { leaver: false, switch: false, slowTail: false };
 
-    const targets = archetype === 'newcomer' ? newcomerTargets(rng, n) : regularTargets(rng, n, archetype);
+    const targets = archetype === 'newcomer'
+        ? newcomerTargets(rng, n)
+        : regularTargets(rng, n, archetype).map(t => t * SCRIPT.REGULAR_STRETCH);
 
     if (archetype !== 'newcomer') {
         if (rng() < SLOW_TAIL_CHANCE) {

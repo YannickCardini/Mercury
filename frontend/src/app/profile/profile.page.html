@@ -18,60 +18,49 @@
       <div class="pf-state pf-state--error">{{ error() }}</div>
     } @else if (profile(); as p) {
       <div class="pf-body">
-        @if (p.picture) {
-          <img class="pf-photo" [src]="p.picture" [alt]="p.name" referrerpolicy="no-referrer" />
-        } @else {
-          <div class="pf-photo pf-photo--fallback"></div>
-        }
-
-        <h2 class="pf-name">{{ p.name }}</h2>
-
-        <div class="pf-stats">
-          <div class="pf-stat">
-            <span class="pf-stat-value">{{ p.points }}</span>
-            <span class="pf-stat-label">points</span>
-          </div>
-          @if (p.ranking > 0) {
-            <div class="pf-stat">
-              <span class="pf-stat-value">#{{ p.ranking }}</span>
-              <span class="pf-stat-label">ranking</span>
-            </div>
+        <!-- La même carte que le volet gauche de la fenêtre du profil : qui
+             est le joueur, et les boosters avec lesquels il joue (infobulle au
+             survol ou au toucher), utiles avant de l'affronter. -->
+        <app-player-card [name]="p.name" [picture]="p.picture" [points]="p.points" [ranking]="p.ranking"
+          [boosts]="boosts() ?? []" [showBoosts]="boosts() !== null" boostsNote="equipped for every game">
+          @if (isSelf()) {
+            <button pc-boost-action class="pf-boosts-edit" (click)="equipMine()">Change my boosters</button>
           }
-        </div>
 
-        <dl class="pf-meta">
-          <div class="pf-meta-row">
-            <dt>Member since</dt>
-            <dd>{{ formatDate(p.createdAt) }}</dd>
-          </div>
-          <div class="pf-meta-row">
-            <dt>Last seen</dt>
-            <dd>{{ formatLastSeen(p.lastSeenAt) }}</dd>
-          </div>
-        </dl>
+          <dl class="pf-meta">
+            <div class="pf-meta-row">
+              <dt>Member since</dt>
+              <dd>{{ formatDate(p.createdAt) }}</dd>
+            </div>
+            <div class="pf-meta-row">
+              <dt>Last seen</dt>
+              <dd>{{ formatLastSeen(p.lastSeenAt) }}</dd>
+            </div>
+          </dl>
 
-        @if (!isSelf()) {
-          <span class="pf-send-btn-wrap"
-                [class.pf-send-btn-wrap--disabled]="!canSendMessage()">
-            <button
-              class="pf-send-btn"
-              [disabled]="!canSendMessage()"
-              [attr.title]="canSendMessage() ? null : 'Sign in to send a message'"
-              [attr.aria-describedby]="canSendMessage() ? null : 'pf-send-tooltip'"
-              (click)="openSendModal()">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M22 2L11 13"></path>
-                <path d="M22 2l-7 20-4-9-9-4 20-7z"></path>
-              </svg>
-              <span>Send private message</span>
-            </button>
-            @if (!canSendMessage()) {
-              <span id="pf-send-tooltip" class="pf-send-tooltip" role="tooltip">
-                Sign in to send a message
-              </span>
-            }
-          </span>
-        }
+          @if (!isSelf()) {
+            <span class="pf-send-btn-wrap"
+                  [class.pf-send-btn-wrap--disabled]="!canSendMessage()">
+              <button
+                class="pf-send-btn"
+                [disabled]="!canSendMessage()"
+                [attr.title]="canSendMessage() ? null : 'Sign in to send a message'"
+                [attr.aria-describedby]="canSendMessage() ? null : 'pf-send-tooltip'"
+                (click)="openSendModal()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M22 2L11 13"></path>
+                  <path d="M22 2l-7 20-4-9-9-4 20-7z"></path>
+                </svg>
+                <span>Send private message</span>
+              </button>
+              @if (!canSendMessage()) {
+                <span id="pf-send-tooltip" class="pf-send-tooltip" role="tooltip">
+                  Sign in to send a message
+                </span>
+              }
+            </span>
+          }
+        </app-player-card>
       </div>
     }
   </div>

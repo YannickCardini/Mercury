@@ -85,10 +85,11 @@
   </div>
   }
 
-  <!-- Prime Bounty : pièces qui jaillissent des pions adverses capturés.
-       Hors de la table (conteneur qui rognerait le vol), monté seulement
-       quand le booster est actif. -->
-  @if (gameStateService.hasBounty()) {
+  <!-- Boosters qui paient en jeu (Bounty, Homecoming, Double Strike) : pièces
+       qui jaillissent du plateau vers le dock, malus Bounty en rouge. Hors de
+       la table (conteneur qui rognerait le vol), monté seulement quand l'un
+       de ces boosters est actif. -->
+  @if (gameStateService.hasLiveBoost()) {
   <app-bounty-fx />
   }
 
@@ -111,6 +112,7 @@
     [coinsDelta]="gameStateService.gameStats()?.coinsDelta ?? null"
     [boosts]="gameStateService.gameStats()?.boosts ?? gameStateService.myBoosts()"
     [coinsBase]="gameStateService.gameStats()?.coinsBase ?? null"
+    [perfectBonus]="gameStateService.gameStats()?.perfectBonus ?? 0"
     (backToMenu)="backToMenu()"
   ></app-victory-overlay>
   }

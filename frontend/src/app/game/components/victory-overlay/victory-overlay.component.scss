@@ -537,6 +537,21 @@ $slot-glows: (
   &.is-complete {
     animation: coins-complete 0.6s ease-out;
   }
+
+  // Malus Bounty en train de se retrancher, ou partie qui coûte des pièces :
+  // la pastille passe au rouge, sans onde dorée à la fin.
+  &.is-penalty,
+  &.is-loss {
+    background: rgba(var(--m-red-rgb), 0.14);
+    border-color: rgba(var(--m-red-rgb), 0.4);
+    color: var(--m-red-light);
+    transition: background-color 0.2s, border-color 0.2s, color 0.2s, opacity 0.22s ease-out,
+      transform 0.35s cubic-bezier(0.2, 1.5, 0.4, 1);
+  }
+
+  &.is-loss.is-complete {
+    animation: none;
+  }
 }
 
 @keyframes coins-complete {
@@ -605,6 +620,17 @@ $slot-glows: (
 
 // Points : le montant est connu d'emblée, le sceau le frappe juste après
 // l'entrée de la card.
+.stats-seal--perfect {
+  --seal-rgb: var(--m-blue-rgb);
+  --seal-ink: var(--m-blue-fg);
+
+  animation: seal-stamp 0.55s cubic-bezier(0.2, 1.5, 0.4, 1) 0.85s both;
+
+  &::after {
+    animation: seal-ring 0.7s ease-out 1.05s both;
+  }
+}
+
 .stats-seal--points {
   --seal-rgb: var(--m-violet-rgb);
   --seal-ink: var(--m-violet-fg);
@@ -692,11 +718,26 @@ $slot-glows: (
   opacity: 0.5;
 }
 
-.stats-breakdown__bounty {
+.stats-breakdown__part {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  color: var(--m-red-fg);
+
+  &[data-effect="capture_coins"] {
+    color: var(--m-red-fg);
+  }
+
+  &[data-effect="pair_home"] {
+    color: var(--m-green-fg);
+  }
+
+  &[data-effect="pair_capture"] {
+    color: var(--m-orange-fg);
+  }
+
+  &.is-loss {
+    color: var(--m-red-fg);
+  }
 }
 
 .stats-breakdown-token {

@@ -510,6 +510,63 @@ export class SoundService {
   }
 
   /**
+   * Jackpot: a pile of coins pouring out, for the rare +50 (double capture,
+   * double homecoming). A burst of ~18 coin chirps with jittered timing and
+   * pitch that thins out like a falling stream, over a metallic ring and a
+   * bright shimmer tail. Several overlapping voices, so the gain per chirp
+   * stays low.
+   */
+  playCoinJackpot(): void {
+    if (this.silenced()) return;
+    const ctx = this.getCtx();
+    const t = ctx.currentTime;
+    const coins = 18;
+
+    for (let i = 0; i < coins; i++) {
+      // Dense at first, then the stream thins out.
+      const progress = i / (coins - 1);
+      const start = t + 0.9 * Math.pow(progress, 1.4) + Math.random() * 0.025;
+      const pitch = 0.85 + Math.random() * 0.5;
+      const peak = 0.07 * (1 - progress * 0.5);
+      const notes = [
+        { freq: 987.77 * pitch, at: 0, len: 0.05 },
+        { freq: 1318.51 * pitch, at: 0.045, len: 0.16 },
+      ];
+      for (const n of notes) {
+        const noteStart = start + n.at;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(n.freq, noteStart);
+        gain.gain.setValueAtTime(0.0, noteStart);
+        gain.gain.linearRampToValueAtTime(peak, noteStart + 0.004);
+        gain.gain.setValueAtTime(peak, noteStart + n.len * 0.4);
+        gain.gain.exponentialRampToValueAtTime(0.001, noteStart + n.len);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(noteStart);
+        osc.stop(noteStart + n.len);
+      }
+    }
+
+    // Metallic ring of coins landing on each other: inharmonic sines.
+    [2637, 3520, 4186].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const start = t + 0.05 + i * 0.12;
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, start);
+      gain.gain.setValueAtTime(0.0, start);
+      gain.gain.linearRampToValueAtTime(0.05, start + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.9);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + 0.9);
+    });
+  }
+
+  /**
    * Bright arpeggio with a shimmer tail — a shop item is unlocked. Volontairement
    * plus haut et plus rapide que `playPromote` : les deux peuvent s'entendre dans
    * la même session et doivent rester distincts.
@@ -550,6 +607,123 @@ export class SoundService {
     shimmerGain.connect(ctx.destination);
     shimmer.start(shimmerStart);
     shimmer.stop(shimmerStart + 0.7);
+  }
+
+  // ── Boosters : équiper, retirer ───────────────────────────────────────────
+  // Même famille que le reste (Web Audio, oscillateurs courts) : un souffle qui
+  // accompagne le vol du jeton, un « clac » de bille qui tombe dans un trou du
+  // plateau quand il se pose, et l'inverse quand on le retire.
+
+  /**
+   * Souffle montant pendant le vol d'un jeton vers son creux : une glissade
+   * douce sur toute la durée du vol (`durationMs`), qui s'éteint juste avant
+   * l'arrivée pour laisser le « clac » de playBoostLock net.
+   */
+  playBoostLaunch(durationMs = 420): void {
+    if (this.silenced()) return;
+    const ctx = this.getCtx();
+    const t = ctx.currentTime;
+    const len = Math.max(0.15, durationMs / 1000);
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(240, t);
+    osc.frequency.exponentialRampToValueAtTime(760, t + len * 0.9);
+    gain.gain.setValueAtTime(0.0, t);
+    gain.gain.linearRampToValueAtTime(0.07, t + len * 0.35);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + len * 0.92);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(t);
+    osc.stop(t + len);
+  }
+
+  /**
+   * Le jeton se pose : un « clac » de bille qui tombe dans un trou (corps grave
+   * qui chute + attaque claire), puis deux notes qui montent (C6, G6), comme
+   * une pièce qui s'emboîte. Plus court et plus grave que playUnlock, qu'on
+   * entend juste avant quand on vient d'acheter.
+   */
+  playBoostLock(): void {
+    if (this.silenced()) return;
+    const ctx = this.getCtx();
+    const t = ctx.currentTime;
+
+    const body = ctx.createOscillator();
+    const bodyGain = ctx.createGain();
+    body.type = 'triangle';
+    body.frequency.setValueAtTime(520, t);
+    body.frequency.exponentialRampToValueAtTime(150, t + 0.07);
+    bodyGain.gain.setValueAtTime(0.5, t);
+    bodyGain.gain.exponentialRampToValueAtTime(0.01, t + 0.13);
+    body.connect(bodyGain);
+    bodyGain.connect(ctx.destination);
+    body.start(t);
+    body.stop(t + 0.13);
+
+    const click = ctx.createOscillator();
+    const clickGain = ctx.createGain();
+    click.type = 'sine';
+    click.frequency.setValueAtTime(1900, t);
+    clickGain.gain.setValueAtTime(0.16, t);
+    clickGain.gain.exponentialRampToValueAtTime(0.01, t + 0.02);
+    click.connect(clickGain);
+    clickGain.connect(ctx.destination);
+    click.start(t);
+    click.stop(t + 0.02);
+
+    [1046.5, 1568].forEach((freq, i) => {
+      const start = t + 0.05 + i * 0.07;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, start);
+      gain.gain.setValueAtTime(0.0, start);
+      gain.gain.linearRampToValueAtTime(0.14, start + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.32);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + 0.32);
+    });
+  }
+
+  /**
+   * Le jeton sort de son creux et retourne à sa rangée : un « pop » qui le
+   * décolle, puis une glissade qui descend pendant son retour (`durationMs`).
+   */
+  playBoostRelease(durationMs = 360): void {
+    if (this.silenced()) return;
+    const ctx = this.getCtx();
+    const t = ctx.currentTime;
+    const len = Math.max(0.15, durationMs / 1000);
+
+    const pop = ctx.createOscillator();
+    const popGain = ctx.createGain();
+    pop.type = 'sine';
+    pop.frequency.setValueAtTime(420, t);
+    pop.frequency.exponentialRampToValueAtTime(980, t + 0.05);
+    popGain.gain.setValueAtTime(0.22, t);
+    popGain.gain.exponentialRampToValueAtTime(0.01, t + 0.08);
+    pop.connect(popGain);
+    popGain.connect(ctx.destination);
+    pop.start(t);
+    pop.stop(t + 0.08);
+
+    const glide = ctx.createOscillator();
+    const glideGain = ctx.createGain();
+    const start = t + 0.05;
+    glide.type = 'triangle';
+    glide.frequency.setValueAtTime(820, start);
+    glide.frequency.exponentialRampToValueAtTime(260, start + len);
+    glideGain.gain.setValueAtTime(0.0, start);
+    glideGain.gain.linearRampToValueAtTime(0.08, start + 0.03);
+    glideGain.gain.exponentialRampToValueAtTime(0.001, start + len);
+    glide.connect(glideGain);
+    glideGain.connect(ctx.destination);
+    glide.start(start);
+    glide.stop(start + len);
   }
 
   /** Low descending tone — human player loses. */

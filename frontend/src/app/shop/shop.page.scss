@@ -258,6 +258,53 @@
   gap: 12px;
 }
 
+// Boosters : leur effet se lit en entier sur la tuile, il lui faut de la
+// largeur. Deux par rangée dans la feuille, une seule sur téléphone.
+.sh-grid--wide {
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+// Où jouent les boosters : les emplacements du profil, et le chemin pour y aller.
+.sh-slots {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  margin: 0 0 12px;
+  padding: 9px 12px;
+  box-sizing: border-box;
+  @include m.inset;
+  color: var(--m-fg-2);
+  font-family: var(--m-font-text);
+  font-size: 12.5px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.18s;
+
+  &:hover {
+    border-color: var(--m-line-3);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--m-blue-fg);
+    outline-offset: 2px;
+  }
+}
+
+.sh-slots-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--m-blue-fg);
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+
 .sh-tile {
   position: relative;
   display: flex;
@@ -282,59 +329,8 @@
   }
 }
 
-// ── Boosters : teinte propre à chaque effet ──────────────────────────────────
-// Déclaré avant les états (.is-short, .is-armed) : à spécificité égale, c'est
-// l'état qui doit avoir le dernier mot sur --tile-rgb. --boost-rgb reprend le
-// code couleur des jetons ; --boost-ink en est la version lisible sur le papier sombre.
-
-.sh-tile[data-effect="double_points"],
-.modal-card[data-effect="double_points"] {
-  --boost-rgb: var(--m-violet-rgb);
-  --boost-ink: var(--m-violet-fg);
-}
-
-.sh-tile[data-effect="double_coins"],
-.modal-card[data-effect="double_coins"] {
-  --boost-rgb: var(--m-gold-rgb);
-  --boost-ink: var(--m-gold-fg);
-}
-
-.sh-tile[data-effect="capture_coins"],
-.modal-card[data-effect="capture_coins"] {
-  --boost-rgb: var(--m-red-rgb);
-  --boost-ink: var(--m-red-fg);
-}
-
-.sh-tile[data-effect] {
-  --tile-rgb: var(--boost-rgb);
-
-  .sh-tile-ring {
-    border-color: rgb(var(--boost-rgb));
-  }
-
-  .sh-tile-sparks i {
-    background: rgb(var(--boost-rgb));
-  }
-}
-
-.sh-tile-token {
-  --bt-size: 42px;
-}
-
-// L'effet en une ligne, sous le libellé : on sait ce qu'on achète sans ouvrir
-// la modale.
-.sh-tile-desc {
-  margin-top: -5px;
-  font-size: 11.5px;
-  font-weight: 500;
-  line-height: 1.35;
-  color: var(--m-fg-3);
-  text-align: center;
-  text-wrap: balance;
-}
-
 // Hublot : un disque de nuit, à plat, cerclé de la couleur d'état. Il donne
-// aux jetons et aux emojis le fond sombre pour lequel ils sont dessinés.
+// aux emojis le fond sombre pour lequel ils sont dessinés.
 .sh-tile-orb {
   position: relative;
   display: flex;
@@ -351,6 +347,29 @@
 .sh-tile-glyph {
   font-size: 34px;
   line-height: 1;
+}
+
+.sh-tile-token {
+  --bt-size: 46px;
+}
+
+// L'effet d'un booster, en entier : c'est ce qu'on achète.
+.sh-tile-desc {
+  margin-top: -4px;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--m-fg-2);
+  text-align: center;
+  text-wrap: pretty;
+}
+
+// Possédé, pas équipé : mène au profil, grisé quand tout est plein.
+.sh-equip-btn {
+  @include m.btn(7px 16px);
+  @include m.btn-paper;
+  margin-top: auto;
+  font-size: 13px;
 }
 
 .sh-tile-label {
@@ -458,31 +477,12 @@
   }
 }
 
-// Armé : le booster attend la prochaine partie. Teinte de l'effet plutôt que
-// le vert « possédé » : ce n'est pas une pièce de collection, c'est une
-// charge qui va partir, et le jeton porte déjà son orbite « en effet ».
-.sh-tile.is-armed {
-  border-color: rgba(var(--boost-rgb), 0.5);
-  background: rgba(var(--boost-rgb), 0.09);
-
-  &:hover {
-    border-color: rgba(var(--boost-rgb), 0.7);
-  }
-}
-
-.sh-tile-badge--armed {
-  background: rgba(var(--boost-rgb), 0.14);
-  border-color: rgba(var(--boost-rgb), 0.5);
-  color: var(--boost-ink);
-}
-
 // Hors budget : l'objet reste visible mais éteint, et le cercle perd sa couleur.
 .sh-tile.is-short {
   --tile-rgb: var(--m-ink-rgb);
   --tile-ring: 0.2;
 
-  .sh-tile-glyph,
-  .sh-tile-token {
+  .sh-tile-glyph {
     filter: grayscale(1) brightness(0.85);
     opacity: 0.5;
   }
@@ -533,30 +533,13 @@
     animation: tile-spark 0.72s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
-  .sh-tile-glyph,
-  .sh-tile-token {
+  .sh-tile-glyph {
     animation: tile-pop 0.72s cubic-bezier(0.2, 1.5, 0.4, 1);
-  }
-
-  // Un booster se pose sur sa propre teinte, pas sur le vert « possédé ».
-  &[data-effect] {
-    animation-name: tile-flash-boost;
   }
 }
 
 // La tranche de la vignette est répétée dans chaque image clé : l'animation
 // remplace tout le box-shadow, elle l'aplatirait le temps du flash.
-@keyframes tile-flash-boost {
-  0% {
-    box-shadow: 0 2px 0 0 var(--m-paper-edge), 0 0 0 0 rgba(var(--boost-rgb), 0.65);
-    background: rgba(var(--boost-rgb), 0.3);
-  }
-  100% {
-    box-shadow: 0 2px 0 0 var(--m-paper-edge), 0 0 0 22px rgba(var(--boost-rgb), 0);
-    background: rgba(var(--boost-rgb), 0.09);
-  }
-}
-
 @keyframes tile-flash {
   0% {
     box-shadow: 0 2px 0 0 var(--m-paper-edge), 0 0 0 0 rgba(var(--m-gold-rgb), 0.7);
@@ -605,48 +588,6 @@
   }
 }
 
-// ── Pièces en vol ────────────────────────────────────────────────────────────
-// Le prix quitte physiquement le solde pour rejoindre l'objet : c'est ce trajet,
-// pas le chiffre qui change, qui fait sentir la dépense.
-
-.sh-flights {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
-  pointer-events: none;
-}
-
-.sh-fly-coin {
-  @include coin;
-  --coin-size: 15px;
-
-  position: fixed;
-  // left/top portent le centre de la pièce source ; la marge recentre le disque.
-  margin: calc(var(--coin-size) * -0.5) 0 0 calc(var(--coin-size) * -0.5);
-  opacity: 0;
-  animation: coin-fly 620ms cubic-bezier(0.4, 0, 0.55, 1) forwards;
-}
-
-@keyframes coin-fly {
-  0% {
-    opacity: 0;
-    transform: translate(0, 0) scale(0.7);
-  }
-  14% {
-    opacity: 1;
-    transform: translate(calc(var(--fx) * 0.12), calc(var(--fy) * 0.12 - var(--lift) * 0.5))
-      scale(1.15);
-  }
-  62% {
-    opacity: 1;
-    transform: translate(calc(var(--fx) * 0.62), calc(var(--fy) * 0.62 - var(--lift))) scale(1.05);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(var(--fx), var(--fy)) scale(0.35);
-  }
-}
-
 // ── Modale de confirmation ───────────────────────────────────────────────────
 
 .modal-overlay {
@@ -679,8 +620,7 @@
 }
 
 // L'objet convoité, présenté comme sur sa vignette mais plus grand : le joueur
-// confirme un objet, pas une ligne de catalogue. Même hublot, cerclé d'or ou
-// de la teinte du booster.
+// confirme un objet, pas une ligne de catalogue. Même hublot, cerclé d'or.
 .sh-confirm-orb {
   position: relative;
   display: inline-flex;
@@ -691,7 +631,7 @@
   margin-bottom: 14px;
   border-radius: 50%;
   background: var(--m-night);
-  box-shadow: 0 0 0 4px rgba(var(--boost-rgb, var(--m-gold-rgb)), 0.9);
+  box-shadow: 0 0 0 4px rgba(var(--m-gold-rgb), 0.9);
 }
 
 .sh-confirm-glyph {
@@ -699,23 +639,67 @@
   line-height: 1;
 }
 
-.sh-confirm-token {
-  --bt-size: 54px;
+.sh-confirm-cup {
+  --cup-size: 84px;
+
+  margin-bottom: 14px;
+}
+
+.modal-card[data-effect="double_points"] {
+  --boost-fg: var(--m-violet-fg);
+}
+
+.modal-card[data-effect="double_coins"] {
+  --boost-fg: var(--m-gold-fg);
+}
+
+.modal-card[data-effect="capture_coins"] {
+  --boost-fg: var(--m-red-fg);
+}
+
+.modal-card[data-effect="pair_home"] {
+  --boost-fg: var(--m-green-fg);
+}
+
+.modal-card[data-effect="pair_capture"] {
+  --boost-fg: var(--m-orange-fg);
+}
+
+.modal-card[data-effect="perfect_win"] {
+  --boost-fg: var(--m-blue-fg);
 }
 
 .sh-confirm-effect {
-  margin: 0 0 4px;
+  margin: 0 0 6px;
   font-size: 14px;
-  font-weight: 700;
-  line-height: 1.4;
-  color: var(--boost-ink, var(--m-fg));
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--boost-fg, var(--m-fg));
 }
 
 .sh-confirm-scope {
   margin: 0 0 14px;
   font-size: 12.5px;
   font-weight: 500;
+  line-height: 1.45;
   color: var(--m-fg-3);
+}
+
+// Booster acquis : les emplacements du joueur en petit, et celui où il irait,
+// son jeton en filigrane et cerclé. Plein, aucun n'est désigné.
+.sh-preview {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin: 4px 0 12px;
+  padding: 10px;
+  border-radius: var(--m-r-lg);
+  background: var(--m-paper-lo);
+}
+
+.sh-preview-cup {
+  --cup-size: 38px;
 }
 
 .sh-confirm-title {
@@ -758,6 +742,23 @@
   &--primary {
     @include m.btn-fill(gold);
   }
+
+  // Équiper : l'action principale du jeu (vert), pas une dépense (or).
+  &--equip {
+    @include m.btn-fill(green);
+  }
+
+  // Pendant le paiement d'un booster le bouton garde sa couleur : seule la
+  // roue tourne.
+  &:disabled {
+    opacity: 1;
+    cursor: progress;
+  }
+}
+
+.sh-btn-spinner--dark {
+  border-color: rgba(var(--m-ink-rgb), 0.25);
+  border-top-color: var(--m-ink-solid);
 }
 
 // ── Accessibilité ────────────────────────────────────────────────────────────
@@ -768,8 +769,7 @@
   // rester confirmé à l'écran.
   .sh-tile.is-burst .sh-tile-ring,
   .sh-tile.is-burst .sh-tile-sparks i,
-  .sh-tile.is-burst .sh-tile-glyph,
-  .sh-tile.is-burst .sh-tile-token {
+  .sh-tile.is-burst .sh-tile-glyph {
     animation: none !important;
   }
 
@@ -859,7 +859,12 @@
   }
 
   .sh-tile-token {
-    --bt-size: 38px;
+    --bt-size: 42px;
+  }
+
+  // Une tuile de booster par rangée : son effet se lit sur toute la largeur.
+  .sh-grid--wide {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -903,8 +908,12 @@
     font-size: 27px;
   }
 
+  .sh-grid--wide {
+    grid-template-columns: 1fr;
+  }
+
   .sh-tile-token {
-    --bt-size: 34px;
+    --bt-size: 38px;
   }
 
   .sh-tile-label {
@@ -915,5 +924,15 @@
     min-width: 70px;
     padding: 6px 11px;
     font-size: 15px;
+  }
+}
+
+// Android : sans calques promus, la WebView lâche l'animation à la fin de
+// l'ouverture et la page derrière clignote une image (voir CLAUDE.md).
+:host(.is-native) .modal-overlay.active {
+  will-change: opacity;
+
+  .modal-card {
+    will-change: transform, opacity;
   }
 }

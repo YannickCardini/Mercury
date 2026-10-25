@@ -1,0 +1,41 @@
+<div class="pc-avatar">
+  @if (picture()) {
+    <img class="pc-photo" [src]="picture()" [alt]="name()" referrerpolicy="no-referrer" />
+  } @else {
+    <span class="pc-photo pc-photo--fallback" aria-hidden="true"></span>
+  }
+</div>
+
+<h2 class="pc-name">{{ name() }}</h2>
+
+<dl class="pc-stats">
+  @if (ranking() > 0) {
+    <div class="pc-stat">
+      <dt class="pc-stat-label">rank</dt>
+      <dd class="pc-stat-value">#{{ ranking() }}</dd>
+    </div>
+  }
+  <div class="pc-stat">
+    <dt class="pc-stat-label">points</dt>
+    <dd class="pc-stat-value">{{ points() | number }}</dd>
+  </div>
+</dl>
+
+@if (showBoosts()) {
+<section class="pc-boosts" aria-labelledby="pc-boosts-title">
+  <p class="pc-boosts-head">
+    <span id="pc-boosts-title" class="pc-boosts-title">Boosters</span>
+    @if (boostsNote()) {
+      <span class="pc-boosts-note">{{ boostsNote() }}</span>
+    }
+  </p>
+  @if (boosts().length > 0) {
+    <app-boost-shelf class="pc-shelf" [boosts]="boosts()" />
+  } @else {
+    <p class="pc-boosts-empty">{{ emptyNote() }}</p>
+  }
+  <ng-content select="[pc-boost-action]" />
+</section>
+}
+
+<ng-content />

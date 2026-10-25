@@ -534,19 +534,33 @@ export class GamePage implements OnDestroy, AfterViewInit {
     const winners: MarbleColor[] = [...(iWin ? myTeam : otherTeam)];
     this.gameStateService.winners.set(winners);
     this.gameStateService.winReason.set("win");
-    // Stats d'exemple pour la variante la plus haute (booster Double Points +
-    // Double Coins + Bounty) : sans elles le bloc reste sur « Calculating… ».
-    // Visible seulement pour un joueur connecté (les invités n'ont pas de stats).
+    // Stats d'exemple : sans elles le bloc reste sur « Calculating… ». Victoire
+    // = variante la plus haute (Double Points + Double Coins + Bounty +
+    // Homecoming avec un malus, et une partie parfaite : (4 + 100) × 2) ;
+    // défaite = malus Bounty qui dépasse le gain, la partie coûte des pièces.
+    // Visible seulement pour un joueur connecté.
     this.gameStateService.gameStats.set({
       type: "gameStats",
-      pointsDelta: iWin ? 8 : -2,
+      pointsDelta: iWin ? 208 : -2,
       newPoints: iWin ? 1240 : 1230,
       newRanking: 12,
       color: myColor ?? undefined,
-      coinsDelta: iWin ? 14 : 4,
+      // (4 + 3 + 50) × 2 − 1 ; défaite : 1 − 3.
+      coinsDelta: iWin ? 113 : -2,
       newCoins: 250,
-      boosts: ["consumable.double_points", "consumable.double_coins", "consumable.bounty"],
-      coinsBase: iWin ? { victory: 4, captures: 3 } : { victory: 0, captures: 2 },
+      boosts: iWin
+        ? [
+            "consumable.double_points",
+            "consumable.double_coins",
+            "consumable.bounty",
+            "consumable.homecoming",
+            "consumable.perfect_game",
+          ]
+        : ["consumable.bounty", "consumable.double_strike"],
+      coinsBase: iWin
+        ? { victory: 4, captures: 3, allyPenalty: 1, pairHome: 50, pairCapture: 0 }
+        : { victory: 0, captures: 1, allyPenalty: 3, pairHome: 0, pairCapture: 0 },
+      ...(iWin ? { perfectBonus: 100 } : {}),
     });
   }
 

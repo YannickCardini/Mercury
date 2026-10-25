@@ -380,8 +380,11 @@ export class BoardComponent implements OnDestroy {
       }
     }
 
-    // Étape 2 : animation du marble
+    // Étape 2 : animation du marble. Les captures animées pendant l'action
+    // sont regroupées : deux à la fois (7 partagé), c'est un coup double.
+    this.gameStateService.beginActionFx();
     await this.animateMarble(action);
+    this.gameStateService.endActionFx(action);
 
     // Étape 3 : signaler la fin
     const currentTurn = this.gameStateService.newTurn.getValue();

@@ -46,7 +46,7 @@
       @if (!signedIn()) {
         <div class="sh-signin">
           <span class="sh-signin-orb" aria-hidden="true"></span>
-          Sign in to earn coins and unlock reactions.
+          Sign in to earn coins and unlock reactions and boosters.
         </div>
       }
 
@@ -59,21 +59,32 @@
           @if (section.note) {
             <p class="sh-section-note">{{ section.note }}</p>
           }
+          @if (section.kind === 'consumable' && signedIn()) {
+            <!-- Où ils jouent : les emplacements du profil, et le chemin pour y aller. -->
+            <button class="sh-slots" (click)="openLoadout()">
+              <span>{{ shop.equippedBoosts().length }} of {{ shop.slots() }} slots used</span>
+              <span class="sh-slots-go">Manage in profile
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+              </span>
+            </button>
+          }
 
-          <ul class="sh-grid">
+          <!-- Les boosters, dont l'effet se lit en entier sur la tuile, ont des
+               tuiles plus larges que les emojis. -->
+          <ul class="sh-grid" [class.sh-grid--wide]="section.kind === 'consumable'">
             @for (item of section.items; track item.id; let i = $index) {
               <li class="sh-tile"
                   [attr.data-item]="item.id"
                   [attr.data-effect]="item.kind === 'consumable' ? item.effect : null"
-                  [class.is-owned]="stateOf(item) === 'owned'"
-                  [class.is-armed]="stateOf(item) === 'armed'"
+                  [class.is-owned]="stateOf(item) === 'owned' || stateOf(item) === 'equipped'"
                   [class.is-short]="stateOf(item) === 'short'"
                   [class.is-burst]="burstId() === item.id"
                   [style.--tile-i]="i">
                 <span class="sh-tile-orb" aria-hidden="true">
                   @if (item.kind === 'consumable') {
-                    <app-boost-token class="sh-tile-token" [effect]="item.effect"
-                      [live]="stateOf(item) === 'armed'" />
+                    <app-boost-token class="sh-tile-token" [effect]="item.effect" [live]="stateOf(item) === 'equipped'" />
                   } @else {
                     <span class="sh-tile-glyph">{{ previewOf(item) }}</span>
                   }
@@ -99,27 +110,33 @@
                   <span class="sh-tile-desc">{{ item.description }}</span>
                 }
 
-                @if (stateOf(item) === 'owned') {
+                @if (stateOf(item) === 'equipped') {
+                  <span class="sh-tile-badge">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                    Equipped
+                  </span>
+                } @else if (stateOf(item) === 'owned' && item.kind === 'consumable') {
+                  <!-- Possédé, pas équipé : le profil s'ouvre avec ce booster en
+                       main. Grisé quand tout est plein. -->
+                  <button class="sh-equip-btn" (click)="equipInProfile(item)" [disabled]="isFull()"
+                          [attr.title]="isFull() ? 'All slots are in use' : null"
+                          [attr.aria-label]="isFull() ? 'Equip ' + item.label + ', unavailable: all slots are in use' : 'Equip ' + item.label + ' in your profile'">
+                    Equip
+                  </button>
+                } @else if (stateOf(item) === 'owned') {
                   <span class="sh-tile-badge">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                     Owned
                   </span>
-                } @else if (stateOf(item) === 'armed') {
-                  <!-- Pas de bouton : un exemplaire de chaque booster à la fois.
-                       Il redevient achetable dès que la partie suivante l'a consommé. -->
-                  <span class="sh-tile-badge sh-tile-badge--armed">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                      <path d="M13 2 4.5 13.5H11L10 22l8.5-11.5H12L13 2Z"></path>
-                    </svg>
-                    Next game
-                  </span>
                 } @else if (signedIn()) {
                   <button class="sh-buy-btn"
                           [disabled]="!canAfford(item) || busyId() === item.id"
                           (click)="confirm(item)"
-                          [attr.aria-label]="(item.kind === 'consumable' ? 'Activate ' : 'Unlock ') + item.label + ' for ' + item.price + ' coins'">
+                          [attr.aria-label]="'Unlock ' + item.label + ' for ' + item.price + ' coins'">
                     @if (busyId() === item.id) {
                       <span class="sh-btn-spinner"></span>
                     } @else {
@@ -138,53 +155,88 @@
           </ul>
         </section>
       }
+
     }
     </div>
   </div>
 
-  <!-- Pièces en vol : hors de .sh-card, dont le backdrop-filter créerait un bloc
-       conteneur et emprisonnerait ces éléments en position fixed. -->
-  <div class="sh-flights" aria-hidden="true">
-    @for (c of flyingCoins(); track c.id) {
-      <span class="sh-fly-coin"
-            [style.left.px]="c.x"
-            [style.top.px]="c.y"
-            [style.--fx]="c.dx + 'px'"
-            [style.--fy]="c.dy + 'px'"
-            [style.--lift]="c.lift + 'px'"
-            [style.animation-delay]="c.delay + 'ms'"></span>
-    }
-  </div>
+  <!-- Pièces en vol : hors de .sh-card, pour que ces éléments en position
+       fixed se placent sur l'écran et non dans la carte. -->
+  <app-coin-flight />
 
   <div class="modal-overlay" [class.active]="pending() !== null" (click)="cancel()">
-    @if (pending(); as item) {
-      <div class="modal-card m-paper" (click)="$event.stopPropagation()"
-           [attr.data-effect]="item.kind === 'consumable' ? item.effect : null">
-        <span class="sh-confirm-orb" aria-hidden="true">
-          @if (item.kind === 'consumable') {
-            <!-- Pas de [live] : l'orbe de la modale a déjà son orbite. -->
-            <app-boost-token class="sh-confirm-token" [effect]="item.effect" />
-          } @else {
-            <span class="sh-confirm-glyph">{{ previewOf(item) }}</span>
-          }
-        </span>
-        @if (item.kind === 'consumable') {
-          <h2 class="sh-confirm-title">Activate {{ item.label }}</h2>
+    @if (pendingBoost(); as b) {
+      <!-- Un booster : une seule carte du début à la fin. Les pièces tombent
+           dans son creux, le jeton s'y matérialise, puis elle propose d'aller
+           l'équiper dans le profil, en sachant s'il reste une place. -->
+      <div class="modal-card m-paper" role="dialog" aria-modal="true" aria-labelledby="sh-confirm-title"
+           [attr.data-effect]="b.effect" (click)="$event.stopPropagation()">
+        <app-boost-cup class="sh-confirm-cup" [effect]="b.effect"
+          [class.is-ghost]="boostPhase() !== 'owned'" [class.is-seated]="seated()" />
+
+        @if (boostPhase() !== 'owned') {
+          <h2 id="sh-confirm-title" class="sh-confirm-title">Unlock {{ b.label }}</h2>
           <!-- Le pari se lit avant de payer : Double Points joue aussi sur la perte. -->
-          <p class="sh-confirm-effect">{{ item.description }}</p>
-          <p class="sh-confirm-scope">Applies to your next game only.</p>
+          <p class="sh-confirm-effect">{{ b.description }}</p>
+          <p class="sh-confirm-scope">Yours for good. You equip it from your profile.</p>
+          <p class="sh-confirm-text">
+            Costs <span class="sh-coin" aria-hidden="true"></span><strong>{{ b.price }}</strong>
+            of your <span class="sh-coin" aria-hidden="true"></span><strong>{{ balance() }}</strong> coins.
+          </p>
+          <div class="sh-confirm-actions">
+            <button class="sh-btn sh-btn--ghost" (click)="cancel()" [disabled]="boostPhase() === 'buying'">Cancel</button>
+            <button class="sh-btn sh-btn--primary" (click)="buy()" [disabled]="boostPhase() === 'buying'">
+              @if (boostPhase() === 'buying') {
+                <span class="sh-btn-spinner sh-btn-spinner--dark" aria-hidden="true"></span>
+              } @else {
+                Unlock
+              }
+            </button>
+          </div>
         } @else {
-          <h2 class="sh-confirm-title">Unlock {{ item.label }}</h2>
+          <h2 id="sh-confirm-title" class="sh-confirm-title" aria-live="polite">{{ b.label }} is yours</h2>
+          <p class="sh-confirm-effect">{{ b.description }}</p>
+
+          <!-- Les emplacements du joueur tels qu'ils sont, et celui où irait le
+               booster : la proposition se lit avant de la toucher. -->
+          <div class="sh-preview" aria-hidden="true">
+            @for (slot of previewSlots(); track $index; let i = $index) {
+              <app-boost-cup class="sh-preview-cup"
+                [effect]="i === freeSlot() ? b.effect : (slot?.effect ?? null)"
+                [class.is-ghost]="i === freeSlot()"
+                [class.is-target]="i === freeSlot()" />
+            }
+          </div>
+          <p class="sh-confirm-scope">
+            @if (freeSlot() !== -1) {
+              Slot {{ freeSlot() + 1 }} is free. Equip it and it plays in every game.
+            } @else {
+              All {{ shop.slots() }} of your slots are in use. Remove a booster in your profile to make room, or unlock a new slot there.
+            }
+          </p>
+
+          <div class="sh-confirm-actions">
+            <button class="sh-btn sh-btn--ghost" (click)="cancel()">Later</button>
+            <button class="sh-btn sh-btn--equip" (click)="equipInProfile(b)">
+              {{ freeSlot() !== -1 ? 'Equip in profile' : 'Open my profile' }}
+            </button>
+          </div>
         }
+      </div>
+    } @else if (pending(); as item) {
+      <div class="modal-card m-paper" role="dialog" aria-modal="true" aria-labelledby="sh-confirm-title"
+           (click)="$event.stopPropagation()">
+        <span class="sh-confirm-orb" aria-hidden="true">
+          <span class="sh-confirm-glyph">{{ previewOf(item) }}</span>
+        </span>
+        <h2 id="sh-confirm-title" class="sh-confirm-title">Unlock {{ item.label }}</h2>
         <p class="sh-confirm-text">
           Costs <span class="sh-coin" aria-hidden="true"></span><strong>{{ item.price }}</strong>
           of your <span class="sh-coin" aria-hidden="true"></span><strong>{{ balance() }}</strong> coins.
         </p>
         <div class="sh-confirm-actions">
           <button class="sh-btn sh-btn--ghost" (click)="cancel()">Cancel</button>
-          <button class="sh-btn sh-btn--primary" (click)="buy()">
-            {{ item.kind === 'consumable' ? 'Activate' : 'Unlock' }}
-          </button>
+          <button class="sh-btn sh-btn--primary" (click)="buy()">Unlock</button>
         </div>
       </div>
     }

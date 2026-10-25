@@ -15,7 +15,15 @@
 // les 27 premières personas : les garder alignés.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { REACTION_EMOJIS, emojiItemId, isFreeEmoji, type ReactionEmoji } from '@mercury/shared';
+import {
+    FREE_BOOST_SLOTS,
+    REACTION_EMOJIS,
+    emojiItemId,
+    getConsumable,
+    isFreeEmoji,
+    type ConsumableId,
+    type ReactionEmoji,
+} from '@mercury/shared';
 
 export type BotStyle = 'silent' | 'quiet' | 'normal' | 'chatty';
 export type OwnershipTier = 'none' | 'few' | 'many';
@@ -152,4 +160,51 @@ export function parsePersona(raw: unknown): BotPersona | null {
 /** Ids catalogue des emojis possédés, pour `ownedItems` (même inventaire qu'un joueur). */
 export function personaItemIds(persona: BotPersona): string[] {
     return persona.owned.map(e => emojiItemId(e)).filter((id): id is string => id !== undefined);
+}
+
+// ── Boosters d'un agent ───────────────────────────────────────────────────────
+//
+// Un vrai joueur montre sur son profil les boosters qu'il a équipés : un agent
+// au profil toujours vide finirait par se remarquer. Chacun a donc un
+// équipement fixe à vie, tiré de son id (pas de document à migrer, rien à
+// aligner avec persona.py), qui s'applique en partie comme celui d'un joueur
+// (Double Points double vraiment ses points au classement).
+//
+// Chaque booster est tiré indépendamment, avec sa propre chance : en ajouter
+// un au catalogue ne change pas ceux déjà tirés, un agent peut simplement
+// « l'acheter » à son tour. Les moins chers sont les plus répandus, comme chez
+// les joueurs. Au plus un emplacement acheté (FREE_BOOST_SLOTS + 1).
+
+/** Chance qu'un agent ait équipé chaque booster. Absent ici = jamais. */
+const BOT_BOOST_ODDS: Readonly<Record<string, number>> = {
+    'consumable.bounty': 0.35,
+    'consumable.homecoming': 0.2,
+    'consumable.double_strike': 0.2,
+    'consumable.double_coins': 0.15,
+    'consumable.double_points': 0.1,
+    'consumable.perfect_game': 0.15,
+};
+
+const BOT_MAX_BOOSTS = FREE_BOOST_SLOTS + 1;
+
+/** FNV-1a 32 bits ramené dans [0, 1) : stable d'un process à l'autre. */
+function unitHash(text: string): number {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < text.length; i++) {
+        h ^= text.charCodeAt(i);
+        h = Math.imul(h, 0x01000193);
+    }
+    return (h >>> 0) / 0x100000000;
+}
+
+/** Boosters équipés d'un agent, toujours les mêmes pour un même id. */
+export function botLoadout(userId: string): ConsumableId[] {
+    const drawn = Object.entries(BOT_BOOST_ODDS)
+        .map(([id, odds]) => ({ id, roll: unitHash(`${userId}:${id}`) / odds }))
+        .filter(({ id, roll }) => roll < 1 && getConsumable(id) !== undefined)
+        // Les plus « sûrs » d'abord : si plus de BOT_MAX_BOOSTS sont tirés,
+        // on garde ceux dont le tirage passait le plus largement.
+        .sort((a, b) => a.roll - b.roll)
+        .slice(0, BOT_MAX_BOOSTS);
+    return drawn.map(d => d.id as ConsumableId);
 }

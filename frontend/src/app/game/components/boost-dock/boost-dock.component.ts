@@ -10,14 +10,20 @@ import {
   untracked,
 } from "@angular/core";
 import { Capacitor } from "@capacitor/core";
-import { getConsumable, type ConsumableShopItem } from "@mercury/shared";
-import { GameStateService } from "../../services/game-state.service";
+import { getConsumable, type ConsumableEffect, type ConsumableShopItem } from "@mercury/shared";
+import { GameStateService, LIVE_EFFECTS } from "../../services/game-state.service";
 import { BoostTokenComponent } from "../../../shared/boost-token.component";
 
 /** Durée d'affichage de l'annonce automatique au début de la partie. */
 const ANNOUNCE_MS = 5000;
 /** Durée de l'éclosion des jetons à l'annonce (anneau + pop). */
 const POP_MS = 1100;
+/**
+ * Éléments montrés au plus dans la pastille : au-delà, les derniers jetons se
+ * résument en « +N ». Trois tiennent à côté de la pastille des secondes sur un
+ * téléphone de 360px, quel que soit le nombre d'emplacements du joueur.
+ */
+const MAX_VISIBLE = 3;
 
 /**
  * Boosters actifs du joueur local pendant la partie.
@@ -25,7 +31,9 @@ const POP_MS = 1100;
  * Toujours visible à côté du bouton de réactions : un booster qui double la
  * perte ne doit jamais se faire oublier en cours de partie. Au lancement, une
  * bulle explique chaque effet quelques secondes puis se replie ; un tap sur
- * les jetons la rouvre.
+ * les jetons la rouvre. La pastille garde sa taille quel que soit le nombre
+ * de boosters : au-delà de MAX_VISIBLE, un « +N » les résume et la bulle les
+ * liste tous.
  */
 @Component({
   selector: "app-boost-dock",
@@ -47,21 +55,46 @@ export class BoostDockComponent {
   private gameState = inject(GameStateService);
   private host = inject<ElementRef<HTMLElement>>(ElementRef);
 
-  /** Boosters du joueur local, dans l'ordre reçu du serveur. */
-  readonly boosts = computed<readonly ConsumableShopItem[]>(() =>
-    this.gameState.myBoosts().flatMap((id) => {
+  /**
+   * Boosters du joueur local : d'abord ceux qui paient en jeu (leur compteur
+   * bouge, il doit rester visible), puis les autres, chacun dans l'ordre reçu.
+   */
+  readonly boosts = computed<readonly ConsumableShopItem[]>(() => {
+    const items = this.gameState.myBoosts().flatMap((id) => {
       const item = getConsumable(id);
       return item ? [item] : [];
-    })
-  );
+    });
+    const live = (b: ConsumableShopItem) => LIVE_EFFECTS.includes(b.effect);
+    return [...items.filter(live), ...items.filter((b) => !live(b))];
+  });
 
-  /** Pièces Bounty déjà arrivées au compteur (les pièces en vol n'y sont pas encore). */
-  readonly bountyCoins = this.gameState.bountyCoinsShown;
+  /** Jetons de la pastille ; avec un « +N », il prend la place du dernier. */
+  readonly visible = computed(() => {
+    const all = this.boosts();
+    return all.length > MAX_VISIBLE ? all.slice(0, MAX_VISIBLE - 1) : all;
+  });
+  readonly hiddenCount = computed(() => this.boosts().length - this.visible().length);
+
+  /** Pièces déjà arrivées au compteur de chaque jeton (les pièces en vol n'y sont pas encore). */
+  readonly coins = this.gameState.boostCoinsShown;
+  /** Perfect Game encore possible (true), manqué (false), ou pas équipé (null). */
+  readonly perfectAlive = this.gameState.perfectAlive;
+
+  coinsOf(effect: ConsumableEffect): number {
+    return this.coins()[effect] ?? 0;
+  }
+
+  isLive(effect: ConsumableEffect): boolean {
+    return LIVE_EFFECTS.includes(effect);
+  }
 
   readonly ariaLabel = computed(() => {
-    const names = this.boosts().map((b) => b.label).join(", ");
-    const bounty = this.gameState.hasBounty() ? `, ${this.bountyCoins()} bounty coins` : "";
-    return `Boosters active: ${names}${bounty}`;
+    const parts = this.boosts().map((b) => {
+      if (this.isLive(b.effect)) return `${b.label} ${this.coinsOf(b.effect)} coins`;
+      if (b.effect === "perfect_win") return `${b.label} ${this.perfectAlive() ? "still on" : "missed"}`;
+      return b.label;
+    });
+    return `Boosters active: ${parts.join(", ")}`;
   });
 
   /** Bulle d'explication ouverte. */

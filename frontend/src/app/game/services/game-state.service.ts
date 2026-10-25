@@ -41,9 +41,15 @@ import {
   hasWon,
   ENTER_CARDS,
   HOME_POSITIONS,
+  COINS_PER_ALLY_CAPTURE,
   COINS_PER_CAPTURE,
+  PAIR_BONUS_COINS,
+  PAIR_THRESHOLD,
   areOpponents,
+  countArrivedMarbles,
+  countHomeEntries,
   hasBoost,
+  type ConsumableEffect,
   type ConsumableId,
   type LegalMoveContext,
 } from '@mercury/shared';
@@ -53,6 +59,28 @@ const ALL_HOME_POSITIONS = new Set(Object.values(HOME_POSITIONS).flat());
 /** Délai avant le tour suivant quand un joueur vient de terminer, pour laisser
  *  le temps à l'animation de lock de s'afficher avant la bannière. */
 const TEAMMATE_FINISHED_TURN_DELAY_MS = 1500;
+
+/** Effets de booster qui paient pendant la partie (compteur au dock, animation sur le plateau). */
+export const LIVE_EFFECTS: readonly ConsumableEffect[] = ['capture_coins', 'pair_home', 'pair_capture'];
+
+/** Ce que le joueur local a accompli pour ses boosters qui paient en jeu. */
+interface LiveTally {
+  captures: number;
+  allyCaptures: number;
+  pairHomes: number;
+  pairCaptures: number;
+}
+
+function emptyTally(): LiveTally {
+  return { captures: 0, allyCaptures: 0, pairHomes: 0, pairCaptures: 0 };
+}
+
+/** Un gain (ou un malus, `amount` négatif) à montrer sur une case du plateau. */
+export interface BoostFx {
+  readonly square: number;
+  readonly effect: ConsumableEffect;
+  readonly amount: number;
+}
 
 @Injectable({
   providedIn: 'root',
@@ -89,41 +117,118 @@ export class GameStateService {
     return (color && this.boostsByColor()[color]) || [];
   });
 
-  // ── Bounty (prime de capture) ─────────────────────────────────────────────
+  // ── Boosters qui paient en jeu (Bounty, Homecoming, Double Strike) ───────
   //
-  // Le serveur fait foi pour le gain final (gameStats). Le compteur affiché en
-  // jeu, lui, avance au rythme des animations : base envoyée par le serveur
-  // (non nulle seulement après une reconnexion) + captures animées depuis.
-  // Il compte les pièces AVANT Double Coins : le doublement ne se montre et
-  // ne se calcule qu'en fin de partie, sur la somme victoire + captures.
+  // Le serveur fait foi pour le gain final (gameStats). Les compteurs affichés
+  // en jeu, eux, avancent au rythme des animations : base envoyée par le
+  // serveur (non nulle seulement après une reconnexion) + événements animés
+  // depuis. Ils comptent les pièces AVANT Double Coins : le doublement ne se
+  // montre et ne se calcule qu'en fin de partie.
 
   /** Bounty actif pour le joueur local. */
   readonly hasBounty = computed(() => hasBoost(this.myBoosts(), 'capture_coins'));
-  /** Captures comptées par le serveur, par siège, au dernier boostsActive. */
-  private bountyBase = signal<Partial<Record<MarbleColor, number>>>({});
-  /** Captures animées depuis cette base. */
-  private bountyLocal = signal(0);
-  /** Pièces parties du pion capturé et pas encore arrivées au compteur. */
-  readonly bountyCoinsInFlight = signal(0);
-  /** Pièces Bounty affichées au compteur du dock. */
-  readonly bountyCoinsShown = computed(() => {
+  /** Au moins un booster du joueur local paie pendant la partie. */
+  readonly hasLiveBoost = computed(() =>
+    LIVE_EFFECTS.some(effect => hasBoost(this.myBoosts(), effect))
+  );
+  /** Compteurs du serveur, par siège, au dernier boostsActive. */
+  private tallyBase = signal<Partial<Record<MarbleColor, LiveTally>>>({});
+  /** Événements animés depuis cette base, pour le joueur local. */
+  private tallyLocal = signal<LiveTally>(emptyTally());
+  /** Pièces parties d'une case et pas encore arrivées à leur jeton, par effet. */
+  readonly coinsInFlight = signal<Partial<Record<ConsumableEffect, number>>>({});
+  /**
+   * Pièces affichées au compteur de chaque jeton du dock, par effet, pour les
+   * seuls boosters du joueur local. Bounty peut être négatif (malus).
+   */
+  readonly boostCoinsShown = computed<Partial<Record<ConsumableEffect, number>>>(() => {
     const color = this.myPlayerColor();
-    const captures = (color ? this.bountyBase()[color] ?? 0 : 0) + this.bountyLocal();
-    return Math.max(0, captures * COINS_PER_CAPTURE - this.bountyCoinsInFlight());
+    const base = (color && this.tallyBase()[color]) || emptyTally();
+    const local = this.tallyLocal();
+    const flying = this.coinsInFlight();
+    const boosts = this.myBoosts();
+    const shown: Partial<Record<ConsumableEffect, number>> = {};
+    if (hasBoost(boosts, 'capture_coins')) {
+      shown.capture_coins =
+        (base.captures + local.captures) * COINS_PER_CAPTURE -
+        (base.allyCaptures + local.allyCaptures) * COINS_PER_ALLY_CAPTURE -
+        (flying.capture_coins ?? 0);
+    }
+    if (hasBoost(boosts, 'pair_home')) {
+      shown.pair_home = (base.pairHomes + local.pairHomes) * PAIR_BONUS_COINS - (flying.pair_home ?? 0);
+    }
+    if (hasBoost(boosts, 'pair_capture')) {
+      shown.pair_capture =
+        (base.pairCaptures + local.pairCaptures) * PAIR_BONUS_COINS - (flying.pair_capture ?? 0);
+    }
+    return shown;
   });
-  /** Une capture payée vient d'être animée : case du pion capturé. */
-  readonly bountyCapture$ = new Subject<{ square: number }>();
+  /**
+   * Perfect Game équipé et toujours possible : aucun pion adverse n'est encore
+   * rentré. null sans le booster. Le serveur fait foi en fin de partie (et
+   * exclut la victoire par abandon) ; ceci ne sert qu'au dock.
+   */
+  readonly perfectAlive = computed<boolean | null>(() => {
+    if (!hasBoost(this.myBoosts(), 'perfect_win')) return null;
+    const me = this.myPlayerColor();
+    const players = this.data()?.gameState.players ?? [];
+    if (!me) return null;
+    return players
+      .filter(p => areOpponents(me, p.color as MarbleColor))
+      .every(p => countArrivedMarbles(p.marblePositions ?? [], p.color as MarbleColor) === 0);
+  });
+
+  /** Un gain ou un malus vient d'être animé sur le plateau : à montrer. */
+  readonly boostFx$ = new Subject<BoostFx>();
+
+  /** Cases des pions adverses capturés par le joueur local pendant l'action en cours. */
+  private actionCaptures: number[] = [];
+
+  /** Le plateau commence l'animation d'une action. */
+  beginActionFx(): void {
+    this.actionCaptures = [];
+  }
 
   /**
-   * Appelé par le plateau au moment où un pion est capturé à l'écran. Ne paie
-   * que la capture d'un adversaire par le joueur local, même règle que le
-   * serveur (areOpponents).
+   * Appelé par le plateau au moment où un pion est capturé à l'écran. Ne
+   * compte que les captures du joueur local, avec la règle du serveur
+   * (areOpponents) : un pion adverse paie, un pion de son camp coûte.
    */
   onCaptureAnimated(capturer: MarbleColor, victim: MarbleColor, square: number): void {
-    if (!this.hasBounty() || capturer !== this.myPlayerColor()) return;
-    if (!areOpponents(capturer, victim)) return;
-    this.bountyLocal.update(n => n + 1);
-    this.bountyCapture$.next({ square });
+    if (capturer !== this.myPlayerColor()) return;
+    if (areOpponents(capturer, victim)) {
+      this.actionCaptures.push(square);
+      this.tallyLocal.update(t => ({ ...t, captures: t.captures + 1 }));
+      if (this.hasBounty()) this.boostFx$.next({ square, effect: 'capture_coins', amount: COINS_PER_CAPTURE });
+    } else {
+      this.tallyLocal.update(t => ({ ...t, allyCaptures: t.allyCaptures + 1 }));
+      if (this.hasBounty()) {
+        this.boostFx$.next({ square, effect: 'capture_coins', amount: -COINS_PER_ALLY_CAPTURE });
+      }
+    }
+  }
+
+  /**
+   * Le plateau a fini d'animer une action : on y cherche un coup double,
+   * crédité comme sur le serveur au joueur qui a joué la carte.
+   */
+  endActionFx(action: Action): void {
+    const captures = this.actionCaptures;
+    this.actionCaptures = [];
+    if (action.playerColor !== this.myPlayerColor()) return;
+    const boosts = this.myBoosts();
+    if (captures.length >= PAIR_THRESHOLD) {
+      this.tallyLocal.update(t => ({ ...t, pairCaptures: t.pairCaptures + 1 }));
+      if (hasBoost(boosts, 'pair_capture')) {
+        this.boostFx$.next({ square: captures[captures.length - 1]!, effect: 'pair_capture', amount: PAIR_BONUS_COINS });
+      }
+    }
+    if (countHomeEntries(action) >= PAIR_THRESHOLD) {
+      this.tallyLocal.update(t => ({ ...t, pairHomes: t.pairHomes + 1 }));
+      if (hasBoost(boosts, 'pair_home')) {
+        this.boostFx$.next({ square: action.splitTo ?? action.to, effect: 'pair_home', amount: PAIR_BONUS_COINS });
+      }
+    }
   }
 
   // ── Identité du joueur local ──────────────────────────────────────────────
@@ -893,14 +998,23 @@ export class GameStateService {
         case 'boostsActive': {
           const msg = parsed as BoostsActiveMessage;
           this.boostsByColor.update(map => ({ ...map, [msg.color]: msg.boosts }));
-          // Nouvelle base serveur (reconnexion) : elle inclut déjà les captures
-          // animées jusqu'ici, qu'il ne faut donc plus compter en plus.
-          if (msg.captures !== undefined) {
-            this.bountyBase.update(map => ({ ...map, [msg.color]: msg.captures }));
-            this.bountyLocal.set(0);
+          // Nouvelle base serveur (reconnexion) : elle inclut déjà les
+          // événements animés jusqu'ici, qu'il ne faut donc plus compter en plus.
+          if (
+            msg.captures !== undefined ||
+            msg.allyCaptures !== undefined ||
+            msg.pairHomes !== undefined ||
+            msg.pairCaptures !== undefined
+          ) {
+            const base: LiveTally = {
+              captures: msg.captures ?? 0,
+              allyCaptures: msg.allyCaptures ?? 0,
+              pairHomes: msg.pairHomes ?? 0,
+              pairCaptures: msg.pairCaptures ?? 0,
+            };
+            this.tallyBase.update(map => ({ ...map, [msg.color]: base }));
+            if (msg.color === this.myPlayerColor()) this.tallyLocal.set(emptyTally());
           }
-          // Consommés côté serveur : ils ne sont plus « en attente » en boutique.
-          this.shop.markConsumed(msg.boosts);
           break;
         }
 
@@ -1192,9 +1306,10 @@ export class GameStateService {
     this.winReason.set(null);
     this.gameStats.set(null);
     this.boostsByColor.set({});
-    this.bountyBase.set({});
-    this.bountyLocal.set(0);
-    this.bountyCoinsInFlight.set(0);
+    this.tallyBase.set({});
+    this.tallyLocal.set(emptyTally());
+    this.coinsInFlight.set({});
+    this.actionCaptures = [];
     this.isReplayTurn.set(false);
     this.lastActionPlayed = null;
     this.finishedColorsSeen.clear();

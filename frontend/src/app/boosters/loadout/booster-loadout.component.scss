@@ -1,0 +1,510 @@
+@use "../../styles/coin" as *;
+@use "../../styles/tokens" as m;
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  Équipement des boosters — dans la fenêtre du profil
+// ───────────────────────────────────────────────────────────────────────────
+//  Le présentoir reste en haut, la liste des boosters possédés défile dessous.
+//  Même vocabulaire que la vitrine (/boosters) : creux taillés comme les trous
+//  du plateau, jetons, bascule Equip / Equipped. Tout passe par les alias
+//  --m-* : nuit ardoise et jour crème sans règle propre.
+// ═══════════════════════════════════════════════════════════════════════════
+
+:host {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+// ── Présentoir ───────────────────────────────────────────────────────────────
+// Un creux dans la plaque où sont taillés les emplacements : ce qui joue avec
+// le joueur à chaque partie, toujours sous ses yeux.
+
+.lo-rack {
+  flex: none;
+  margin: 0;
+  padding: 12px 12px 14px;
+  border-radius: var(--m-r-lg);
+  background: var(--m-paper-lo);
+  border: 1px solid var(--m-line);
+}
+
+.lo-cap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 28px;
+  padding: 0 4px 10px;
+}
+
+.lo-cap-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  margin: 0;
+  @include m.label;
+  font-size: 13px;
+
+  strong {
+    color: var(--m-fg);
+    font-weight: 800;
+  }
+}
+
+.lo-cap-count {
+  @include m.display(700);
+  font-size: 15px;
+  color: var(--m-fg);
+  font-variant-numeric: tabular-nums;
+}
+
+// Le solde, en petite pastille : la monnaie des emplacements, et le point de
+// départ des pièces en vol.
+.lo-balance {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px 3px 5px;
+  border-radius: var(--m-r-pill);
+  background: var(--m-paper-hi);
+  border: 1px solid var(--m-glass-line);
+}
+
+.lo-balance-coin {
+  @include coin;
+  --coin-size: 16px;
+}
+
+.lo-balance-value {
+  @include m.display(800);
+  font-size: 14px;
+  line-height: 1;
+  color: var(--m-fg);
+}
+
+.lo-quiet {
+  @include m.btn(5px 12px);
+  @include m.btn-quiet;
+  font-size: 12.5px;
+}
+
+.lo-slots {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 6px; // place pour le prix du creux fermé, qui déborde dessous
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.lo-slot {
+  position: relative;
+  display: flex;
+}
+
+.lo-cup-btn {
+  position: relative;
+  display: inline-flex;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform var(--m-press) ease-out;
+
+  &:active {
+    transform: translateY(1px) scale(0.97);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--m-blue-fg);
+    outline-offset: 3px;
+  }
+
+}
+
+.lo-cup {
+  --cup-size: 56px;
+}
+
+// Le prochain emplacement, à acheter : même creux, encore fermé. Un filet
+// pointillé à la place de l'ombre portée, le cadenas au fond, et le prix
+// posé sur son bord bas comme une étiquette.
+.lo-cup--locked {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--cup-size);
+  height: var(--cup-size);
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 1.5px dashed var(--m-line-3);
+  color: var(--m-fg-3);
+
+  svg {
+    width: 36%;
+    height: 36%;
+  }
+}
+
+.lo-slot-price {
+  position: absolute;
+  left: 50%;
+  bottom: -8px;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px 2px 5px;
+  border-radius: var(--m-r-pill);
+  background: var(--m-gold);
+  box-shadow: 0 2px 0 0 var(--m-gold-deep);
+  font-family: var(--m-font-display);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--m-on-gold);
+  white-space: nowrap;
+
+  &.is-short {
+    background: var(--m-paper-hi);
+    box-shadow: 0 0 0 1px var(--m-line-2);
+    color: var(--m-fg-3);
+  }
+}
+
+.lo-cup-btn--locked {
+  &:hover:not(:disabled) .lo-cup--locked,
+  &.is-asking .lo-cup--locked {
+    border-color: var(--m-gold-fg);
+    color: var(--m-gold-fg);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+  }
+}
+
+// La croix en haut à droite du creux : seul moyen de retirer un booster
+// (toucher le creux ouvre son infobulle). Pastille de 22px, zone de toucher
+// élargie à 34px par un pseudo-élément.
+.lo-cup-remove {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--m-paper-hi);
+  border: 1px solid var(--m-line-2);
+  box-shadow: 0 1px 0 0 var(--m-paper-edge);
+  color: var(--m-fg-2);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: color 0.15s, border-color 0.15s, transform var(--m-press) ease-out;
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: -6px;
+  }
+
+  &:hover {
+    color: var(--m-red-fg);
+    border-color: rgba(var(--m-red-rgb), 0.5);
+  }
+
+  &:active {
+    transform: scale(0.92);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--m-blue-fg);
+    outline-offset: 2px;
+  }
+
+  svg {
+    width: 10px;
+    height: 10px;
+  }
+}
+
+// Arrivé de la vitrine sans place libre : la marche à suivre, sans alarme.
+.lo-wait {
+  margin: 12px 2px 0;
+  padding: 9px 11px;
+  border-radius: var(--m-r-md);
+  @include m.tint(blue, 0.08, 0.3);
+  color: var(--m-fg);
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.45;
+
+  strong {
+    font-weight: 800;
+  }
+}
+
+.lo-wait-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin: 0 1px;
+  vertical-align: -3px;
+  border-radius: 50%;
+  background: var(--m-paper-hi);
+  border: 1px solid var(--m-line-2);
+  color: var(--m-fg-2);
+
+  svg {
+    width: 8px;
+    height: 8px;
+  }
+}
+
+// Achat d'un emplacement, confirmé sur place sous le présentoir.
+.lo-confirm {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: var(--m-r-md);
+  @include m.tint(gold, 0.08, 0.3);
+  color: var(--m-fg);
+
+  .lo-actions {
+    margin-top: 8px;
+    padding: 0;
+  }
+}
+
+.lo-confirm-text {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
+
+  strong {
+    font-family: var(--m-font-display);
+    font-weight: 800;
+    margin-left: 3px;
+  }
+}
+
+// Présentoir plein : acheter un emplacement de plus, ou renoncer.
+.lo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 0 2px;
+}
+
+.lo-unlock {
+  @include m.btn(7px 14px);
+  @include m.btn-fill(gold);
+  font-size: 13px;
+}
+
+.lo-unlock-price {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--m-font-display);
+  font-size: 15px;
+}
+
+.lo-note {
+  margin: 12px 4px 0;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--m-fg-3);
+}
+
+// Les mouvements du jeton dans son creux (en vol, calé, soulevé) sont portés
+// par app-boost-cup : le composant ne fait que poser ses classes d'état.
+
+// ── Boosters possédés ────────────────────────────────────────────────────────
+
+.lo-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin-top: 14px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-top: 1px solid var(--m-line);
+  @include m.scrollbar;
+}
+
+.lo-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.lo-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 4px;
+  border-bottom: 1px solid var(--m-line);
+  transition: background-color 0.2s;
+
+  &:last-child {
+    border-bottom: 0;
+  }
+
+  // Le booster qui attend son emplacement (présentoir plein).
+  &.is-picked {
+    background: rgba(var(--m-blue-rgb), 0.08);
+  }
+}
+
+.lo-row-token {
+  --bt-size: 40px;
+}
+
+.lo-row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lo-row-name {
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.25;
+  color: var(--m-fg);
+}
+
+.lo-row-desc {
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--m-fg-2);
+}
+
+// Équipé : une pastille d'état, verte comme « possédé » en boutique. Elle ne
+// réagit pas : le retrait se fait par la croix du creux.
+.lo-chip {
+  @include m.tint(green, 0.12, 0.3);
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 11px;
+  border-radius: var(--m-r-pill);
+  font-size: 12.5px;
+  font-weight: 700;
+
+  svg {
+    width: 12px;
+    height: 12px;
+  }
+}
+
+// Équiper : grisé (opacité de btn) quand plus aucun emplacement n'est libre.
+.lo-equip {
+  @include m.btn(7px 16px);
+  @include m.btn-paper;
+  flex: none;
+  font-size: 13px;
+}
+
+.lo-coin {
+  @include coin;
+  --coin-size: 13px;
+
+  vertical-align: -1px;
+
+  &--muted {
+    filter: grayscale(0.7);
+    opacity: 0.55;
+  }
+}
+
+.lo-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 32px 28px;
+  text-align: center;
+}
+
+.lo-empty-cup {
+  --cup-size: 52px;
+}
+
+.lo-empty-text {
+  margin: 0;
+  max-width: 30ch;
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--m-fg-2);
+}
+
+
+.lo-more {
+  @include m.btn(9px 14px);
+  @include m.btn-quiet;
+  display: flex;
+  width: fit-content;
+  margin: 10px auto 2px;
+  gap: 4px;
+  font-size: 13px;
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+// ── Jeton en vol ─────────────────────────────────────────────────────────────
+// Le calque reçoit la copie du jeton que flyToken fait voler de sa rangée à
+// son creux (Web Animations, transform seul), en coordonnées relatives au
+// calque. Il couvre le composant sans le rogner.
+
+.lo-flight-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.lo-ghost {
+  position: absolute;
+  margin: 0;
+  will-change: transform;
+}
+
+// ── Petits écrans ────────────────────────────────────────────────────────────
+
+@media (max-width: 360px) {
+  .lo-cup {
+    --cup-size: 50px;
+  }
+
+  .lo-row-token {
+    --bt-size: 34px;
+  }
+
+  .lo-row-name {
+    font-size: 14px;
+  }
+}

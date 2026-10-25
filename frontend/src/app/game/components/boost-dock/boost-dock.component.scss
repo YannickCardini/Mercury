@@ -137,6 +137,41 @@
   animation: count-bump 0.45s cubic-bezier(0.2, 1.6, 0.4, 1);
 }
 
+// Malus Bounty : le compteur passe sous zéro, il le dit en rouge.
+.boost-dock__count.is-loss {
+  color: var(--m-cream);
+  background: var(--m-red);
+  box-shadow: 0 0 0 1.5px var(--m-paper-hi), 0 2px 0 1.5px var(--m-red-deep);
+}
+
+.boost-dock__flash.is-loss {
+  border-color: var(--m-red-light);
+}
+
+// « +N » : les boosters qui ne tiennent pas dans la pastille. Même gabarit
+// qu'un jeton, pour que la pile garde son pas ; la bulle les liste tous.
+.boost-dock__more {
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 3px;
+  box-sizing: border-box;
+  border-radius: var(--m-r-pill);
+  background: var(--m-paper-lo);
+  font-family: var(--m-font-display);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--m-fg-2);
+  font-variant-numeric: tabular-nums;
+
+  // Pile mobile : détouré comme les jetons qu'il suit.
+  @include timer-ring-hidden {
+    box-shadow: 0 0 0 2px var(--m-paper-hi);
+  }
+}
+
 @keyframes count-bump {
   0% {
     transform: scale(0.4);
@@ -275,6 +310,11 @@
   margin: 0;
   padding: 0;
   list-style: none;
+  // Autant de boosters que d'emplacements achetés : la liste défile au-delà
+  // de la moitié de l'écran au lieu de déborder du panneau.
+  max-height: min(50vh, 320px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .boost-callout__item {
@@ -292,6 +332,18 @@
 
   &[data-effect="capture_coins"] {
     --ink: var(--m-red-fg);
+  }
+
+  &[data-effect="pair_home"] {
+    --ink: var(--m-green-fg);
+  }
+
+  &[data-effect="pair_capture"] {
+    --ink: var(--m-orange-fg);
+  }
+
+  &[data-effect="perfect_win"] {
+    --ink: var(--m-blue-fg);
   }
 }
 
@@ -324,6 +376,27 @@
   font-weight: 700;
   color: var(--m-gold-fg);
   font-variant-numeric: tabular-nums;
+
+  &.is-loss {
+    color: var(--m-red-fg);
+  }
+
+  &.is-off {
+    color: var(--m-fg-3);
+  }
+}
+
+// Perfect Game manqué (un pion adverse est rentré) : le jeton s'éteint, dans
+// la pastille comme dans la bulle. Il reste là : le booster est équipé.
+// Opacité seule (pas de filtre) : la WebView Android clignote sur un filtre
+// qui bascule.
+.boost-dock__slot.is-spent .boost-dock__token,
+.boost-callout__item.is-spent .boost-callout__token {
+  opacity: 0.35;
+}
+
+.boost-callout__item[data-effect="perfect_win"] .boost-callout__progress:not(.is-off) {
+  color: var(--m-blue-fg);
 }
 
 @media (prefers-reduced-motion: reduce) {

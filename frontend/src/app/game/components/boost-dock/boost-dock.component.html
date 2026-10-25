@@ -2,18 +2,22 @@
 <div class="boost-dock" [class.is-popping]="popping()">
   <button type="button" class="boost-dock__trigger" [class.is-open]="open()" [attr.aria-label]="ariaLabel()"
     [attr.aria-expanded]="open()" (click)="toggle()">
-    @for (b of boosts(); track b.id; let i = $index) {
-    <span class="boost-dock__slot" [style.--i]="i" [attr.data-effect]="b.effect">
+    @for (b of visible(); track b.id; let i = $index) {
+    <span class="boost-dock__slot" [style.--i]="i" [attr.data-effect]="b.effect"
+      [class.is-spent]="b.effect === 'perfect_win' && perfectAlive() === false">
       <app-boost-token class="boost-dock__token" [effect]="b.effect" [live]="true" />
-      @if (b.effect === 'capture_coins' && bountyCoins() > 0) {
+      @if (isLive(b.effect) && coinsOf(b.effect) !== 0) {
       <!-- Recréés à chaque nouvelle valeur : l'animation d'entrée rejoue à
            l'arrivée de chaque pièce, sans minuterie. -->
-      @for (n of [bountyCoins()]; track n) {
-      <span class="boost-dock__flash"></span>
-      <span class="boost-dock__count">{{ n }}</span>
+      @for (n of [coinsOf(b.effect)]; track n) {
+      <span class="boost-dock__flash" [class.is-loss]="n < 0"></span>
+      <span class="boost-dock__count" [class.is-loss]="n < 0">{{ n < 0 ? '−' + -n : n }}</span>
       }
       }
     </span>
+    }
+    @if (hiddenCount() > 0) {
+    <span class="boost-dock__slot boost-dock__more" [style.--i]="visible().length">+{{ hiddenCount() }}</span>
     }
   </button>
 
@@ -23,14 +27,21 @@
     <p class="boost-callout__title">Boosters active this game</p>
     <ul class="boost-callout__list">
       @for (b of boosts(); track b.id) {
-      <li class="boost-callout__item" [attr.data-effect]="b.effect">
+      <li class="boost-callout__item" [attr.data-effect]="b.effect"
+        [class.is-spent]="b.effect === 'perfect_win' && perfectAlive() === false">
         <app-boost-token class="boost-callout__token" [effect]="b.effect" />
         <span class="boost-callout__text">
           <span class="boost-callout__name">{{ b.label }}</span>
           <span class="boost-callout__desc">{{ b.description }}</span>
-          @if (b.effect === 'capture_coins') {
-          <span class="boost-callout__progress">
-            {{ bountyCoins() }} {{ bountyCoins() === 1 ? 'coin' : 'coins' }} earned so far
+          @if (b.effect === 'perfect_win') {
+          <span class="boost-callout__progress" [class.is-off]="perfectAlive() === false">
+            {{ perfectAlive() ? 'Still on: no enemy marble is home yet' : 'Missed: an enemy marble reached home' }}
+          </span>
+          }
+          @if (isLive(b.effect)) {
+          <span class="boost-callout__progress" [class.is-loss]="coinsOf(b.effect) < 0">
+            {{ coinsOf(b.effect) < 0 ? '−' + -coinsOf(b.effect) : coinsOf(b.effect) }}
+            {{ coinsOf(b.effect) === 1 || coinsOf(b.effect) === -1 ? 'coin' : 'coins' }} so far
           </span>
           }
         </span>

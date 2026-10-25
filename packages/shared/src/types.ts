@@ -233,8 +233,10 @@ export interface GameStatsMessage {
    * socket porte les quatre sièges).
    */
   color?: MarbleColor;
-  /** Pièces de boutique gagnées. Absent pour les invités, les bots, les perdants
-   *  et les joueurs pénalisés (abandon / déconnexion). */
+  /** Variation de pièces de boutique, signée : négative quand le malus Bounty
+   *  dépasse les gains (le solde ne descend jamais sous 0, le delta est celui
+   *  réellement appliqué). Absent quand elle est nulle, pour les invités, les
+   *  bots et les joueurs pénalisés (abandon / déconnexion). */
   coinsDelta?: number;
   /** Solde de pièces après crédit. Absent dans les mêmes cas. */
   newCoins?: number;
@@ -245,10 +247,24 @@ export interface GameStatsMessage {
    */
   boosts?: ConsumableId[];
   /**
-   * Origine de `coinsDelta`, AVANT Double Coins : gain de victoire et prime
-   * de captures (Bounty). Présent dès que `coinsDelta` l'est.
+   * Origine de `coinsDelta`, en pièces AVANT Double Coins (voir CoinParts,
+   * shop-catalog.ts) : gain de victoire, prime de captures et malus (Bounty),
+   * coups doubles (Homecoming, Double Strike). Présent dès que `coinsDelta`
+   * l'est ; les trois derniers champs manquent sur un serveur plus ancien.
    */
-  coinsBase?: { victory: number; captures: number };
+  coinsBase?: {
+    victory: number;
+    captures: number;
+    allyPenalty?: number;
+    pairHome?: number;
+    pairCapture?: number;
+  };
+  /**
+   * Perfect Game : points de classement ajoutés à `pointsDelta`, AVANT Double
+   * Points (qui les double comme le reste). Absent quand le booster n'a rien
+   * rapporté ou sur un serveur plus ancien.
+   */
+  perfectBonus?: number;
 }
 
 /**
@@ -266,6 +282,12 @@ export interface BoostsActiveMessage {
    * compte lui-même au fil des animations.
    */
   captures?: number;
+  /** Bounty : pions de son propre camp capturés (malus). Même rôle que `captures`. */
+  allyCaptures?: number;
+  /** Homecoming : coups doubles déjà réussis. Même rôle que `captures`. */
+  pairHomes?: number;
+  /** Double Strike : coups doubles déjà réussis. Même rôle que `captures`. */
+  pairCaptures?: number;
 }
 
 /**

@@ -24,6 +24,12 @@ export const routes: Routes = [
     path: 'shop',
     loadComponent: () => import('./shop/shop.page').then(m => m.ShopPage)
   },
+  // Les boosters s'achètent dans la boutique et s'équipent dans le profil :
+  // l'ancienne vitrine renvoie à la boutique.
+  {
+    path: 'boosters',
+    redirectTo: 'shop',
+  },
   {
     path: 'profile/:id',
     loadComponent: () => import('./profile/profile.page').then(m => m.ProfilePage)

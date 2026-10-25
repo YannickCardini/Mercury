@@ -7,9 +7,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
     FREE_EMOJIS, PAID_EMOJIS, STYLE_TIERS, OWNERSHIP_TIERS,
-    buildPersona, ownershipOf, parsePersona, personaItemIds, personaProblem, quotaPick,
+    botLoadout, buildPersona, ownershipOf, parsePersona, personaItemIds, personaProblem, quotaPick,
     type BotPersona,
 } from './bot-persona.js';
+import { FREE_BOOST_SLOTS, getConsumable } from '@mercury/shared';
 import { seededRng } from './matchmaking-script.js';
 
 test('persona — palette dérivée du catalogue : 6 gratuits, 9 de boutique', () => {
@@ -65,4 +66,35 @@ test('persona — lecture tolérante d\'un document', () => {
     assert.equal(parsePersona({ ...ok, style: 'loud' }), null);
     assert.equal(parsePersona({ ...ok, owned: ['💩'] }), null);
     assert.equal(parsePersona({ ...ok, owned: 'nope' }), null);
+});
+
+// ── Boosters d'un agent ───────────────────────────────────────────────────────
+
+const BOT_IDS = Array.from({ length: 1000 }, (_, i) => `1${String(i).padStart(20, '7')}`);
+
+test('botLoadout : toujours le même équipement pour un même agent', () => {
+    for (const id of BOT_IDS.slice(0, 50)) {
+        assert.deepEqual(botLoadout(id), botLoadout(id));
+    }
+});
+
+test('botLoadout : boosters connus, sans doublon, au plus un emplacement acheté', () => {
+    for (const id of BOT_IDS) {
+        const loadout = botLoadout(id);
+        assert.ok(loadout.length <= FREE_BOOST_SLOTS + 1, `${id} → ${loadout.length}`);
+        assert.equal(new Set(loadout).size, loadout.length);
+        for (const boost of loadout) assert.ok(getConsumable(boost), boost);
+    }
+});
+
+test('botLoadout : une répartition de joueurs plausible', () => {
+    const sizes = BOT_IDS.map(id => botLoadout(id).length);
+    const share = (n: number) => sizes.filter(s => s === n).length / sizes.length;
+    // Beaucoup d'agents sans booster ou avec un seul, quelques-uns à trois.
+    assert.ok(share(0) > 0.2 && share(0) < 0.5, `aucun : ${share(0)}`);
+    assert.ok(share(1) > 0.25, `un : ${share(1)}`);
+    assert.ok(share(3) > 0 && share(3) < 0.15, `trois : ${share(3)}`);
+    const bounty = BOT_IDS.filter(id => botLoadout(id).includes('consumable.bounty')).length;
+    const doublePoints = BOT_IDS.filter(id => botLoadout(id).includes('consumable.double_points')).length;
+    assert.ok(bounty > doublePoints, 'le moins cher est le plus répandu');
 });

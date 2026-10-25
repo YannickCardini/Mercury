@@ -1,0 +1,136 @@
+@use "../styles/tokens" as m;
+
+// Bulle d'un booster : une petite plaque comme le reste de l'app (aplat mat,
+// filet, tranche), le nom à la couleur du jeton, l'effet dessous. Posée dans
+// le flux de l'hôte, au-dessus de ses voisins.
+
+:host {
+  position: relative;
+  display: inline-flex;
+}
+
+.tip-trigger {
+  display: inline-flex;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: inherit;
+  cursor: help;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+
+  &:focus-visible {
+    outline: 2px solid var(--m-blue-fg);
+    outline-offset: 3px;
+  }
+}
+
+.tip {
+  --tip-gap: 10px;
+
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + var(--tip-gap));
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: max-content;
+  max-width: 220px;
+  box-sizing: border-box;
+  padding: 8px 11px 9px;
+  @include m.slab(var(--m-r-md), var(--m-shadow-pop));
+  background: var(--m-paper-hi);
+  text-align: left;
+  pointer-events: none;
+  // Invisible le temps d'être mesurée et recalée (une image), puis entrée.
+  visibility: hidden;
+  transform: translateX(calc(-50% + var(--tip-shift, 0px)));
+
+  &.is-placed {
+    visibility: visible;
+    animation: tip-in 0.15s ease-out;
+  }
+
+  &.is-below {
+    bottom: auto;
+    top: calc(100% + var(--tip-gap));
+  }
+
+  &[data-effect="double_points"] {
+    --ink: var(--m-violet-fg);
+  }
+
+  &[data-effect="double_coins"] {
+    --ink: var(--m-gold-fg);
+  }
+
+  &[data-effect="capture_coins"] {
+    --ink: var(--m-red-fg);
+  }
+
+  &[data-effect="pair_home"] {
+    --ink: var(--m-green-fg);
+  }
+
+  &[data-effect="pair_capture"] {
+    --ink: var(--m-orange-fg);
+  }
+
+  &[data-effect="perfect_win"] {
+    --ink: var(--m-blue-fg);
+  }
+}
+
+@keyframes tip-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.tip-name {
+  font-family: var(--m-font-text);
+  font-size: 13.5px;
+  font-weight: 800;
+  line-height: 1.25;
+  color: var(--ink, var(--m-fg));
+}
+
+.tip-desc {
+  font-family: var(--m-font-text);
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--m-fg-2);
+}
+
+// Pointe vers le centre de l'hôte, quel que soit le décalage de la bulle.
+.tip-arrow {
+  position: absolute;
+  left: calc(50% - var(--tip-shift, 0px));
+  top: 100%;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  background: var(--m-paper-hi);
+  border-right: 1px solid var(--m-glass-line);
+  border-bottom: 1px solid var(--m-glass-line);
+  transform: rotate(45deg);
+
+  .is-below > & {
+    top: 0;
+    border: 0;
+    border-left: 1px solid var(--m-glass-line);
+    border-top: 1px solid var(--m-glass-line);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tip.is-placed {
+    animation: none;
+  }
+}

@@ -30,12 +30,17 @@ export interface PlayerSnapshot {
     cards: Card[];
     picture?: string;
     userId?: string;
-    /** Boosters consommés au lancement : déjà débités du compte, ils doivent
-     *  survivre au restore pour s'appliquer en fin de partie. Optionnel, donc
+    /** Boosters figés au lancement (équipés, ou armés et déjà consommés) : ils
+     *  doivent survivre au restore pour s'appliquer en fin de partie. Optionnel, donc
      *  compatible avec les snapshots antérieurs (pas de changement de version). */
     boosts?: string[];
     /** Pions adverses capturés par ce siège (prime Bounty). Absent = 0. */
     captures?: number;
+    /** Pions de son propre camp capturés par ce siège (malus Bounty). Absent = 0. */
+    allyCaptures?: number;
+    /** Coups doubles réussis par ce siège (Homecoming, Double Strike). Absent = 0. */
+    pairHomes?: number;
+    pairCaptures?: number;
 }
 
 /** Entrée du ReconnectRegistry pour un siège — persistée avec la partie pour

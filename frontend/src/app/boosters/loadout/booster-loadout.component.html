@@ -1,0 +1,135 @@
+<!-- Présentoir : un creux par emplacement, sur plusieurs lignes s'il le faut,
+     puis le prochain à acheter. Il reste en haut, la liste défile dessous. -->
+<section class="lo-rack" aria-labelledby="lo-rack-title">
+  <div class="lo-cap">
+    <p id="lo-rack-title" class="lo-cap-title">
+      Equipped for every game
+      <span class="lo-cap-count">{{ equippedCount() }} of {{ shop.slots() }} slots</span>
+    </p>
+    <!-- Le solde : la monnaie des emplacements, et le départ des pièces en vol. -->
+    <span class="lo-balance" [attr.aria-label]="balance() + ' coins'">
+      <span class="lo-balance-coin" aria-hidden="true"></span>
+      <app-coin-count class="lo-balance-value" [value]="balance()" aria-hidden="true" />
+    </span>
+  </div>
+
+  <ul class="lo-slots">
+    @for (b of slots(); track $index; let i = $index) {
+      <li class="lo-slot" [attr.data-slot]="i">
+        @if (b) {
+          <!-- Toucher le booster ouvre son infobulle ; seule la croix le retire. -->
+          <app-boost-tip [boost]="b">
+            <app-boost-cup class="lo-cup"
+              [effect]="b.effect"
+              [class.is-landing]="landingSlot() === i"
+              [class.is-seated]="seatedSlot() === i"
+              [class.is-released]="releasedSlot() === i" />
+          </app-boost-tip>
+          <button class="lo-cup-remove" (click)="remove(i)" [attr.aria-label]="'Remove ' + b.label">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true">
+              <path d="M7 7l10 10M17 7 7 17" />
+            </svg>
+          </button>
+        } @else {
+          <app-boost-cup class="lo-cup" [class.is-seated]="seatedSlot() === i"
+            [class.is-released]="releasedSlot() === i"
+            role="img" [attr.aria-label]="'Slot ' + (i + 1) + ', empty'" />
+        }
+      </li>
+    }
+    @if (shop.canBuySlot()) {
+      <!-- Le prochain emplacement, à acheter : un creux encore fermé. -->
+      <li class="lo-slot">
+        <button class="lo-cup-btn lo-cup-btn--locked" (click)="askSlot()"
+                [class.is-asking]="confirmingSlot()"
+                [disabled]="!canAffordSlot() || buyingSlot()"
+                [attr.aria-label]="'Unlock a new slot for ' + shop.slotPrice + ' coins' + (canAffordSlot() ? '' : ', ' + (shop.slotPrice - balance()) + ' more needed')"
+                [attr.title]="'New slot, ' + shop.slotPrice + ' coins'">
+          <span class="lo-cup lo-cup--locked" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="5" y="11" width="14" height="10" rx="2"></rect>
+              <path d="M8 11V7a4 4 0 0 1 8 0v4"></path>
+            </svg>
+          </span>
+          <span class="lo-slot-price" [class.is-short]="!canAffordSlot()" aria-hidden="true">
+            <span class="lo-coin" [class.lo-coin--muted]="!canAffordSlot()"></span>{{ shop.slotPrice }}
+          </span>
+        </button>
+      </li>
+    }
+  </ul>
+
+  @if (confirmingSlot()) {
+    <!-- Confirmation sur place : pas de fenêtre par-dessus la fenêtre. -->
+    <div class="lo-confirm" role="group" aria-label="Unlock a new slot">
+      <p class="lo-confirm-text">
+        Unlock slot {{ shop.slots() + 1 }} for
+        <span class="lo-coin" aria-hidden="true"></span><strong>{{ shop.slotPrice }}</strong> coins?
+      </p>
+      <div class="lo-actions">
+        <button class="lo-quiet" (click)="cancelSlot()">Cancel</button>
+        <button class="lo-unlock" (click)="buySlot()">Unlock</button>
+      </div>
+    </div>
+  }
+
+  @if (isFull() && waiting(); as w) {
+    <!-- Arrivé de la vitrine, plus de place : on dit quoi faire, sans rien forcer. -->
+    <p class="lo-wait" aria-live="polite">
+      All your slots are in use. Remove a booster with its
+      <span class="lo-wait-x" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M7 7l10 10M17 7 7 17" /></svg></span>
+      to make room for <strong>{{ w.label }}</strong>@if (shop.canBuySlot()) {, or unlock a new slot}.
+    </p>
+  }
+
+  @if (appResume.hasActiveGame()) {
+    <p class="lo-note">Your game in progress keeps its boosters. Changes apply from your next game.</p>
+  }
+</section>
+
+<div class="lo-scroll">
+  @if (owned().length > 0) {
+    <ul class="lo-list">
+      @for (b of owned(); track b.id) {
+        <li class="lo-row" [attr.data-boost]="b.id" [attr.data-effect]="b.effect"
+            [class.is-picked]="waiting()?.id === b.id && !shop.isEquipped(b.id)">
+          <app-boost-token class="lo-row-token" [effect]="b.effect" [live]="shop.isEquipped(b.id)" />
+          <span class="lo-row-text">
+            <span class="lo-row-name">{{ b.label }}</span>
+            <span class="lo-row-desc">{{ b.description }}</span>
+          </span>
+          @if (shop.isEquipped(b.id)) {
+            <!-- État seulement : on le retire par la croix de son creux. -->
+            <span class="lo-chip">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+              Equipped
+            </span>
+          } @else {
+            <button class="lo-equip" (click)="equip(b)" [disabled]="isFull()"
+                    [attr.title]="isFull() ? 'All slots are in use' : null"
+                    [attr.aria-label]="isFull() ? 'Equip ' + b.label + ', unavailable: all slots are in use' : 'Equip ' + b.label">
+              Equip
+            </button>
+          }
+        </li>
+      }
+    </ul>
+  } @else {
+    <div class="lo-empty">
+      <app-boost-cup class="lo-empty-cup" />
+      <p class="lo-empty-text">No boosters yet. A booster you unlock stays yours for good, and plays in every game you equip it for.</p>
+    </div>
+  }
+  <button class="lo-more" (click)="browse()">
+    {{ owned().length > 0 ? 'Get more boosters' : 'See boosters' }}
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </button>
+</div>
+
+<!-- Calques de mouvement : pièces (achat d'un emplacement) et jeton en vol. -->
+<app-coin-flight />
+<div class="lo-flight-layer" #flightLayer aria-hidden="true"></div>

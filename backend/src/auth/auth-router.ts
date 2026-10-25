@@ -7,11 +7,11 @@ import { deleteUserMessages, getUsersContainer, type GuestHistory } from '../db.
 import { deleteAvatar, processToWebp, uploadAvatarWebp } from '../storage/blob.js';
 import { signSessionToken, verifySessionToken } from './session-token.js';
 import { registerBotUserId } from '../session/bot-dispatch.js';
-import { parsePersona, type BotPersona } from '../session/bot-persona.js';
+import { botLoadout, parsePersona, type BotPersona } from '../session/bot-persona.js';
 import { describeSignupHistory, lookupGuestHistory } from '../session/guest-tracking.js';
 import { notifyAdmin } from '../admin/telegram.js';
 import { detectBrowser, fingerprintTag, formatClientLabel, resolveClientInfo } from '../admin/client-info.js';
-import type { ClientInfo } from '@mercury/shared';
+import { boostSlotsOf, sanitizeLoadout, type ClientInfo } from '@mercury/shared';
 
 const router = Router();
 
@@ -89,9 +89,14 @@ interface UserDoc {
     /** Ids catalogue possédés (emojis, plus tard dos de cartes). Même
      *  optionnalité que `coins`, pour la même raison. */
     ownedItems?: string[];
-    /** Boosters achetés, consommés au lancement de la partie suivante. Même
-     *  optionnalité que `coins`, pour la même raison. */
+    /** Héritage : boosters à usage unique achetés avant les boosters
+     *  permanents, consommés à la partie suivante (voir takeGameBoosts). */
     armedBoosts?: string[];
+    /** Boosters possédés équipés pour chaque partie (voir UserWallet, db.ts).
+     *  Même optionnalité que `coins`, pour la même raison. */
+    equippedBoosts?: string[];
+    /** Emplacements d'équipement (offerts + achetés). Absent = FREE_BOOST_SLOTS. */
+    boostSlots?: number;
     /** Compte d'agent IA, à poser à la création du compte : seul un document
      *  marqué peut se connecter par POST /api/auth/bot, et le flag exclut les
      *  bots des stats d'audience (getAudienceStats). */
@@ -202,6 +207,7 @@ router.post('/google', async (req: Request, res: Response) => {
                 coins: 0,
                 ownedItems: [],
                 armedBoosts: [],
+                equippedBoosts: [],
                 ...(guestHistory ? { guestHistory } : {}),
                 ...(hasClientInfo ? { client: clientInfo } : {}),
             };
@@ -380,6 +386,15 @@ router.get('/user/:id', async (req: Request, res: Response) => {
             // lastSeenAt : ils gardent leur ancienne valeur au lieu d'un "N/A",
             // jusqu'à la prochaine session de l'utilisateur.
             lastSeenAt: resource.lastSeenAt ?? resource.lastLogin,
+            // Boosters équipés : ce avec quoi le joueur joue chaque partie.
+            // Un agent IA montre (et joue) l'équipement tiré de son id.
+            boosts: resource.isBot
+                ? botLoadout(id)
+                : sanitizeLoadout(
+                    resource.equippedBoosts,
+                    resource.ownedItems ?? [],
+                    boostSlotsOf(resource.boostSlots),
+                ),
         });
     } catch (err) {
         console.error('❌ Cosmos DB error (GET /user/:id):', err);

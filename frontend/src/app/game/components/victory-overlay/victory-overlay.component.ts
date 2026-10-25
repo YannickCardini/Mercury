@@ -47,6 +47,35 @@ const MAX_FLYING_COINS = 12;
 const STAMP_MS = 520;
 /** Double Coins : écart entre deux incréments du compteur pendant le doublement. */
 const DOUBLE_STEP_MS = 70;
+/**
+ * Incréments au plus pour un doublement ou un malus : au-delà, le compteur
+ * avance par paquets. Un coup double (+50) doublé ferait sinon tinter cent
+ * fois l'écran de fin.
+ */
+const MAX_COUNT_TICKS = 20;
+
+/** Origine des pièces, telle qu'envoyée par le serveur (champs récents optionnels). */
+type CoinsBase = {
+  victory: number;
+  captures: number;
+  allyPenalty?: number;
+  pairHome?: number;
+  pairCapture?: number;
+};
+
+/** Une ligne de l'origine des pièces, sous la pastille. */
+interface CoinPart {
+  readonly label: string;
+  /** Signé : le malus Bounty est négatif. */
+  readonly amount: number;
+  /** Booster d'où vient la part ; null pour la victoire. */
+  readonly effect: ConsumableEffect | null;
+}
+
+/** « +3 », « −2 » : signe typographique, jamais le tiret court. */
+export function signedCoins(n: number): string {
+  return n < 0 ? `−${-n}` : `+${n}`;
+}
 
 /** Un joueur affiché sur l'écran de fin de partie (gagnant ou perdant). */
 export interface VictoryPlayer {
@@ -94,13 +123,16 @@ export class VictoryOverlayComponent {
   pointsDelta = input<number | null>(null);
   newPoints = input<number | null>(null);
   newRanking = input<number | null>(null);
-  /** Pièces de boutique gagnées. null = partie perdue, ou joueur non crédité. */
+  /** Variation de pièces de boutique, signée (le malus Bounty peut la rendre
+   *  négative). null = rien gagné ni perdu, ou joueur non crédité. */
   coinsDelta = input<number | null>(null);
   /** Boosters actifs du joueur sur cette partie (ids catalogue). Les montants
    *  ci-dessus les intègrent déjà ; la liste sert à l'expliquer. */
   boosts = input<readonly string[]>([]);
-  /** Origine des pièces avant Double Coins (victoire, captures Bounty). */
-  coinsBase = input<{ victory: number; captures: number } | null>(null);
+  /** Origine des pièces avant Double Coins (victoire, Bounty, coups doubles). */
+  coinsBase = input<CoinsBase | null>(null);
+  /** Perfect Game : points ajoutés au gain, avant Double Points. 0 = rien. */
+  perfectBonus = input<number>(0);
 
   backToMenu = output<void>();
 
@@ -116,18 +148,52 @@ export class VictoryOverlayComponent {
   readonly coinsBoosted = computed(() => boostMultiplier(this.boosts(), "double_coins") > 1);
   readonly victoryCoins = computed(() => this.coinsBase()?.victory ?? 0);
   readonly captureCoins = computed(() => this.coinsBase()?.captures ?? 0);
+  readonly allyPenalty = computed(() => this.coinsBase()?.allyPenalty ?? 0);
+  readonly pairHomeCoins = computed(() => this.coinsBase()?.pairHome ?? 0);
+  readonly pairCaptureCoins = computed(() => this.coinsBase()?.pairCapture ?? 0);
+
   /**
-   * Boosters consommés sans rien rapporter : on le dit, sinon le joueur
-   * cherche en vain le gain qu'il a payé. Seulement une fois les stats reçues.
+   * D'où viennent les pièces, avant doublement : seulement quand un booster
+   * y a pris part (sinon la pastille dit tout). Le malus Bounty y figure en
+   * négatif : il explique un total plus bas, voire une perte.
+   */
+  readonly breakdown = computed<readonly CoinPart[]>(() => {
+    const parts: CoinPart[] = [
+      { label: "Victory", amount: this.victoryCoins(), effect: null },
+      { label: "Captures", amount: this.captureCoins(), effect: "capture_coins" },
+      { label: "Own team", amount: -this.allyPenalty(), effect: "capture_coins" },
+      { label: "Homecoming", amount: this.pairHomeCoins(), effect: "pair_home" },
+      { label: "Double Strike", amount: this.pairCaptureCoins(), effect: "pair_capture" },
+    ].filter((p) => p.amount !== 0) as CoinPart[];
+    return parts.some((p) => p.effect !== null) ? parts : [];
+  });
+
+  /**
+   * Boosters équipés qui n'ont rien rapporté cette partie : on le dit, sinon
+   * le joueur cherche en vain leur gain. Une seule ligne pour ceux qui paient
+   * en jeu, quel qu'en soit le nombre. Seulement une fois les stats reçues.
    */
   readonly unusedBoosts = computed<readonly { effect: ConsumableEffect; text: string }[]>(() => {
     if (this.pointsDelta() === null) return [];
     const notes: { effect: ConsumableEffect; text: string }[] = [];
-    if (hasBoost(this.boosts(), "capture_coins") && this.captureCoins() === 0) {
-      notes.push({ effect: "capture_coins", text: "Bounty used. No enemy marble captured this game." });
+    const idle: { effect: ConsumableEffect; name: string }[] = [];
+    if (hasBoost(this.boosts(), "capture_coins") && this.captureCoins() === 0 && this.allyPenalty() === 0) {
+      idle.push({ effect: "capture_coins", name: "Bounty" });
+    }
+    if (hasBoost(this.boosts(), "pair_home") && this.pairHomeCoins() === 0) {
+      idle.push({ effect: "pair_home", name: "Homecoming" });
+    }
+    if (hasBoost(this.boosts(), "pair_capture") && this.pairCaptureCoins() === 0) {
+      idle.push({ effect: "pair_capture", name: "Double Strike" });
+    }
+    if (hasBoost(this.boosts(), "perfect_win") && this.perfectBonus() === 0) {
+      idle.push({ effect: "perfect_win", name: "Perfect Game" });
+    }
+    if (idle.length > 0) {
+      notes.push({ effect: idle[0]!.effect, text: `No payout this game: ${idle.map((i) => i.name).join(", ")}.` });
     }
     if (this.coinsBoosted() && this.coinsDelta() === null) {
-      notes.push({ effect: "double_coins", text: "Double Coins used. No coins to double this game." });
+      notes.push({ effect: "double_coins", text: "Double Coins: no coins to double this game." });
     }
     return notes;
   });
@@ -149,6 +215,10 @@ export class VictoryOverlayComponent {
   readonly coinsRevealed = signal(false);
   /** Toutes les pièces sont rentrées : éclat final. */
   readonly coinsComplete = signal(false);
+  /** Le malus Bounty est en train de se retrancher. */
+  readonly coinsPenalty = signal(false);
+
+  readonly signedCoins = signedCoins;
 
   private flightStarted = false;
   private timers: ReturnType<typeof setTimeout>[] = [];
@@ -169,32 +239,33 @@ export class VictoryOverlayComponent {
     if (this.flightStarted) return;
     this.flightStarted = true;
 
-    if (total <= 0 || this.prefersReducedMotion()) {
+    // Trois temps : les gains de base volent vers la pastille, le sceau de
+    // Double Coins les double, puis le malus Bounty s'en retranche. Le joueur
+    // voit ce qu'il a gagné, ce que le booster y a ajouté, ce qu'il a perdu.
+    const known = this.coinsBase();
+    const multiplier = this.coinsBoosted() ? BOOST_MULTIPLIER : 1;
+    const base = known
+      ? known.victory + known.captures + (known.pairHome ?? 0) + (known.pairCapture ?? 0)
+      : Math.max(1, Math.round(total / multiplier));
+    const doubled = base * multiplier;
+
+    if (base <= 0 || this.prefersReducedMotion()) {
       this.settleInstantly(total);
       return;
     }
-
-    // Double Coins : seul le gain de base vole, le sceau double ensuite. Le
-    // joueur voit ce qu'il aurait eu, puis ce que le booster y a ajouté.
-    const known = this.coinsBase();
-    const base = !this.coinsBoosted()
-      ? total
-      : known
-        ? known.victory + known.captures
-        : Math.max(1, Math.round(total / BOOST_MULTIPLIER));
 
     this.later(() => {
       // requestIdleCallback : les pièces n'arrivent qu'une fois le navigateur
       // libéré. Le timeout garantit qu'elles finissent par se jouer même sur un
       // appareil qui ne respire jamais.
       const idle = window.requestIdleCallback?.bind(window);
-      if (idle) idle(() => this.launchCoins(base, total), { timeout: IDLE_TIMEOUT_MS });
-      else this.launchCoins(base, total);
+      if (idle) idle(() => this.launchCoins(base, doubled, total), { timeout: IDLE_TIMEOUT_MS });
+      else this.launchCoins(base, doubled, total);
     }, SETTLE_MS);
   }
 
-  /** `base` pièces volent vers le compteur ; si `total` est plus grand, le sceau double ensuite. */
-  private launchCoins(base: number, total: number): void {
+  /** `base` pièces volent vers le compteur, qui passe ensuite à `doubled` puis à `total`. */
+  private launchCoins(base: number, doubled: number, total: number): void {
     const root = this.host.nativeElement;
     const stage = root.querySelector('.coin-flights');
     // Le trophée est masqué (display: none) sur les écrans bas : sa boîte est
@@ -245,37 +316,64 @@ export class VictoryOverlayComponent {
       this.later(() => {
         this.coinsRevealed.set(true);
         this.coinsShown.update(n => n + 1);
-        if (i === count - 1) this.finishCoinFlight(base, total);
+        if (i === count - 1) this.finishCoinFlight(base, doubled, total);
       }, coin.delay + COIN_FLIGHT_MS);
     });
   }
 
   /** Dernière arrivée : on libère les noeuds animés et on cale la vraie valeur. */
-  private finishCoinFlight(base: number, total: number): void {
+  private finishCoinFlight(base: number, doubled: number, total: number): void {
     this.coinsShown.set(base); // si le plafond a tronqué le vol, le compteur dit vrai
     this.flyingCoins.set([]);
-    if (total > base) {
-      this.stampAndDouble(base, total);
+    if (doubled > base) {
+      this.stampAndDouble(base, doubled, total);
       return;
     }
-    this.coinsComplete.set(true);
+    this.applyPenalty(base, total);
   }
 
   /**
    * Double Coins : le sceau « ×2 » se pose sur la pastille, puis le compteur
-   * monte de la base au total au rythme d'un tintement par pièce ajoutée.
+   * monte de la base au total doublé, un tintement par incrément.
    */
-  private stampAndDouble(base: number, total: number): void {
+  private stampAndDouble(base: number, doubled: number, total: number): void {
     this.coinsStamped.set(true);
     this.sound.playUnlock();
-    const extra = total - base;
-    this.later(() => this.sound.playCoinSpend(extra, DOUBLE_STEP_MS), STAMP_MS);
-    for (let k = 1; k <= extra; k++) {
-      this.later(() => {
-        this.coinsShown.set(base + k);
-        if (k === extra) this.coinsComplete.set(true);
-      }, STAMP_MS + k * DOUBLE_STEP_MS);
+    const ticks = this.countTo(base, doubled, STAMP_MS);
+    this.later(() => this.sound.playCoinSpend(ticks, DOUBLE_STEP_MS), STAMP_MS);
+    this.later(() => this.applyPenalty(doubled, total), STAMP_MS + ticks * DOUBLE_STEP_MS);
+  }
+
+  /**
+   * Malus Bounty : la pastille passe au rouge le temps que le compteur
+   * redescende jusqu'au total réellement appliqué (qui peut être négatif).
+   */
+  private applyPenalty(from: number, total: number): void {
+    if (total >= from) {
+      this.coinsShown.set(total);
+      this.coinsComplete.set(true);
+      return;
     }
+    this.coinsPenalty.set(true);
+    const ticks = this.countTo(from, total, STAMP_MS);
+    this.later(() => {
+      this.coinsPenalty.set(false);
+      this.coinsComplete.set(true);
+    }, STAMP_MS + ticks * DOUBLE_STEP_MS);
+  }
+
+  /**
+   * Fait passer le compteur de `from` à `to` après `delay`, par incréments
+   * réguliers (au plus MAX_COUNT_TICKS), et renvoie le nombre d'incréments.
+   */
+  private countTo(from: number, to: number, delay: number): number {
+    const span = Math.abs(to - from);
+    const ticks = Math.min(span, MAX_COUNT_TICKS);
+    for (let k = 1; k <= ticks; k++) {
+      const value = k === ticks ? to : from + Math.round(((to - from) * k) / ticks);
+      this.later(() => this.coinsShown.set(value), delay + k * DOUBLE_STEP_MS);
+    }
+    return ticks;
   }
 
   /** Pas d'animation : la pastille prend directement sa valeur finale. */

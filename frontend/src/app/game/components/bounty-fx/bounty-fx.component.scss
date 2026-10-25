@@ -2,7 +2,8 @@
 @use "../../../styles/coin" as *;
 
 /* =========================================
-   BOUNTY — pièce qui jaillit d'un pion capturé
+   GAINS DE BOOSTERS — pièce qui jaillit d'une case (Bounty, coups doubles),
+   malus Bounty inscrit en rouge
    Tout est proportionné à --sq (taille d'une case), pour garder la même
    lecture sur un petit téléphone et sur un grand écran. Seuls transform et
    opacity sont animés : pas de repaint pendant le vol.
@@ -143,12 +144,28 @@
 
 // ── Impact : onde rouge Bounty + gain ──────────────────────────────────────
 
-// Ancre de taille nulle au centre de la case capturée : onde, « +1 » et pièce
-// s'y positionnent tous les trois.
+// Ancre de taille nulle au centre de la case : onde, gain et pièce s'y
+// positionnent tous les trois. L'onde prend la teinte du jeton du booster.
 .bf-hit {
   position: absolute;
   width: 0;
   height: 0;
+
+  &[data-effect="pair_home"] {
+    --bf-ring: var(--m-green-light);
+  }
+
+  &[data-effect="pair_capture"] {
+    --bf-ring: var(--m-orange-light);
+  }
+}
+
+// Malus : l'onde et le libellé en rouge, sans pièce ni halo doré.
+.bf-hit.is-loss .bf-label {
+  color: var(--m-red-light);
+  text-shadow:
+    0 1px 0 var(--m-red-deep),
+    0 2px 6px rgba(#000, 0.6);
 }
 
 .bf-ring {
@@ -157,7 +174,7 @@
   height: var(--sq);
   margin: calc(var(--sq) * -0.5) 0 0 calc(var(--sq) * -0.5);
   border-radius: 50%;
-  border: 2px solid var(--m-red-light);
+  border: 2px solid var(--bf-ring, var(--m-red-light));
   opacity: 0;
   animation: bf-ring 560ms cubic-bezier(0.16, 1, 0.3, 1) var(--delay) both;
 }

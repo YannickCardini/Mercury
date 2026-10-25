@@ -20,7 +20,9 @@ import { InviteToastComponent } from "../shared/invite-toast.component";
 import { ToastService } from "../shared/toast.service";
 import { MarbleCloverComponent } from "../shared/marble-clover.component";
 import { CoinCountComponent } from "../shared/coin-count.component";
-import { BoostTokenComponent } from "../shared/boost-token.component";
+import { PlayerCardComponent } from "../shared/player-card.component";
+import { BoosterLoadoutComponent } from "../boosters/loadout/booster-loadout.component";
+import { BoosterIntentService } from "../services/booster-intent.service";
 import { Subscription, firstValueFrom, take } from "rxjs";
 import { version } from "../../../../package.json";
 import { App } from "@capacitor/app";
@@ -33,7 +35,7 @@ import { ActiveGameService } from "../services/active-game.service";
 import { PresenceService } from "../services/presence.service";
 import { ShopService } from "../services/shop.service";
 import { ThemeService } from "../services/theme.service";
-import { TEAMS, isConsumable } from "@mercury/shared";
+import { TEAMS } from "@mercury/shared";
 import type {
   GameInviteMessage,
   MarbleColor,
@@ -111,7 +113,8 @@ let lastActiveMenu: MenuId = "play";
     InviteToastComponent,
     MarbleCloverComponent,
     CoinCountComponent,
-    BoostTokenComponent,
+    PlayerCardComponent,
+    BoosterLoadoutComponent,
   ],
 })
 export class HomePage implements OnInit, OnDestroy, DoCheck {
@@ -211,7 +214,9 @@ export class HomePage implements OnInit, OnDestroy, DoCheck {
   // La boîte de réception vit dans le modal profil (`showLogin`) : pas de second
   // bouton dans la nav, donc pas de flag d'ouverture propre. `loginView` dit
   // laquelle des deux vues de la carte est affichée.
-  loginView: "main" | "thread" = "main";
+  loginView: "main" | "thread" | "boosters" = "main";
+  /** Booster à poser à l'ouverture de la vue « boosters » (arrivé de la vitrine). */
+  heldBoost: string | null = null;
   threads: ThreadSummary[] = [];
   threadsLoading = false;
   inboxError = "";
@@ -328,6 +333,14 @@ export class HomePage implements OnInit, OnDestroy, DoCheck {
       void this.router.navigate(["/game"]);
       return;
     }
+    // La vitrine des boosters renvoie ici pour équiper : la fenêtre du profil
+    // s'ouvre sur l'équipement, le booster acheté (ou choisi) en main.
+    const held = this.boosterIntent.take();
+    if (held !== null && this.auth.user$.getValue()) {
+      this.openLogin();
+      this.openBoosters(held || null);
+    }
+
     this.loginErrorSub = this.auth.loginError$.subscribe((type) => {
       this.loginErrorMessage =
         type === "server"
@@ -463,6 +476,7 @@ export class HomePage implements OnInit, OnDestroy, DoCheck {
   }
   closeLogin() {
     this.showLogin = false;
+    this.heldBoost = null;
     this.editingProfile = false;
     this.editError = "";
     this.loginPromptReason = null;
@@ -651,26 +665,36 @@ export class HomePage implements OnInit, OnDestroy, DoCheck {
   readonly hasAffordableItem = computed(() => {
     const coins = this.shop.coins();
     if (coins === null) return false;
-    // Les boosters se rachètent à chaque partie : les compter allumerait le
-    // point en permanence dès 10 pièces, et il ne signalerait plus rien.
-    return this.shop
-      .items()
-      .some(item => !isConsumable(item) && !this.shop.isOwned(item.id) && coins >= item.price);
+    // Boosters compris : achetés une fois et gardés, ce sont des objets de
+    // collection comme les autres, et l'entrée vers leur écran est en boutique.
+    return this.shop.items().some(item => !this.shop.isOwned(item.id) && coins >= item.price);
   });
 
-  // ── Boosters armés ─────────────────────────────────────────────────────────
+  // ── Boosters (fenêtre du profil) ───────────────────────────────────────────
 
-  /**
-   * Boosters qui partiront avec la prochaine partie. Affichés au-dessus des
-   * boutons de jeu : c'est là que le joueur décide de lancer une partie, donc
-   * là qu'il doit voir ce qu'il engage (Double Points joue aussi sur la perte).
-   */
-  readonly armedBoosts = this.shop.armedBoosts;
-  readonly armedBoostNames = computed(() =>
-    this.armedBoosts()
-      .map((b) => b.label)
-      .join(" · ")
+  private boosterIntent = inject(BoosterIntentService);
+
+  /** Boosters équipés, montrés côte à côte dans la fiche. */
+  readonly equippedBoosts = this.shop.equippedBoosts;
+  readonly boosterSlotsLine = computed(
+    () => `${this.shop.equippedBoosts().length} of ${this.shop.slots()} slots used`
   );
+  readonly boosterEmptyLine = computed(() =>
+    this.shop.ownedBoosts().length === 0
+      ? "Bonuses you keep for good, played in every game. Get one in the shop."
+      : "No booster equipped yet."
+  );
+
+  /** Vue « boosters » de la fenêtre du profil, avec éventuellement un booster en main. */
+  openBoosters(held: string | null = null): void {
+    this.heldBoost = held;
+    this.loginView = "boosters";
+  }
+
+  backToProfile(): void {
+    this.heldBoost = null;
+    this.loginView = "main";
+  }
 
   onCoinsRolled(delta: number): void {
     if (delta <= 0) return; // une dépense se voit déjà dans la boutique

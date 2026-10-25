@@ -6,8 +6,8 @@ import {
   inject,
   signal,
 } from "@angular/core";
-import { COINS_PER_CAPTURE } from "@mercury/shared";
-import { GameStateService } from "../../services/game-state.service";
+import type { ConsumableEffect } from "@mercury/shared";
+import { GameStateService, type BoostFx } from "../../services/game-state.service";
 import { SoundService } from "../../services/sound.service";
 
 /** Le pion capturé s'éjecte d'abord : la pièce jaillit juste après l'impact. */
@@ -20,13 +20,17 @@ const FLY_MS = 580;
 const FADE_MS = 360;
 
 /**
- * Une capture payée : onde et « +1 » sur la case, pièce qui en jaillit.
- * Coordonnées relatives au calque, centre de la case capturée.
+ * Un gain de booster : onde et « +1 » (ou « +50 ») sur la case, pièce qui en
+ * jaillit. Un malus (« −1 ») n'a que l'onde et le libellé, en rouge.
+ * Coordonnées relatives au calque, centre de la case concernée.
  */
 interface BountyHit {
   readonly id: number;
   readonly x: number;
   readonly y: number;
+  readonly label: string;
+  readonly effect: ConsumableEffect;
+  readonly loss: boolean;
   /** Arrivée de la pièce relative au départ ; null = pas de compteur visible. */
   readonly dx: number | null;
   readonly dy: number | null;
@@ -35,13 +39,15 @@ interface BountyHit {
 }
 
 /**
- * Prime Bounty : à chaque pion adverse capturé par le joueur local, une pièce
- * jaillit du pion, tourne sur elle-même au-dessus du plateau puis file vers
- * le compteur du dock, qui avance à son arrivée.
+ * Boosters qui paient en jeu : à chaque gain du joueur local (pion adverse
+ * capturé avec Bounty, coup double avec Homecoming ou Double Strike), une
+ * pièce jaillit de la case, tourne sur elle-même au-dessus du plateau puis
+ * file vers le jeton du booster dans le dock, dont le compteur avance à son
+ * arrivée. Un malus Bounty (pion de son camp capturé) s'inscrit en rouge sur
+ * la case, sans pièce : le compteur recule tout de suite.
  *
- * Toujours une seule pièce par capture, même avec Double Coins : le
- * doublement ne se montre et ne se calcule qu'en fin de partie, sur la somme
- * victoire + captures (voir l'écran de fin).
+ * Toujours une seule pièce par gain, même avec Double Coins : le doublement
+ * ne se montre et ne se calcule qu'en fin de partie (voir l'écran de fin).
  *
  * Coût maîtrisé : trois mesures de géométrie par capture, puis uniquement des
  * animations CSS de transform/opacity sur quatre nœuds, retirés dès la fin.
@@ -66,7 +72,6 @@ export class BountyFxComponent {
 
   readonly hits = signal<readonly BountyHit[]>([]);
 
-  readonly label = `+${COINS_PER_CAPTURE}`;
   readonly popDelayMs = POP_DELAY_MS;
   readonly hopMs = HOP_MS;
   readonly flyMs = FLY_MS;
@@ -76,18 +81,19 @@ export class BountyFxComponent {
   private timers: ReturnType<typeof setTimeout>[] = [];
 
   constructor() {
-    const sub = this.gameState.bountyCapture$.subscribe(({ square }) => this.spawn(square));
+    const sub = this.gameState.boostFx$.subscribe(fx => this.spawn(fx));
     inject(DestroyRef).onDestroy(() => {
       sub.unsubscribe();
       for (const timer of this.timers) clearTimeout(timer);
       // Une pièce en vol ne doit pas geler le compteur de la partie suivante.
-      this.gameState.bountyCoinsInFlight.set(0);
+      this.gameState.coinsInFlight.set({});
     });
   }
 
-  private spawn(square: number): void {
+  private spawn({ square, effect, amount }: BoostFx): void {
     // Mouvement réduit : pas de vol, le compteur avance tout de suite.
     if (this.prefersReducedMotion()) return;
+    const loss = amount < 0;
 
     const source = document.querySelector<HTMLElement>(`app-board [data-sq="${square}"]`);
     if (!source) return;
@@ -96,34 +102,48 @@ export class BountyFxComponent {
     const x = from.left + from.width / 2 - layer.left;
     const y = from.top + from.height / 2 - layer.top;
 
-    // Cible : le jeton Bounty du dock. Absent (overlay du 7 ouvert, dock
-    // démonté) ou invisible : la pièce s'efface sur place, le compteur avance.
-    const target = document
-      .querySelector<HTMLElement>('app-boost-dock [data-effect="capture_coins"]')
-      ?.getBoundingClientRect();
-    const fly = !!target && target.width > 0;
+    // Cible : le jeton du booster dans le dock, ou la pastille « +N » qui le
+    // résume quand il est replié. Absente (overlay du 7 ouvert, dock démonté)
+    // ou invisible : la pièce s'efface sur place, le compteur avance.
+    const target = (
+      document.querySelector<HTMLElement>(`app-boost-dock [data-effect="${effect}"]`) ??
+      document.querySelector<HTMLElement>("app-boost-dock .boost-dock__more")
+    )?.getBoundingClientRect();
+    const fly = !loss && !!target && target.width > 0;
 
     const hit: BountyHit = {
       id: this.seq++,
       x,
       y,
+      label: `${loss ? "−" : "+"}${Math.abs(amount)}`,
+      effect,
+      loss,
       dx: fly ? target!.left + target!.width / 2 - layer.left - x : null,
       dy: fly ? target!.top + target!.height / 2 - layer.top - y : null,
       sq: from.width,
     };
     this.hits.update((list) => [...list, hit]);
-    this.later(() => this.sound.playCoinSpend(1), POP_DELAY_MS);
+    if (!loss) {
+      this.later(
+        () => (amount >= 50 ? this.sound.playCoinJackpot() : this.sound.playCoinSpend(1)),
+        POP_DELAY_MS,
+      );
+    }
 
     const end = POP_DELAY_MS + HOP_MS + (fly ? FLY_MS : FADE_MS);
     if (fly) {
       // Le compteur n'avance qu'à l'arrivée de la pièce.
-      this.gameState.bountyCoinsInFlight.update((n) => n + COINS_PER_CAPTURE);
-      this.later(
-        () => this.gameState.bountyCoinsInFlight.update((n) => Math.max(0, n - COINS_PER_CAPTURE)),
-        end
-      );
+      this.inFlight(effect, amount);
+      this.later(() => this.inFlight(effect, -amount), end);
     }
     this.later(() => this.hits.update((list) => list.filter((h) => h.id !== hit.id)), end + 60);
+  }
+
+  private inFlight(effect: ConsumableEffect, delta: number): void {
+    this.gameState.coinsInFlight.update((map) => ({
+      ...map,
+      [effect]: Math.max(0, (map[effect] ?? 0) + delta),
+    }));
   }
 
   private later(fn: () => void, ms: number): void {

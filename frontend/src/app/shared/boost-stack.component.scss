@@ -1,0 +1,51 @@
+// Pile de jetons : chaque jeton recouvre un quart du précédent, détouré d'un
+// disque de la couleur du fond (--bs-ground) pour rester lisible. Les
+// satellites (étoile, pièce) passent au-dessus de la pile.
+
+// Taille par --bs-size : le jeton déclare son propre --bt-size sur son hôte,
+// une valeur héritée de la pile ne lui parviendrait pas.
+:host {
+  --bs-size: 28px;
+  --bs-ground: var(--m-paper);
+
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+}
+
+.bs-token {
+  --bt-size: var(--bs-size);
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    border-radius: 50%;
+    background: var(--bs-ground);
+  }
+
+  & + .bs-token,
+  & + .bs-more {
+    margin-left: calc(var(--bs-size) * -0.25);
+  }
+}
+
+.bs-more {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--bs-size);
+  height: var(--bs-size);
+  padding: 0 4px;
+  box-sizing: border-box;
+  border-radius: var(--m-r-pill);
+  background: var(--m-paper-hi);
+  box-shadow: 0 0 0 2px var(--bs-ground);
+  font-family: var(--m-font-display);
+  font-size: calc(var(--bs-size) * 0.42);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--m-fg-2);
+  font-variant-numeric: tabular-nums;
+}

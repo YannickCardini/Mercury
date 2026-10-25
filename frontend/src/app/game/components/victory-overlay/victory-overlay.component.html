@@ -91,6 +91,13 @@
             <div class="stats-delta" [class.gain]="pointsDelta()! > 0" [class.loss]="pointsDelta()! < 0">
               {{ pointsDelta()! > 0 ? '+' : '' }}{{ pointsDelta() }} pts
             </div>
+            @if (perfectBonus() > 0) {
+              <!-- Partie parfaite : le bonus fait partie du gain affiché. -->
+              <span class="stats-seal stats-seal--perfect">
+                <app-boost-token class="stats-seal-token" [effect]="'perfect_win'" />
+                Perfect Game +{{ perfectBonus() }}
+              </span>
+            }
             @if (pointsBoosted()) {
               <span class="stats-seal stats-seal--points">
                 <app-boost-token class="stats-seal-token" [effect]="'double_points'" />
@@ -109,9 +116,11 @@
                    aux pièces avant même d'être visible. -->
               <div class="stats-coins"
                 [class.is-revealed]="coinsRevealed()"
-                [class.is-complete]="coinsComplete()">
+                [class.is-complete]="coinsComplete()"
+                [class.is-penalty]="coinsPenalty()"
+                [class.is-loss]="coinsShown() < 0">
                 <span class="stats-coin" aria-hidden="true"></span>
-                +{{ coinsShown() }} {{ coinsShown() === 1 ? 'coin' : 'coins' }}
+                {{ signedCoins(coinsShown()) }} {{ coinsShown() === 1 || coinsShown() === -1 ? 'coin' : 'coins' }}
               </div>
               @if (coinsBoosted()) {
                 <!-- Même principe : place réservée, le sceau ne se pose qu'une fois
@@ -123,18 +132,22 @@
               }
             </div>
           }
-          @if (captureCoins() > 0) {
-            <!-- D'où viennent les pièces, avant doublement : la prime Bounty
-                 paie aussi sur une défaite, il faut que ça se voie. -->
+          @if (breakdown().length > 0) {
+            <!-- D'où viennent les pièces, avant doublement : les boosters
+                 paient aussi sur une défaite, et le malus Bounty explique un
+                 total plus bas, il faut que ça se voie. -->
             <div class="stats-breakdown" [class.is-revealed]="coinsRevealed()">
-              @if (victoryCoins() > 0) {
-                <span>Victory +{{ victoryCoins() }}</span>
-                <span class="stats-breakdown__sep" aria-hidden="true">·</span>
+              @for (part of breakdown(); track part.label; let first = $first) {
+                @if (!first) {
+                  <span class="stats-breakdown__sep" aria-hidden="true">·</span>
+                }
+                <span class="stats-breakdown__part" [attr.data-effect]="part.effect" [class.is-loss]="part.amount < 0">
+                  @if (part.effect) {
+                    <app-boost-token class="stats-breakdown-token" [effect]="part.effect" />
+                  }
+                  {{ part.label }} {{ signedCoins(part.amount) }}
+                </span>
               }
-              <span class="stats-breakdown__bounty">
-                <app-boost-token class="stats-breakdown-token" [effect]="'capture_coins'" />
-                Captures +{{ captureCoins() }}
-              </span>
             </div>
           }
           @for (note of unusedBoosts(); track note.effect) {
