@@ -92,8 +92,8 @@
 // ─── Body ─────────────────────────────────────────────────────────────────────
 .update-body {
   flex: 1;
-  // 3px de plus en bas : la tranche du bouton dépasse de sa boîte.
-  padding: 22px 24px 31px;
+  // 6px de plus en bas : la tranche du bouton dépasse de sa boîte.
+  padding: 22px 24px 34px;
   display: flex;
   flex-direction: column;
   gap: 22px;

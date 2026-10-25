@@ -1,6 +1,6 @@
 ---
 name: Mercury
-description: Opaque matte lagoon-blue panels and buttons over a flat terraformed-Mars landscape, under two moons at night and a double sunrise by day, cream text, sage-mint primary action.
+description: Opaque matte lagoon-blue panels and chunky keycap buttons over a flat terraformed-Mars landscape, under two moons at night and a double sunrise by day, cream text, sage-mint primary action.
 colors:
   lagoon: "#1d4459"
   lagoon-hi: "#265670"
@@ -72,17 +72,18 @@ rounded:
   md: "14px"
   lg: "20px"
   xl: "28px"
+  btn: "16px"
   pill: "999px"
 components:
   button-fill-green:
     backgroundColor: "{colors.green}"
     textColor: "{colors.ink}"
-    rounded: "{rounded.pill}"
+    rounded: "{rounded.btn}"
     padding: "11px 18px"
   button-paper:
     backgroundColor: "{colors.lagoon-hi}"
     textColor: "{colors.ink}"
-    rounded: "{rounded.pill}"
+    rounded: "{rounded.btn}"
     padding: "11px 18px"
   slab:
     backgroundColor: "{colors.lagoon}"
@@ -108,7 +109,7 @@ The previous dark neon look, a "solar system" interface theme, a pulsing-halo "q
 
 **Key Characteristics:**
 - Opaque matte lagoon-blue surfaces with cream text on a visible Mars landscape
-- 1px muted cyan line, a solid ledge under slabs and buttons, no backdrop blur or translucent glow
+- 1px muted cyan line and a solid ledge under slabs; buttons are keycaps (2px outline, two-tier solid ledge); no backdrop blur or translucent glow
 - Rounded display type for titles and numbers, geometric sans for text
 - Six named accents, each with a fill, a deep ledge, and a light text variant
 - One flat, stacked-plane Mars landscape anchored on one horizon line, with a night palette and a day palette; cream ink on it at night, slate ink by day
@@ -210,7 +211,7 @@ Mobile first, one column, centered panels over the sky. On phones, leaderboard a
 
 ## Elevation & Depth
 
-Matte, ledge first. Thickness is a solid dark ledge under each slab and button, with a soft shadow only to lift the sheet off the sky. No blur, no glow.
+Matte, ledge first. Thickness is a solid dark ledge under each slab, and a two-tier ledge under each button (the keycap), with a soft shadow only to lift the sheet off the sky. No blur, no glow.
 
 The Mars landscape conveys depth by stacked flat planes only, back to front: sky bands, then the sky objects (suns by day; stars, twinkles, moons, shooting stars and spaceship at night), mesas, far mist, hills, banded ground with craters, low mist, colony, lake and its mist. Distance is told by tone (paler by day, lighter at night, so far planes always sit closest to the sky's value) and by crater flattening (craters are squashed more the nearer they are to the horizon), never by shadows, blur or perspective gradients. Shadow faces are a flat tone plus stipple, on the side away from the suns or moons.
 
@@ -220,7 +221,7 @@ In `/game` the landscape stays, calmed. By day it sits under a uniform pale nacr
 - **Ledge** (`box-shadow: 0 3px 0 0 #0f2938`): secondary buttons and chips.
 - **Slab** (`0 4px 0 0 #0f2938, 0 22px 40px -22px rgba(0,0,0,0.7)`): cards, modals, panels.
 - **Pop** (`0 2px 0 0 #0f2938, 0 12px 24px -14px rgba(0,0,0,0.6)`): toasts and small floating items.
-- **Accent ledge** (`0 3px 0 0 <accent>-deep`): filled buttons.
+- **Keycap** (`inset 0 2px 0 cream 22%, 0 3px 0 -1px <accent>-mid, 0 6px 0 -1px <accent>-deep`): filled and paper buttons. The -1px spread makes the ledge a touch narrower than the face. The step is `--m-btn-lift` (3px, 2px on nav pills); pressed, the face drops one step, the mid tier disappears and the face rests on the deep tier.
 - **Focus** (`0 0 0 3px rgba(4,119,189,0.3)`): field focus.
 
 ### Named Rules
@@ -230,7 +231,7 @@ In `/game` the landscape stays, calmed. By day it sits under a uniform pale nacr
 
 ## Shapes
 
-Soft, generous rounding. Surfaces use 28px (xl), inner wells 14px (md), small tiles 10px (sm), larger tiles 20px (lg). Buttons and chips are full pills; icon buttons are circles (32px default). Surfaces get a 1px muted cyan (#2e637e) border.
+Soft, generous rounding. Surfaces use 28px (xl), inner wells 14px (md), small tiles 10px (sm), larger tiles 20px (lg). Buttons are keycaps with a 16px radius (`--m-r-btn`): a firm rounded rectangle that reads as a pill only on small chips, where the radius caps at half the height. Icon buttons are circles (32px default) with a one-tier 2px ledge. Surfaces get a 1px muted cyan (#2e637e) border.
 
 The Mars landscape has a grammar of two primitives, the same in both modes. **Horizontal bands**: the sky, the wavy ground strata, the mesa strata lines and the mist pills (rounded bars that fade out at both ends). **Concentric rings**: the sun and moon halos, the crater rims and ejecta rings, the lake ripples, the dome arcs, the light of the colony windows. Silhouettes (mesas with flat tops, cosine-shaped hills, lumpy Phobos) are the only other forms; the landforms read as bands seen edge-on. Stars are points.
 
@@ -240,12 +241,15 @@ The Mars landscape has a grammar of two primitives, the same in both modes. **Ho
 ## Components
 
 ### Buttons
-- **Shape:** pill (999px), padding 11px 18px, 8px gap, weight 700.
-- **Fill:** accent background with its `on-` label color, accent-deep ledge (0 3px 0). Hover brightens 7%. Pressed, the button moves down 2px and the ledge shrinks to 1px.
-- **Secondary:** Lagoon Lift (#265670) background, cream text, 1px muted cyan line, Lagoon Edge ledge. For secondary actions on sky or in cards.
-- **Quiet:** no ledge, translucent well background, 1px line border, text follows context. For low emphasis.
+Inspired by a keycap reference (chunky face, firm outline, stacked ledge); the colour of that reference was not kept. A button is a face lying on a solid, two-tier base, so it reads as an object you press, in the same family as the slabs and the board pieces.
+- **Shape:** 16px radius (`--m-r-btn`), padding 11px 18px, 8px gap, weight 700, sentence case. Controls that carry an explicit radius (14px, 20px, circle) keep it.
+- **Keycap (fill and paper):** face in the accent (or Lagoon Lift for paper), 2px outline in the ledge colour (accent-deep, or the steel line for paper), a faint cream top light (inset 2px, 22%), then two ledge tiers underneath, `<accent>-mid` then `<accent>-deep`, each 3px, 1px narrower than the face on each side. Hover brightens 7%. Pressed (90ms), the face moves down 3px, the mid tier vanishes, the deep tier stays; the top light drops to 12%. Callers reserve 6px under the button (the ledge overflows the box).
+- **Secondary (paper):** the same keycap in Lagoon Lift with cream text, steel outline, `--m-paper-mid` then Lagoon Edge. On sky or in cards. At day, the cream paper face with tan tiers.
+- **Quiet:** flat, no ledge, translucent well background, 1px line border, text follows context. For low emphasis.
 - **Tint:** accent at 10% with a 28% accent border and accent `-fg` text, no ledge. For sign-out, delete and informational links.
+- **Icon button:** circle, well background, 1.5px line, a single 2px ledge that closes on press.
 - **Focus:** 2px blue-fg outline, 2px offset. **Disabled:** 50% opacity.
+- **Scope:** every button of the app, /game included (menu, action and discard buttons, emoji and boosters pills, back arrow of the 7 sheet, resign dialog, victory back button), at the owner's request. Round pills there use a 2px lift. Flat list rows (menu items, emoji options) stay flat. The static content site and the Google sign-in button (white face, grey tiers) keep their own colours.
 
 ### Cards / Containers
 - **Slab:** Dark Lagoon, cream text, 28px radius, Slab shadow, 1px muted cyan line. The standard card, modal and panel.
@@ -325,7 +329,7 @@ Strict rules for backgrounds, cards and themes, day mode in particular. They tar
 ### Do:
 - **Do** use opaque lagoon surfaces with cream text over the sky, and add the `m-paper` class to each of them.
 - **Do** reference `--m-*` tokens and context aliases; add values to `tokens.css` only.
-- **Do** show thickness with a solid ledge and press feedback (translateY 2px), 90ms.
+- **Do** build buttons with `m.btn` plus `m.btn-fill`, `m.btn-paper` or `m.keycap(mid, deep)`; show thickness with the two-tier ledge and press it by one step (`--m-btn-lift`), 90ms. Reserve 6px under a button for its ledge.
 - **Do** use the `-light` accent variant for text on lagoon and on the sky.
 - **Do** use `--sa-*` variables for any safe-area spacing.
 - **Do** give anything placed directly on the background the `m-sky` class, so it reads slate on the day landscape and cream at night.

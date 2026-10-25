@@ -386,19 +386,25 @@ $player-colors: (
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  color: rgba(255, 255, 255, 0.55);
+  // Fond d'équipes toujours sombre : touche ardoise de la nuit, en dur.
+  background: #1b4157;
+  border: 2px solid #25536b;
+  color: rgba(240, 248, 255, 0.7);
   font-size: 0.58rem;
   font-weight: 900;
   font-style: italic;
   cursor: pointer;
   pointer-events: auto; // l'hôte est pointer-events:none
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  --m-btn-lift: 2px;
+  box-shadow: 0 2px 0 -1px #112d3e, 0 4px 0 -1px #081a26;
+  transition: color 0.15s, transform 0.09s ease-out, box-shadow 0.09s ease-out;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.14);
-    border-color: rgba(255, 255, 255, 0.35);
-    color: rgba(255, 255, 255, 0.9);
+    color: #f0f8ff;
+  }
+
+  &:active {
+    transform: translateY(2px);
+    box-shadow: 0 0 0 -1px #112d3e, 0 2px 0 -1px #081a26;
   }
 }

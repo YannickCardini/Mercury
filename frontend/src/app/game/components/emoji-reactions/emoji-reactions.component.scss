@@ -1,3 +1,4 @@
+@use "../../../styles/tokens" as m;
 /* =========================================
    EMOJI REACTIONS — trigger + palette + floats
    Mirrors the .action-menu / .menu-trigger style used in the table component
@@ -29,8 +30,9 @@
   border-radius: var(--m-r-pill);
   background: var(--m-paper-hi);
   color: var(--m-fg);
-  border: 1px solid var(--m-glass-line);
-  box-shadow: 0 3px 0 0 var(--m-paper-edge);
+  border: 2px solid var(--m-glass-line);
+  --m-btn-lift: 2px;
+  @include m.keycap(var(--m-paper-mid), var(--m-paper-edge));
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -43,15 +45,13 @@
     border-color: rgba(var(--m-ink-rgb), 0.3);
   }
 
-  &.is-open,
-  &:active:not(:disabled) {
-    transform: translateY(2px);
-    box-shadow: 0 1px 0 0 var(--m-paper-edge);
+  &.is-open {
+    @include m.keycap-pressed;
   }
 
   &:focus-visible {
-    outline: none;
-    box-shadow: 0 3px 0 0 var(--m-paper-edge), var(--m-focus);
+    outline: 2px solid var(--m-blue-fg);
+    outline-offset: 2px;
   }
 
   &.is-cooldown {

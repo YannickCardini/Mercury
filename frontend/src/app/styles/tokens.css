@@ -73,6 +73,7 @@
   --m-paper-hi: #1b4157; /* champ de saisie, bouton secondaire */
   --m-paper-lo: #0e2736; /* creux, rangée survolée */
   --m-paper-edge: #081a26; /* tranche sous un bouton */
+  --m-paper-mid: #112d3e; /* premier étage de la tranche d'un bouton */
   --m-glass-line: #25536b; /* filet d'une surface : bleu acier mat */
   --m-ink-night: #0e2736; /* bleu nuit d'encre : second fond opaque */
 
@@ -101,37 +102,43 @@
 
   /* Accents. Pour chacun :
        (nu)    aplat d'un bouton plein ;
-       -deep   tranche du bouton, état enfoncé ;
+       -deep   dernier étage de la tranche du bouton ;
+       -mid    premier étage de la tranche (entre l'aplat et -deep) ;
        -ink    texte et icônes sur papier ;
        -light  texte et icônes sur ciel ;
        -rgb    triplet de l'aplat, pour les teintes à alpha. */
   --m-green: #00c885;
   --m-green-rgb: 0, 200, 133;
   --m-green-deep: #008f5f;
+  --m-green-mid: #00ab72;
   --m-green-ink: #1b6e50;
   --m-green-light: #6fd0a9;
 
   --m-blue: #0477bd;
   --m-blue-rgb: 4, 119, 189;
   --m-blue-deep: #0c5d8c;
+  --m-blue-mid: #086aa4;
   --m-blue-ink: #0b639a;
   --m-blue-light: #7fc4f0;
 
   --m-orange: #f7914e;
   --m-orange-rgb: 247, 145, 78;
   --m-orange-deep: #c96a2b;
+  --m-orange-mid: #e07d3c;
   --m-orange-ink: #a8501a;
   --m-orange-light: #f9a56c;
 
   --m-red: #c8452f;
   --m-red-rgb: 200, 69, 47;
   --m-red-deep: #9c3220;
+  --m-red-mid: #b23b28;
   --m-red-ink: #b53a25;
   --m-red-light: #f08a76;
 
   --m-gold: #ffb703;
   --m-gold-rgb: 255, 183, 3;
   --m-gold-deep: #c78a00;
+  --m-gold-mid: #e3a002;
   --m-gold-ink: #8a6400;
   --m-gold-light: #ffc83d;
 
@@ -142,6 +149,7 @@
   --m-violet: #22b8cf;
   --m-violet-rgb: 34, 184, 207;
   --m-violet-deep: #168499;
+  --m-violet-mid: #1c9eb4;
   --m-violet-ink: #168499;
   --m-violet-light: #6fdcec;
 
@@ -162,6 +170,7 @@
   --m-r-md: 14px;
   --m-r-lg: 20px;
   --m-r-xl: 28px;
+  --m-r-btn: 16px; /* touche de bouton : rectangle franc, arrondi généreux */
   --m-r-pill: 999px;
 
   /* Ombres. Sur le ciel une ombre portée ne se voit pas : l'épaisseur d'une
@@ -175,6 +184,8 @@
   /* Mouvement. */
   --m-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --m-press: 90ms;
+  /* Hauteur d'un étage de la tranche d'un bouton (deux étages au repos). */
+  --m-btn-lift: 3px;
 
   /* Ciel : le fond (Mars, voir space-background) et l'écran de chargement
      peignent le même ciel en bandes nettes au-dessus du sol, pour qu'aucun
@@ -217,6 +228,7 @@
   --m-plate: #265670;
   --m-plate-line: #2e637e;
   --m-plate-edge: #0f2938;
+  --m-plate-mid: #1b4054;
   --m-plate-fg: var(--m-ink-solid);
 
   /* Pastille inversée (infobulle, numéro) : aplat de la couleur du texte. */
@@ -297,6 +309,7 @@
   --m-paper-hi: #faf5ea;
   --m-paper-lo: #ebe2d0;
   --m-paper-edge: #c8b28a;
+  --m-paper-mid: #e1d3b8;
   --m-glass-line: #dccbac;
 
   /* Texte sur papier : l'ardoise de la nuit devient l'encre du jour. Mêmes
@@ -337,6 +350,7 @@
   --m-plate: var(--m-paper-hi);
   --m-plate-line: var(--m-glass-line);
   --m-plate-edge: var(--m-paper-edge);
+  --m-plate-mid: var(--m-paper-mid);
   --m-plate-fg: var(--m-ink);
 
   --m-on-invert: var(--m-paper);

@@ -43,6 +43,7 @@ An online version of the Tock/Keezen family of games with server-authoritative r
 - Rules shown to the player match the rules enforced by the server.
 - Getting into a game takes as few steps as possible, whether guest or signed in.
 - Players who already know the game should never be taught it again to start playing.
+- Controls feel like objects: every button is a chunky keycap with a visible base that gives under the thumb, readable and easy to hit on a phone, the same family as the board pieces.
 
 ## Accessibility & Inclusion
 No product-specific standard established; mobile touch targets and Android edge-to-edge safe areas are known requirements.

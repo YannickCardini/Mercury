@@ -365,12 +365,8 @@
   // Plaque au repos (tokens --m-plate*) : ardoise la nuit, papier le jour.
   background: var(--m-plate);
   border-color: var(--m-plate-line);
-  box-shadow: 0 3px 0 0 var(--m-plate-edge);
   color: var(--m-plate-fg);
-
-  &:active:not(:disabled) {
-    box-shadow: 0 1px 0 0 var(--m-plate-edge);
-  }
+  @include m.keycap(var(--m-plate-mid), var(--m-plate-edge));
 
   &:focus,
   &:focus-visible {
@@ -380,12 +376,8 @@
   &.is-active {
     background: var(--m-green);
     color: var(--m-cream);
-    border-color: transparent;
-    box-shadow: 0 3px 0 0 var(--m-green-deep);
-  }
-
-  &.is-active:active:not(:disabled) {
-    box-shadow: 0 1px 0 0 var(--m-green-deep);
+    border-color: var(--m-green-deep);
+    @include m.keycap(var(--m-green-mid), var(--m-green-deep));
   }
 }
 
@@ -915,19 +907,15 @@
   @include m.btn(7px 14px);
   display: flex;
   background: #fff;
-  border: 1px solid #dadce0;
+  border: 2px solid #dadce0;
   color: #3c4043;
-  box-shadow: var(--m-ledge);
+  @include m.keycap(#c9ccd0, #9aa0a6);
   font-size: 0.82rem;
 
   &:hover:not(:disabled) {
     background: #f8f8f8;
   }
 
-  &:active:not(:disabled) {
-    transform: translateY(2px);
-    box-shadow: 0 1px 0 0 var(--m-paper-edge);
-  }
 }
 
 // ─── Nav avatar (logged-in state) ─────────────────────────────────────────────
@@ -945,19 +933,15 @@
   gap: 10px;
   width: 100%;
   background: #fff;
-  border: 1px solid #dadce0;
+  border: 2px solid #dadce0;
   color: #3c4043;
-  box-shadow: var(--m-ledge);
+  @include m.keycap(#c9ccd0, #9aa0a6);
   font-size: 0.9rem;
 
   &:hover:not(:disabled) {
     background: #f8f8f8;
   }
 
-  &:active:not(:disabled) {
-    transform: translateY(2px);
-    box-shadow: 0 1px 0 0 var(--m-paper-edge);
-  }
 }
 
 // ─── Button loading spinner ───────────────────────────────────────────────────
@@ -1154,6 +1138,8 @@
   position: relative;
   @include m.btn(0 12px);
   @include m.btn-paper;
+  --m-btn-lift: 2px;
+  --nav-coins-rest: inset 0 2px 0 0 rgba(var(--m-cream-rgb), 0.22), 0 var(--m-btn-lift) 0 -1px var(--m-paper-mid), 0 calc(var(--m-btn-lift) * 2) 0 -1px var(--m-paper-edge);
   gap: 6px;
   box-sizing: border-box;
   font-family: var(--m-font-display);
@@ -1193,11 +1179,11 @@
 @keyframes nav-coins-pulse {
   0% {
     background: var(--m-gold-light);
-    box-shadow: 0 3px 0 0 var(--m-paper-edge), 0 0 0 0 rgba(var(--m-gold-rgb), 0.7);
+    box-shadow: var(--nav-coins-rest), 0 0 0 0 rgba(var(--m-gold-rgb), 0.7);
   }
   100% {
     background: var(--m-paper-hi);
-    box-shadow: 0 3px 0 0 var(--m-paper-edge), 0 0 0 14px rgba(var(--m-gold-rgb), 0);
+    box-shadow: var(--nav-coins-rest), 0 0 0 14px rgba(var(--m-gold-rgb), 0);
   }
 }
 
@@ -1682,8 +1668,8 @@
   width: 40px;
   height: 40px;
   flex-shrink: 0;
-  // La tranche du bouton dépasse de 3px : on la garde dans la rangée.
-  margin-bottom: 3px;
+  // La tranche du bouton dépasse de 6px : on la garde dans la rangée.
+  margin-bottom: 6px;
 
   svg {
     transform: translateX(-1px);
@@ -1833,7 +1819,7 @@
   font-size: 1.08rem;
   line-height: 1.25;
   // Réserve pour la tranche du bouton, que le défilement de la carte rognerait.
-  margin-bottom: 3px;
+  margin-bottom: 6px;
 
   .ab-marble {
     width: 18px;
@@ -1863,7 +1849,7 @@
   display: flex;
   gap: 8px;
   // Réserve pour la tranche du bouton « Join ».
-  padding-bottom: 3px;
+  padding-bottom: 6px;
 }
 
 // Le code de salon reste en chasse fixe : six caractères à recopier, où un O

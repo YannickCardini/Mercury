@@ -1,4 +1,5 @@
 @use "sass:color";
+@use "../../../styles/tokens" as m;
 @use "../../../styles/palette" as *; // palette « Système solaire » centralisée
 @use "../../../styles/planets" as *; // rendu billes « planètes » partagé
 @use "../../../styles/coin" as *; // recette partagée de la pièce
@@ -837,24 +838,12 @@ $slot-glows: (
 // ── Back to menu button ───────────────────────────────────────────
 
 .back-btn {
+  @include m.btn(12px 32px);
+  @include m.btn-fill(green);
   margin-top: 2px;
-  padding: 12px 32px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: 10px;
-  color: rgba(255, 255, 255, 0.85);
+  margin-bottom: 6px; // la tranche du bouton dépasse de sa boîte
   font-size: clamp(0.9rem, 2.2vw, 1.05rem);
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  cursor: pointer;
-  transition: background 0.18s, border-color 0.18s, transform 0.12s;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.18);
-    border-color: rgba(255, 255, 255, 0.45);
-  }
-
-  &:active { transform: scale(0.96); }
+  touch-action: manipulation;
 }
 
 // ── Variante "Victory by Forfeit" ─────────────────────────────────

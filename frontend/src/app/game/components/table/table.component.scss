@@ -539,8 +539,9 @@
     border-radius: var(--m-r-pill);
     background: var(--m-paper-hi);
     color: var(--m-fg-2);
-    border: 1px solid var(--m-glass-line);
-    box-shadow: 0 3px 0 0 var(--m-paper-edge);
+    border: 2px solid var(--m-glass-line);
+    --m-btn-lift: 2px;
+    @include m.keycap(var(--m-paper-mid), var(--m-paper-edge));
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -556,18 +557,12 @@
     &.is-open {
         color: var(--m-fg);
         border-color: rgba(var(--m-ink-rgb), 0.3);
-        transform: translateY(2px);
-        box-shadow: 0 1px 0 0 var(--m-paper-edge);
-    }
-
-    &:active {
-        transform: translateY(2px);
-        box-shadow: 0 1px 0 0 var(--m-paper-edge);
+        @include m.keycap-pressed;
     }
 
     &:focus-visible {
-        outline: none;
-        box-shadow: 0 3px 0 0 var(--m-paper-edge), var(--m-focus);
+        outline: 2px solid var(--m-blue-fg);
+        outline-offset: 2px;
     }
 }
 
@@ -737,15 +732,15 @@
     flex: 0 0 auto;
     width: clamp(110px, 30%, 200px);
     padding: 0.8rem 1.25rem;
-    border-radius: var(--m-r-pill);
-    border: 0;
+    border-radius: var(--m-r-btn);
+    border: 2px solid var(--m-green-deep);
     background: var(--m-green);
     color: var(--m-on-green);
     font-weight: 700;
     font-size: 1rem;
     font-family: var(--m-font-display);
     cursor: pointer;
-    box-shadow: 0 3px 0 0 var(--m-green-deep);
+    @include m.keycap(var(--m-green-mid), var(--m-green-deep));
     transition: transform var(--m-press) var(--m-ease), box-shadow var(--m-press) var(--m-ease), filter 0.15s ease;
     user-select: none;
     -webkit-user-select: none;
@@ -755,8 +750,8 @@
     &:disabled {
         background: var(--m-paper-hi);
         color: var(--m-fg-4);
-        border: 1px solid var(--m-glass-line);
-        box-shadow: 0 3px 0 0 var(--m-paper-edge);
+        border-color: var(--m-glass-line);
+        @include m.keycap(var(--m-paper-mid), var(--m-paper-edge));
         cursor: not-allowed;
     }
 
@@ -764,39 +759,31 @@
         filter: brightness(1.07);
     }
 
-    &:not(:disabled):active {
-        transform: translateY(2px);
-        box-shadow: 0 1px 0 0 var(--m-green-deep);
-    }
-
     /* Défausse : action secondaire, plaque or plutôt que vert. */
     &--discard:not(:disabled) {
         background: var(--m-gold);
         color: var(--m-on-gold);
-        box-shadow: 0 3px 0 0 var(--m-gold-deep);
-
-        &:active {
-            box-shadow: 0 1px 0 0 var(--m-gold-deep);
-        }
+        border-color: var(--m-gold-deep);
+        @include m.keycap(var(--m-gold-mid), var(--m-gold-deep));
     }
 
     /* Confirmation du 7 prête : le bouton est entouré d'un anneau or fixe,
        la flèche à côté porte le mouvement. L'anneau entoure le bouton tranche
-       comprise (3px sous la boîte) avec le même jour de 3px tout autour : un
+       comprise (6px sous la boîte) avec le même jour de 6px tout autour : un
        `outline` suit la boîte seule et venait toucher la tranche en bas. */
     &--highlighted:not(:disabled)::after {
         content: "";
         position: absolute;
-        inset: -6px -6px -9px;
+        inset: -6px -6px -12px;
         border: 3px solid var(--m-gold);
-        border-radius: var(--m-r-pill);
+        border-radius: calc(var(--m-r-btn) + 6px);
         pointer-events: none;
     }
 
-    /* Appui : le bouton descend de 2px et sa tranche passe à 1px ; l'anneau
+    /* Appui : le bouton descend de 3px et son premier étage disparaît ; l'anneau
        compense pour rester immobile autour du même contour. */
     &--highlighted:not(:disabled):active::after {
-        inset: -8px -6px -7px;
+        inset: -9px -6px -9px;
     }
 }
 
@@ -960,9 +947,10 @@
         align-items: center;
         justify-content: center;
         background: var(--m-paper-hi);
-        border: 1px solid var(--m-glass-line);
+        border: 2px solid var(--m-glass-line);
         border-radius: 50%;
-        box-shadow: 0 3px 0 0 var(--m-paper-edge);
+        --m-btn-lift: 2px;
+        @include m.keycap(var(--m-paper-mid), var(--m-paper-edge));
         color: var(--m-fg-2);
         padding: 0;
         cursor: pointer;
@@ -974,9 +962,9 @@
             color: var(--m-fg);
         }
 
-        &:active {
-            transform: translateY(calc(-50% + 2px));
-            box-shadow: 0 1px 0 0 var(--m-paper-edge);
+        // Le bouton est centré par translateY(-50%) : l'appui s'y ajoute.
+        &:active:not(:disabled) {
+            transform: translateY(calc(-50% + var(--m-btn-lift)));
         }
     }
 
@@ -1391,8 +1379,8 @@
     &__confirm {
         flex: 1;
         padding: 11px 18px;
-        border-radius: var(--m-r-pill);
-        border: 1px solid transparent;
+        border-radius: var(--m-r-btn);
+        border: 2px solid transparent;
         font-weight: 700;
         font-size: 0.9rem;
         line-height: 1.2;
@@ -1404,10 +1392,6 @@
         -webkit-touch-callout: none;
         touch-action: manipulation;
 
-        &:active {
-            transform: translateY(2px);
-        }
-
         &:focus-visible {
             outline: 2px solid var(--m-blue-fg);
             outline-offset: 2px;
@@ -1418,24 +1402,17 @@
         background: var(--m-paper-hi);
         color: var(--m-fg);
         border-color: var(--m-glass-line);
-        box-shadow: 0 3px 0 0 var(--m-paper-edge);
-
-        &:active {
-            box-shadow: 0 1px 0 0 var(--m-paper-edge);
-        }
+        @include m.keycap(var(--m-paper-mid), var(--m-paper-edge));
     }
 
     &__confirm {
         background: var(--m-red);
         color: var(--m-on-red);
-        box-shadow: 0 3px 0 0 var(--m-red-deep);
+        border-color: var(--m-red-deep);
+        @include m.keycap(var(--m-red-mid), var(--m-red-deep));
 
         &:hover {
             filter: brightness(1.07);
-        }
-
-        &:active {
-            box-shadow: 0 1px 0 0 var(--m-red-deep);
         }
     }
 }
