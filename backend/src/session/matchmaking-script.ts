@@ -49,6 +49,11 @@ export const SCRIPT = {
      * qu'elle soit pleine. Sans effet sur le profil nouveau joueur.
      */
     REGULAR_STRETCH: 1.8,
+    /**
+     * Plancher du temps de remplissage d'un joueur régulier. Sans lui, une file
+     * « lobby » (1 ou 2 sièges déjà pris) était pleine en 15 s en médiane.
+     */
+    REGULAR_FLOOR_MS: 20_000,
     /** Plafond du temps de remplissage d'un joueur régulier. */
     REGULAR_CAP_MS: 45_000,
     NEWCOMER_MIN_MS: 3_000,
@@ -163,6 +168,13 @@ export function planArrivals({ seatsToFill, newcomer, rng }: PlanInput): Arrival
         if (rng() < SLOW_TAIL_CHANCE) {
             overlays.slowTail = true;
             targets[n - 1] = targets[n - 1]! + uniform(rng, 8_000, 20_000);
+        }
+        // Plancher : les arrivées à venir (t > 0) sont retardées d'autant, sans
+        // changer leurs écarts (un duo reste un duo) ; les sièges déjà pris au
+        // départ le restent.
+        const missing = SCRIPT.REGULAR_FLOOR_MS - targets[n - 1]!;
+        if (missing > 0) {
+            for (let i = 0; i < n; i++) if (targets[i]! > 0) targets[i] = targets[i]! + missing;
         }
         const last = targets[n - 1]!;
         if (last > SCRIPT.REGULAR_CAP_MS) {

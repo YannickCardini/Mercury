@@ -1196,13 +1196,15 @@
 
 // Les deux volets sont les deux parties d'un ticket : la carte du joueur au-
 // dessus de la perforation, l'activité en dessous. C'est ce conteneur qui
-// défile, arrondi comme la chemise.
+// défile, arrondi comme la chemise : sur téléphone, la carte puis toutes les
+// conversations d'un seul défilement, jamais une liste qui défile dans une
+// fenêtre qui défile.
 .pl-panes {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
-  overflow-y: auto; // filet de sécurité : la vue principale ne doit jamais déborder
+  overflow-y: auto;
   border-radius: inherit;
   @include m.scrollbar;
 }
@@ -1216,11 +1218,13 @@
   border-radius: var(--m-r-folder) var(--m-r-folder) 0 0;
 }
 
+// Sous la carte, les messages prennent leur pleine hauteur (ils ne se tassent
+// pas sous elle) et remplissent la chemise s'il en reste.
 .pl-activity {
   position: relative;
   display: flex;
   flex-direction: column;
-  flex: 1 1 auto;
+  flex: 1 0 auto;
   min-height: 0;
   padding: 22px 24px 22px;
   @include m.ticket-part(top);
@@ -1239,6 +1243,7 @@
   }
 
   .pl-activity {
+    flex-shrink: 1;
     padding-top: 24px;
     background: var(--m-paper);
     border-radius: var(--m-r-folder);
@@ -1332,6 +1337,8 @@
   flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
+  // Retour d'une conversation : la fenêtre y défile, le titre garde de l'air.
+  scroll-margin-top: 14px;
 }
 
 .login-messages-head {
@@ -1348,13 +1355,11 @@
   color: var(--m-fg);
 }
 
+// Empilés, la liste n'a pas de défilement à elle : c'est la chemise qui
+// défile. Côte à côte, elle défile seule dans son volet (voir plus bas).
 .inbox-body {
   flex: 1;
   min-height: 0;
-  // Plafond de la liste dans la carte : au-delà, elle défile et la fiche
-  // profil reste visible au-dessus.
-  max-height: 38vh;
-  overflow-y: auto;
   margin: 0 -4px;
   padding: 0 4px;
   @include m.scrollbar;
@@ -1673,15 +1678,9 @@
   }
 }
 
-// Écran court (paysage téléphone) : la carte défile d'un bloc plutôt que de
-// contenir une liste qui défile dans une fiche qui défile. La conversation, elle,
-// garde son défilement interne pour laisser le champ de saisie au fond.
+// Écran court (paysage téléphone) : la conversation garde son défilement
+// interne pour laisser le champ de saisie au fond, sur moins de hauteur.
 @media (max-height: 560px) {
-  .inbox-body {
-    max-height: none;
-    overflow: visible;
-  }
-
   .thread-scroll {
     min-height: 110px;
     max-height: none;
@@ -1817,7 +1816,7 @@
   }
 
   .inbox-body {
-    max-height: none;
+    overflow-y: auto;
   }
 
   .thread-scroll {
@@ -1852,10 +1851,15 @@
 }
 
 // Dans le salon : le code, les sièges, les joueurs, l'invitation ; le
-// départ est sur le talon.
+// départ est sur le talon. Seul le corps défile : le talon reste au pied de
+// la chemise, quelle que soit la longueur de la liste d'invitation.
 .custom-room {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  @include m.scrollbar;
   padding: 24px 22px 20px;
 }
 
@@ -2074,9 +2078,6 @@
   border-top: 1px solid var(--m-line-2);
   display: flex;
   flex-direction: column;
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: hidden;
 }
 
 .custom-invite-title {
@@ -2094,17 +2095,15 @@
   font-size: 0.85rem;
 }
 
+// La liste suit sa hauteur : c'est le corps du salon qui défile (pas de
+// seconde boîte de défilement, trop courte sur téléphone).
 .custom-invite-list {
   list-style: none;
   margin: 8px 0 0;
   padding: 0;
-  flex: 1 1 auto;
-  min-height: 80px;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 3px;
-  @include m.scrollbar;
 }
 
 .custom-invite-row {

@@ -24,6 +24,11 @@
   // Bouton de réactions : 40px à 0.75rem du bord, puis 8px d'écart.
   top: calc(0.75rem + 40px + 8px);
   left: 0.75rem;
+  // Bord haut de la bulle depuis le haut du panneau (voir .boost-callout) :
+  // top ci-dessus, colonne de la pastille (bordures 4px + padding 24px, puis
+  // 20px par jeton et 12px d'écart, soit 32px par jeton + 16px), écart 10px.
+  // --slots = jetons affichés, « +N » compris (posé par le gabarit).
+  --callout-top: calc(0.75rem + 40px + 8px + var(--slots, 1) * 32px + 16px + 10px);
   // Un cran sous les réactions (30) : leur palette s'ouvre vers le bas,
   // par-dessus la colonne des boosters, et doit rester au premier plan.
   z-index: 29;
@@ -35,6 +40,7 @@
   @include timer-ring-hidden {
     top: 0.75rem;
     left: calc(0.75rem + 40px + 8px);
+    --callout-top: calc(0.75rem + 40px + 10px);
   }
 }
 
@@ -253,8 +259,16 @@
   position: absolute;
   top: calc(100% + 10px);
   left: 0;
+  display: flex;
+  flex-direction: column;
   width: max-content;
   max-width: 260px;
+  // Le panneau rogne son contenu (overflow: hidden), comme pour le menu ⋮ :
+  // la bulle s'arrête 8px avant son bord bas et sa liste défile dedans. Sans
+  // cette borne, sur un téléphone, le bas de la liste passait sous le bord du
+  // panneau, hors d'atteinte du défilement. 100cqh mesure la boîte de contenu
+  // du panneau : on lui rend ses paddings (cf. --menu-room de table.component).
+  max-height: calc(100cqh + var(--board-pad-top, 0px) + var(--dashboard-height, 0px) - var(--callout-top) - 8px);
   box-sizing: border-box;
   padding: 12px 14px 14px;
   border-radius: var(--m-r-lg);
@@ -297,6 +311,7 @@
 }
 
 .boost-callout__title {
+  flex: none;
   margin: 0 0 10px;
   font-size: 0.78rem;
   font-weight: 700;
@@ -310,9 +325,9 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  // Autant de boosters que d'emplacements achetés : la liste défile au-delà
-  // de la moitié de l'écran au lieu de déborder du panneau.
-  max-height: min(50vh, 320px);
+  // Autant de boosters que d'emplacements achetés : la liste prend la hauteur
+  // laissée par la bulle (voir .boost-callout) et défile au-delà.
+  min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
 }

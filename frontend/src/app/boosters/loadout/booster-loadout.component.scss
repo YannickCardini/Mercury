@@ -95,10 +95,14 @@
 .lo-slots {
   list-style: none;
   margin: 0;
-  padding: 0 0 6px; // place pour le prix du creux fermé, qui déborde dessous
+  // En haut, la croix qui déborde du premier rang ; en bas, le prix du creux
+  // fermé, qui déborde dessous.
+  padding: 4px 0 6px;
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  // Assez d'écart pour que la zone de toucher d'une croix (44px) ne morde
+  // jamais sur le creux voisin, à côté comme au rang du dessus.
+  gap: 16px 14px;
 }
 
 .lo-slot {
@@ -192,23 +196,25 @@
 }
 
 // La croix en haut à droite du creux : seul moyen de retirer un booster
-// (toucher le creux ouvre son infobulle). Pastille de 22px, zone de toucher
-// élargie à 34px par un pseudo-élément.
+// (toucher le creux ouvre son infobulle). Pastille de 26px posée sur l'épaule
+// du creux, presque toute dehors ; zone de toucher RONDE de 44px par un
+// pseudo-élément (le toucher suit l'arrondi) : elle couvre la lèvre du creux
+// mais à peine le bord du jeton, qu'on touche pour son infobulle.
 .lo-cup-remove {
   position: absolute;
-  top: -4px;
-  right: -4px;
+  top: -10px;
+  right: -10px;
   z-index: 2;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
   padding: 0;
   border-radius: 50%;
   background: var(--m-paper-hi);
   border: 1px solid var(--m-line-2);
-  box-shadow: 0 1px 0 0 var(--m-paper-edge);
+  box-shadow: 0 2px 0 0 var(--m-paper-edge);
   color: var(--m-fg-2);
   cursor: pointer;
   touch-action: manipulation;
@@ -217,7 +223,8 @@
   &::after {
     content: "";
     position: absolute;
-    inset: -6px;
+    inset: -10px; // 26 + 2 × 10 − 2 de bordure = 44px
+    border-radius: 50%;
   }
 
   &:hover {
@@ -225,8 +232,10 @@
     border-color: rgba(var(--m-red-rgb), 0.5);
   }
 
+  // Enfoncée, la pastille descend sur sa tranche, comme les autres touches.
   &:active {
-    transform: scale(0.92);
+    transform: translateY(1px) scale(0.94);
+    box-shadow: 0 1px 0 0 var(--m-paper-edge);
   }
 
   &:focus-visible {
@@ -235,8 +244,8 @@
   }
 
   svg {
-    width: 10px;
-    height: 10px;
+    width: 12px;
+    height: 12px;
   }
 }
 

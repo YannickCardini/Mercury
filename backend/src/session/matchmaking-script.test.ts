@@ -63,9 +63,10 @@ test('script — nouveau joueur : file presque pleine d\'emblée, partie en 3 à
     assert.ok(share > 0.80 && share < 0.90, `3/4 dès l'arrivée : ${share}`);
 });
 
-test('script — joueur régulier : plafond 45 s, médiane raisonnable', () => {
+test('script — joueur régulier : plancher 20 s, plafond 45 s, médiane raisonnable', () => {
     for (const n of [1, 2, 3]) {
         for (const s of scripts(n, false)) {
+            assert.ok(s.fullAt >= SCRIPT.REGULAR_FLOOR_MS, describeScript(s));
             assert.ok(s.fullAt <= SCRIPT.REGULAR_CAP_MS + SCRIPT.AGENT_LATENCY_ESTIMATE_MS, describeScript(s));
         }
     }

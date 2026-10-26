@@ -27,7 +27,7 @@ import messagesRouter from './messages/messages-router.js';
 import versionRouter from './version/version-router.js';
 import shopRouter from './shop/shop-router.js';
 import { createAdminRouter } from './admin/admin-router.js';
-import { touchLastSeen, setUserClientInfo } from './db.js';
+import { touchLastSeen, setUserClientInfo, getUserPointsAndRanking } from './db.js';
 import { registerSocketClient, updateSocketClient } from './admin/client-info.js';
 import { isBotUserId } from './session/bot-dispatch.js';
 
@@ -43,6 +43,24 @@ function markSeen(userId: string | undefined): void {
     void touchLastSeen(userId).catch((err: unknown) => {
         console.error('⚠️ touchLastSeen a échoué:', err);
     });
+}
+
+/**
+ * Nouveau joueur (file remplie en 3 à 9 s) : moins de 2 parties déclarées par
+ * l'appareil. Ce compteur vit en localStorage et repart de 0 à chaque
+ * réinstallation ou nouvel appareil : un compte qui a des points a déjà fini
+ * une partie, il garde donc le profil régulier. Panne Cosmos : l'appareil tranche.
+ */
+async function isNewcomer(gamesStarted: unknown, userId: string | undefined): Promise<boolean> {
+    if (typeof gamesStarted !== 'number' || !Number.isFinite(gamesStarted) || gamesStarted >= 2) return false;
+    if (!userId) return true;
+    try {
+        const account = await getUserPointsAndRanking(userId);
+        return !account || account.points === 0;
+    } catch (err: unknown) {
+        console.error('⚠️ getUserPointsAndRanking a échoué:', err);
+        return true;
+    }
 }
 
 
@@ -288,7 +306,7 @@ async function handleSetupMessage(ws: WebSocket, msg: ClientMessage): Promise<vo
                 if (DEBUG && msg.debug === true) {
                     sessionManager.startDebugGameVsBots(ws, cleanPlayerName(msg.playerName), userId, cleanPicture(msg.picture));
                 } else {
-                    const newcomer = typeof msg.gamesStarted === 'number' && Number.isFinite(msg.gamesStarted) && msg.gamesStarted < 2;
+                    const newcomer = await isNewcomer(msg.gamesStarted, userId);
                     sessionManager.joinMatchmaking(ws, cleanPlayerName(msg.playerName), msg.browserId, cleanPicture(msg.picture), userId, newcomer);
                 }
                 break;

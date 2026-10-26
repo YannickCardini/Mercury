@@ -11,6 +11,8 @@ Scope: the profile modal of the home screen (signed in) and the public `/profile
 
 Owner decisions (2026-10-25): the profile was a stack of layers (card, then boosters, then messages); it must be rearranged as one harmonious whole, not a booster layer added on top. Structure chosen on the decision page (re-asked in chat after the page closed): "Two panes". One player card serves both the own window (left pane) and the public page (without the private parts). Booster tooltips must work on hover with a mouse.
 
+Device feedback (2026-10-25): on phone the conversation list was far too short to pick a conversation (a 38vh scroll box squeezed under the card). Stacked, the window now scrolls as one block (card, then every conversation at full height, no list scrolling inside the window); back from a conversation lands on the list, reopening lands on the card. The booster remove cross was hard to hit: a 26px disc on the cup's shoulder with a round 44px touch area, slots spaced 16px by 14px so that area never reaches a neighbouring cup.
+
 ## Direction contract
 
 THESIS: Who you are on the left, who you talk to on the right. One player card (photo, name, rank and points tiles, equipped boosters side by side) is the same object everywhere; the activity pane hosts messages, a conversation or the booster equipment without ever hiding the card on wide screens. It refuses the stacked column of unrelated blocks.

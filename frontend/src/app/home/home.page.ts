@@ -9,6 +9,8 @@ import {
   ElementRef,
   signal,
   ChangeDetectionStrategy,
+  Injector,
+  afterNextRender,
 } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
@@ -232,10 +234,13 @@ export class HomePage implements OnInit, OnDestroy, DoCheck {
   readonly composerMaxLength = 500;
 
   @ViewChild("threadScroll") threadScroll?: ElementRef<HTMLDivElement>;
+  @ViewChild("profilePanes") profilePanes?: ElementRef<HTMLDivElement>;
+  @ViewChild("loginMessages") loginMessages?: ElementRef<HTMLElement>;
 
   private http = inject(HttpClient);
   private shop = inject(ShopService);
   private toast = inject(ToastService);
+  private injector = inject(Injector);
   private userSub: Subscription | null = null;
 
   private alreadyInGameSub: Subscription | null = null;
@@ -469,6 +474,9 @@ export class HomePage implements OnInit, OnDestroy, DoCheck {
   openLogin() {
     this.showLogin = true;
     this.loginView = "main";
+    // Sur téléphone la fenêtre défile (la carte, puis les messages) : elle
+    // rouvre toujours sur la carte, pas là où on l'avait laissée.
+    this.profilePanes?.nativeElement.scrollTo({ top: 0 });
     // Les conversations sont rechargées à chaque ouverture : c'est le seul
     // moment où elles sont visibles, et la pastille de non-lus s'y resynchronise.
     if (this.auth.user$.getValue()) void this.loadThreads();
@@ -1425,6 +1433,15 @@ export class HomePage implements OnInit, OnDestroy, DoCheck {
   backToThreads(): void {
     this.resetThreadView();
     void this.loadThreads();
+    // Sur téléphone la carte du joueur revient au-dessus de la liste : on
+    // retombe sur la liste qu'on vient de quitter, pas en tête de la fenêtre.
+    // Côte à côte, rien ne défile et rien ne bouge. Après le rendu qui remet
+    // la liste en place : l'app regroupe ses rendus (eventCoalescing), un
+    // setTimeout lancé ici passerait avant elle.
+    afterNextRender(
+      () => this.loginMessages?.nativeElement.scrollIntoView({ block: "start" }),
+      { injector: this.injector }
+    );
   }
 
   isMyMessage(msg: ThreadMessage): boolean {

@@ -284,16 +284,17 @@ app-root {
   position: absolute;
   bottom: 100%;
   left: 22px;
-  right: 56px; /* le coin de la pastille de fermeture reste libre */
+  /* Juste la largeur de ses onglets (pas de zone vide qui retiendrait un tap
+     sur le voile), sans entamer le coin de la pastille de fermeture. */
+  max-width: calc(100% - 22px - 56px);
   z-index: 1;
   display: flex;
   align-items: flex-end;
   gap: 6px;
-  pointer-events: none;
-
-  > * {
-    pointer-events: auto;
-  }
+  /* Pas de pointer-events ici : les onglets héritent de leur chemise. Une
+     fenêtre cachée (opacité 0, pointer-events: none) reste montée : un `auto`
+     forcé sur les onglets les gardait touchables, invisibles, et ils prenaient
+     les taps destinés aux billes du plateau (2.2.0). */
 }
 
 .m-tab {

@@ -14,9 +14,7 @@ import { getConsumable, type ConsumableEffect, type ConsumableShopItem } from "@
 import { GameStateService, LIVE_EFFECTS } from "../../services/game-state.service";
 import { BoostTokenComponent } from "../../../shared/boost-token.component";
 
-/** Durée d'affichage de l'annonce automatique au début de la partie. */
-const ANNOUNCE_MS = 5000;
-/** Durée de l'éclosion des jetons à l'annonce (anneau + pop). */
+/** Durée de l'éclosion des jetons au début de la partie (anneau + pop). */
 const POP_MS = 1100;
 /**
  * Éléments montrés au plus dans la pastille : au-delà, les derniers jetons se
@@ -29,11 +27,11 @@ const MAX_VISIBLE = 3;
  * Boosters actifs du joueur local pendant la partie.
  *
  * Toujours visible à côté du bouton de réactions : un booster qui double la
- * perte ne doit jamais se faire oublier en cours de partie. Au lancement, une
- * bulle explique chaque effet quelques secondes puis se replie ; un tap sur
- * les jetons la rouvre. La pastille garde sa taille quel que soit le nombre
- * de boosters : au-delà de MAX_VISIBLE, un « +N » les résume et la bulle les
- * liste tous.
+ * perte ne doit jamais se faire oublier en cours de partie. Au lancement, les
+ * jetons éclosent pour se signaler ; la bulle qui explique chaque effet ne
+ * s'ouvre qu'au tap sur les jetons. La pastille garde sa taille quel que soit
+ * le nombre de boosters : au-delà de MAX_VISIBLE, un « +N » les résume et la
+ * bulle les liste tous.
  */
 @Component({
   selector: "app-boost-dock",
@@ -99,64 +97,46 @@ export class BoostDockComponent {
 
   /** Bulle d'explication ouverte. */
   readonly open = signal(false);
-  /** Jetons en train d'éclore (annonce de début de partie). */
+  /** Jetons en train d'éclore (début de partie). */
   readonly popping = signal(false);
 
-  private announced = false;
-  private closeTimer: ReturnType<typeof setTimeout> | null = null;
+  private popped = false;
   private popTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
-    inject(DestroyRef).onDestroy(() => this.clearTimers());
+    inject(DestroyRef).onDestroy(() => {
+      if (this.popTimer) clearTimeout(this.popTimer);
+    });
 
     // Le tutoriel (z-index 300) se tait tant que la bulle est ouverte : ses
     // hints se posent au-dessus des cartes, là où la bulle déborde.
     this.gameState.publishOverlay("boosts", this.open);
 
-    // Annonce unique, retardée tant que l'annonce des équipes (2v2) masque le
-    // plateau : les boosters arrivent du serveur pendant qu'elle joue, et une
-    // bulle ouverte derrière elle se refermerait sans avoir été vue.
+    // Éclosion unique, retardée tant que l'annonce des équipes (2v2) masque le
+    // plateau : les boosters arrivent du serveur pendant qu'elle joue, et des
+    // jetons éclos derrière elle passeraient inaperçus. La bulle, elle, ne
+    // s'ouvre jamais d'elle-même : elle masquait la main en début de partie.
     effect(() => {
       const ready =
         this.boosts().length > 0 &&
         !this.gameState.teamIntroPlaying() &&
         this.gameState.winners().length === 0;
-      if (!ready || this.announced) return;
-      this.announced = true;
-      untracked(() => this.announce());
+      if (!ready || this.popped) return;
+      this.popped = true;
+      untracked(() => {
+        this.popping.set(true);
+        this.popTimer = setTimeout(() => this.popping.set(false), POP_MS);
+      });
     });
   }
 
   toggle(): void {
-    this.cancelAutoClose();
     this.open.update((v) => !v);
   }
 
   onDocumentPointerDown(event: PointerEvent): void {
     if (!this.open()) return;
     if (this.host.nativeElement.contains(event.target as Node)) return;
-    this.cancelAutoClose();
     this.open.set(false);
-  }
-
-  private announce(): void {
-    this.popping.set(true);
-    this.open.set(true);
-    this.popTimer = setTimeout(() => this.popping.set(false), POP_MS);
-    this.closeTimer = setTimeout(() => {
-      this.closeTimer = null;
-      this.open.set(false);
-    }, ANNOUNCE_MS);
-  }
-
-  /** Le joueur a pris la main : la bulle ne se referme plus d'elle-même. */
-  private cancelAutoClose(): void {
-    if (this.closeTimer) clearTimeout(this.closeTimer);
-    this.closeTimer = null;
-  }
-
-  private clearTimers(): void {
-    this.cancelAutoClose();
-    if (this.popTimer) clearTimeout(this.popTimer);
   }
 }

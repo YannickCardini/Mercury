@@ -1,5 +1,5 @@
 @if (boosts().length > 0) {
-<div class="boost-dock" [class.is-popping]="popping()">
+<div class="boost-dock" [class.is-popping]="popping()" [style.--slots]="visible().length + (hiddenCount() > 0 ? 1 : 0)">
   <button type="button" class="boost-dock__trigger" [class.is-open]="open()" [attr.aria-label]="ariaLabel()"
     [attr.aria-expanded]="open()" (click)="toggle()">
     @for (b of visible(); track b.id; let i = $index) {

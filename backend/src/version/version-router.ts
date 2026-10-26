@@ -12,8 +12,8 @@ import { Router, type Request, type Response } from 'express';
  * (LATEST_VERSION_CODE / LATEST_VERSION_NAME / MIN_VERSION_CODE / STORE_URL)
  * pour pouvoir annoncer une nouvelle version sans redéployer le code.
  */
-const DEFAULT_LATEST_VERSION_CODE = 204;
-const DEFAULT_LATEST_VERSION_NAME = '2.2.0';
+const DEFAULT_LATEST_VERSION_CODE = 207;
+const DEFAULT_LATEST_VERSION_NAME = '2.2.3';
 const DEFAULT_STORE_URL = 'https://play.google.com/store/apps/details?id=online.mercury.game';
 
 const router = Router();

@@ -189,7 +189,7 @@
              de la perforation, et une conversation ou l'équipement prend
              toute la fenêtre. ─── -->
         @if (auth.user$ | async; as user) {
-        <div class="pl-panes" [attr.data-view]="loginView" [class.is-editing]="editingProfile">
+        <div class="pl-panes" #profilePanes [attr.data-view]="loginView" [class.is-editing]="editingProfile">
           <aside class="pl-identity" aria-label="Your profile">
             @if (editingProfile) {
             <!-- Édition : la photo et le nom, à la place de la carte. -->
@@ -325,7 +325,7 @@
             }
             }
             @default {
-            <section class="login-messages" aria-labelledby="login-messages-title">
+            <section class="login-messages" #loginMessages aria-labelledby="login-messages-title">
               <div class="login-messages-head">
                 <h3 id="login-messages-title" class="login-messages-title">Messages</h3>
                 @if (unreadCount > 0) {
@@ -687,7 +687,8 @@
         }
         }
 
-        <!-- ── Stage 2: in-room. The host's Start button sits on the stub. ── -->
+        <!-- ── Stage 2: in-room. The host's Start button sits on the stub;
+             only the body scrolls, so the stub stays at the folder's foot. ── -->
         @if (customStage === 'in-room') {
         <div class="m-ticket-body custom-room">
         <!-- Room code -->
