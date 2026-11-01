@@ -14,6 +14,7 @@ import {
     getCatalogItem,
     getShopItems,
     maxBoostSlots,
+    purchasePrerequisite,
     sanitizeLoadout,
 } from '@mercury/shared';
 import {
@@ -112,8 +113,12 @@ router.post('/purchase', async (req: Request, res: Response) => {
         return;
     }
 
+    // L'animation d'une réaction payante exige la réaction : le client ne la
+    // propose pas avant, le serveur le garantit dans le même patch.
+    const requires = purchasePrerequisite(item);
+
     try {
-        const result = await purchaseItem(userId, item.id, item.price);
+        const result = await purchaseItem(userId, item.id, item.price, requires);
         if (result.ok) {
             invalidateOwnedItems(userId);
             // Un booster acheté n'est pas équipé d'office : le client propose
@@ -133,6 +138,10 @@ router.post('/purchase', async (req: Request, res: Response) => {
         if (wallet?.ownedItems.includes(item.id)) {
             invalidateOwnedItems(userId);
             res.status(409).json({ error: 'Item already owned', code: 'ALREADY_OWNED', ...walletBody(wallet) });
+            return;
+        }
+        if (requires && !wallet?.ownedItems.includes(requires)) {
+            res.status(409).json({ error: 'Reaction not owned', code: 'LOCKED', ...walletBody(wallet) });
             return;
         }
         res.status(409).json({ error: 'Not enough coins', code: 'INSUFFICIENT_FUNDS', ...walletBody(wallet) });

@@ -444,6 +444,49 @@
   }
 }
 
+// Animer une réaction possédée : le même bouton-prix, précédé du verbe. Le mot
+// est plus petit que le prix pour tenir dans la tuile la plus étroite.
+.sh-anim-btn {
+  gap: 5px;
+  padding: 7px 10px;
+  white-space: nowrap;
+  font-size: 15px;
+}
+
+.sh-anim-word {
+  font-family: var(--m-font-text);
+  font-size: 12.5px;
+  font-weight: 800;
+}
+
+// Marque d'une réaction animée : une bille et ses traits de vitesse.
+.sh-motion {
+  flex: none;
+  width: 15px;
+  height: 15px;
+}
+
+.sh-tile-badge .sh-motion {
+  width: 13px;
+  height: 13px;
+}
+
+// Scène d'une réaction animée dans son hublot : le glyphe y fait 82 % de
+// --rfx-s, soit la taille du glyphe fixe (34px pour 41px).
+.sh-tile-fx {
+  --rfx-s: 41px;
+}
+
+.sh-confirm-fx {
+  --rfx-s: 56px;
+}
+
+// La tuile qui joue passe devant ses voisines : vapeur, confettis et notes
+// débordent du hublot le temps de la mise en scène.
+.sh-tile.is-speaking {
+  z-index: 1;
+}
+
 .sh-btn-spinner {
   width: 14px;
   height: 14px;
@@ -576,6 +619,124 @@
   }
   100% {
     transform: scale(1) rotate(0);
+  }
+}
+
+// ── Aperçu sonore des réactions ──────────────────────────────────────────────
+// Le hublot d'une réaction est un bouton : le toucher joue le son que la table
+// entendra. Un haut-parleur posé sur son bord le dit, et passe à l'or le temps
+// du son ; l'emoji fait un seul rebond, comme s'il parlait.
+
+.sh-listen {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--m-press) var(--m-ease);
+
+  &:active {
+    transform: scale(0.94);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--m-blue-fg);
+    outline-offset: 6px;
+  }
+
+  &:hover .sh-sound {
+    color: var(--m-fg-2);
+    border-color: var(--m-line-3);
+  }
+}
+
+.sh-sound {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  background: var(--m-paper-hi);
+  border: 1px solid var(--m-line-2);
+  color: var(--m-fg-3);
+  transition: background-color 0.18s, border-color 0.18s, color 0.18s;
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+.sh-confirm-orb .sh-sound {
+  right: -4px;
+  bottom: -4px;
+  width: 30px;
+  height: 30px;
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+// Deux noms pour la même animation : passer de l'un à l'autre la relance à
+// chaque toucher (voir `listening` dans le composant).
+@each $k in a, b {
+  .sh-listen.is-speak-#{$k} {
+    .sh-tile-glyph,
+    .sh-confirm-glyph {
+      animation: speak-#{$k} 0.52s var(--m-ease);
+    }
+
+    .sh-sound,
+    &:hover .sh-sound {
+      background: var(--m-gold);
+      border-color: var(--m-gold-deep);
+      color: var(--m-on-gold);
+    }
+
+    .sh-sound-wave {
+      animation: sound-wave 0.26s ease-in-out infinite alternate;
+    }
+
+    .sh-sound-wave--far {
+      animation-delay: 0.13s;
+    }
+  }
+
+  @keyframes speak-#{$k} {
+    0% {
+      transform: scale(1) rotate(0);
+    }
+    22% {
+      transform: scale(1.2) rotate(-8deg);
+    }
+    48% {
+      transform: scale(0.94) rotate(5deg);
+    }
+    74% {
+      transform: scale(1.04) rotate(-2deg);
+    }
+    100% {
+      transform: scale(1) rotate(0);
+    }
+  }
+}
+
+@keyframes sound-wave {
+  from {
+    opacity: 0.3;
+  }
+  to {
+    opacity: 1;
   }
 }
 
@@ -772,6 +933,17 @@
     animation: none !important;
   }
 
+  // L'aperçu sonore garde son haut-parleur doré, sans rebond ni ondes battantes.
+  .sh-listen .sh-tile-glyph,
+  .sh-listen .sh-confirm-glyph,
+  .sh-listen .sh-sound-wave {
+    animation: none !important;
+  }
+
+  .sh-listen:active {
+    transform: none;
+  }
+
   .sh-tile {
     transition: border-color 0.2s, background 0.2s;
 
@@ -842,6 +1014,20 @@
     font-size: 30px;
   }
 
+  .sh-tile-fx {
+    --rfx-s: 37px;
+  }
+
+  .sh-anim-btn {
+    padding: 6px 8px;
+    gap: 4px;
+    font-size: 14px;
+  }
+
+  .sh-anim-word {
+    font-size: 12px;
+  }
+
   .sh-tile-token {
     --bt-size: 42px;
   }
@@ -884,6 +1070,10 @@
     font-size: 27px;
   }
 
+  .sh-tile-fx {
+    --rfx-s: 33px;
+  }
+
   .sh-grid--wide {
     grid-template-columns: 1fr;
   }
@@ -900,6 +1090,11 @@
     min-width: 70px;
     padding: 6px 11px;
     font-size: 15px;
+  }
+
+  .sh-anim-btn {
+    padding: 6px 8px;
+    font-size: 14px;
   }
 }
 

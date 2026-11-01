@@ -197,6 +197,20 @@ function unitHash(text: string): number {
     return (h >>> 0) / 0x100000000;
 }
 
+// ── Réactions animées d'un agent ─────────────────────────────────────────────
+//
+// Même principe que l'équipement : chaque réaction qu'un agent peut envoyer
+// est animée ou non, une fois pour toutes, d'après son id. Le serveur marque
+// ses réactions comme celles d'un joueur qui aurait acheté l'animation.
+
+/** Part des réactions d'un agent qui sont animées. */
+const BOT_ANIMATION_ODDS = 0.3;
+
+/** Vrai si cet agent « possède » l'animation de cette réaction. */
+export function botAnimatesReaction(userId: string, emoji: ReactionEmoji): boolean {
+    return unitHash(`${userId}:animation:${emoji}`) < BOT_ANIMATION_ODDS;
+}
+
 /** Boosters équipés d'un agent, toujours les mêmes pour un même id. */
 export function botLoadout(userId: string): ConsumableId[] {
     const drawn = Object.entries(BOT_BOOST_ODDS)

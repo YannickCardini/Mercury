@@ -244,8 +244,16 @@
               </button>
               }
               <div class="pl-account">
-                <button class="pl-link" (click)="toggleEditProfile(user)">Edit profile</button>
-                <button class="pl-link pl-link--danger" (click)="logout()">Sign out</button>
+                <button class="pl-link" (click)="toggleEditProfile(user)" [disabled]="signingOut">Edit profile</button>
+                <button class="pl-link pl-link--danger" (click)="logout()" [disabled]="signingOut"
+                  [attr.aria-busy]="signingOut">
+                  @if (signingOut) {
+                  <span class="pl-link-spinner" aria-hidden="true"></span>
+                  Signing out
+                  } @else {
+                  Sign out
+                  }
+                </button>
               </div>
             </app-player-card>
             }

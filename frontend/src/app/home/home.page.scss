@@ -1297,9 +1297,9 @@
   text-underline-offset: 4px;
   text-decoration-color: rgba(var(--m-ink-rgb), 0.35);
   cursor: pointer;
-  transition: color 0.18s, text-decoration-color 0.18s;
+  transition: color 0.18s, text-decoration-color 0.18s, opacity 0.18s;
 
-  &:hover {
+  &:hover:not(:disabled) {
     color: var(--m-fg);
     text-decoration-color: currentColor;
   }
@@ -1310,13 +1310,43 @@
     border-radius: 4px;
   }
 
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  // En cours : le lien reste lisible (c'est lui qui travaille), le
+  // soulignement cède la place à l'anneau.
+  &[aria-busy="true"] {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    opacity: 1;
+    cursor: progress;
+    text-decoration-color: transparent;
+  }
+
   &--danger {
     color: var(--m-red-fg);
     text-decoration-color: rgba(var(--m-red-rgb), 0.5);
 
-    &:hover {
+    &:hover:not(:disabled) {
       color: var(--m-red-fg);
     }
+  }
+}
+
+.pl-link-spinner {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(var(--m-red-rgb), 0.28);
+  border-top-color: currentColor;
+  animation: inboxSpin 0.7s linear infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation-duration: 1.6s;
   }
 }
 

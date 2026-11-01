@@ -525,14 +525,16 @@ strong {
 
 /* ══════════════════════════════════════════════════════════════════════════
    Landings « jouer » (/ /fr/ /nl/ /de/) — mise en page à part, préfixe hp-.
-   ≥960px : tout tient dans la hauteur d'écran (hp-fold), footer sous le pli.
-   <960px : une colonne empilée, scroll normal — Mercury a une appli Android,
-   c'est le point d'entrée mobile le plus fréquent, la mise en page à 2
-   colonnes n'a pas de sens sur un écran étroit.
+   ≥960px : titre, accroche et points clés à gauche, carte « jouer » à droite,
+   dans la hauteur d'écran (hp-fold) ; le plateau animé dessous, sur toute la
+   largeur, dépasse en bas du premier écran ; footer sous le pli.
+   <960px : une colonne, dans l'ordre du DOM. Le premier écran d'un téléphone
+   montre, sans scroll, le titre, la carte « jouer » et la carte Android ;
+   suivent le plateau, l'accroche et les points clés.
 
-   Le titre, l'accroche et la marque sont posés directement sur le ciel
-   (texte crème) ; points clés, carte « jouer », carte Android et contenu sous
-   le pli sont des surfaces papier.
+   Le titre, l'accroche, la marque et le plateau sont posés directement sur
+   le ciel (texte crème) ; points clés, carte « jouer », carte Android et
+   contenu sous le pli sont des surfaces papier.
    ══════════════════════════════════════════════════════════════════════════ */
 
 .hp-body {
@@ -811,7 +813,6 @@ strong {
 .hp-grid {
   display: flex;
   flex-direction: column;
-  gap: 32px;
 }
 
 /* Titre, accroche et points clés partagent la même largeur de mesure : la
@@ -824,6 +825,7 @@ strong {
   font-weight: 800;
   line-height: 1.04;
   color: var(--m-fg);
+  text-wrap: balance;
 }
 
 .hp-lede {
@@ -905,13 +907,13 @@ strong {
 
 /* ── Colonne d'action ────────────────────────────────────────────────────── */
 
+/* Sur une colonne, alignée à gauche comme le titre au-dessus d'elle. */
 .hp-side {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 14px;
   width: 100%;
-  max-width: 380px;
-  margin: 0 auto;
+  max-width: 420px;
 }
 
 /* Carte « jouer » : une plaque de papier (porte .m-paper) qui encadre
@@ -938,13 +940,14 @@ strong {
    « lire » débordant sur le coin, qui signale le clic. Le spinner sert de
    placeholder tant que la vidéo (chargée après le reste de la page, cf.
    script en fin de body) n'a pas encore de source : elle est transparente
-   jusque-là et le laisse visible en dessous, sans JS pour le masquer. */
+   jusque-là et le laisse visible en dessous, sans JS pour le masquer.
+   Proportions de la vidéo elle-même (528 × 288) : rien n'est rogné. */
 .hp-play-thumb {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  aspect-ratio: 16 / 10;
+  aspect-ratio: 528 / 288;
   border-radius: var(--m-r-lg);
   background: var(--m-night);
 }
@@ -1145,40 +1148,35 @@ strong {
   background: var(--m-blue-fg);
 }
 
-/* ── Invite au défilement ────────────────────────────────────────────────── */
+/* ── Plateau animé ───────────────────────────────────────────────────────── */
 
-.hp-scroll-hint {
-  display: flex;
-  justify-content: center;
-  padding-top: 22px;
+/* Charnière entre le premier écran et la feuille (lib/board-demo.mjs). Posé
+   sur le ciel, où son charbon et sa tranche claire se détachent, plutôt que
+   sur la feuille du même charbon. Ses attributs width/height réservent sa
+   place. Son haut, qui dépasse en bas du premier écran, invite au défilement. */
+.hp-board {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  max-width: 720px;
+  margin: 30px auto 0;
 }
 
-.hp-scroll-dot {
-  width: 34px;
-  height: 34px;
+.hp-board img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Ombre au sol. Hors de l'image, elle n'est pas redessinée à chaque image
+   de l'animation du SVG. */
+.hp-board::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 24% 3% -7%;
   border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--m-line-2);
-  color: var(--m-fg-2);
-  animation: hp-bounce 2.4s ease-in-out infinite;
-}
-
-.hp-scroll-dot svg {
-  width: 17px;
-  height: 17px;
-}
-
-@keyframes hp-bounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(5px); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .hp-scroll-dot {
-    animation: none;
-  }
+  background: radial-gradient(closest-side, rgba(0, 0, 0, 0.5), transparent);
 }
 
 /* ── Sous le pli ─────────────────────────────────────────────────────────── */
@@ -1197,23 +1195,13 @@ strong {
   border: 1px solid var(--m-glass-line);
   border-radius: var(--m-r-xl);
   box-shadow: var(--m-shadow-slab);
-  padding: 12px 32px 34px;
+  padding: 2px 32px 34px;
 }
 
-/* Plateau animé (lib/board-demo.mjs) en tête de la feuille : image
-   décorative, chargée à l'approche du pli ; ses attributs width/height
-   réservent sa place. */
-.hp-board {
-  max-width: 600px;
-  margin: 26px auto 0;
-}
-
-.hp-board img {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
+/* Deux colonnes, le plateau sur toute la largeur dessous. La rangée de
+   l'accroche est en 1fr : si la carte « jouer » est plus haute que la
+   colonne de texte, l'écart va sous les points clés, pas entre le titre et
+   l'accroche. */
 @media (min-width: 960px) {
   .hp-fold {
     padding: 26px 32px 18px;
@@ -1222,34 +1210,83 @@ strong {
   .hp-grid {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 340px;
-    gap: 56px;
-    align-items: center;
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas:
+      "title side"
+      "main  side"
+      "board board";
+    column-gap: 56px;
+  }
+
+  .hp-title {
+    grid-area: title;
+  }
+
+  .hp-main {
+    grid-area: main;
   }
 
   .hp-side {
+    grid-area: side;
+    align-self: center;
+    gap: 18px;
     max-width: none;
-    margin: 0;
+  }
+
+  .hp-board {
+    grid-area: board;
+    max-width: 880px;
+    margin-top: 56px;
   }
 }
 
 @media (max-width: 959px) {
-  .hp-scroll-hint {
-    display: none;
-  }
-
   .hp-fold {
     min-height: 0;
     padding-bottom: 8px;
   }
 
   .hp-inner {
-    padding: 26px 0 0;
+    padding: 20px 0 0;
+  }
+
+  .hp-title {
+    margin: 0 0 18px;
+  }
+
+  .hp-main {
+    margin-top: 28px;
   }
 }
 
 @media (max-width: 560px) {
+  .hp-fold {
+    padding-top: 14px;
+  }
+
+  .hp-inner {
+    padding-top: 18px;
+  }
+
+  /* Trois lignes dans les quatre langues dès 360px de large. */
+  .hp-title {
+    font-size: clamp(28px, 8.4vw, 34px);
+  }
+
   .hp-highlights {
     grid-template-columns: 1fr;
+  }
+
+  /* Bord à bord : le plateau prend la marge de la page (celle de .hp-fold),
+     ses pointes gauche et droite touchent les bords de l'écran. */
+  .hp-board {
+    width: auto;
+    max-width: none;
+    margin: 26px -18px 0;
+  }
+
+  .hp-main {
+    margin-top: 22px;
   }
 
   .hp-below {
@@ -1257,17 +1294,35 @@ strong {
   }
 
   .hp-below-inner {
-    padding: 6px 18px 28px;
+    padding: 0 18px 28px;
     border-radius: var(--m-r-lg);
-  }
-
-  /* Le plateau prend la marge de la feuille : ses pointes gauche et droite
-     ne sont que des coins, les billes y gagnent un dixième de taille. */
-  .hp-board {
-    margin: 18px -12px 0;
   }
 
   .hp-brand-name {
     font-size: 22px;
+  }
+
+  /* Langues : drapeaux seuls, le nom reste lu par les lecteurs d'écran. Les
+     quatre pastilles tiennent sur la ligne de la marque dès 360px, au lieu de
+     deux ou trois rangées qui repoussaient la carte « jouer » sous le pli. */
+  .hp-topbar .rls-switch {
+    gap: 4px;
+  }
+
+  .hp-topbar .rls-link {
+    padding: 5px 9px;
+  }
+
+  .hp-topbar .rls-flag {
+    font-size: 15px;
+  }
+
+  .hp-topbar .rls-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 }

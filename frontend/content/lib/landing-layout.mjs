@@ -6,8 +6,14 @@
  * sans scroll — colonne de texte à gauche (3/4), CTA + widget à droite (1/4)
  * — et le footer n'apparaît qu'en scrollant, sous les tableaux et la FAQ
  * complète. En dessous de ce seuil (mobile, l'entrée la plus fréquente vu que
- * Mercury a une appli Android), tout repasse en une colonne empilée avec
- * scroll normal : « au-dessus du pli » ne veut rien dire sur un écran étroit.
+ * Mercury a une appli Android), une seule colonne, dans l'ordre du DOM :
+ * titre, carte « jouer » et carte Android (le premier écran d'un téléphone,
+ * sans scroll), plateau animé, puis accroche et points clés.
+ *
+ * Le plateau animé fait la charnière entre ce premier écran et la feuille de
+ * contenu : posé sur le ciel, en grand, sous la carte Android sur mobile, et
+ * sur toute la largeur sous les deux colonnes à partir de 960px, où son haut
+ * dépasse en bas du premier écran.
  */
 
 import {
@@ -163,16 +169,7 @@ export function renderLandingPage({
 
     <div class="hp-inner">
       <div class="hp-grid">
-        <section class="hp-main">
-          <h1 class="hp-title">${h1}</h1>
-          <p class="hp-lede">${lede}</p>
-
-          <ul class="hp-highlights">
-          ${highlightsHtml}
-          </ul>
-
-          <p class="hp-more"><a href="${moreLink.path}">${moreLink.text}<span class="hp-more-arrow" aria-hidden="true">→</span></a></p>
-        </section>
+        <h1 class="hp-title">${h1}</h1>
 
         <aside class="hp-side">
           <a class="hp-play-card m-paper" href="${appPath}">
@@ -201,22 +198,26 @@ export function renderLandingPage({
             <li>${free.factPlatform}</li>
           </ul>
         </aside>
-      </div>
-    </div>
 
-    <div class="hp-scroll-hint" aria-hidden="true">
-      <span class="hp-scroll-dot">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
-      </span>
+        <div class="hp-board">
+          <img src="${BOARD_DEMO_PATH}" width="${BOARD_DEMO_SIZE.width}" height="${BOARD_DEMO_SIZE.height}" alt="" decoding="async" />
+        </div>
+
+        <div class="hp-main">
+          <p class="hp-lede">${lede}</p>
+
+          <ul class="hp-highlights">
+          ${highlightsHtml}
+          </ul>
+
+          <p class="hp-more"><a href="${moreLink.path}">${moreLink.text}<span class="hp-more-arrow" aria-hidden="true">→</span></a></p>
+        </div>
+      </div>
     </div>
   </div>
 
   <div class="hp-below">
     <div class="hp-below-inner m-paper">
-
-      <div class="hp-board">
-        <img src="${BOARD_DEMO_PATH}" width="${BOARD_DEMO_SIZE.width}" height="${BOARD_DEMO_SIZE.height}" alt="" loading="lazy" decoding="async" />
-      </div>
 
       <section class="rp-section">
         <h2>${free.heading}</h2>

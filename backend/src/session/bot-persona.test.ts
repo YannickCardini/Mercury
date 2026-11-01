@@ -7,15 +7,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
     FREE_EMOJIS, PAID_EMOJIS, STYLE_TIERS, OWNERSHIP_TIERS,
-    botLoadout, buildPersona, ownershipOf, parsePersona, personaItemIds, personaProblem, quotaPick,
+    botAnimatesReaction, botLoadout, buildPersona, ownershipOf, parsePersona, personaItemIds, personaProblem, quotaPick,
     type BotPersona,
 } from './bot-persona.js';
 import { FREE_BOOST_SLOTS, getConsumable } from '@mercury/shared';
 import { seededRng } from './matchmaking-script.js';
 
-test('persona — palette dérivée du catalogue : 6 gratuits, 9 de boutique', () => {
+test('persona — palette dérivée du catalogue : 6 gratuits, 12 de boutique', () => {
     assert.equal(FREE_EMOJIS.length, 6);
-    assert.equal(PAID_EMOJIS.length, 9);
+    assert.equal(PAID_EMOJIS.length, 12);
 });
 
 test('persona — tirée sans contrainte : toujours valide', () => {
@@ -71,6 +71,21 @@ test('persona — lecture tolérante d\'un document', () => {
 // ── Boosters d'un agent ───────────────────────────────────────────────────────
 
 const BOT_IDS = Array.from({ length: 1000 }, (_, i) => `1${String(i).padStart(20, '7')}`);
+
+test('botAnimatesReaction : stable pour un même agent, environ une réaction sur trois', () => {
+    let animated = 0;
+    let total = 0;
+    for (let i = 0; i < 200; i++) {
+        const id = `bot-${i}`;
+        for (const emoji of [...FREE_EMOJIS, ...PAID_EMOJIS]) {
+            assert.equal(botAnimatesReaction(id, emoji), botAnimatesReaction(id, emoji));
+            if (botAnimatesReaction(id, emoji)) animated++;
+            total++;
+        }
+    }
+    const share = animated / total;
+    assert.ok(share > 0.25 && share < 0.35, `part animée ${share}`);
+});
 
 test('botLoadout : toujours le même équipement pour un même agent', () => {
     for (const id of BOT_IDS.slice(0, 50)) {

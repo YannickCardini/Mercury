@@ -302,7 +302,7 @@ export function langSwitch(lang, cluster) {
     .filter((alt) => alt.lang !== "x-default")
     .map((alt) => {
       const active = alt.lang === lang ? ' class="rls-link active" aria-current="page"' : ' class="rls-link"';
-      return `<a href="${alt.path}" hreflang="${alt.lang}" lang="${alt.lang}"${active}><span class="rls-flag" aria-hidden="true">${LANG_FLAG[alt.lang]}</span>${LANG_LABEL[alt.lang]}</a>`;
+      return `<a href="${alt.path}" hreflang="${alt.lang}" lang="${alt.lang}"${active}><span class="rls-flag" aria-hidden="true">${LANG_FLAG[alt.lang]}</span><span class="rls-name">${LANG_LABEL[alt.lang]}</span></a>`;
     })
     .join("\n        ");
   return `<nav class="rls-switch" aria-label="${UI[lang].languages}">

@@ -40,6 +40,7 @@ export type PurchaseOutcome =
   | 'ok'
   | 'insufficient'
   | 'owned'
+  | 'locked'
   | 'unauthenticated'
   | 'error';
 
@@ -145,6 +146,7 @@ export class ShopService {
         if (err.status === 401) return 'unauthenticated';
         if (body?.code === 'ALREADY_OWNED') return 'owned';
         if (body?.code === 'INSUFFICIENT_FUNDS') return 'insufficient';
+        if (body?.code === 'LOCKED') return 'locked';
       }
       return 'error';
     }

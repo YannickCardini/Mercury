@@ -24,6 +24,7 @@ import { SoundService } from "../../services/sound.service";
 import { ShopService } from "../../../services/shop.service";
 import { AuthService } from "../../../services/auth.service";
 import { ToastService } from "../../../shared/toast.service";
+import { ReactionFxComponent } from "../../../shared/reaction-fx.component";
 
 /** Une case de la palette : l'emoji et son état de déblocage. */
 export interface PaletteEntry {
@@ -35,12 +36,16 @@ interface FloatingReaction {
   id: number;
   emoji: ReactionEmoji;
   color: MarbleColor;
+  /** L'auteur possède l'animation : mise en scène au lieu de l'emoji fixe. */
+  animated: boolean;
   x: number;
   y: number;
 }
 
 const COOLDOWN_MS = 2000;
 const FLOAT_DURATION_MS = 1600;
+/** Une réaction animée reste plus longtemps : sa mise en scène dure jusqu'à 2,7 s. */
+const FX_FLOAT_DURATION_MS = 2800;
 // Android WebView can dispatch a spurious extra click for a single tap
 // (ghost click) that lands on the just-inserted backdrop, toggling the
 // palette a second time within the same gesture (open→close→open blink).
@@ -51,7 +56,7 @@ const TOGGLE_GUARD_MS = 250;
 @Component({
   selector: "app-emoji-reactions",
   standalone: true,
-  imports: [],
+  imports: [ReactionFxComponent],
   templateUrl: "./emoji-reactions.component.html",
   styleUrl: "./emoji-reactions.component.scss",
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -104,7 +109,7 @@ export class EmojiReactionsComponent implements OnInit, AfterViewInit, OnDestroy
 
   ngOnInit(): void {
     this.sub = this.gameStateService.reaction$.subscribe((msg) => {
-      this.spawnFloating(msg.author, msg.emoji);
+      this.spawnFloating(msg.author, msg.emoji, msg.animated === true);
       this.soundService.playReaction(msg.emoji);
     });
     // Rafraîchit l'inventaire de boutique. Le cache local a déjà donné le bon
@@ -189,7 +194,7 @@ export class EmojiReactionsComponent implements OnInit, AfterViewInit, OnDestroy
     // origin matches what other clients see.
   }
 
-  private spawnFloating(color: MarbleColor, emoji: ReactionEmoji): void {
+  private spawnFloating(color: MarbleColor, emoji: ReactionEmoji, animated: boolean): void {
     const panel = document.querySelector<HTMLElement>(
       `[data-player-color="${color}"]`
     );
@@ -198,9 +203,9 @@ export class EmojiReactionsComponent implements OnInit, AfterViewInit, OnDestroy
     const y = rect ? rect.top + rect.height / 2 : window.innerHeight / 2;
 
     const id = this.nextId++;
-    this.floating.update((list) => [...list, { id, emoji, color, x, y }]);
+    this.floating.update((list) => [...list, { id, emoji, color, animated, x, y }]);
     setTimeout(() => {
       this.floating.update((list) => list.filter((f) => f.id !== id));
-    }, FLOAT_DURATION_MS);
+    }, animated ? FX_FLOAT_DURATION_MS : FLOAT_DURATION_MS);
   }
 }

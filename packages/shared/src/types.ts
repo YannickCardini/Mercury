@@ -36,7 +36,7 @@ export const JOKER_MOVE_DISTANCE = 18;
 export const KING_MOVE_DISTANCE = 13;
 
 /** Palette fermée de réactions emoji envoyables pendant une partie. */
-export const REACTION_EMOJIS = ['👏', '😂', '😮', '😥', '🔥', '🤔', '😡', '😎', '😴', '⏰', '🥱', '🦧', '😉', '😘', '😊'] as const;
+export const REACTION_EMOJIS = ['👏', '😂', '😮', '😥', '🔥', '🤔', '😡', '😎', '😴', '⏰', '🥱', '🦧', '😉', '😘', '😊', '🎉', '💥', '🎺'] as const;
 export type ReactionEmoji = typeof REACTION_EMOJIS[number];
 
 // ── Entités ───────────────────────────────────────────────────────────────────
@@ -385,6 +385,11 @@ export interface ReactionBroadcastMessage {
   author: MarbleColor;
   emoji: ReactionEmoji;
   timestamp: number;
+  /**
+   * L'auteur possède l'animation de cette réaction (isEmojiAnimated) : toute la
+   * table la joue animée. Absent = version fixe, comme avant les animations.
+   */
+  animated?: boolean;
 }
 
 /**

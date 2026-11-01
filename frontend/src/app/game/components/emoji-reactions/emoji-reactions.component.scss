@@ -70,9 +70,11 @@
   top: calc(100% + 10px);
   left: 0;
   z-index: 29;
-  /* Desktop / landscape: 3×2 grid keeps palette narrow so it never reaches the
-     centered timer ring. Mobile portrait switches to a single row since the
-     ring is hidden there and we have full horizontal space. */
+  /* Desktop / landscape: 3 columns keep the palette narrow so it does not reach
+     the centered timer ring. Portrait: 6 columns (3 rows of the 18), the width
+     is there and the 64px ring stays clear of them, tablets included. Short
+     landscape (phone on its side): 4 columns, so the 5 rows fit the height of
+     the table, which clips its content. */
   display: grid;
   grid-template-columns: repeat(3, 44px);
   gap: 2px;
@@ -85,11 +87,11 @@
   animation: emojiPaletteIn 0.18s var(--m-ease);
 
   @media (max-aspect-ratio: 1/1) {
+    grid-template-columns: repeat(6, 44px);
+  }
 
-    @media (max-width: 780px),
-    (max-height: 500px) {
-      grid-template-columns: repeat(6, 44px);
-    }
+  @media (min-aspect-ratio: 1/1) and (max-height: 500px) {
+    grid-template-columns: repeat(4, 44px);
   }
 }
 
@@ -192,6 +194,44 @@
   text-shadow: 0 4px 12px rgba(0, 0, 0, 0.55);
   animation: emojiFloatUp 2.4s ease-out forwards;
   will-change: transform, opacity;
+}
+
+/* Réaction animée : même départ du badge, mais elle reste en vue le temps de
+   sa mise en scène (2,8 s) et monte moins vite. La scène fait --rfx-s, dont le
+   glyphe prend 82 % : la même taille que l'emoji fixe. L'ombre portée du texte
+   passe au glyphe par héritage ; les éléments dessinés ont leur bord crème. */
+.emoji-float--fx {
+  --rfx-s: clamp(2.44rem, 7.3vw, 3.66rem);
+  display: block;
+  font-size: 0;
+  animation: emojiFloatUpFx 2.8s cubic-bezier(0.33, 0.9, 0.5, 1) forwards;
+}
+
+@keyframes emojiFloatUpFx {
+  0% {
+    transform: translate(-50%, -50%) scale(0.6);
+    opacity: 0;
+  }
+
+  10% {
+    transform: translate(-50%, -50%) scale(1.15);
+    opacity: 1;
+  }
+
+  18% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+
+  78% {
+    transform: translate(-50%, calc(-50% - 94px)) scale(1);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translate(-50%, calc(-50% - 130px)) scale(1.04);
+    opacity: 0;
+  }
 }
 
 @keyframes emojiFloatUp {

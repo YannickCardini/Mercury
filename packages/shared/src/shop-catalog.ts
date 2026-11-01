@@ -17,6 +17,16 @@ import { isArrivalPosition } from './board-config.js';
 
 /** Prix unitaire d'une réaction emoji (phase 1 de la boutique). */
 export const EMOJI_ITEM_PRICE = 50;
+/** ⏰ et 🦧 : les deux réactions à prix particulier. */
+export const ALARM_EMOJI_PRICE = 60;
+export const ORANGUTAN_EMOJI_PRICE = 80;
+
+/**
+ * Animation d'une réaction (décision du propriétaire, 2026-11-01) : le double
+ * du prix de la réaction, 60 pour une réaction gratuite.
+ */
+export const ANIMATION_PRICE_FACTOR = 2;
+export const FREE_EMOJI_ANIMATION_PRICE = 60;
 
 /**
  * Prix des boosters (décision du propriétaire, 2026-10-23). Un booster
@@ -70,7 +80,7 @@ export const MAX_COINS_PER_WIN = 8;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type ShopItemKind = 'emoji' | 'cardback' | 'consumable';
+export type ShopItemKind = 'emoji' | 'cardback' | 'consumable' | 'animation';
 
 interface ShopItemCommon {
   readonly id: string;
@@ -82,6 +92,16 @@ interface ShopItemCommon {
 
 export interface EmojiShopItem extends ShopItemCommon {
   readonly kind: 'emoji';
+  readonly emoji: ReactionEmoji;
+}
+
+/**
+ * Animation d'une réaction : la même réaction, animée, que toute la table voit
+ * bouger quand son propriétaire l'envoie. Elle ne se vend qu'à qui peut déjà
+ * envoyer la réaction (achetée, ou gratuite) : voir purchasePrerequisite.
+ */
+export interface AnimationShopItem extends ShopItemCommon {
+  readonly kind: 'animation';
   readonly emoji: ReactionEmoji;
 }
 
@@ -122,7 +142,7 @@ export interface ConsumableShopItem extends ShopItemCommon {
   readonly description: string;
 }
 
-export type ShopItem = EmojiShopItem | CardBackShopItem | ConsumableShopItem;
+export type ShopItem = EmojiShopItem | CardBackShopItem | ConsumableShopItem | AnimationShopItem;
 
 // ── Catalogue ─────────────────────────────────────────────────────────────────
 //
@@ -141,12 +161,17 @@ export const SHOP_CATALOG = [
   { id: 'emoji.angry', kind: 'emoji', label: 'Angry', price: EMOJI_ITEM_PRICE, emoji: '😡' },
   { id: 'emoji.cool', kind: 'emoji', label: 'Cool', price: EMOJI_ITEM_PRICE, emoji: '😎' },
   { id: 'emoji.sleeping', kind: 'emoji', label: 'Sleeping', price: EMOJI_ITEM_PRICE, emoji: '😴' },
-  { id: 'emoji.alarm', kind: 'emoji', label: 'Alarm clock', price: 60, emoji: '⏰' },
+  { id: 'emoji.alarm', kind: 'emoji', label: 'Alarm clock', price: ALARM_EMOJI_PRICE, emoji: '⏰' },
   { id: 'emoji.yawning', kind: 'emoji', label: 'Yawning', price: EMOJI_ITEM_PRICE, emoji: '🥱' },
-  { id: 'emoji.orangutan', kind: 'emoji', label: 'Orangutan', price: 80, emoji: '🦧' },
+  { id: 'emoji.orangutan', kind: 'emoji', label: 'Orangutan', price: ORANGUTAN_EMOJI_PRICE, emoji: '🦧' },
   { id: 'emoji.wink', kind: 'emoji', label: 'Wink', price: EMOJI_ITEM_PRICE, emoji: '😉' },
-  { id: 'emoji.kissing', kind: 'emoji', label: 'Heart eyes', price: EMOJI_ITEM_PRICE, emoji: '😘' },
+  { id: 'emoji.kissing', kind: 'emoji', label: 'Kiss', price: EMOJI_ITEM_PRICE, emoji: '😘' },
   { id: 'emoji.smile', kind: 'emoji', label: 'Smile', price: EMOJI_ITEM_PRICE, emoji: '😊' },
+  // Bruitages d'objets plutôt que des voix : leurs sons sont synthétisés par
+  // frontend/resources/sounds/generate-emoji-sounds.py.
+  { id: 'emoji.party', kind: 'emoji', label: 'Party', price: EMOJI_ITEM_PRICE, emoji: '🎉' },
+  { id: 'emoji.boom', kind: 'emoji', label: 'Boom', price: EMOJI_ITEM_PRICE, emoji: '💥' },
+  { id: 'emoji.sad_trombone', kind: 'emoji', label: 'Sad trombone', price: EMOJI_ITEM_PRICE, emoji: '🎺' },
   {
     id: 'consumable.double_points',
     kind: 'consumable',
@@ -195,6 +220,27 @@ export const SHOP_CATALOG = [
     effect: 'perfect_win',
     description: 'Earns 100 extra ranking points when your team wins without a single enemy marble reaching home. Wins by forfeit do not count.',
   },
+  // Animations : une par réaction, dans l'ordre de la palette. Les anciens
+  // binaires Android reçoivent ces articles du serveur et les ignorent : leur
+  // boutique ne range que les familles qu'elle connaît.
+  { id: 'animation.clap', kind: 'animation', label: 'Animated Clap', price: FREE_EMOJI_ANIMATION_PRICE, emoji: '👏' },
+  { id: 'animation.laugh', kind: 'animation', label: 'Animated Laugh', price: FREE_EMOJI_ANIMATION_PRICE, emoji: '😂' },
+  { id: 'animation.surprised', kind: 'animation', label: 'Animated Surprised', price: FREE_EMOJI_ANIMATION_PRICE, emoji: '😮' },
+  { id: 'animation.sad', kind: 'animation', label: 'Animated Sad', price: FREE_EMOJI_ANIMATION_PRICE, emoji: '😥' },
+  { id: 'animation.fire', kind: 'animation', label: 'Animated Fire', price: FREE_EMOJI_ANIMATION_PRICE, emoji: '🔥' },
+  { id: 'animation.thinking', kind: 'animation', label: 'Animated Thinking', price: FREE_EMOJI_ANIMATION_PRICE, emoji: '🤔' },
+  { id: 'animation.angry', kind: 'animation', label: 'Animated Angry', price: EMOJI_ITEM_PRICE * ANIMATION_PRICE_FACTOR, emoji: '😡' },
+  { id: 'animation.cool', kind: 'animation', label: 'Animated Cool', price: EMOJI_ITEM_PRICE * ANIMATION_PRICE_FACTOR, emoji: '😎' },
+  { id: 'animation.sleeping', kind: 'animation', label: 'Animated Sleeping', price: EMOJI_ITEM_PRICE * ANIMATION_PRICE_FACTOR, emoji: '😴' },
+  { id: 'animation.alarm', kind: 'animation', label: 'Animated Alarm clock', price: ALARM_EMOJI_PRICE * ANIMATION_PRICE_FACTOR, emoji: '⏰' },
+  { id: 'animation.yawning', kind: 'animation', label: 'Animated Yawning', price: EMOJI_ITEM_PRICE * ANIMATION_PRICE_FACTOR, emoji: '🥱' },
+  { id: 'animation.orangutan', kind: 'animation', label: 'Animated Orangutan', price: ORANGUTAN_EMOJI_PRICE * ANIMATION_PRICE_FACTOR, emoji: '🦧' },
+  { id: 'animation.wink', kind: 'animation', label: 'Animated Wink', price: EMOJI_ITEM_PRICE * ANIMATION_PRICE_FACTOR, emoji: '😉' },
+  { id: 'animation.kissing', kind: 'animation', label: 'Animated Kiss', price: EMOJI_ITEM_PRICE * ANIMATION_PRICE_FACTOR, emoji: '😘' },
+  { id: 'animation.smile', kind: 'animation', label: 'Animated Smile', price: EMOJI_ITEM_PRICE * ANIMATION_PRICE_FACTOR, emoji: '😊' },
+  { id: 'animation.party', kind: 'animation', label: 'Animated Party', price: EMOJI_ITEM_PRICE * ANIMATION_PRICE_FACTOR, emoji: '🎉' },
+  { id: 'animation.boom', kind: 'animation', label: 'Animated Boom', price: EMOJI_ITEM_PRICE * ANIMATION_PRICE_FACTOR, emoji: '💥' },
+  { id: 'animation.sad_trombone', kind: 'animation', label: 'Animated Sad trombone', price: EMOJI_ITEM_PRICE * ANIMATION_PRICE_FACTOR, emoji: '🎺' },
 ] as const satisfies readonly ShopItem[];
 
 export type ShopItemId = typeof SHOP_CATALOG[number]['id'];
@@ -222,6 +268,26 @@ const PAID_EMOJI_ID = new Map<ReactionEmoji, string>(
     item.kind === 'emoji' ? [[item.emoji, item.id] as [ReactionEmoji, string]] : [],
   ),
 );
+
+const ANIMATION_ID = new Map<ReactionEmoji, string>(
+  SHOP_CATALOG.flatMap(item =>
+    item.kind === 'animation' ? [[item.emoji, item.id] as [ReactionEmoji, string]] : [],
+  ),
+);
+
+/** Noms des réactions gratuites, qui n'ont pas d'article à leur nom. */
+const FREE_REACTION_LABELS: Partial<Record<ReactionEmoji, string>> = {
+  '👏': 'Clap',
+  '😂': 'Laugh',
+  '😮': 'Surprised',
+  '😥': 'Sad',
+  '🔥': 'Fire',
+  '🤔': 'Thinking',
+};
+
+function hasItem(owned: ReadonlySet<string> | readonly string[], id: string): boolean {
+  return owned instanceof Set ? owned.has(id) : (owned as readonly string[]).includes(id);
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -258,7 +324,47 @@ export function isEmojiUnlocked(
 ): boolean {
   const id = PAID_EMOJI_ID.get(emoji);
   if (id === undefined) return true;
-  return owned instanceof Set ? owned.has(id) : (owned as readonly string[]).includes(id);
+  return hasItem(owned, id);
+}
+
+// ── Animations ────────────────────────────────────────────────────────────────
+
+/** Nom d'une réaction tel que la boutique l'affiche (« Angry », « Clap »). */
+export function reactionLabel(emoji: ReactionEmoji): string {
+  const id = PAID_EMOJI_ID.get(emoji);
+  const item = id === undefined ? undefined : BY_ID.get(id);
+  return item?.label ?? FREE_REACTION_LABELS[emoji] ?? emoji;
+}
+
+/** Id catalogue de l'animation d'une réaction, ou undefined. */
+export function animationItemId(emoji: ReactionEmoji): string | undefined {
+  return ANIMATION_ID.get(emoji);
+}
+
+/** Vrai pour l'animation d'une réaction. */
+export function isAnimation(item: ShopItem): item is AnimationShopItem {
+  return item.kind === 'animation';
+}
+
+/**
+ * Seule règle d'affichage animé d'une réaction, partagée par le serveur (qui
+ * marque la réaction diffusée) et le client (boutique) : l'animation possédée,
+ * et la réaction elle-même utilisable.
+ */
+export function isEmojiAnimated(
+  emoji: ReactionEmoji,
+  owned: ReadonlySet<string> | readonly string[],
+): boolean {
+  const id = ANIMATION_ID.get(emoji);
+  return id !== undefined && hasItem(owned, id) && isEmojiUnlocked(emoji, owned);
+}
+
+/**
+ * Id qu'un achat exige déjà possédé : la réaction payante d'une animation.
+ * undefined pour tout le reste, animations des réactions gratuites comprises.
+ */
+export function purchasePrerequisite(item: ShopItem): string | undefined {
+  return item.kind === 'animation' ? PAID_EMOJI_ID.get(item.emoji) : undefined;
 }
 
 // ── Boosters ──────────────────────────────────────────────────────────────────

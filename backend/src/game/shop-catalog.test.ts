@@ -21,6 +21,11 @@ import {
     countHomeEntries,
     maxBoostSlots,
     sanitizeLoadout,
+    animationItemId,
+    isAnimation,
+    isEmojiAnimated,
+    purchasePrerequisite,
+    reactionLabel,
     type Action,
 } from '@mercury/shared';
 
@@ -91,6 +96,45 @@ test('seuls les six emojis historiques restent gratuits', () => {
 test('prix particuliers : ⏰ à 60, 🦧 à 80', () => {
     assert.equal(getCatalogItem('emoji.alarm')?.price, 60);
     assert.equal(getCatalogItem('emoji.orangutan')?.price, 80);
+});
+
+test('animations : une par réaction de la palette', () => {
+    const animated = SHOP_CATALOG.filter(isAnimation).map(item => item.emoji);
+    assert.deepEqual(animated, [...REACTION_EMOJIS]);
+    for (const emoji of REACTION_EMOJIS) assert.ok(animationItemId(emoji), emoji);
+});
+
+test('prix des animations (décision du 2026-11-01) : le double de la réaction, 60 pour une gratuite', () => {
+    for (const emoji of REACTION_EMOJIS) {
+        const anim = getCatalogItem(animationItemId(emoji)!)!;
+        const baseId = emojiItemId(emoji);
+        const expected = baseId ? getCatalogItem(baseId)!.price * 2 : 60;
+        assert.equal(anim.price, expected, emoji);
+    }
+    assert.equal(getCatalogItem('animation.alarm')?.price, 120);
+    assert.equal(getCatalogItem('animation.orangutan')?.price, 160);
+});
+
+test('purchasePrerequisite : la réaction payante pour son animation, rien sinon', () => {
+    assert.equal(purchasePrerequisite(getCatalogItem('animation.angry')!), 'emoji.angry');
+    assert.equal(purchasePrerequisite(getCatalogItem('animation.clap')!), undefined);
+    assert.equal(purchasePrerequisite(getCatalogItem('emoji.angry')!), undefined);
+    assert.equal(purchasePrerequisite(getCatalogItem('consumable.bounty')!), undefined);
+});
+
+test('isEmojiAnimated : l\'animation possédée et la réaction utilisable', () => {
+    assert.equal(isEmojiAnimated('👏', []), false);
+    assert.equal(isEmojiAnimated('👏', ['animation.clap']), true);
+    assert.equal(isEmojiAnimated('😡', ['animation.angry']), false);
+    assert.equal(isEmojiAnimated('😡', new Set(['emoji.angry', 'animation.angry'])), true);
+    assert.equal(isEmojiAnimated('😡', ['emoji.angry']), false);
+});
+
+test('reactionLabel : le nom de l\'article, ou celui d\'une réaction gratuite', () => {
+    assert.equal(reactionLabel('😡'), 'Angry');
+    assert.equal(reactionLabel('😘'), 'Kiss');
+    assert.equal(reactionLabel('👏'), 'Clap');
+    for (const emoji of REACTION_EMOJIS) assert.notEqual(reactionLabel(emoji), emoji, emoji);
 });
 
 test('prix des boosters permanents (décision du 2026-10-23)', () => {

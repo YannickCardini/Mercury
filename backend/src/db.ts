@@ -361,17 +361,23 @@ export type PurchaseResult =
  * solde ne peut pas devenir négatif et deux requêtes concurrentes ne peuvent pas
  * débiter deux fois (la seconde échoue en 412, sans application partielle).
  *
- * `reason: 'rejected'` couvre indifféremment « pas assez de pièces » et « déjà
- * possédé » : l'appelant relit le porte-monnaie pour distinguer les deux, hors
- * du chemin critique.
+ * `reason: 'rejected'` couvre indifféremment « pas assez de pièces », « déjà
+ * possédé » et « prérequis manquant » : l'appelant relit le porte-monnaie pour
+ * distinguer, hors du chemin critique.
  *
- * La `condition` est une expression SQL sans paramètres nommés : `itemId` et
- * `price` doivent venir du catalogue serveur, jamais du corps de la requête.
+ * `requires` : un id que l'inventaire doit déjà contenir (la réaction payante
+ * d'une animation, cf. purchasePrerequisite). Dans la même condition, pour
+ * qu'aucune requête concurrente ne puisse s'intercaler.
+ *
+ * La `condition` est une expression SQL sans paramètres nommés : `itemId`,
+ * `price` et `requires` doivent venir du catalogue serveur, jamais du corps de
+ * la requête.
  */
 export async function purchaseItem(
     userId: string,
     itemId: string,
     price: number,
+    requires?: string,
 ): Promise<PurchaseResult> {
     await ensureWalletFields(userId);
     const container = await getUsersContainer();
@@ -382,7 +388,8 @@ export async function purchaseItem(
                 { op: 'incr', path: '/coins', value: -cost },
                 { op: 'add', path: '/ownedItems/-', value: itemId },
             ],
-            condition: `FROM c WHERE c.coins >= ${cost} AND NOT ARRAY_CONTAINS(c.ownedItems, "${itemId}")`,
+            condition: `FROM c WHERE c.coins >= ${cost} AND NOT ARRAY_CONTAINS(c.ownedItems, "${itemId}")`
+                + (requires ? ` AND ARRAY_CONTAINS(c.ownedItems, "${requires}")` : ''),
         });
         if (!resource) return { ok: false, reason: 'not_found' };
         return { ok: true, ...toWallet(resource) };

@@ -1,11 +1,11 @@
 /**
- * Plateau animé des landings « jouer », en tête de la feuille sous le pli :
- * une partie à quatre qui tourne en boucle.
+ * Plateau animé des landings « jouer », posé sur le ciel entre le premier
+ * écran et la feuille de contenu : une partie à quatre qui tourne en boucle.
  *
- * C'est un fichier SVG externe (www/content/board.svg), affiché par un
- * <img loading="lazy"> :
- *   - il ne pèse rien dans le HTML que lisent les robots, et le navigateur ne
- *     le demande qu'à l'approche du pli ;
+ * C'est un fichier SVG externe (www/content/board.svg), affiché par un <img> :
+ *   - il ne pèse rien dans le HTML que lisent les robots (~3,6 Ko gzip à
+ *     part). Il n'est pas en loading="lazy" : son haut est visible dès le
+ *     premier écran sur ordinateur, où il peut être l'élément LCP ;
  *   - sa place est réservée par les attributs width/height de l'<img> : la
  *     page ne bouge pas quand il arrive ;
  *   - l'animation est entièrement en CSS, avec des @keyframes calculées ici

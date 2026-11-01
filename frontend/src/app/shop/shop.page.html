@@ -75,83 +75,180 @@
           <!-- Les boosters, dont l'effet se lit en entier sur la tuile, ont des
                tuiles plus larges que les emojis. -->
           <ul class="sh-grid" [class.sh-grid--wide]="section.kind === 'consumable'">
-            @for (item of section.items; track item.id; let i = $index) {
-              <li class="sh-tile"
-                  [attr.data-item]="item.id"
-                  [attr.data-effect]="item.kind === 'consumable' ? item.effect : null"
-                  [class.is-owned]="stateOf(item) === 'owned' || stateOf(item) === 'equipped'"
-                  [class.is-short]="stateOf(item) === 'short'"
-                  [class.is-burst]="burstId() === item.id"
-                  [style.--tile-i]="i">
-                <span class="sh-tile-orb" aria-hidden="true">
-                  @if (item.kind === 'consumable') {
-                    <app-boost-token class="sh-tile-token" [effect]="item.effect" [live]="stateOf(item) === 'equipped'" />
-                  } @else {
-                    <span class="sh-tile-glyph">{{ previewOf(item) }}</span>
-                  }
-                  <span class="sh-tile-ring"></span>
-                  <span class="sh-tile-sparks">
-                    @for (s of sparks; track s) {
-                      <i [style.--s]="s"></i>
-                    }
-                  </span>
-                </span>
-
-                @if (stateOf(item) === 'short') {
-                  <span class="sh-tile-lock" aria-hidden="true">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-                      <rect x="4" y="11" width="16" height="10" rx="2"></rect>
-                      <path d="M8 11V7a4 4 0 0 1 8 0v4"></path>
-                    </svg>
-                  </span>
-                }
-
-                <span class="sh-tile-label">{{ item.label }}</span>
-                @if (item.kind === 'consumable') {
-                  <span class="sh-tile-desc">{{ item.description }}</span>
-                }
-
-                @if (stateOf(item) === 'equipped') {
-                  <span class="sh-tile-badge">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="20 6 9 17 4 12"></polyline>
-                    </svg>
-                    Equipped
-                  </span>
-                } @else if (stateOf(item) === 'owned' && item.kind === 'consumable') {
-                  <!-- Possédé, pas équipé : le profil s'ouvre avec ce booster en
-                       main. Grisé quand tout est plein. -->
-                  <button class="sh-equip-btn" (click)="equipInProfile(item)" [disabled]="isFull()"
-                          [attr.title]="isFull() ? 'All slots are in use' : null"
-                          [attr.aria-label]="isFull() ? 'Equip ' + item.label + ', unavailable: all slots are in use' : 'Equip ' + item.label + ' in your profile'">
-                    Equip
-                  </button>
-                } @else if (stateOf(item) === 'owned') {
-                  <span class="sh-tile-badge">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="20 6 9 17 4 12"></polyline>
-                    </svg>
-                    Owned
-                  </span>
-                } @else if (signedIn()) {
-                  <button class="sh-buy-btn"
-                          [disabled]="!canAfford(item) || busyId() === item.id"
-                          (click)="confirm(item)"
-                          [attr.aria-label]="'Unlock ' + item.label + ' for ' + item.price + ' coins'">
-                    @if (busyId() === item.id) {
-                      <span class="sh-btn-spinner"></span>
+            @if (section.kind === 'emoji') {
+              <!-- Une tuile par réaction, dans l'ordre de la palette : la réaction
+                   d'abord, puis son animation, vendue sur la même tuile. -->
+              @for (t of reactionTiles(); track t.emoji; let i = $index) {
+                <li class="sh-tile"
+                    [attr.data-item]="t.base?.id ?? null"
+                    [attr.data-anim]="t.animation?.id ?? null"
+                    [class.is-owned]="reactionStateOf(t) !== 'locked'"
+                    [class.is-short]="reactionStateOf(t) === 'locked' && signedIn() && !canAfford(t.base!)"
+                    [class.is-burst]="isBurstTile(t)"
+                    [class.is-speaking]="speakingOf(t.emoji) !== null"
+                    [style.--tile-i]="i">
+                  <!-- Le hublot se touche : la réaction joue son son, et sa mise
+                       en scène quand elle est animée. -->
+                  <button type="button" class="sh-tile-orb sh-listen"
+                          [class.is-speak-a]="speakingOf(t.emoji) === 'a'"
+                          [class.is-speak-b]="speakingOf(t.emoji) === 'b'"
+                          (click)="listen(t)"
+                          [attr.aria-label]="'Play the ' + t.label + ' reaction'"
+                          title="Play">
+                    @if (reactionStateOf(t) === 'animated') {
+                      <app-reaction-fx class="sh-tile-fx" [emoji]="t.emoji" [cue]="cueOf(t.emoji)" />
                     } @else {
-                      <span class="sh-coin" aria-hidden="true"></span>
-                      {{ item.price }}
+                      <span class="sh-tile-glyph" aria-hidden="true">{{ t.emoji }}</span>
                     }
+                    <ng-container *ngTemplateOutlet="burst" />
+                    <ng-container *ngTemplateOutlet="speaker" />
                   </button>
-                } @else {
-                  <span class="sh-tile-price">
-                    <span class="sh-coin sh-coin--muted" aria-hidden="true"></span>
-                    {{ item.price }}
+
+                  @if (reactionStateOf(t) === 'locked' && signedIn() && !canAfford(t.base!)) {
+                    <span class="sh-tile-lock" aria-hidden="true">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="4" y="11" width="16" height="10" rx="2"></rect>
+                        <path d="M8 11V7a4 4 0 0 1 8 0v4"></path>
+                      </svg>
+                    </span>
+                  }
+
+                  <span class="sh-tile-label">{{ t.label }}</span>
+
+                  @switch (reactionStateOf(t)) {
+                    @case ('animated') {
+                      <span class="sh-tile-badge">
+                        <ng-container *ngTemplateOutlet="motion" />
+                        Animated
+                      </span>
+                    }
+                    @case ('owned') {
+                      @if (t.animation && signedIn()) {
+                        <!-- Possédée : le badge « Owned » laisse la place à
+                             l'animation, au même endroit et au même prix-bouton. -->
+                        <button class="sh-buy-btn sh-anim-btn"
+                                [disabled]="!canAfford(t.animation) || busyId() === t.animation.id"
+                                (click)="confirm(t.animation)"
+                                [attr.aria-label]="'Animate ' + t.label + ' for ' + t.animation.price + ' coins'">
+                          @if (busyId() === t.animation.id) {
+                            <span class="sh-btn-spinner"></span>
+                          } @else {
+                            <span class="sh-anim-word">Animate</span>
+                            <span class="sh-coin" aria-hidden="true"></span>
+                            {{ t.animation.price }}
+                          }
+                        </button>
+                      } @else if (t.animation) {
+                        <span class="sh-tile-price">
+                          <ng-container *ngTemplateOutlet="motion" />
+                          <span class="sh-coin sh-coin--muted" aria-hidden="true"></span>
+                          {{ t.animation.price }}
+                        </span>
+                      } @else {
+                        <span class="sh-tile-badge">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                          </svg>
+                          Owned
+                        </span>
+                      }
+                    }
+                    @default {
+                      @if (signedIn()) {
+                        <button class="sh-buy-btn"
+                                [disabled]="!canAfford(t.base!) || busyId() === t.base!.id"
+                                (click)="confirm(t.base!)"
+                                [attr.aria-label]="'Unlock ' + t.label + ' for ' + t.base!.price + ' coins'">
+                          @if (busyId() === t.base!.id) {
+                            <span class="sh-btn-spinner"></span>
+                          } @else {
+                            <span class="sh-coin" aria-hidden="true"></span>
+                            {{ t.base!.price }}
+                          }
+                        </button>
+                      } @else {
+                        <span class="sh-tile-price">
+                          <span class="sh-coin sh-coin--muted" aria-hidden="true"></span>
+                          {{ t.base!.price }}
+                        </span>
+                      }
+                    }
+                  }
+                </li>
+              }
+            } @else {
+              @for (item of section.items; track item.id; let i = $index) {
+                <li class="sh-tile"
+                    [attr.data-item]="item.id"
+                    [attr.data-effect]="item.kind === 'consumable' ? item.effect : null"
+                    [class.is-owned]="stateOf(item) === 'owned' || stateOf(item) === 'equipped'"
+                    [class.is-short]="stateOf(item) === 'short'"
+                    [class.is-burst]="burstId() === item.id"
+                    [style.--tile-i]="i">
+                  <span class="sh-tile-orb" aria-hidden="true">
+                    @if (item.kind === 'consumable') {
+                      <app-boost-token class="sh-tile-token" [effect]="item.effect" [live]="stateOf(item) === 'equipped'" />
+                    } @else {
+                      <span class="sh-tile-glyph">{{ previewOf(item) }}</span>
+                    }
+                    <ng-container *ngTemplateOutlet="burst" />
                   </span>
-                }
-              </li>
+                  @if (stateOf(item) === 'short') {
+                    <span class="sh-tile-lock" aria-hidden="true">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="4" y="11" width="16" height="10" rx="2"></rect>
+                        <path d="M8 11V7a4 4 0 0 1 8 0v4"></path>
+                      </svg>
+                    </span>
+                  }
+
+                  <span class="sh-tile-label">{{ item.label }}</span>
+                  @if (item.kind === 'consumable') {
+                    <span class="sh-tile-desc">{{ item.description }}</span>
+                  }
+
+                  @if (stateOf(item) === 'equipped') {
+                    <span class="sh-tile-badge">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                      </svg>
+                      Equipped
+                    </span>
+                  } @else if (stateOf(item) === 'owned' && item.kind === 'consumable') {
+                    <!-- Possédé, pas équipé : le profil s'ouvre avec ce booster en
+                         main. Grisé quand tout est plein. -->
+                    <button class="sh-equip-btn" (click)="equipInProfile(item)" [disabled]="isFull()"
+                            [attr.title]="isFull() ? 'All slots are in use' : null"
+                            [attr.aria-label]="isFull() ? 'Equip ' + item.label + ', unavailable: all slots are in use' : 'Equip ' + item.label + ' in your profile'">
+                      Equip
+                    </button>
+                  } @else if (stateOf(item) === 'owned') {
+                    <span class="sh-tile-badge">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                      </svg>
+                      Owned
+                    </span>
+                  } @else if (signedIn()) {
+                    <button class="sh-buy-btn"
+                            [disabled]="!canAfford(item) || busyId() === item.id"
+                            (click)="confirm(item)"
+                            [attr.aria-label]="'Unlock ' + item.label + ' for ' + item.price + ' coins'">
+                      @if (busyId() === item.id) {
+                        <span class="sh-btn-spinner"></span>
+                      } @else {
+                        <span class="sh-coin" aria-hidden="true"></span>
+                        {{ item.price }}
+                      }
+                    </button>
+                  } @else {
+                    <span class="sh-tile-price">
+                      <span class="sh-coin sh-coin--muted" aria-hidden="true"></span>
+                      {{ item.price }}
+                    </span>
+                  }
+                </li>
+              }
             }
           </ul>
         </section>
@@ -232,6 +329,35 @@
           }
         </div>
       </div>
+    } @else if (pendingAnimation(); as a) {
+      <!-- Une animation : la carte la joue dès l'ouverture, c'est ce qu'on achète. -->
+      <div class="modal-card m-paper" role="dialog" aria-modal="true" aria-labelledby="sh-confirm-title"
+           (click)="$event.stopPropagation()">
+        <div class="m-tabs">
+          <span class="m-tab m-tab--gold">Shop</span>
+        </div>
+        <div class="m-ticket-body sh-confirm-body">
+          <button type="button" class="sh-confirm-orb sh-listen"
+                  [class.is-speak-a]="speakingOf(a.emoji) === 'a'"
+                  [class.is-speak-b]="speakingOf(a.emoji) === 'b'"
+                  (click)="listenEmoji(a.emoji, true)"
+                  [attr.aria-label]="'Play the animated ' + labelOf(a.emoji) + ' reaction'"
+                  title="Play">
+            <app-reaction-fx class="sh-confirm-fx" [emoji]="a.emoji" [cue]="cueOf(a.emoji)" />
+            <ng-container *ngTemplateOutlet="speaker" />
+          </button>
+          <h2 id="sh-confirm-title" class="sh-confirm-title">Animate {{ labelOf(a.emoji) }}</h2>
+          <p class="sh-confirm-effect">The same reaction, animated. Everyone at the table sees it move when you send it.</p>
+          <p class="sh-confirm-text">
+            Costs <span class="sh-coin" aria-hidden="true"></span><strong>{{ a.price }}</strong>
+            of your <span class="sh-coin" aria-hidden="true"></span><strong>{{ balance() }}</strong> coins.
+          </p>
+        </div>
+        <div class="m-ticket-stub sh-confirm-actions">
+          <button class="sh-btn sh-btn--ghost" (click)="cancel()">Cancel</button>
+          <button class="sh-btn sh-btn--primary" (click)="buy()">Animate</button>
+        </div>
+      </div>
     } @else if (pending(); as item) {
       <div class="modal-card m-paper" role="dialog" aria-modal="true" aria-labelledby="sh-confirm-title"
            (click)="$event.stopPropagation()">
@@ -239,9 +365,21 @@
           <span class="m-tab m-tab--gold">Shop</span>
         </div>
         <div class="m-ticket-body sh-confirm-body">
-          <span class="sh-confirm-orb" aria-hidden="true">
-            <span class="sh-confirm-glyph">{{ previewOf(item) }}</span>
-          </span>
+          @if (item.kind === 'emoji') {
+            <button type="button" class="sh-confirm-orb sh-listen"
+                    [class.is-speak-a]="speakingOf(item.emoji) === 'a'"
+                    [class.is-speak-b]="speakingOf(item.emoji) === 'b'"
+                    (click)="listenEmoji(item.emoji, false)"
+                    [attr.aria-label]="'Play the ' + item.label + ' sound'"
+                    title="Play sound">
+              <span class="sh-confirm-glyph" aria-hidden="true">{{ item.emoji }}</span>
+              <ng-container *ngTemplateOutlet="speaker" />
+            </button>
+          } @else {
+            <span class="sh-confirm-orb" aria-hidden="true">
+              <span class="sh-confirm-glyph">{{ previewOf(item) }}</span>
+            </span>
+          }
           <h2 id="sh-confirm-title" class="sh-confirm-title">Unlock {{ item.label }}</h2>
           <p class="sh-confirm-text">
             Costs <span class="sh-coin" aria-hidden="true"></span><strong>{{ item.price }}</strong>
@@ -256,3 +394,37 @@
     }
   </div>
 </div>
+
+<!-- Éclosion d'achat : anneau et étincelles, posés dans chaque hublot. -->
+<ng-template #burst>
+  <span class="sh-tile-ring" aria-hidden="true"></span>
+  <span class="sh-tile-sparks" aria-hidden="true">
+    @for (s of sparks; track s) {
+      <i [style.--s]="s"></i>
+    }
+  </span>
+</ng-template>
+
+<!-- Marque des réactions animées : une bille et ses traits de vitesse. -->
+<ng-template #motion>
+  <svg class="sh-motion" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true">
+    <circle cx="16" cy="12" r="5" fill="currentColor" stroke="none"></circle>
+    <path d="M2 8h7M1 12h8M3 16h6"></path>
+  </svg>
+</ng-template>
+
+<!-- Haut-parleur sur le bord d'un hublot de réaction : barré quand le son est
+     coupé, ondes battantes le temps de l'aperçu. -->
+<ng-template #speaker>
+  <span class="sh-sound" [class.is-off]="soundOff()" aria-hidden="true">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M11 5 6 9H2v6h4l5 4z" fill="currentColor"></path>
+      @if (soundOff()) {
+        <path d="m22 9-6 6M16 9l6 6"></path>
+      } @else {
+        <path class="sh-sound-wave" d="M15.5 8.5a5 5 0 0 1 0 7"></path>
+        <path class="sh-sound-wave sh-sound-wave--far" d="M19 5a10 10 0 0 1 0 14"></path>
+      }
+    </svg>
+  </span>
+</ng-template>

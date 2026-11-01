@@ -579,7 +579,15 @@ export class HomePage implements OnInit, OnDestroy, DoCheck {
   }
 
   async logout(): Promise<void> {
-    await this.auth.logout();
+    // GoogleSignIn.signOut() prend une à deux secondes en natif : sans cet
+    // état, le lien restait inerte et invitait à retaper.
+    if (this.signingOut) return;
+    this.signingOut = true;
+    try {
+      await this.auth.logout();
+    } finally {
+      this.signingOut = false;
+    }
   }
 
   resumeGame(): void {
@@ -619,6 +627,7 @@ export class HomePage implements OnInit, OnDestroy, DoCheck {
   workerPassword = "";
   workerLoginError = "";
   workerLoginLoading = false;
+  signingOut = false;
 
   onVersionTap(): void {
     this.workerVersionTaps++;

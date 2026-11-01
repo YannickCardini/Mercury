@@ -19,6 +19,9 @@ const REACTION_SOUND_KEY: Record<ReactionEmoji, string> = {
   '😉': 'emoji_wink',
   '😘': 'emoji_kissing',
   '😊': 'emoji_smile',
+  '🎉': 'emoji_party',
+  '💥': 'emoji_boom',
+  '🎺': 'emoji_trombone',
 };
 
 @Injectable({ providedIn: 'root' })
@@ -88,6 +91,10 @@ export class SoundService {
       { key: 'emoji_wink', url: 'assets/sounds/emojis/wink.mp3' },
       { key: 'emoji_kissing', url: 'assets/sounds/emojis/kissing.mp3' },
       { key: 'emoji_smile', url: 'assets/sounds/emojis/smile.mp3' },
+      // Synthesized by resources/sounds/generate-emoji-sounds.py.
+      { key: 'emoji_party', url: 'assets/sounds/emojis/party.mp3' },
+      { key: 'emoji_boom', url: 'assets/sounds/emojis/boom.mp3' },
+      { key: 'emoji_trombone', url: 'assets/sounds/emojis/trombone.mp3' },
     ];
 
     for (const { key, url } of assets) {
@@ -116,14 +123,18 @@ export class SoundService {
   }
 
   private playBuffer(key: string, when = 0): boolean {
+    return this.startBuffer(key, when) !== null;
+  }
+
+  private startBuffer(key: string, when = 0): AudioBufferSourceNode | null {
     const buffer = this.buffers.get(key);
-    if (!buffer) return false;
+    if (!buffer) return null;
     const ctx = this.getCtx();
     const source = ctx.createBufferSource();
     source.buffer = buffer;
     source.connect(ctx.destination);
     source.start(when);
-    return true;
+    return source;
   }
 
   /** Short, low thud — heavy marble rolling. */
@@ -468,6 +479,30 @@ export class SoundService {
     if (this.silenced()) return;
     const key = REACTION_SOUND_KEY[emoji];
     if (key) this.playBuffer(key);
+  }
+
+  private previewSource: AudioBufferSourceNode | null = null;
+
+  /**
+   * Shop preview of a reaction: a new preview cuts the previous one, so quick
+   * taps along the grid never pile up. Returns the sample length in ms, or 0
+   * when nothing played (muted, or the sample is not loaded yet).
+   */
+  previewReaction(emoji: ReactionEmoji): number {
+    this.stopPreview();
+    if (this.silenced()) return 0;
+    const source = this.startBuffer(REACTION_SOUND_KEY[emoji]);
+    if (!source) return 0;
+    this.previewSource = source;
+    source.onended = () => {
+      if (this.previewSource === source) this.previewSource = null;
+    };
+    return Math.round(source.buffer!.duration * 1000);
+  }
+
+  stopPreview(): void {
+    this.previewSource?.stop();
+    this.previewSource = null;
   }
 
   /**

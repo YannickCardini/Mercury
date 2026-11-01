@@ -41,11 +41,20 @@
 
 <div #floatsLayer class="emoji-floats" aria-hidden="true">
   @for (f of floating(); track f.id) {
+  @if (f.animated) {
+  <span
+    class="emoji-float emoji-float--fx"
+    [style.left.px]="f.x"
+    [style.top.px]="f.y">
+    <app-reaction-fx [emoji]="f.emoji" [autoplay]="true" />
+  </span>
+  } @else {
   <span
     class="emoji-float"
     [style.left.px]="f.x"
     [style.top.px]="f.y">
     {{ f.emoji }}
   </span>
+  }
   }
 </div>

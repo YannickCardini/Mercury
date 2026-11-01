@@ -7,7 +7,7 @@ import { getLegalAction, findLegalMoveForCard, getLegalSplit7Action, MAIN_PATH, 
 import { MultiWsMessenger, type GameMessenger } from './game-messenger.js';
 import { GameRegistry } from '../session/game-registry.js';
 import { isBotUserId } from '../session/bot-dispatch.js';
-import { botLoadout } from '../session/bot-persona.js';
+import { botAnimatesReaction, botLoadout } from '../session/bot-persona.js';
 import { updateUserPoints, recomputeRankings, getUserPointsAndRanking, applyCoinDelta, takeGameBoosts } from '../db.js';
 import { computeEndGamePointsDeltas } from './points.js';
 import { computeCoinParts, computeWinCoins, emptyTally, type SeatTally } from './coins.js';
@@ -29,7 +29,8 @@ import {
     computeMinAnimationDuration,
     countArrivedMarbles,
     SQUARES_TO_DISPLAY,
-    emojiItemId,
+    isEmojiAnimated,
+    isEmojiUnlocked,
     isFreeEmoji,
     boostMultiplier,
     getConsumable,
@@ -840,28 +841,29 @@ export class Game {
         if (now - last < REACTION_COOLDOWN_MS) return;
         this.lastReactionAt.set(author, now);
 
-        // Palette historique : accessible à tous, invités compris.
-        if (isFreeEmoji(emoji)) {
-            this.broadcastReaction(author, emoji, now);
-            return;
-        }
-
-        // Emoji de boutique : il faut un compte qui le possède. Les invités
-        // (pas de userId) n'y ont pas accès. Un agent IA n'a pas d'inventaire :
-        // c'est l'agent qui restreint chaque bot à sa propre panoplie (personas
-        // du projet ia), pour que certains « possèdent » des emojis et d'autres non.
+        // Invité (pas de userId) : la palette historique seule, jamais animée.
         const player = this.players.find(p => p.color === author);
         const userId = player?.userId;
-        const itemId = emojiItemId(emoji);
-        if (!player || !userId || itemId === undefined) return;
-        if (this.isBotSeat(player)) {
-            this.broadcastReaction(author, emoji, now);
+        const free = isFreeEmoji(emoji);
+        if (!player || !userId) {
+            if (free) this.broadcastReaction(author, emoji, now, false);
             return;
         }
 
+        // Un agent IA n'a pas d'inventaire : c'est l'agent qui restreint chaque
+        // bot à sa propre panoplie (personas du projet ia), pour que certains
+        // « possèdent » des emojis et d'autres non. Ses animations sont tirées
+        // de son id, comme son équipement.
+        if (this.isBotSeat(player)) {
+            this.broadcastReaction(author, emoji, now, botAnimatesReaction(userId, emoji));
+            return;
+        }
+
+        // Un compte : l'inventaire décide de la réaction (emoji de boutique) et
+        // de son animation, emojis gratuits compris.
         const owned = peekOwnedItems(userId);
         if (owned) {
-            if (owned.has(itemId)) this.broadcastReaction(author, emoji, now);
+            if (isEmojiUnlocked(emoji, owned)) this.broadcastReaction(author, emoji, now, isEmojiAnimated(emoji, owned));
             return;
         }
 
@@ -870,13 +872,17 @@ export class Game {
         void loadOwnedItems(userId)
             .then(items => {
                 if (this.gameFinished || this.aborted) return;
-                if (items.has(itemId)) this.broadcastReaction(author, emoji, Date.now());
+                if (isEmojiUnlocked(emoji, items)) this.broadcastReaction(author, emoji, Date.now(), isEmojiAnimated(emoji, items));
             })
-            .catch(err => console.error(`❌ Failed to check entitlements for ${userId}:`, err));
+            .catch(err => {
+                console.error(`❌ Failed to check entitlements for ${userId}:`, err);
+                // Une lecture ratée ne retire à personne la palette historique.
+                if (free && !this.gameFinished && !this.aborted) this.broadcastReaction(author, emoji, Date.now(), false);
+            });
     }
 
-    private broadcastReaction(author: MarbleColor, emoji: ReactionEmoji, timestamp: number): void {
-        this.messenger.send({ type: 'reactionBroadcast', author, emoji, timestamp });
+    private broadcastReaction(author: MarbleColor, emoji: ReactionEmoji, timestamp: number, animated: boolean): void {
+        this.messenger.send({ type: 'reactionBroadcast', author, emoji, timestamp, ...(animated ? { animated: true } : {}) });
     }
 
     // ─── Pause debug : édition du plateau ────────────────────────────────────
