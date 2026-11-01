@@ -99,7 +99,7 @@ test('prix particuliers : ⏰ à 60, 🦧 à 80', () => {
 });
 
 test('animations : une par réaction de la palette', () => {
-    const animated = SHOP_CATALOG.filter(isAnimation).map(item => item.emoji);
+    const animated = SHOP_CATALOG.flatMap(item => (isAnimation(item) ? [item.emoji] : []));
     assert.deepEqual(animated, [...REACTION_EMOJIS]);
     for (const emoji of REACTION_EMOJIS) assert.ok(animationItemId(emoji), emoji);
 });
